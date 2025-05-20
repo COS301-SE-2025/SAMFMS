@@ -1,0 +1,49 @@
+version: '3.9'
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+  mcore:
+    build: ./Core
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./Core:/app
+    ports:
+      - '8000:8000'
+    depends_on:
+      - rabbitmq
+  gps_sblock:
+    build: ./GPS_Sblock
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./GPS_Sblock:/app
+    ports:
+      - '8001:8000'
+    depends_on:
+      - rabbitmq
+  maintainence_sblock:
+    build: ./Maintainence_Sblock
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./Maintainence_Sblock:/app
+    ports:
+      - '8002:8000'
+    depends_on:
+      - rabbitmq
+  trip_planning_sblock:
+    build: ./Trip_Planning_Sblock
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./Trip_Planning_Sblock:/app
+    ports:
+      - '8003:8000'
+    depends_on:
+      - rabbitmq
+  frontend:
+    build: ./Frontend/samfms
+    ports:
+      - '3000:3000'
+    depends_on:
+      - mcore
