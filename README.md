@@ -8,7 +8,7 @@
 ## 📚 Documentation  
 | Resource | Link |
 |----------|------|
-| 📄 SRS Document | [Requirements](https://github.com/COS301-SE-2025/MP1/blob/dev/Documentation/Requirements/Requirements.md) |
+| 📄 SRS Document | [Requirements](srs-link) |
 | 📊 Project Board | [Project Board](link-to-project-board)
 
 ---
