@@ -34,3 +34,11 @@ This is the Maintenance Sblock Django service.
    ```
 
 The service will be available at [http://localhost:8002](http://localhost:8002)
+
+## Linting
+
+To check the code for style and errors, run:
+
+```powershell
+flake8 .
+```

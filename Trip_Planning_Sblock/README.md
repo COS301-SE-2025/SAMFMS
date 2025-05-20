@@ -34,3 +34,11 @@ This is the Trip Planning Sblock Django service.
    ```
 
 The service will be available at [http://localhost:8003](http://localhost:8003)
+
+## Linting
+
+To check the code for style and errors, run:
+
+```powershell
+flake8 .
+```

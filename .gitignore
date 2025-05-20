@@ -22,3 +22,21 @@ yarn-debug.log*
 .vscode/
 .idea/
 *.swp
+.eslintcache
+
+# Python specific
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*venv/
+*/.venv/
+*.db
+*.sqlite3
+.pytest_cache/
+.hypothesis/
+htmlcov/
+# Django media files (if you have a media directory for user uploads)
+# media/
+# Django collected static files (if you collect them to a non-standard directory not already ignored)
+# collected_static/
