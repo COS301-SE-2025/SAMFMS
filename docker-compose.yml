@@ -1,4 +1,3 @@
-version: '3.9'
 services:
   rabbitmq:
     image: rabbitmq:3-management
@@ -7,36 +6,36 @@ services:
       - '15672:15672'
   mcore:
     build: ./Core
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    command: sh -c "pip install -r requirements.txt && python main.py"
     volumes:
       - ./Core:/app
     ports:
       - '8000:8000'
     depends_on:
       - rabbitmq
-  gps_sblock:
-    build: ./GPS_Sblock
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+  gps_service:
+    build: ./Sblocks/gps
+    command: sh -c "uvicorn main:app --host 0.0.0.0 --port 8000"
     volumes:
-      - ./GPS_Sblock:/app
+      - ./Sblocks/gps:/app
     ports:
       - '8001:8000'
     depends_on:
       - rabbitmq
-  maintainence_sblock:
-    build: ./Maintainence_Sblock
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+  trip_planning_service:
+    build: ./Sblocks/trip_planning
+    command: sh -c "uvicorn main:app --host 0.0.0.0 --port 8000"
     volumes:
-      - ./Maintainence_Sblock:/app
+      - ./Sblocks/trip_planning:/app
     ports:
       - '8002:8000'
     depends_on:
       - rabbitmq
-  trip_planning_sblock:
-    build: ./Trip_Planning_Sblock
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+  vehicle_maintenance_service:
+    build: ./Sblocks/vehicle_maintainence
+    command: sh -c "uvicorn main:app --host 0.0.0.0 --port 8000"
     volumes:
-      - ./Trip_Planning_Sblock:/app
+      - ./Sblocks/vehicle_maintainence:/app
     ports:
       - '8003:8000'
     depends_on:
