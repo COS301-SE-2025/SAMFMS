@@ -1,0 +1,8 @@
+[flake8]
+ignore = E501, W503
+max-line-length = 88
+exclude = .git,__pycache__,migrations,venv,.venv,settings.py
+# settings.py is often excluded due to long lines in SECRET_KEY or other auto-generated content.
+# Adjust as needed.
+count = True
+statistics = True
