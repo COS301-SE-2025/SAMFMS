@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from '../components/ui/button';
+import ColorPalette from '../components/ColorPalette';
 
 const Dashboard = () => {
   return (
@@ -30,8 +31,12 @@ const Dashboard = () => {
           title="Driver Status"
           content="12 drivers available"
           footer="Manage drivers"
-        />
+        />{' '}
         <DashboardCard title="Analytics" content="Fleet efficiency up 3%" footer="View analytics" />
+      </div>
+
+      <div className="mt-12 border-t border-border pt-8">
+        <ColorPalette />
       </div>
     </div>
   );

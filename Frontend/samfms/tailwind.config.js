@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: ['./src/**/*.{js,jsx,ts,tsx}', './public/index.html'],
   theme: {
     container: {
@@ -19,6 +20,16 @@ module.exports = {
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
+          50: '#daeaf7',
+          100: '#c5e0f5',
+          200: '#a1cded',
+          300: '#7db9e5',
+          400: '#4fa5d8',
+          500: '#2A91CD',
+          600: '#1178b9',
+          700: '#0855b1',
+          800: '#010e54',
+          900: '#00022b',
         },
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
