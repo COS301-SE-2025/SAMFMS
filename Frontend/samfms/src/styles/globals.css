@@ -4,65 +4,66 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Light mode - using our blue palette */
+    --background: 204 80% 98%; /* Light blue background (similar to #daeaf7) */
+    --foreground: 240 80% 8%; /* Very dark blue text (similar to #00022b) */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%; /* White card background */
+    --card-foreground: 240 80% 8%; /* Very dark blue text on cards */
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 240 80% 8%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 210 80% 35%; /* Medium blue as primary (similar to #0855b1) */
+    --primary-foreground: 0 0% 100%; /* White text on primary buttons */
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 204 65% 90%; /* Light blue for secondary elements (lighter than #daeaf7) */
+    --secondary-foreground: 240 80% 20%; /* Dark blue text on secondary elements */
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 204 60% 96%; /* Very light blue for muted areas */
+    --muted-foreground: 214 20% 46%; /* Medium gray-blue for muted text */
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 204 80% 93%; /* Slightly more saturated light blue for accent */
+    --accent-foreground: 240 80% 20%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84% 60%; /* Keep red for destructive actions */
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 204 70% 90%; /* Light blue border */
+    --input: 204 70% 90%; /* Light blue input borders */
+    --ring: 210 80% 35%; /* Medium blue for focus rings */
 
     --radius: 0.5rem;
   }
-
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Dark mode - using darker shades from our blue palette */
+    --background: 240 80% 8%; /* Very dark blue background (#00022b) */
+    --foreground: 204 80% 95%; /* Very light blue text (lighter than #daeaf7) */
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 240 70% 12%; /* Slightly lighter dark blue for cards */
+    --card-foreground: 204 80% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 240 80% 8%;
+    --popover-foreground: 204 80% 95%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 210 85% 42%; /* Medium-bright blue as primary (#0855b1) */
+    --primary-foreground: 0 0% 100%; /* White text on primary buttons */
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 240 50% 20%; /* Dark blue for secondary elements */
+    --secondary-foreground: 204 80% 95%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 240 50% 15%; /* Dark blue-gray for muted areas */
+    --muted-foreground: 204 40% 80%; /* Light blue-gray for muted text */
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 240 50% 25%; /* Slightly brighter dark blue for accents */
+    --accent-foreground: 204 80% 95%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 70% 40%; /* Darker red for destructive actions */
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 240 50% 18%; /* Dark blue border */
+    --input: 240 50% 18%; /* Dark blue input */
+    --ring: 204 70% 50%; /* Medium blue for focus rings */
   }
 }
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
+import ThemeToggle from './ThemeToggle';
 
 const Layout = () => {
   const location = useLocation();
@@ -32,8 +33,9 @@ const Layout = () => {
               <NavLink to="/account" isActive={isActive('/account')}>
                 Account
               </NavLink>
-            </div>
-            <div>
+            </div>{' '}
+            <div className="flex items-center space-x-2">
+              <ThemeToggle />
               <Button variant="outline" size="sm" asChild>
                 <Link to="/login">Login</Link>
               </Button>
