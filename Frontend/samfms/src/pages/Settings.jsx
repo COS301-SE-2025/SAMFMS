@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from '../components/ui/button';
+import ThemeToggle from '../components/ThemeToggle';
 
 const Settings = () => {
   return (
@@ -10,28 +11,54 @@ const Settings = () => {
       </header>
 
       <div className="grid grid-cols-1 gap-8">
-        <SettingsSection
-          title="Appearance"
-          description="Customize how SAMFMS looks and feels"
-          options={[
-            {
-              id: 'theme',
-              label: 'Theme',
-              value: 'Light',
-              type: 'select',
-              choices: ['Light', 'Dark', 'System'],
-            },
-            {
-              id: 'density',
-              label: 'Density',
-              value: 'Comfortable',
-              type: 'select',
-              choices: ['Comfortable', 'Compact'],
-            },
-            { id: 'animations', label: 'Animations', value: true, type: 'toggle' },
-          ]}
-        />
+        {' '}
+        <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+          <h2 className="text-xl font-semibold mb-2">Appearance</h2>
+          <p className="text-muted-foreground mb-6">Customize how SAMFMS looks and feels</p>
 
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <label htmlFor="theme" className="block text-sm font-medium">
+                  Theme
+                </label>
+                <p className="text-sm text-muted-foreground">Switch between light and dark mode</p>
+              </div>
+              <ThemeToggle />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <label htmlFor="density" className="block text-sm font-medium">
+                  Density
+                </label>
+                <p className="text-sm text-muted-foreground">
+                  Control the density of the UI elements
+                </p>
+              </div>
+              <select
+                id="density"
+                className="bg-background border border-input rounded-md px-3 py-1"
+              >
+                <option>Comfortable</option>
+                <option>Compact</option>
+              </select>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <label htmlFor="animations" className="block text-sm font-medium">
+                  Animations
+                </label>
+                <p className="text-sm text-muted-foreground">Enable or disable UI animations</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" value="" className="sr-only peer" defaultChecked />
+                <div className="w-11 h-6 bg-muted rounded-full peer peer-checked:bg-primary"></div>
+              </label>
+            </div>
+          </div>
+        </div>
         <SettingsSection
           title="Notifications"
           description="Manage your notification preferences"
@@ -48,7 +75,6 @@ const Settings = () => {
             },
           ]}
         />
-
         <SettingsSection
           title="Regional"
           description="Configure regional settings"
@@ -95,7 +121,6 @@ const Settings = () => {
             },
           ]}
         />
-
         <SettingsSection
           title="Privacy & Security"
           description="Manage your privacy and security settings"
