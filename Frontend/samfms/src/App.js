@@ -1,5 +1,6 @@
 import logo from './logo.svg';
 import './App.css';
+import { Button } from './components/ui/button';
 
 function App() {
   return (
@@ -9,6 +10,14 @@ function App() {
         <p>
           Edit <code>src/App.js</code> and save to reload.
         </p>
+        <div className="flex flex-col gap-4">
+          <Button variant="default">Default Button</Button>
+          <Button variant="destructive">Destructive Button</Button>
+          <Button variant="outline">Outline Button</Button>
+          <Button variant="secondary">Secondary Button</Button>
+          <Button variant="ghost">Ghost Button</Button>
+          <Button variant="link">Link Button</Button>
+        </div>
         <a
           className="App-link"
           href="https://reactjs.org"
