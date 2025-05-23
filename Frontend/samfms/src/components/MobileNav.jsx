@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTheme } from '../contexts/ThemeContext';
 import {
   Menu,
   X,
@@ -19,6 +20,7 @@ import { cn } from '../lib/utils';
 const MobileNav = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { theme } = useTheme();
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: <Home size={20} /> },
     { path: '/vehicles', label: 'Vehicles', icon: <Car size={20} /> },
@@ -60,11 +62,19 @@ const MobileNav = () => {
             className="fixed inset-0 bg-background/80 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
           />
-
-          {/* Navigation panel */}
+          {/* Navigation panel */}{' '}
           <div className="fixed inset-y-0 left-0 w-3/4 max-w-xs bg-card border-r border-border shadow-lg">
             <div className="flex items-center justify-between p-4 border-b border-border">
-              <span className="font-bold text-xl">SAMFMS</span>
+              {' '}
+              <img
+                src={
+                  theme === 'dark'
+                    ? '/logo/logo_horisontal_dark.png'
+                    : '/logo/logo_horisontal_light.png'
+                }
+                alt="SAMFMS Logo"
+                className="h-8"
+              />
               <Button variant="ghost" size="sm" onClick={toggleNav} aria-label="Close navigation">
                 <X size={20} />
               </Button>
