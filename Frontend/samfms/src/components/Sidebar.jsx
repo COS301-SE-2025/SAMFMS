@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../lib/utils';
+import { useTheme } from '../contexts/ThemeContext';
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,6 +20,7 @@ import { Button } from './ui/button';
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { theme } = useTheme();
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: <Home size={20} /> },
     { path: '/vehicles', label: 'Vehicles', icon: <Car size={20} /> },
@@ -47,9 +49,30 @@ const Sidebar = () => {
         collapsed ? 'w-16' : 'w-64'
       )}
     >
+      {' '}
       {/* Sidebar header */}
       <div className="p-4 flex items-center justify-between border-b border-border">
-        {!collapsed && <span className="font-bold text-xl">SAMFMS</span>}
+        {!collapsed && (
+          <div className="flex items-center">
+            {' '}
+            <img
+              src={
+                theme === 'dark'
+                  ? '/logo/logo_horisontal_dark.png'
+                  : '/logo/logo_horisontal_light.png'
+              }
+              alt="SAMFMS Logo"
+              className="h-8"
+            />
+          </div>
+        )}
+        {collapsed && (
+          <img
+            src={theme === 'dark' ? '/logo/logo_icon_dark.png' : '/logo/logo_icon_light.png'}
+            alt="SAMFMS Icon"
+            className="h-8 mx-auto"
+          />
+        )}
         <Button
           variant="ghost"
           size="sm"
@@ -60,7 +83,6 @@ const Sidebar = () => {
           {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </Button>
       </div>
-
       {/* Navigation links */}
       <nav className="flex-1 py-4">
         <ul className="space-y-1 px-2">
@@ -83,7 +105,6 @@ const Sidebar = () => {
           ))}
         </ul>
       </nav>
-
       {/* Sidebar footer */}
       <div className="p-4 border-t border-border">
         {!collapsed && <div className="text-xs text-muted-foreground">Fleet Management System</div>}
