@@ -2,6 +2,8 @@ import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
 import ThemeToggle from './ThemeToggle';
+import Sidebar from './Sidebar';
+import MobileNav from './MobileNav';
 
 const Layout = () => {
   const location = useLocation();
@@ -16,24 +18,32 @@ const Layout = () => {
       {/* Navigation bar */}
       <nav className="bg-card shadow-md border-b border-border">
         <div className="container mx-auto px-4 py-3">
+          {' '}
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-2">
-              <span className="text-2xl font-bold">SAMFMS</span>
-            </div>
+              <MobileNav />
+              <span className="text-2xl font-bold md:hidden">SAMFMS</span>
+            </div>{' '}
             <div className="hidden md:flex space-x-1">
               <NavLink to="/dashboard" isActive={isActive('/dashboard')}>
                 Dashboard
               </NavLink>
-              <NavLink to="/plugins" isActive={isActive('/plugins')}>
-                Plugins
+              <NavLink to="/vehicles" isActive={isActive('/vehicles')}>
+                Vehicles
               </NavLink>
-              <NavLink to="/settings" isActive={isActive('/settings')}>
-                Settings
+              <NavLink to="/drivers" isActive={isActive('/drivers')}>
+                Drivers
               </NavLink>
-              <NavLink to="/account" isActive={isActive('/account')}>
-                Account
+              <NavLink to="/tracking" isActive={isActive('/tracking')}>
+                Tracking
               </NavLink>
-            </div>{' '}
+              <NavLink to="/trips" isActive={isActive('/trips')}>
+                Trips
+              </NavLink>
+              <NavLink to="/maintenance" isActive={isActive('/maintenance')}>
+                Maintenance
+              </NavLink>
+            </div>
             <div className="flex items-center space-x-2">
               <ThemeToggle />
               <Button variant="outline" size="sm" asChild>
@@ -42,13 +52,17 @@ const Layout = () => {
             </div>
           </div>
         </div>
-      </nav>
-
-      {/* Main content area */}
-      <main className="flex-grow bg-background">
-        <Outlet />
-      </main>
-
+      </nav>{' '}
+      {/* Main content area with sidebar */}{' '}
+      <div className="flex flex-grow bg-background">
+        {/* Sidebar - hidden on mobile screens */}
+        <div className="hidden md:block">
+          <Sidebar />
+        </div>
+        <main className="flex-grow p-6">
+          <Outlet />
+        </main>
+      </div>
       {/* Footer */}
       <footer className="bg-card shadow-inner border-t border-border py-4">
         <div className="container mx-auto px-4">
