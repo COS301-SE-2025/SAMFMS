@@ -6,9 +6,7 @@ services:
       - '15672:15672'
 
   mcore:
-    build:
-      context: .                             
-      dockerfile: infrastructure/docker/core.Dockerfile
+    build:  ./Core
     command: sh /app/start.sh
     volumes:
       - ./app:/app
