@@ -57,6 +57,8 @@ Here’s our awesome team behind **Firewall Five**:
 ## 🛠️ Project Features
 ### 💻 **Technologies Used**:
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
+![Python](https://img.shields.io/github/pipenv/locked/python-version/:user/:repo)
+
 
 **Key Components**:  
 
