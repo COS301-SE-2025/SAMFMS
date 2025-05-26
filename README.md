@@ -35,7 +35,7 @@ Here’s our awesome team behind **Firewall Five**:
       <td style="font-size: 18px;">Mr. Stefan Jansen van Rensburg</td>
       <td style="font-size: 18px;">u22550055</td>
       <td><a href="https://linkedin.com/in/stefan-JvR" style="font-size: 18px;">@Stefan Jansen van Rensburg</a></td>
-      <td style="font-size: 18px;"><strong>Team lead/ Project manager.</strong>, management of <strong>CI\CD</strong> , Worked on <strong>Daemon.</strong> // Features: storage, CRUD operations, reading and writing files, server creation and user management</td>
+      <td style="font-size: 18px;"><strong>Team lead/ Project manager.</strong</td>
     </tr>
   </tbody>
 </table>
@@ -70,12 +70,12 @@ Here’s our awesome team behind **Firewall Five**:
 **Key Components**:  
 
   1. **🔧 MCORE**  
-   - Manages NoSQL database operations, storage, and real-time events  
-   - Implements all CRUD operations  
-   - Directly interacts with the storage system (reading/writing files)
+   - Manages the Fleet Management System
+   - Allows adding and removing vehicles and users
+   - Facilitates communication between SBlocks and sends information to the UI
 
 2. **🌐 SBlocks**  
-   - Exposes endpoints for CRUD operations, authentication, and event subscriptions
+   - Perform most analytical tasks and add functionality to the system as plugins
 
 3. **🖼️ UI**  
-   - Web-based interface for visual database management
+   - Web-based interface for visual fleet management
