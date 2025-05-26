@@ -1,33 +1,49 @@
-import logo from './logo.svg';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
-import { Button } from './components/ui/button';
+import 'leaflet/dist/leaflet.css';
+
+// Import layout and contexts
+import Layout from './components/Layout';
+import ThemeProvider from './contexts/ThemeContext';
+
+// Import pages
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import Dashboard from './pages/Dashboard';
+import Account from './pages/Account';
+import Settings from './pages/Settings';
+import Plugins from './pages/Plugins';
+import Vehicles from './pages/Vehicles';
+import Drivers from './pages/Drivers';
+import Tracking from './pages/Tracking';
+import Trips from './pages/Trips';
+import Maintenance from './pages/Maintenance';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <div className="flex flex-col gap-4">
-          <Button variant="default">Default Button</Button>
-          <Button variant="destructive">Destructive Button</Button>
-          <Button variant="outline">Outline Button</Button>
-          <Button variant="secondary">Secondary Button</Button>
-          <Button variant="ghost">Ghost Button</Button>
-          <Button variant="link">Link Button</Button>
-        </div>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <ThemeProvider>
+      <Router>
+        <Routes>
+          {/* Authentication routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+
+          {/* Protected routes inside Layout */}
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/vehicles" element={<Vehicles />} />
+            <Route path="/drivers" element={<Drivers />} />
+            <Route path="/tracking" element={<Tracking />} />
+            <Route path="/trips" element={<Trips />} />
+            <Route path="/maintenance" element={<Maintenance />} />
+            <Route path="/account" element={<Account />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/plugins" element={<Plugins />} />
+          </Route>
+        </Routes>
+      </Router>
+    </ThemeProvider>
   );
 }
 
