@@ -3,18 +3,18 @@
   "name": "Smart Fleet Management System",
   "icons": [
     {
-      "src": "logo/logo_icon_dark.png",
+      "src": "logo/logo_icon_dark.svg",
       "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/png"
+      "type": "image/svg"
     },
     {
-      "src": "logo/logo_icon_dark.png",
-      "type": "image/png",
+      "src": "logo/logo_icon_dark.svg",
+      "type": "image/svg",
       "sizes": "192x192"
     },
     {
-      "src": "logo/logo_dark.png",
-      "type": "image/png",
+      "src": "logo/logo_dark.svg",
+      "type": "image/svg",
       "sizes": "512x512"
     }
   ],

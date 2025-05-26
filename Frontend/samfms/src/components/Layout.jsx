@@ -3,7 +3,6 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 import UserComponent from './UserComponent';
-import { useTheme } from '../contexts/ThemeContext';
 
 const Layout = () => {
   const location = useLocation();
