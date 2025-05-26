@@ -58,8 +58,8 @@ const Sidebar = () => {
             <img
               src={
                 theme === 'dark'
-                  ? '/logo/logo_horisontal_dark.png'
-                  : '/logo/logo_horisontal_light.png'
+                  ? '/logo/logo_horisontal_dark.svg'
+                  : '/logo/logo_horisontal_light.svg'
               }
               alt="SAMFMS Logo"
               className="h-8"
@@ -68,7 +68,7 @@ const Sidebar = () => {
         )}
         {collapsed && (
           <img
-            src={theme === 'dark' ? '/logo/logo_icon_dark.png' : '/logo/logo_icon_light.png'}
+            src={theme === 'dark' ? '/logo/logo_icon_dark.svg' : '/logo/logo_icon_light.svg'}
             alt="SAMFMS Icon"
             className="h-8 mx-auto"
           />
