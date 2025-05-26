@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, UserCog, Car, CalendarClock, FileText } from 'lucide-react';
+import { X, UserCog, Car, FileText } from 'lucide-react';
 import StatusBadge from '../vehicles/StatusBadge';
 
 const DriverDetailsModal = ({ driver, closeDriverDetails, openVehicleAssignmentModal }) => {
