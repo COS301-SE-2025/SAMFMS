@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './styles/globals.css';
+import './index.css'; // Import the Tailwind CSS base file
+import './styles/globals.css'; // Import our custom global styles
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
