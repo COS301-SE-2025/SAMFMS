@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
+import 'leaflet/dist/leaflet.css';
 
 // Import layout and contexts
 import Layout from './components/Layout';
