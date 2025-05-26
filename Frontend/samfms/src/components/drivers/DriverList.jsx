@@ -1,5 +1,4 @@
 import React from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
 import StatusBadge from '../vehicles/StatusBadge';
 import Pagination from '../vehicles/Pagination';
 import SortableHeader from '../vehicles/SortableHeader';
