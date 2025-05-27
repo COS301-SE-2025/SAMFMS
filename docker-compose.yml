@@ -4,46 +4,51 @@ services:
     ports:
       - '5672:5672'
       - '15672:15672'
+
   mcore:
-    build: ./Core
-    command: sh /app/start.sh # Changed to execute the start.sh script
+    build:  ./Core
+    command: sh /app/start.sh
     volumes:
-      - ./Core:/app
+      - ./app:/app
     ports:
       - '8000:8000'
-      - '27017:27017' # Exposed MongoDB port
+      - '27017:27017'
     depends_on:
       - rabbitmq
+
   gps_service:
     build: ./Sblocks/gps
-    command: sh /app/start.sh # Changed to execute the start.sh script
+    command: sh /app/start.sh
     volumes:
       - ./Sblocks/gps:/app
     ports:
       - '8001:8000'
-      - '27018:27017' # Exposed MongoDB port for GPS
+      - '27018:27017'
     depends_on:
       - rabbitmq
+
   trip_planning_service:
     build: ./Sblocks/trip_planning
-    command: sh /app/start.sh # Changed to execute the start.sh script
+    command: sh /app/start.sh
     volumes:
       - ./Sblocks/trip_planning:/app
     ports:
       - '8002:8000'
-      - '27019:27017' # Exposed MongoDB port for Trip Planning
+      - '27019:27017'
     depends_on:
       - rabbitmq
+
   vehicle_maintenance_service:
     build: ./Sblocks/vehicle_maintainence
-    command: sh /app/start.sh # Changed to execute the start.sh script
+    command: sh /app/start.sh
     volumes:
       - ./Sblocks/vehicle_maintainence:/app
     ports:
       - '8003:8000'
-      - '27020:27017' # Exposed MongoDB port for Vehicle Maintenance
+      - '27020:27017'
     depends_on:
       - rabbitmq
+
   frontend:
     build: ./Frontend/samfms
     ports:

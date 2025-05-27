@@ -1,33 +1,40 @@
 from fastapi import FastAPI, HTTPException
-from models import UserModel
 from motor.motor_asyncio import AsyncIOMotorClient
-from bson import ObjectId
 import uvicorn
+from routes import user
+from routes import auth
+from rabbitmq import producer, consumer
+from rabbitmq import admin
+from rabbitmq import producer, consumer
+
+
+from database import db
 
 app = FastAPI()
 
-@app.post("/users/", response_model=UserModel)
-async def create_user(user: UserModel):
-    user_dict = user.model_dump(by_alias=True)
-    result = await users_collection.insert_one(user_dict)
-    user_dict["_id"] = result.inserted_id
-    return user_dict
+app.include_router(user.router)
+app.include_router(auth.router)
 
-@app.get("/users/{id}", response_model=UserModel)
-async def get_user(id: str):
-    if (user := await users_collection.find_one({"_id": ObjectId(id)})) is not None:
-        return user
-    raise HTTPException(status_code=404, detail="User not found")
-
-@app.get("/test-db")
-async def test_db_connection():
-    try:
-        collections = await db.list_collection_names()
-        return {"status": "success", "collections": collections}
-    except Exception as e:
-        return {"status": "error", "detail": str(e)}
+admin.broadcast_topics()
 
 
+@app.lifespan("startup")
+async def startup_event():
+    import asyncio
+    asyncio.create_task(consumer.consume_messages("user_events"))
+
+@app.post("/send/")
+async def send_message(data: dict):
+    await producer.publish_message("user_events", data)
+    return {"status": "message sent"}
+
+
+#await producer.publish_message("user.created", {"id": 1, "name": "Alice"})
+
+
+
+
+#####################################################################################################################
 client = AsyncIOMotorClient("mongodb://localhost:27017")
 db = client.mcore
 users_collection = db.users
