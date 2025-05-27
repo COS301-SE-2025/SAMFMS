@@ -41,7 +41,7 @@ Here’s our awesome team behind **Firewall Five**:
       <td><img src="https://github.com/22590732.png" width="80"></td>
       <td><a href="https://github.com/22590732" style="font-size: 18px;">@22590732</a></td>
       <td style="font-size: 18px;">Mr Johan Jansen van Rensburg</td>
-      <td style="font-size: 18px;">22590732</td>
+      <td style="font-size: 18px;">u22590732</td>
       <td><a href="https://www.linkedin.com/in/nicolaas-jansen-van-rensburg-202629363/" style="font-size: 18px;">@Johan Jansen van Rensburg</a></td>
       <td style="font-size: 18px;">
         <strong>UI Engineer, Designer, Services Engineer.</strong>
@@ -52,9 +52,17 @@ Here’s our awesome team behind **Firewall Five**:
       <td><img src="https://github.com/Laird-G.png" width="80"></td>
       <td><a href="https://github.com/Laird-G" style="font-size: 18px;">@Laird-G</a></td>
       <td style="font-size: 18px;">Mr. Laird Glanville</td>
-      <td style="font-size: 18px;">22541332</td>
+      <td style="font-size: 18px;">u22541332</td>
       <td><a href="https://www.linkedin.com/in/laird-glanville-046270326/" style="font-size: 18px;">@Laird Glanville</a></td>
       <td style="font-size: 18px;">Backend Engineer, working on the inner logic and workings of the system. Responsible for MCore development, and development of modular, standalone SBlocks.</td>
+    </tr>
+    <tr>
+      <td><img src="https://github.com/Mornevanheerden.png" width="80"></td>
+      <td><a href="https://github.com/Mornevanheerden" style="font-size: 18px;">@Mornevanheerden</a></td>
+      <td style="font-size: 18px;">Mr. Morné van Heerden</td>
+      <td style="font-size: 18px;">u21482153</td>
+      <td><a href="https://www.linkedin.com/in/morne-van-heerden-a0b173355/" style="font-size: 18px;">@Morné van heerden</a></td>
+      <td style="font-size: 18px;">Devops, Systems Engineer and Services engineer. Responsible for the maintenance and upkeep of the Github repository.</td>
     </tr>
   </tbody>
 </table>
