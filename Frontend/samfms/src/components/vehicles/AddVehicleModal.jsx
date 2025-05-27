@@ -30,9 +30,15 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault();
-    setVehicles([...vehicles, { ...form, id: `VEH-${vehicles.length + 1}` }]);
+    const response = await fetch('http://localhost:8000/vehicles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+    const newVehicle = await response.json();
+    setVehicles([...vehicles, newVehicle]);
     closeModal();
   };
 
@@ -42,7 +48,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
         <h2 className="text-xl font-semibold mb-4">Add New Vehicle</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           <input
-            name="vehicleID"
+            name="id"
             value={form.id}
             onChange={handleChange}
             placeholder="Vehicle ID"

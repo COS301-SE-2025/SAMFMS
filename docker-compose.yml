@@ -7,7 +7,7 @@ services:
 
   mcore:
     build:  ./Core
-    command: sh /app/start.sh
+    command: sh /Core/start.sh
     volumes:
       - ./app:/app
     ports:
