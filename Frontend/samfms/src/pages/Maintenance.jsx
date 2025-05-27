@@ -13,6 +13,22 @@ const serviceTypes = [
   'Annual Inspection',
 ];
 
+// Mock analytics data
+const mockAnalytics = {
+  costs: {
+    'VEH-001': {monthly: 1200, quarterly: 3400, yearly: 13500},
+    'VEH-002': {monthly: 900, quarterly: 2600, yearly: 10500},
+    'VEH-003': {monthly: 700, quarterly: 2100, yearly: 8500},
+  },
+  faults: [
+    // Each entry is for a month, for all vehicles
+    {month: 'Jan', faults: {'VEH-001': 1, 'VEH-002': 0, 'VEH-003': 1}, repairs: {'VEH-001': 1, 'VEH-002': 0, 'VEH-003': 1}},
+    {month: 'Feb', faults: {'VEH-001': 0, 'VEH-002': 1, 'VEH-003': 0}, repairs: {'VEH-001': 0, 'VEH-002': 1, 'VEH-003': 0}},
+    {month: 'Mar', faults: {'VEH-001': 2, 'VEH-002': 1, 'VEH-003': 0}, repairs: {'VEH-001': 2, 'VEH-002': 1, 'VEH-003': 0}},
+    {month: 'Apr', faults: {'VEH-001': 0, 'VEH-002': 0, 'VEH-003': 1}, repairs: {'VEH-001': 0, 'VEH-002': 0, 'VEH-003': 1}},
+  ],
+};
+
 const Maintenance = () => {
   // Example scheduled maintenance data
   const [maintenanceList, setMaintenanceList] = useState([
@@ -101,7 +117,6 @@ const Maintenance = () => {
       status: 'Completed',
     };
     setMaintenanceList(updated);
-    // Optionally, show a message or notification here
   };
 
   // Helper to get vehicle display name
@@ -115,6 +130,28 @@ const Maintenance = () => {
     const d = new Date(dateStr);
     return d.toLocaleDateString(undefined, {year: 'numeric', month: 'long', day: 'numeric'});
   };
+
+  // Analytics helpers
+  const getServiceCount = (vehicleId) =>
+    maintenanceList.filter((m) => m.vehicle === vehicleId).length;
+
+  // For alignment: find the longest vehicle name
+  const longestNameLength = vehicles.reduce(
+    (max, v) => (v.name.length > max ? v.name.length : max),
+    0
+  );
+
+  // Calculate total faults and repairs for each vehicle over the last 4 months
+  const getTotalFaults = (vehicleId) =>
+    mockAnalytics.faults.reduce((sum, month) => sum + (month.faults[vehicleId] || 0), 0);
+
+  const getTotalRepairs = (vehicleId) =>
+    mockAnalytics.faults.reduce((sum, month) => sum + (month.repairs[vehicleId] || 0), 0);
+
+  // Calculate grand totals for blocks
+  const totalFaults = vehicles.reduce((sum, v) => sum + getTotalFaults(v.id), 0);
+  const totalRepairs = vehicles.reduce((sum, v) => sum + getTotalRepairs(v.id), 0);
+  const totalServices = vehicles.reduce((sum, v) => sum + getServiceCount(v.id), 0);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -186,8 +223,56 @@ const Maintenance = () => {
               </table>
             </div>
           </div>
+          {/* Maintenance Analytics Section */}
+          <div className="bg-card rounded-lg shadow-md p-6 mt-8">
+            <h2 className="text-xl font-semibold mb-4">Maintenance Analytics</h2>
+            {/* Analytics summary blocks */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 flex flex-col items-center">
+                <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">{totalFaults}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-300">Total Faults (4 months)</span>
+              </div>
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 flex flex-col items-center">
+                <span className="text-2xl font-bold text-green-700 dark:text-green-300">{totalRepairs}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-300">Total Repairs (4 months)</span>
+              </div>
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 flex flex-col items-center">
+                <span className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">{totalServices}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-300">Total Services</span>
+              </div>
+            </div>
+            {/* Analytics Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border font-sans">
+                <thead>
+                  <tr>
+                    <th className="py-1 px-2 border font-semibold">Vehicle</th>
+                    <th className="py-1 px-2 border font-semibold">Monthly Cost</th>
+                    <th className="py-1 px-2 border font-semibold">Quarterly Cost</th>
+                    <th className="py-1 px-2 border font-semibold">Yearly Cost</th>
+                    <th className="py-1 px-2 border font-semibold"># Services</th>
+                    <th className="py-1 px-2 border font-semibold">Faults (4 mo)</th>
+                    <th className="py-1 px-2 border font-semibold">Repairs (4 mo)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vehicles.map((v) => (
+                    <tr key={v.id}>
+                      <td className="py-1 px-2 border">{getVehicleName(v.id)}</td>
+                      <td className="py-1 px-2 border">R{mockAnalytics.costs[v.id]?.monthly ?? '-'}</td>
+                      <td className="py-1 px-2 border">R{mockAnalytics.costs[v.id]?.quarterly ?? '-'}</td>
+                      <td className="py-1 px-2 border">R{mockAnalytics.costs[v.id]?.yearly ?? '-'}</td>
+                      <td className="py-1 px-2 border">{getServiceCount(v.id)}</td>
+                      <td className="py-1 px-2 border">{getTotalFaults(v.id)}</td>
+                      <td className="py-1 px-2 border">{getTotalRepairs(v.id)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-        {/* ...existing code for alerts... */}
+        {/* Alerts Section */}
         <div className="lg:col-span-1">
           <div className="bg-card rounded-lg shadow-md p-6">
             <h2 className="text-xl font-semibold mb-4">Maintenance Alerts</h2>
