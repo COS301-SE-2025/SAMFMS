@@ -9,7 +9,7 @@ from httpx import AsyncClient, ASGITransport
 from bson import ObjectId
 
 
-from Core.routes.user import router
+from routes.user import router
 
 
 

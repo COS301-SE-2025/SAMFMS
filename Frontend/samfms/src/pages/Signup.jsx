@@ -11,6 +11,20 @@ const Signup = () => {
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    phone: '',
+  });
+  const [touched, setTouched] = useState({
+    fullName: false,
+    email: false,
+    password: false,
+    confirmPassword: false,
+    phone: false,
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -19,9 +33,213 @@ const Signup = () => {
       navigate('/dashboard');
     }
   }, [navigate]);
+  // Validate full name
+  const validateFullName = name => {
+    if (!name.trim()) {
+      return 'Full name is required';
+    } else if (name.trim().length < 2) {
+      return 'Name must be at least 2 characters';
+    }
+    return '';
+  };
+
+  // Validate email
+  const validateEmail = email => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim()) {
+      return 'Email is required';
+    } else if (!emailRegex.test(email)) {
+      return 'Invalid email format';
+    }
+    return '';
+  };
+  // Calculate password strength for progress bar
+  const calculatePasswordStrength = password => {
+    if (!password) return 0;
+
+    let strength = 0;
+    // Length check
+    if (password.length >= 8) strength += 25;
+    // Contains uppercase
+    if (/[A-Z]/.test(password)) strength += 25;
+    // Contains lowercase
+    if (/[a-z]/.test(password)) strength += 25;
+    // Contains number
+    if (/\d/.test(password)) strength += 25;
+
+    return strength;
+  };
+
+  // Get password strength color and text
+  const getPasswordStrengthInfo = strength => {
+    if (strength === 0) return { color: 'gray-300', text: '' };
+    if (strength <= 25) return { color: 'red-500', text: 'Weak' };
+    if (strength <= 50) return { color: 'yellow-500', text: 'Fair' };
+    if (strength <= 75) return { color: 'blue-500', text: 'Good' };
+    return { color: 'green-500', text: 'Strong' };
+  };
+
+  // Validate password
+  const validatePassword = password => {
+    if (!password) {
+      return 'Password is required';
+    } else if (password.length < 8) {
+      return 'Password must be at least 8 characters long';
+    } else if (!/(?=.*[A-Z])/.test(password)) {
+      return 'Password must contain at least one uppercase letter';
+    } else if (!/(?=.*[a-z])/.test(password)) {
+      return 'Password must contain at least one lowercase letter';
+    } else if (!/(?=.*\d)/.test(password)) {
+      return 'Password must contain at least one number';
+    }
+    return '';
+  };
+
+  // Validate confirm password
+  const validateConfirmPassword = (confirmPass, pass) => {
+    if (!confirmPass) {
+      return 'Please confirm your password';
+    } else if (confirmPass !== pass) {
+      return 'Passwords do not match';
+    }
+    return '';
+  };
+
+  // Validate phone
+  const validatePhone = phone => {
+    // Phone is optional, so no validation if empty
+    if (!phone) {
+      return '';
+    }
+    const phoneRegex = /^\+?[0-9\s\-()]{8,20}$/;
+    if (!phoneRegex.test(phone)) {
+      return 'Invalid phone format';
+    }
+    return '';
+  };
+
+  // Handle blur events
+  const handleBlur = field => {
+    setTouched({ ...touched, [field]: true });
+
+    let error = '';
+    switch (field) {
+      case 'fullName':
+        error = validateFullName(fullName);
+        break;
+      case 'email':
+        error = validateEmail(email);
+        break;
+      case 'password':
+        error = validatePassword(password);
+        break;
+      case 'confirmPassword':
+        error = validateConfirmPassword(confirmPassword, password);
+        break;
+      case 'phone':
+        error = validatePhone(phone);
+        break;
+      default:
+        break;
+    }
+
+    setValidationErrors({
+      ...validationErrors,
+      [field]: error,
+    });
+  };
+
+  // Handle change events with validation
+  const handleChange = (field, value) => {
+    switch (field) {
+      case 'fullName':
+        setFullName(value);
+        if (touched.fullName) {
+          setValidationErrors({
+            ...validationErrors,
+            fullName: validateFullName(value),
+          });
+        }
+        break;
+      case 'email':
+        setEmail(value);
+        if (touched.email) {
+          setValidationErrors({
+            ...validationErrors,
+            email: validateEmail(value),
+          });
+        }
+        break;
+      case 'password':
+        setPassword(value);
+        if (touched.password) {
+          setValidationErrors({
+            ...validationErrors,
+            password: validatePassword(value),
+          });
+        }
+        // Also update confirm password validation if it's been touched
+        if (touched.confirmPassword) {
+          setValidationErrors(prev => ({
+            ...prev,
+            confirmPassword: validateConfirmPassword(confirmPassword, value),
+          }));
+        }
+        break;
+      case 'confirmPassword':
+        setConfirmPassword(value);
+        if (touched.confirmPassword) {
+          setValidationErrors({
+            ...validationErrors,
+            confirmPassword: validateConfirmPassword(value, password),
+          });
+        }
+        break;
+      case 'phone':
+        setPhone(value);
+        if (touched.phone) {
+          setValidationErrors({
+            ...validationErrors,
+            phone: validatePhone(value),
+          });
+        }
+        break;
+      default:
+        break;
+    }
+  };
 
   const handleSubmit = async e => {
     e.preventDefault();
+
+    // Validate all fields
+    const fullNameError = validateFullName(fullName);
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(password);
+    const confirmPasswordError = validateConfirmPassword(confirmPassword, password);
+    const phoneError = validatePhone(phone);
+
+    setValidationErrors({
+      fullName: fullNameError,
+      email: emailError,
+      password: passwordError,
+      confirmPassword: confirmPasswordError,
+      phone: phoneError,
+    });
+
+    setTouched({
+      fullName: true,
+      email: true,
+      password: true,
+      confirmPassword: true,
+      phone: true,
+    });
+
+    // If any validation errors, prevent form submission
+    if (fullNameError || emailError || passwordError || confirmPasswordError || phoneError) {
+      return;
+    }
+
     setError('');
     setLoading(true);
 
@@ -31,7 +249,7 @@ const Signup = () => {
         const data = await response.json();
         throw new Error(data.detail || 'Signup failed');
       }
-      // Login was successful, API automatically stores token
+      // Signup was successful, redirect to login
       navigate('/login');
     } catch (err) {
       setError(err.message);
@@ -120,7 +338,7 @@ const Signup = () => {
               >
                 <span className="block sm:inline">{error}</span>
               </div>
-            )}
+            )}{' '}
             <div className="space-y-2">
               <label htmlFor="name" className="block text-sm font-medium text-primary-900">
                 Full Name
@@ -130,10 +348,18 @@ const Signup = () => {
                 type="text"
                 placeholder="Enter your full name"
                 value={fullName}
-                onChange={e => setFullName(e.target.value)}
+                onChange={e => handleChange('fullName', e.target.value)}
+                onBlur={() => handleBlur('fullName')}
                 required
-                className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
+                  validationErrors.fullName && touched.fullName
+                    ? 'border-red-500'
+                    : 'border-primary-200'
+                }`}
               />
+              {validationErrors.fullName && touched.fullName && (
+                <p className="text-red-500 text-xs mt-1">{validationErrors.fullName}</p>
+              )}
             </div>
             <div className="space-y-2">
               <label htmlFor="email" className="block text-sm font-medium text-primary-900">
@@ -144,24 +370,38 @@ const Signup = () => {
                 type="email"
                 placeholder="Enter your email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={e => handleChange('email', e.target.value)}
+                onBlur={() => handleBlur('email')}
                 required
-                className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
+                  validationErrors.email && touched.email ? 'border-red-500' : 'border-primary-200'
+                }`}
               />
+              {validationErrors.email && touched.email && (
+                <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>
+              )}
             </div>
             <div className="space-y-2">
               <label htmlFor="password" className="block text-sm font-medium text-primary-900">
                 Password
-              </label>{' '}
+              </label>
               <input
                 id="password"
                 type="password"
                 placeholder="Create a password"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={e => handleChange('password', e.target.value)}
+                onBlur={() => handleBlur('password')}
                 required
-                className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
+                  validationErrors.password && touched.password
+                    ? 'border-red-500'
+                    : 'border-primary-200'
+                }`}
               />
+              {validationErrors.password && touched.password && (
+                <p className="text-red-500 text-xs mt-1">{validationErrors.password}</p>
+              )}
             </div>
             <div className="space-y-2">
               <label
@@ -175,10 +415,18 @@ const Signup = () => {
                 type="password"
                 placeholder="Confirm your password"
                 value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
+                onChange={e => handleChange('confirmPassword', e.target.value)}
+                onBlur={() => handleBlur('confirmPassword')}
                 required
-                className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
+                  validationErrors.confirmPassword && touched.confirmPassword
+                    ? 'border-red-500'
+                    : 'border-primary-200'
+                }`}
               />
+              {validationErrors.confirmPassword && touched.confirmPassword && (
+                <p className="text-red-500 text-xs mt-1">{validationErrors.confirmPassword}</p>
+              )}
             </div>
             <div className="space-y-2">
               <label htmlFor="phone" className="block text-sm font-medium text-primary-900">
@@ -189,9 +437,15 @@ const Signup = () => {
                 type="tel"
                 placeholder="Enter your phone number"
                 value={phone}
-                onChange={e => setPhone(e.target.value)}
-                className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
+                onChange={e => handleChange('phone', e.target.value)}
+                onBlur={() => handleBlur('phone')}
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
+                  validationErrors.phone && touched.phone ? 'border-red-500' : 'border-primary-200'
+                }`}
               />
+              {validationErrors.phone && touched.phone && (
+                <p className="text-red-500 text-xs mt-1">{validationErrors.phone}</p>
+              )}
             </div>{' '}
             <Button
               type="submit"
