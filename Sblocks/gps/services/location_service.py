@@ -15,7 +15,7 @@ from models import (
     LocationQuery, LocationResponse, HistoryResponse, GPSCoordinates
 )
 from messaging import publish_location_update, publish_vehicle_idle
-from utils.geospatial import calculate_distance, calculate_heading, determine_direction
+from utils.geospatial import haversine_distance, calculate_bearing, determine_direction
 
 logger = logging.getLogger(__name__)
 

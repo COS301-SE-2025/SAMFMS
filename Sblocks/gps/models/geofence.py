@@ -3,8 +3,14 @@ Geofence models for GPS service
 """
 from datetime import datetime
 from typing import Optional, List, Dict, Any
+from enum import Enum
 from pydantic import BaseModel, Field, validator
 from bson import ObjectId
+
+class GeofenceType(str, Enum):
+    """Geofence type enumeration"""
+    CIRCULAR = "circular"
+    POLYGON = "polygon"
 
 class PyObjectId(ObjectId):
     @classmethod
@@ -18,8 +24,8 @@ class PyObjectId(ObjectId):
         return ObjectId(v)
 
     @classmethod
-    def __modify_schema__(cls, field_schema):
-        field_schema.update(type="string")
+    def __get_pydantic_json_schema__(cls, schema, _handler):
+        schema.update(type="string")
 
 class GeofenceCoordinates(BaseModel):
     latitude: float = Field(..., ge=-90, le=90, description="Center latitude in decimal degrees")

@@ -19,10 +19,6 @@ if [ ! -d "venv" ]; then
     python -m venv venv
 fi
 
-# Activate virtual environment
-echo "Activating virtual environment..."
-source venv/bin/activate
-
 # Install/upgrade dependencies
 echo "Installing dependencies..."
 pip install -r requirements.txt

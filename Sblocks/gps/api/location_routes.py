@@ -9,9 +9,9 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 
-from ..models.location import VehicleLocation, LocationHistory
-from ..services.location_service import LocationService
-from ..utils.analytics import calculate_vehicle_metrics, generate_time_series_data
+from services.location_service import LocationService
+from models.location import VehicleLocation, LocationUpdate, LocationQuery, LocationResponse, HistoryResponse
+from utils.analytics import calculate_vehicle_metrics, generate_time_series_data
 
 router = APIRouter(prefix="/locations", tags=["locations"])
 

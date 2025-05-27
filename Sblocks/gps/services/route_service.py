@@ -9,11 +9,11 @@ from datetime import datetime, timedelta
 from bson import ObjectId
 import logging
 
-from ..models.route import VehicleRoute, RoutePoint, RouteStatus, RouteEvent
-from ..models.location import VehicleLocation
-from ..database import get_database
-from ..messaging.rabbitmq_client import RabbitMQClient
-from ..config.settings import get_settings
+from models.route import VehicleRoute, RoutePoint, RouteStatus, RouteEvent
+from models.location import VehicleLocation
+from database import get_database
+from messaging.rabbitmq_client import RabbitMQClient
+from config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 

@@ -9,17 +9,19 @@ import logging
 import asyncio
 from contextlib import asynccontextmanager
 from typing import Dict, Any
+import sys
+import os
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .config.settings import get_settings
-from .database import init_database, close_database
-from .messaging.rabbitmq_client import RabbitMQClient
-from .api import location_router, geofence_router, route_router, websocket_router
-from .services import LocationService, GeofenceService, RouteService
-from .websocket_manager import connection_manager
+from config.settings import get_settings
+from database import connect_to_mongo, close_mongo_connection
+from messaging.rabbitmq_client import RabbitMQClient
+from api import location_router, geofence_router, route_router, websocket_router
+from services import LocationService, GeofenceService, RouteService
+from websocket_manager import connection_manager
 
 # Configure logging
 logging.basicConfig(
@@ -44,7 +46,7 @@ async def lifespan(app: FastAPI):
     
     try:
         # Initialize database
-        await init_database()
+        await connect_to_mongo()
         logger.info("Database initialized")
         
         # Initialize messaging
@@ -84,7 +86,7 @@ async def lifespan(app: FastAPI):
             await messaging_client.disconnect()
             logger.info("RabbitMQ connection closed")
         
-        await close_database()
+        await close_mongo_connection()
         logger.info("Database connection closed")
         
         logger.info("GPS Tracking Service shutdown complete")
@@ -267,6 +269,18 @@ async def root():
         "status": "operational",
         "documentation": "/docs"
     }
+
+
+# Debugging sys.path and working directory
+print("Current sys.path:", sys.path)
+print("Current working directory:", os.getcwd())
+
+# Test importing the gps module
+try:
+    import gps
+    print("GPS module imported successfully")
+except ModuleNotFoundError as e:
+    print("Error importing gps module:", e)
 
 
 if __name__ == "__main__":

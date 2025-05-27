@@ -28,18 +28,6 @@ print_error() {
 
 # Ensure this script uses Unix (LF) line endings only
 
-# Check if Docker is running
-if ! docker info > /dev/null 2>&1; then
-    print_error "Docker is not running. Please start Docker first."
-    exit 1
-fi
-
-# Check if Docker Compose is available
-if ! command -v docker-compose > /dev/null 2>&1; then
-    print_error "Docker Compose is not installed. Please install Docker Compose first."
-    exit 1
-fi
-
 # Set environment variables if not already set
 export GPS_SERVICE_ENV=${GPS_SERVICE_ENV:-development}
 export MONGODB_URL=${MONGODB_URL:-mongodb://localhost:27017/gps_tracking}
@@ -104,48 +92,13 @@ EOF
     print_status "Created .env file with default configuration"
 fi
 
-# Stop any existing containers
-print_status "Stopping existing containers..."
-docker-compose down > /dev/null 2>&1 || true
+cd /app
+# Ensure PYTHONPATH includes the Sblocks directory
+export PYTHONPATH=/app:$PYTHONPATH
+echo "PYTHONPATH is set to: $PYTHONPATH"
 
-# Pull latest images
-print_status "Pulling latest Docker images..."
-docker-compose pull
-
-# Build the GPS service image
-print_status "Building GPS service image..."
-docker-compose build gps-service
-
-# Start the services
-print_status "Starting services..."
-docker-compose up -d
-
-# Wait for services to be ready
-print_status "Waiting for services to be ready..."
-
-# Wait for MongoDB
-print_status "Waiting for MongoDB..."
-timeout 60 bash -c 'until docker-compose exec -T mongodb mongosh --eval "db.adminCommand(\"ismaster\")" > /dev/null 2>&1; do sleep 2; done'
-
-# Wait for Redis
-print_status "Waiting for Redis..."
-timeout 60 bash -c 'until docker-compose exec -T redis redis-cli ping > /dev/null 2>&1; do sleep 2; done'
-
-# Wait for RabbitMQ
-print_status "Waiting for RabbitMQ..."
-timeout 60 bash -c 'until docker-compose exec -T rabbitmq rabbitmqctl status > /dev/null 2>&1; do sleep 2; done'
-
-# Initialize MongoDB if needed
-print_status "Initializing MongoDB..."
-docker-compose exec -T mongodb mongosh gps_tracking /docker-entrypoint-initdb.d/mongo-init.js
-
-# Wait for GPS service to be ready
-print_status "Waiting for GPS service..."
-timeout 60 bash -c 'until curl -f http://localhost:8003/health > /dev/null 2>&1; do sleep 2; done'
-
-# Display service status
-print_status "Service Status:"
-docker-compose ps
+# Start the FastAPI server
+uvicorn main:app --host 0.0.0.0 --port 8003 --reload
 
 print_status "GPS Tracking Service started successfully!"
 print_status ""

@@ -16,7 +16,7 @@ from models import (
     VehicleLocation
 )
 from messaging import publish_geofence_event
-from utils.geospatial import calculate_distance, point_in_circle
+from utils.geospatial import haversine_distance, is_point_in_circle
 
 logger = logging.getLogger(__name__)
 

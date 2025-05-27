@@ -9,10 +9,10 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 
-from ..models.geofence import Geofence, GeofenceEvent, GeofenceType
-from ..models.location import Coordinate
-from ..services.geofence_service import GeofenceService
-from ..utils.analytics import analyze_geofence_events, calculate_dwell_time
+from models.geofence import Geofence, GeofenceEvent, GeofenceType
+from models.location import Coordinate
+from services.geofence_service import GeofenceService
+from utils.analytics import analyze_geofence_events, calculate_dwell_time
 
 router = APIRouter(prefix="/geofences", tags=["geofences"])
 

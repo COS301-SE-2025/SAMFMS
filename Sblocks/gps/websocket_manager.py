@@ -11,8 +11,8 @@ import logging
 from datetime import datetime
 
 from fastapi import WebSocket, WebSocketDisconnect
-from ..models.location import VehicleLocation
-from ..config.settings import get_settings
+from models.location import VehicleLocation
+from config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 

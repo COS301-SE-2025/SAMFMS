@@ -1,16 +1,17 @@
 """
 Models package initialization
 """
-from .location import (
+from models.location import (
     VehicleLocation,
     LocationHistory,
     LocationUpdate,
     LocationQuery,
     LocationResponse,
     HistoryResponse,
-    GPSCoordinates
+    GPSCoordinates,
+    Coordinate
 )
-from .geofence import (
+from models.geofence import (
     Geofence,
     GeofenceEvent,
     GeofenceCreate,
@@ -19,9 +20,10 @@ from .geofence import (
     GeofenceResponse,
     GeofenceEventQuery,
     GeofenceEventResponse,
-    GeofenceCoordinates
+    GeofenceCoordinates,
+    GeofenceType
 )
-from .route import (
+from models.route import (
     VehicleRoute,
     RouteSegment,
     PlannedRoute,

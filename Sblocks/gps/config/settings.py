@@ -3,7 +3,8 @@ GPS Service Configuration
 """
 import os
 from typing import Optional
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings
+from pydantic import Field
 
 class Settings(BaseSettings):
     # Application
@@ -73,10 +74,23 @@ class Settings(BaseSettings):
     request_timeout: int = Field(default=30, env="REQUEST_TIMEOUT")
     batch_processing_size: int = Field(default=500, env="BATCH_PROCESSING_SIZE")
     
+    # Additional fields
+    gps_service_env: str = Field(default="development", env="GPS_SERVICE_ENV")
+    api_host: str = Field(default="0.0.0.0", env="API_HOST")
+    api_port: int = Field(default=8003, env="API_PORT")
+    api_workers: int = Field(default=4, env="API_WORKERS")
+    location_accuracy_threshold: float = Field(default=50.0, env="LOCATION_ACCURACY_THRESHOLD")
+    enable_real_time_tracking: bool = Field(default=True, env="ENABLE_REAL_TIME_TRACKING")
+    enable_geofence_monitoring: bool = Field(default=True, env="ENABLE_GEOFENCE_MONITORING")
+    max_workers: int = Field(default=10, env="MAX_WORKERS")
+    enable_metrics: bool = Field(default=True, env="ENABLE_METRICS")
+    metrics_port: int = Field(default=8004, env="METRICS_PORT")
+    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        extra = "forbid"
 
     @property
     def is_production(self) -> bool:
@@ -119,3 +133,6 @@ class EventTypes:
     EMERGENCY_ALERT = "emergency.alert"
 
 event_types = EventTypes()
+
+def get_settings() -> Settings:
+    return Settings()

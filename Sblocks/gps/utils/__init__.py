@@ -17,7 +17,8 @@ from .geospatial import (
     calculate_center_point,
     simplify_route,
     detect_stops,
-    check_geofence_violation
+    check_geofence_violation,
+    determine_direction
 )
 
 from .analytics import (

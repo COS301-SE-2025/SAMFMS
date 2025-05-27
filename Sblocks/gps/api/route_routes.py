@@ -9,10 +9,10 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 
-from ..models.route import VehicleRoute, RouteStatus, RoutePoint
-from ..models.location import Coordinate
-from ..services.route_service import RouteService
-from ..utils.analytics import calculate_route_efficiency
+from models.route import VehicleRoute, RouteStatus, RoutePoint
+from models.location import Coordinate
+from services.route_service import RouteService
+from utils.analytics import calculate_route_efficiency
 
 router = APIRouter(prefix="/routes", tags=["routes"])
 

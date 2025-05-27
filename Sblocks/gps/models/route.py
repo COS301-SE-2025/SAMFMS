@@ -3,8 +3,17 @@ Route and path models for GPS service
 """
 from datetime import datetime
 from typing import Optional, List, Dict, Any
+from enum import Enum
 from pydantic import BaseModel, Field, validator
 from bson import ObjectId
+
+class RouteStatus(str, Enum):
+    """Route status enumeration"""
+    PLANNED = "planned"
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    PAUSED = "paused"
 
 class PyObjectId(ObjectId):
     @classmethod
@@ -18,8 +27,8 @@ class PyObjectId(ObjectId):
         return ObjectId(v)
 
     @classmethod
-    def __modify_schema__(cls, field_schema):
-        field_schema.update(type="string")
+    def __get_pydantic_json_schema__(cls, schema, _handler):
+        schema.update(type="string")
 
 class RoutePoint(BaseModel):
     """Single point in a route"""
@@ -120,6 +129,21 @@ class PlannedRoute(BaseModel):
         if v not in valid_statuses:
             raise ValueError(f"Status must be one of {valid_statuses}")
         return v
+
+class RouteEvent(BaseModel):
+    """Route event model for tracking route-related events"""
+    id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    route_id: str = Field(..., description="Route identifier")
+    vehicle_id: str = Field(..., description="Vehicle identifier")
+    event_type: str = Field(..., description="Type of event (started, completed, paused, etc.)")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Event timestamp")
+    location: Optional[Dict[str, Any]] = Field(None, description="Location where event occurred")
+    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional event data")
+    
+    class Config:
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
 
 class RouteCreate(BaseModel):
     """Input model for creating routes"""

@@ -1,7 +1,7 @@
 """
 Messaging package initialization
 """
-from .rabbitmq_client import (
+from messaging.rabbitmq_client import (
     messaging_client,
     publish_location_update,
     publish_geofence_event,

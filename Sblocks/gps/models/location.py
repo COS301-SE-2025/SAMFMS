@@ -18,14 +18,19 @@ class PyObjectId(ObjectId):
         return ObjectId(v)
 
     @classmethod
-    def __modify_schema__(cls, field_schema):
-        field_schema.update(type="string")
+    def __get_pydantic_json_schema__(cls, schema, _handler):
+        schema.update(type="string")
 
 class GPSCoordinates(BaseModel):
     latitude: float = Field(..., ge=-90, le=90, description="Latitude in decimal degrees")
     longitude: float = Field(..., ge=-180, le=180, description="Longitude in decimal degrees")
     altitude: Optional[float] = Field(None, description="Altitude in meters")
     accuracy: Optional[float] = Field(None, description="GPS accuracy in meters")
+
+class Coordinate(BaseModel):
+    """Simple coordinate model for geofencing and routing"""
+    latitude: float = Field(..., ge=-90, le=90, description="Latitude in decimal degrees")
+    longitude: float = Field(..., ge=-180, le=180, description="Longitude in decimal degrees")
 
 class VehicleLocation(BaseModel):
     """Current location data for a vehicle"""
