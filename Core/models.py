@@ -45,3 +45,17 @@ class UserModel(BaseModel):
                 "preferences": ["dark_mode", "email_notifications"]
             }
         }
+
+
+class UserResponse(BaseModel):
+    id: str = Field(alias="_id")
+    details: Optional[Dict[str, str]] = {}
+    full_name: str
+    email: str
+    role: str
+    phoneNo: Optional[str] = None
+    preferences: Optional[List[str]] = []
+
+    class Config:
+        validate_by_name = True
+        json_encoders = {ObjectId: str}

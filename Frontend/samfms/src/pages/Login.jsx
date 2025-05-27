@@ -1,8 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { login, isAuthenticated } from '../backend/API.js';
 
 const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // If user is already authenticated, redirect to dashboard
+    if (isAuthenticated()) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
+
+  const handleSubmit = async e => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      await login(email, password);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row overflow-hidden">
       {/* Left section - Medium blue with animated background */}
@@ -74,9 +103,17 @@ const Login = () => {
           <h1 className="text-3xl font-bold mb-6 text-center text-primary-900 relative">
             Login
             <span className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-16 h-1 bg-primary-700 rounded-full"></span>
-          </h1>
+          </h1>{' '}
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            {error && (
+              <div
+                className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+                role="alert"
+              >
+                <span className="block sm:inline">{error}</span>
+              </div>
+            )}
 
-          <form className="space-y-6">
             <div className="space-y-2">
               <label htmlFor="email" className="block text-sm font-medium text-primary-900">
                 Email
@@ -85,6 +122,9 @@ const Login = () => {
                 id="email"
                 type="email"
                 placeholder="Enter your email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
                 className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
               />
             </div>
@@ -97,11 +137,16 @@ const Login = () => {
                 id="password"
                 type="password"
                 placeholder="Enter your password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
                 className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
               />
             </div>
 
             <Button
+              type="submit"
+              disabled={loading}
               className="w-full bg-primary-700 hover:bg-primary-800 text-white transform transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] hover:shadow-lg"
               style={{
                 backgroundImage: 'linear-gradient(to right, #0855b1, #2A91CD, #0855b1)',
@@ -114,7 +159,7 @@ const Login = () => {
                 e.currentTarget.style.backgroundPosition = 'left center';
               }}
             >
-              Login
+              {loading ? 'Logging in...' : 'Login'}
             </Button>
 
             <div className="relative my-4">

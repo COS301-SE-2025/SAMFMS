@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import uvicorn
 import asyncio
@@ -14,6 +15,22 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+# Configure CORS
+origins = [
+    "http://localhost:3000",     # React development server
+    "http://127.0.0.1:3000",
+    "http://localhost:5000",     # Production build if served differently
+    "*",                        # Optional: Allow all origins (less secure)
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],        # Allow all methods including OPTIONS
+    allow_headers=["*"],        # Allow all headers
+)
 
 app.include_router(user.router)
 app.include_router(auth.router)

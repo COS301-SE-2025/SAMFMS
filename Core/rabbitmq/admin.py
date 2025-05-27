@@ -3,6 +3,11 @@ import asyncio
 import json
 import logging
 
+import aio_pika
+import asyncio
+import json
+import logging
+
 logger = logging.getLogger(__name__)
 
 RABBITMQ_URL = "amqp://guest:guest@rabbitmq/"

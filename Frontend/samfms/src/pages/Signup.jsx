@@ -1,8 +1,45 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { signup, isAuthenticated } from '../backend/API.js';
 
 const Signup = () => {
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // If user is already authenticated, redirect to dashboard
+    if (isAuthenticated()) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
+
+  const handleSubmit = async e => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await signup(fullName, email, password, confirmPassword, phone);
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || 'Signup failed');
+      }
+      // Login was successful, API automatically stores token
+      navigate('/login');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row overflow-hidden">
       {/* Left section - Medium blue with animated background */}
@@ -74,9 +111,16 @@ const Signup = () => {
           <h1 className="text-3xl font-bold mb-6 text-center text-primary-900 relative">
             Sign Up
             <span className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-16 h-1 bg-primary-700 rounded-full"></span>
-          </h1>
-
-          <form className="space-y-4">
+          </h1>{' '}
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            {error && (
+              <div
+                className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+                role="alert"
+              >
+                <span className="block sm:inline">{error}</span>
+              </div>
+            )}
             <div className="space-y-2">
               <label htmlFor="name" className="block text-sm font-medium text-primary-900">
                 Full Name
@@ -85,6 +129,9 @@ const Signup = () => {
                 id="name"
                 type="text"
                 placeholder="Enter your full name"
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                required
                 className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
               />
             </div>
@@ -96,17 +143,23 @@ const Signup = () => {
                 id="email"
                 type="email"
                 placeholder="Enter your email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
                 className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
               />
             </div>
             <div className="space-y-2">
               <label htmlFor="password" className="block text-sm font-medium text-primary-900">
                 Password
-              </label>
+              </label>{' '}
               <input
                 id="password"
                 type="password"
                 placeholder="Create a password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
                 className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
               />
             </div>
@@ -121,11 +174,28 @@ const Signup = () => {
                 id="confirmPassword"
                 type="password"
                 placeholder="Confirm your password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                required
                 className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
               />
             </div>
-
+            <div className="space-y-2">
+              <label htmlFor="phone" className="block text-sm font-medium text-primary-900">
+                Phone Number (optional)
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                placeholder="Enter your phone number"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
+              />
+            </div>{' '}
             <Button
+              type="submit"
+              disabled={loading}
               className="w-full bg-primary-700 hover:bg-primary-800 text-white mt-6 transform transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] hover:shadow-lg"
               style={{
                 backgroundImage: 'linear-gradient(to right, #0855b1, #2A91CD, #0855b1)',
@@ -138,9 +208,8 @@ const Signup = () => {
                 e.currentTarget.style.backgroundPosition = 'left center';
               }}
             >
-              Sign Up
+              {loading ? 'Creating Account...' : 'Sign Up'}
             </Button>
-
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300"></div>
@@ -149,7 +218,6 @@ const Signup = () => {
                 <span className="px-2 bg-foreground text-primary-700">Or</span>
               </div>
             </div>
-
             <Button
               className="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-100 text-gray-800 border border-gray-300 transform transition-transform duration-300 hover:scale-[1.02] active:scale-[0.98] hover:shadow-md"
               onClick={() => console.log('Google signup clicked')}
@@ -179,7 +247,6 @@ const Signup = () => {
               </svg>
               Continue with Google
             </Button>
-
             <div className="text-center text-sm text-primary-800 mt-4">
               <span>Already have an account? </span>
               <Link

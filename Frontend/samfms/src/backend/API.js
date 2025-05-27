@@ -12,14 +12,7 @@ export const API = {
   deleteAccount: `${API_URL}/account`,
 };
 
-export const signup = async (
-  full_name: string,
-  email: string,
-  password: string,
-  confirmPassword: string,
-  phoneNo?: string,
-  role?: string
-): Promise<Response | Error> => {
+export const signup = async (full_name, email, password, confirmPassword, phoneNo, role) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     throw new Error('Invalid email format');
@@ -46,7 +39,7 @@ export const signup = async (
   return response;
 };
 
-export const login = async (email: string, password: string): Promise<any> => {
+export const login = async (email, password) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     throw new Error('Invalid email format');
@@ -75,26 +68,26 @@ export const login = async (email: string, password: string): Promise<any> => {
   return data;
 };
 
-export const logout = (): void => {
+export const logout = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
 };
 
-export const getCurrentUser = (): any => {
+export const getCurrentUser = () => {
   const user = localStorage.getItem('user');
   return user ? JSON.parse(user) : null;
 };
 
-export const isAuthenticated = (): boolean => {
+export const isAuthenticated = () => {
   return !!localStorage.getItem('token');
 };
 
-export const getToken = (): string | null => {
+export const getToken = () => {
   return localStorage.getItem('token');
 };
 
 // Helper function to make authenticated API calls
-export const authFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
+export const authFetch = async (url, options = {}) => {
   const token = getToken();
   const headers = {
     ...options.headers,
