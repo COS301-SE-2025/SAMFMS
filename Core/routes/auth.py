@@ -1,10 +1,7 @@
+from fastapi import APIRouter, HTTPException
 from fastapi import APIRouter
-from models import UserModel
-from bson import ObjectId
-from fastapi import APIRouter
-from fastapi import HTTPException
-from models import UserModel
-import user
+from Core.models import UserModel
+from routes import user
 import json
 
 from database import db
