@@ -1,9 +1,10 @@
 from fastapi import APIRouter
-from models import UserModel
 from bson import ObjectId
 from fastapi import APIRouter
-from fastapi import HTTPException
-from models import UserModel
+from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException
+from models import UserModel, UserResponse
+from motor.motor_asyncio import AsyncIOMotorClient
 
 from database import db
 

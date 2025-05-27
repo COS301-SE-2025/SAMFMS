@@ -1,3 +1,10 @@
 fastapi
 uvicorn[standard]
 motor
+aio_pika
+pyjwt
+bcrypt
+python-multipart
+email-validator
+pytest
+httpx
