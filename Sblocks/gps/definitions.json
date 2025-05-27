@@ -1,0 +1,165 @@
+{
+  "users": [
+    {
+      "name": "gps_service",
+      "password": "gps_service_password",
+      "tags": "administrator"
+    },
+    {
+      "name": "guest",
+      "password": "guest",
+      "tags": "management"
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/"
+    },
+    {
+      "name": "/gps_tracking"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "gps_service",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "gps_service",
+      "vhost": "/gps_tracking",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "gps.location.updates",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "gps.geofence.events",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "gps.route.events",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "gps.emergency.alerts",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "location.updates.processing",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 300000,
+        "x-max-length": 10000
+      }
+    },
+    {
+      "name": "geofence.events.processing",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 600000,
+        "x-max-length": 5000
+      }
+    },
+    {
+      "name": "route.events.processing",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 600000,
+        "x-max-length": 5000
+      }
+    },
+    {
+      "name": "emergency.alerts.processing",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 3600000,
+        "x-max-length": 1000
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "source": "gps.location.updates",
+      "vhost": "/",
+      "destination": "location.updates.processing",
+      "destination_type": "queue",
+      "routing_key": "location.update.*",
+      "arguments": {}
+    },
+    {
+      "source": "gps.geofence.events",
+      "vhost": "/",
+      "destination": "geofence.events.processing",
+      "destination_type": "queue",
+      "routing_key": "geofence.*",
+      "arguments": {}
+    },
+    {
+      "source": "gps.route.events",
+      "vhost": "/",
+      "destination": "route.events.processing",
+      "destination_type": "queue",
+      "routing_key": "route.*",
+      "arguments": {}
+    },
+    {
+      "source": "gps.emergency.alerts",
+      "vhost": "/",
+      "destination": "emergency.alerts.processing",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
+    }
+  ],
+  "policies": [
+    {
+      "vhost": "/",
+      "name": "gps-ha-policy",
+      "pattern": "^gps\\.",
+      "apply-to": "all",
+      "definition": {
+        "ha-mode": "all",
+        "ha-sync-mode": "automatic"
+      },
+      "priority": 0
+    }
+  ]
+}

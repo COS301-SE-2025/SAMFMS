@@ -1,0 +1,151 @@
+version: '3.8'
+
+services:
+  # GPS Tracking Service
+  gps-service:
+    build: .
+    container_name: samfms-gps-service
+    ports:
+      - '8003:8003'
+    environment:
+      # Database
+      - MONGODB_URL=mongodb://gps-mongodb:27017/gps_tracking
+
+      # Redis (for caching)
+      - REDIS_URL=redis://gps-redis:6379/0
+
+      # RabbitMQ (for messaging)
+      - RABBITMQ_URL=amqp://guest:guest@gps-rabbitmq:5672/
+
+      # Service configuration
+      - GPS_SERVICE_PORT=8003
+      - DEBUG=false
+      - LOG_LEVEL=info
+
+      # CORS origins
+      - CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
+
+      # Location tracking settings
+      - LOCATION_UPDATE_INTERVAL=5
+      - LOCATION_HISTORY_RETENTION_DAYS=365
+      - MAX_SPEED_THRESHOLD=120
+
+      # Geofencing settings
+      - GEOFENCE_CHECK_INTERVAL=10
+      - DEFAULT_GEOFENCE_BUFFER=0.1
+
+      # Real-time settings
+      - ENABLE_REALTIME_UPDATES=true
+      - WEBSOCKET_HEARTBEAT_INTERVAL=30
+    depends_on:
+      - gps-mongodb
+      - gps-redis
+      - gps-rabbitmq
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - gps-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8003/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # MongoDB Database
+  gps-mongodb:
+    image: mongo:7.0
+    container_name: samfms-gps-mongodb
+    ports:
+      - '27018:27017' # Different port to avoid conflicts
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin123
+      - MONGO_INITDB_DATABASE=gps_tracking
+    volumes:
+      - gps_mongodb_data:/data/db
+      - ./scripts/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    restart: unless-stopped
+    networks:
+      - gps-network
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.runCommand('ping').ok"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis Cache
+  gps-redis:
+    image: redis:7-alpine
+    container_name: samfms-gps-redis
+    ports:
+      - '6380:6379' # Different port to avoid conflicts
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - gps_redis_data:/data
+    restart: unless-stopped
+    networks:
+      - gps-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # RabbitMQ Message Broker
+  gps-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: samfms-gps-rabbitmq
+    ports:
+      - '5673:5672' # AMQP port (different to avoid conflicts)
+      - '15673:15672' # Management UI port (different to avoid conflicts)
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+      - RABBITMQ_DEFAULT_VHOST=/
+    volumes:
+      - gps_rabbitmq_data:/var/lib/rabbitmq
+      - ./config/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    restart: unless-stopped
+    networks:
+      - gps-network
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', 'ping']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # MongoDB Express (Database Admin UI)
+  gps-mongo-express:
+    image: mongo-express:1.0-alpine
+    container_name: samfms-gps-mongo-express
+    ports:
+      - '8082:8081' # Different port to avoid conflicts
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=admin123
+      - ME_CONFIG_MONGODB_SERVER=gps-mongodb
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin123
+    depends_on:
+      - gps-mongodb
+    restart: unless-stopped
+    networks:
+      - gps-network
+
+volumes:
+  gps_mongodb_data:
+    driver: local
+  gps_redis_data:
+    driver: local
+  gps_rabbitmq_data:
+    driver: local
+
+networks:
+  gps-network:
+    driver: bridge
+    name: samfms-gps-network

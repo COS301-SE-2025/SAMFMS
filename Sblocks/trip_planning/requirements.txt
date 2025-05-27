@@ -1,3 +1,52 @@
-fastapi
-uvicorn[standard]
-motor
+# FastAPI and ASGI server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Database drivers
+motor==3.3.2  # MongoDB async driver
+pymongo==4.6.0  # MongoDB sync driver
+
+# Data validation and serialization
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Message queue
+aio-pika==9.3.1  # RabbitMQ async client
+
+# Redis for caching
+redis[hiredis]==5.0.1
+
+# HTTP client
+httpx==0.25.2
+
+# Date and time utilities
+python-dateutil==2.8.2
+
+# Environment variables
+python-dotenv==1.0.0
+
+# Logging
+structlog==23.2.0
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.2
+
+# Development tools
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+
+# Type checking
+mypy==1.7.1
+
+# Security
+cryptography==41.0.7
+passlib[bcrypt]==1.7.4
+
+# Email support
+aiosmtplib==3.0.1
+
+# JSON utilities
+orjson==3.9.10
