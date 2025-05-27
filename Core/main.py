@@ -1,34 +1,55 @@
 from fastapi import FastAPI, HTTPException
-from models import UserModel
 from motor.motor_asyncio import AsyncIOMotorClient
-from bson import ObjectId
 import uvicorn
+import asyncio
+import logging
+from routes import user
+from routes import auth
+from rabbitmq import producer, consumer
+from rabbitmq import admin
+from database import db
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-@app.post("/users/", response_model=UserModel)
-async def create_user(user: UserModel):
-    user_dict = user.model_dump(by_alias=True)
-    result = await users_collection.insert_one(user_dict)
-    user_dict["_id"] = result.inserted_id
-    return user_dict
+app.include_router(user.router)
+app.include_router(auth.router)
 
-@app.get("/users/{id}", response_model=UserModel)
-async def get_user(id: str):
-    if (user := await users_collection.find_one({"_id": ObjectId(id)})) is not None:
-        return user
-    raise HTTPException(status_code=404, detail="User not found")
-
-@app.get("/test-db")
-async def test_db_connection():
+async def start_rabbitmq_consumer():
+    """Start RabbitMQ consumer with error handling"""
     try:
-        collections = await db.list_collection_names()
-        return {"status": "success", "collections": collections}
+        await consumer.consume_messages("user_events")
     except Exception as e:
-        return {"status": "error", "detail": str(e)}
+        logger.error(f"❌ Failed to start RabbitMQ consumer: {str(e)}")
+        # Don't crash the entire application, just log the error
+
+@app.on_event("startup")
+async def startup_event():
+    logger.info("🚀 Starting application...")
+    # Start RabbitMQ consumer in background task
+    asyncio.create_task(start_rabbitmq_consumer())
+    logger.info("✅ Application startup complete")
+
+@app.post("/send/")
+async def send_message(data: dict):
+    try:
+        await producer.publish_message("user_events", data)
+        return {"status": "message sent"}
+    except Exception as e:
+        logger.error(f"❌ Failed to send message: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to send message")
 
 
-client = AsyncIOMotorClient("mongodb://localhost:27017")
+#await producer.publish_message("user.created", {"id": 1, "name": "Alice"})
+
+
+
+
+#####################################################################################################################
+client = AsyncIOMotorClient("mongodb://host.docker.internal:27017")
 db = client.mcore
 users_collection = db.users
 
