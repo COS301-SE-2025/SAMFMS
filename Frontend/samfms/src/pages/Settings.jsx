@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import ThemeToggle from '../components/ThemeToggle';
@@ -137,6 +138,7 @@ const Settings = () => {
           settings={settings}
           handleSettingChange={handleSettingChange}
           options={[
+
             { id: 'email-alerts', label: 'Email Alerts', type: 'toggle' },
             { id: 'push-notifications', label: 'Push Notifications', type: 'toggle' },
           ]}
@@ -172,6 +174,7 @@ const Settings = () => {
           settings={settings}
           handleSettingChange={handleSettingChange}
           options={[
+
             { id: 'two-factor', label: 'Two-factor Authentication', type: 'toggle' },
             { id: 'activity-log', label: 'Activity Logging', type: 'toggle' },
             {
@@ -182,6 +185,7 @@ const Settings = () => {
             },
           ]}
         />
+
       </div>{' '}
       {message && (
         <div
@@ -205,6 +209,7 @@ const Settings = () => {
 };
 
 // A section component for grouping related settings
+
 const SettingsSection = ({ title, description, options, settings, handleSettingChange }) => {
   return (
     <div className="bg-card rounded-lg shadow-md p-6 border border-border">
@@ -235,6 +240,7 @@ const SettingsSection = ({ title, description, options, settings, handleSettingC
                     className="sr-only peer"
                   />
                   <span
+
                     className={`absolute left-1 top-1 w-4 h-4 rounded-full transition-all duration-200 ${
                       settings[option.id] === 'true' ? 'bg-primary translate-x-6' : 'bg-foreground'
                     }`}
