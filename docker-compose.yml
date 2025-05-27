@@ -1,53 +1,64 @@
+version: '3.8'
+
 services:
   rabbitmq:
     image: rabbitmq:3-management
     ports:
       - '5672:5672'
       - '15672:15672'
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', 'check_port_connectivity']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
 
   mcore:
-    build:  ./Core
+    build: ./core
     command: sh /app/start.sh
-    volumes:
-      - ./app:/app
     ports:
       - '8000:8000'
       - '27017:27017'
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
 
   gps_service:
     build: ./Sblocks/gps
     command: sh /app/start.sh
-    volumes:
-      - ./Sblocks/gps:/app
     ports:
       - '8001:8000'
       - '27018:27017'
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
 
   trip_planning_service:
     build: ./Sblocks/trip_planning
     command: sh /app/start.sh
-    volumes:
-      - ./Sblocks/trip_planning:/app
     ports:
       - '8002:8000'
       - '27019:27017'
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
 
   vehicle_maintenance_service:
     build: ./Sblocks/vehicle_maintainence
     command: sh /app/start.sh
-    volumes:
-      - ./Sblocks/vehicle_maintainence:/app
     ports:
       - '8003:8000'
       - '27020:27017'
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
 
   frontend:
     build: ./Frontend/samfms
@@ -55,3 +66,4 @@ services:
       - '3000:3000'
     depends_on:
       - mcore
+    restart: unless-stopped

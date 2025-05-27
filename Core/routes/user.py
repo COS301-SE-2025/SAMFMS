@@ -1,5 +1,4 @@
 from fastapi import APIRouter
-from models import UserModel
 from bson import ObjectId
 from fastapi import APIRouter
 from pydantic import BaseModel

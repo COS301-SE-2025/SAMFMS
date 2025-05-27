@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict
 from bson import ObjectId
 
 
@@ -21,8 +21,8 @@ class PyObjectId(ObjectId):
 
 class UserModel(BaseModel):
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
-    ID: str
-    name: str
+    details: Optional[Dict[str, str]] = {}
+    full_name: str
     email: str
     password: str
     role: str
@@ -36,11 +36,12 @@ class UserModel(BaseModel):
         json_schema_extra = {
             "example": {
                 "id": "60d5f484f1a2b3c4d5e6f7g8",
-                "ID": "12345",
-                "name": "Alice",
+                "details": {"ID":"12345678"},
+                "full_name": "Alice",
                 "email": "alice@example.com",
                 "password": "securepassword",
                 "role": "admin",
+                "phoneNo": "123-456-7890",
                 "preferences": ["dark_mode", "email_notifications"]
             }
         }
