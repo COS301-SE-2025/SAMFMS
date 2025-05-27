@@ -48,6 +48,14 @@ Here’s our awesome team behind **Firewall Five**:
         Responsible for designing and implementing the user interface, ensuring a seamless and intuitive user experience. Contributed to the visual design, frontend architecture, and integration of backend services for the SAMFMS platform.
       </td>
     </tr>
+    <tr>
+      <td><img src="https://github.com/Laird-G.png" width="80"></td>
+      <td><a href="https://github.com/Laird-G" style="font-size: 18px;">@Laird-G</a></td>
+      <td style="font-size: 18px;">Mr. Laird Glanville</td>
+      <td style="font-size: 18px;">22541332</td>
+      <td><a href="https://www.linkedin.com/in/laird-glanville-046270326/" style="font-size: 18px;">@Laird Glanville</a></td>
+      <td style="font-size: 18px;">Backend Engineer, working on the inner logic and workings of the system. Responsible for MCore development, and development of modular, standalone SBlocks.</td>
+    </tr>
   </tbody>
 </table>
 
