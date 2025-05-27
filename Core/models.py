@@ -22,7 +22,7 @@ class PyObjectId(ObjectId):
 class UserModel(BaseModel):
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     details: Optional[Dict[str, str]] = {}
-    name: str
+    full_name: str
     email: str
     password: str
     role: str
@@ -37,7 +37,7 @@ class UserModel(BaseModel):
             "example": {
                 "id": "60d5f484f1a2b3c4d5e6f7g8",
                 "details": {"ID":"12345678"},
-                "name": "Alice",
+                "full_name": "Alice",
                 "email": "alice@example.com",
                 "password": "securepassword",
                 "role": "admin",
