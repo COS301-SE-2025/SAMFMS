@@ -6,8 +6,11 @@ import asyncio
 import logging
 from routes import user
 from routes import auth
+from routes import vehicle
+
 from rabbitmq import producer, consumer, admin
 from database import db
+from fastapi.middleware.cors import CORSMiddleware
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,6 +35,7 @@ app.add_middleware(
 
 app.include_router(user.router)
 app.include_router(auth.router)
+app.include_router(vehicle.router)
 
 
 
@@ -70,7 +74,13 @@ client = AsyncIOMotorClient("mongodb://host.docker.internal:27017")
 db = client.mcore
 users_collection = db.users
 
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Or ["http://localhost:3000"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 if __name__ == "__main__":
