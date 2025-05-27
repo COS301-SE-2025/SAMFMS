@@ -1,8 +1,123 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { login, isAuthenticated } from '../backend/API.js';
 
 const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({
+    email: '',
+    password: '',
+  });
+  const [touched, setTouched] = useState({
+    email: false,
+    password: false,
+  });
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // If user is already authenticated, redirect to dashboard
+    if (isAuthenticated()) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
+  // Validate email
+  const validateEmail = email => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim()) {
+      return 'Email is required';
+    } else if (!emailRegex.test(email)) {
+      return 'Invalid email format';
+    }
+    return '';
+  };
+
+  // Validate password
+  const validatePassword = password => {
+    if (!password.trim()) {
+      return 'Password is required';
+    } else if (password.length < 6) {
+      return 'Password must be at least 6 characters';
+    }
+    return '';
+  };
+
+  // Handle blur events
+  const handleBlur = field => {
+    setTouched({ ...touched, [field]: true });
+
+    if (field === 'email') {
+      setValidationErrors({
+        ...validationErrors,
+        email: validateEmail(email),
+      });
+    } else if (field === 'password') {
+      setValidationErrors({
+        ...validationErrors,
+        password: validatePassword(password),
+      });
+    }
+  };
+
+  // Handle change events with validation
+  const handleChange = (field, value) => {
+    if (field === 'email') {
+      setEmail(value);
+      if (touched.email) {
+        setValidationErrors({
+          ...validationErrors,
+          email: validateEmail(value),
+        });
+      }
+    } else if (field === 'password') {
+      setPassword(value);
+      if (touched.password) {
+        setValidationErrors({
+          ...validationErrors,
+          password: validatePassword(value),
+        });
+      }
+    }
+  };
+
+  const handleSubmit = async e => {
+    e.preventDefault();
+
+    // Validate all fields
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(password);
+
+    setValidationErrors({
+      email: emailError,
+      password: passwordError,
+    });
+
+    setTouched({
+      email: true,
+      password: true,
+    });
+
+    // If any validation errors, prevent form submission
+    if (emailError || passwordError) {
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      await login(email, password);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row overflow-hidden">
       {/* Left section - Medium blue with animated background */}
@@ -74,9 +189,16 @@ const Login = () => {
           <h1 className="text-3xl font-bold mb-6 text-center text-primary-900 relative">
             Login
             <span className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-16 h-1 bg-primary-700 rounded-full"></span>
-          </h1>
-
-          <form className="space-y-6">
+          </h1>{' '}
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            {error && (
+              <div
+                className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+                role="alert"
+              >
+                <span className="block sm:inline">{error}</span>
+              </div>
+            )}{' '}
             <div className="space-y-2">
               <label htmlFor="email" className="block text-sm font-medium text-primary-900">
                 Email
@@ -85,10 +207,18 @@ const Login = () => {
                 id="email"
                 type="email"
                 placeholder="Enter your email"
-                className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
+                value={email}
+                onChange={e => handleChange('email', e.target.value)}
+                onBlur={() => handleBlur('email')}
+                required
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
+                  validationErrors.email && touched.email ? 'border-red-500' : 'border-primary-200'
+                }`}
               />
+              {validationErrors.email && touched.email && (
+                <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>
+              )}
             </div>
-
             <div className="space-y-2">
               <label htmlFor="password" className="block text-sm font-medium text-primary-900">
                 Password
@@ -97,11 +227,23 @@ const Login = () => {
                 id="password"
                 type="password"
                 placeholder="Enter your password"
-                className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
+                value={password}
+                onChange={e => handleChange('password', e.target.value)}
+                onBlur={() => handleBlur('password')}
+                required
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
+                  validationErrors.password && touched.password
+                    ? 'border-red-500'
+                    : 'border-primary-200'
+                }`}
               />
+              {validationErrors.password && touched.password && (
+                <p className="text-red-500 text-xs mt-1">{validationErrors.password}</p>
+              )}
             </div>
-
             <Button
+              type="submit"
+              disabled={loading}
               className="w-full bg-primary-700 hover:bg-primary-800 text-white transform transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] hover:shadow-lg"
               style={{
                 backgroundImage: 'linear-gradient(to right, #0855b1, #2A91CD, #0855b1)',
@@ -114,9 +256,8 @@ const Login = () => {
                 e.currentTarget.style.backgroundPosition = 'left center';
               }}
             >
-              Login
+              {loading ? 'Logging in...' : 'Login'}
             </Button>
-
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300"></div>
@@ -125,7 +266,6 @@ const Login = () => {
                 <span className="px-2 bg-foreground text-primary-700">Or</span>
               </div>
             </div>
-
             <Button
               className="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-100 text-gray-800 border border-gray-300 transform transition-transform duration-300 hover:scale-[1.02] active:scale-[0.98] hover:shadow-md"
               onClick={() => console.log('Google login clicked')}
@@ -155,7 +295,6 @@ const Login = () => {
               </svg>
               Continue with Google
             </Button>
-
             <div className="text-center text-sm text-primary-800 mt-4">
               <span>Don't have an account? </span>
               <Link
