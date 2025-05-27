@@ -23,4 +23,5 @@ async def broadcast_topics():
 
         print("📤 Broadcasted topics to fanout exchange:", topics)
         await asyncio.sleep(30)
+
 asyncio.run(broadcast_topics())

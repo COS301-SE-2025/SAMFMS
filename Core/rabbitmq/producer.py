@@ -16,4 +16,5 @@ async def publish_message(event_type: str, message: dict):
     )
 
     print(f"📤 Published message to fanout exchange: {event_type} -> {message}")
+
     await connection.close()
