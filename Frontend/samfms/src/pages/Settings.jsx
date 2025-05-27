@@ -1,6 +1,7 @@
 import React from 'react';
-import { Button } from '../components/ui/button';
+import {Button} from '../components/ui/button';
 import ThemeToggle from '../components/ThemeToggle';
+import DeleteAccount from '../components/DeleteAccount';
 
 const Settings = () => {
   return (
@@ -63,9 +64,9 @@ const Settings = () => {
           title="Notifications"
           description="Manage your notification preferences"
           options={[
-            { id: 'email-alerts', label: 'Email Alerts', value: true, type: 'toggle' },
-            { id: 'push-notifications', label: 'Push Notifications', value: true, type: 'toggle' },
-            { id: 'sms', label: 'SMS Notifications', value: false, type: 'toggle' },
+            {id: 'email-alerts', label: 'Email Alerts', value: true, type: 'toggle'},
+            {id: 'push-notifications', label: 'Push Notifications', value: true, type: 'toggle'},
+            {id: 'sms', label: 'SMS Notifications', value: false, type: 'toggle'},
             {
               id: 'notification-sound',
               label: 'Notification Sound',
@@ -125,9 +126,9 @@ const Settings = () => {
           title="Privacy & Security"
           description="Manage your privacy and security settings"
           options={[
-            { id: 'two-factor', label: 'Two-factor Authentication', value: false, type: 'toggle' },
-            { id: 'data-sharing', label: 'Data Sharing', value: true, type: 'toggle' },
-            { id: 'activity-log', label: 'Activity Logging', value: true, type: 'toggle' },
+            {id: 'two-factor', label: 'Two-factor Authentication', value: false, type: 'toggle'},
+            {id: 'data-sharing', label: 'Data Sharing', value: true, type: 'toggle'},
+            {id: 'activity-log', label: 'Activity Logging', value: true, type: 'toggle'},
             {
               id: 'session-timeout',
               label: 'Session Timeout',
@@ -137,6 +138,8 @@ const Settings = () => {
             },
           ]}
         />
+        {/* Delete Account section */}
+        <DeleteAccount />
       </div>
 
       <div className="flex justify-end mt-8">
@@ -150,7 +153,7 @@ const Settings = () => {
 };
 
 // A section component for grouping related settings
-const SettingsSection = ({ title, description, options }) => {
+const SettingsSection = ({title, description, options}) => {
   return (
     <div className="bg-card rounded-lg shadow-md p-6 border border-border">
       <h2 className="text-xl font-semibold mb-2">{title}</h2>
@@ -177,9 +180,8 @@ const SettingsSection = ({ title, description, options }) => {
                     className="sr-only peer"
                   />
                   <span
-                    className={`absolute left-1 top-1 w-4 h-4 rounded-full transition-all duration-200 ${
-                      option.value ? 'bg-primary translate-x-6' : 'bg-foreground'
-                    }`}
+                    className={`absolute left-1 top-1 w-4 h-4 rounded-full transition-all duration-200 ${option.value ? 'bg-primary translate-x-6' : 'bg-foreground'
+                      }`}
                   ></span>
                 </div>
               ) : option.type === 'select' ? (
