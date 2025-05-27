@@ -54,4 +54,5 @@ async def broadcast_topics():
         logger.error(f"❌ Error in broadcast_topics: {str(e)}")
         raise
 
+
 # Note: broadcast_topics() should be called explicitly when needed, not at module import

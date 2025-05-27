@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 async def handle_message(message: aio_pika.IncomingMessage):
     async with message.process():
         data = json.loads(message.body.decode())
-        print("📨 Received:", data)
+        print("Message Received:", data)
 
 async def wait_for_rabbitmq(max_retries: int = 30, delay: int = 2):
     """Wait for RabbitMQ to be available with retry logic"""
