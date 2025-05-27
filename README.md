@@ -37,6 +37,14 @@ Here’s our awesome team behind **Firewall Five**:
       <td><a href="https://linkedin.com/in/stefan-JvR" style="font-size: 18px;">@Stefan Jansen van Rensburg</a></td>
       <td style="font-size: 18px;"><strong>Team lead/ Project manager.</strong>, management of <strong>CI\CD</strong> , Worked on <strong>Daemon.</strong> // Features: storage, CRUD operations, reading and writing files, server creation and user management</td>
     </tr>
+    <tr>
+      <td><img src="https://github.com/herrie732.png" width="80"></td>
+      <td><a href="https://github.com/herrie732" style="font-size: 18px;">@herrie732</a></td>
+      <td style="font-size: 18px;">Mr. Herman Johan Engelbrecht</td>
+      <td style="font-size: 18px;">u22512374</td>
+      <td><a href="https://www.linkedin.com/in/herman-johan-engelbrecht" style="font-size: 18px;">@Herman Johan Engelbrecht</a></td>
+      <td style="font-size: 18px;"><strong>Integration engineer/ Services engineer.</strong></td>
+    </tr>
   </tbody>
 </table>
 
