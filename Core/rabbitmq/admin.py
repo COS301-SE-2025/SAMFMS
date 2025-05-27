@@ -21,6 +21,6 @@ async def broadcast_topics():
             routing_key=""  
         )
 
-        print("📤 Broadcasted topics to fanout exchange:", topics)
+        print("Message broadcasted topics to fanout exchange:", topics)
         await asyncio.sleep(30)
 asyncio.run(broadcast_topics())

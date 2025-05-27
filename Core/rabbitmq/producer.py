@@ -15,5 +15,5 @@ async def publish_message(event_type: str, message: dict):
         routing_key=""
     )
 
-    print(f"📤 Published message to fanout exchange: {event_type} -> {message}")
+    print(f"Message published message to fanout exchange: {event_type} -> {message}")
     await connection.close()
