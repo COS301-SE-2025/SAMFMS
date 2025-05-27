@@ -84,9 +84,10 @@ const VehicleDetailsModal = ({ vehicle, closeVehicleDetails, openAssignmentModal
               <div className="mb-6">
                 <h4 className="font-medium mb-2">Driver Information</h4>
                 <div className="p-4 border border-border rounded-md">
+                  {' '}
                   <div className="flex items-center mb-2">
                     <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium mr-3">
-                      {vehicle.driver !== 'Unassigned'
+                      {vehicle.driver && vehicle.driver !== 'Unassigned'
                         ? vehicle.driver
                             .split(' ')
                             .map(n => n[0])
