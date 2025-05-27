@@ -37,6 +37,17 @@ Here’s our awesome team behind **Firewall Five**:
       <td><a href="https://linkedin.com/in/stefan-JvR" style="font-size: 18px;">@Stefan Jansen van Rensburg</a></td>
       <td style="font-size: 18px;"><strong>Team lead/ Project manager.</strong>, management of <strong>CI\CD</strong> , Worked on <strong>Daemon.</strong> // Features: storage, CRUD operations, reading and writing files, server creation and user management</td>
     </tr>
+    <tr>
+      <td><img src="https://github.com/22590732.png" width="80"></td>
+      <td><a href="https://github.com/22590732" style="font-size: 18px;">@22590732</a></td>
+      <td style="font-size: 18px;">Mr Johan Jansen van Rensburg</td>
+      <td style="font-size: 18px;">22590732</td>
+      <td><a href="https://www.linkedin.com/in/nicolaas-jansen-van-rensburg-202629363/" style="font-size: 18px;">@Johan Jansen van Rensburg</a></td>
+      <td style="font-size: 18px;">
+        <strong>UI Engineer, Designer, Services Engineer.</strong>
+        Responsible for designing and implementing the user interface, ensuring a seamless and intuitive user experience. Contributed to the visual design, frontend architecture, and integration of backend services for the SAMFMS platform.
+      </td>
+    </tr>
   </tbody>
 </table>
 
