@@ -1,6 +1,7 @@
 import React from 'react';
-import { Button } from '../components/ui/button';
+import {Button} from '../components/ui/button';
 import ColorPalette from '../components/ColorPalette';
+import DashboardLayoutToolbar from '../components/DashboardLayoutToolbar';
 
 const Dashboard = () => {
   return (
@@ -9,6 +10,9 @@ const Dashboard = () => {
         <h1 className="text-4xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">Welcome to your SAMFMS dashboard</p>
       </header>
+
+      {/* Layout toolbar below the top toolbar */}
+      <DashboardLayoutToolbar />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <DashboardCard
@@ -31,7 +35,7 @@ const Dashboard = () => {
           title="Driver Status"
           content="12 drivers available"
           footer="Manage drivers"
-        />{' '}
+        />
         <DashboardCard title="Analytics" content="Fleet efficiency up 3%" footer="View analytics" />
       </div>
 
@@ -43,7 +47,7 @@ const Dashboard = () => {
 };
 
 // A simple card component for the dashboard
-const DashboardCard = ({ title, content, footer }) => {
+const DashboardCard = ({title, content, footer}) => {
   return (
     <div className="bg-card rounded-lg shadow-md p-6 border border-border">
       <h2 className="text-xl font-semibold mb-4">{title}</h2>
