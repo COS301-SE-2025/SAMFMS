@@ -3,3 +3,4 @@ uvicorn[standard]
 motor
 aio_pika
 pytest
+httpx
