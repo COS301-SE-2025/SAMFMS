@@ -1,13 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from fastapi import APIRouter
-<<<<<<< Updated upstream
-from Core.models import UserModel
-from routes import user
-=======
 from models import UserModel
 from bson import ObjectId
 from fastapi import HTTPException
->>>>>>> Stashed changes
 import json
 
 from database import db
