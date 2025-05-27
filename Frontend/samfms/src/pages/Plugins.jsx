@@ -1,9 +1,11 @@
-import React from 'react';
-import { Button } from '../components/ui/button';
+import React, {useState} from 'react';
+import {Button} from '../components/ui/button';
+
+const userTypes = ['Driver', 'Fleet Manager', 'Admin'];
 
 const Plugins = () => {
   // Sample plugins data
-  const plugins = [
+  const [plugins, setPlugins] = useState([
     {
       id: 'gps-tracking',
       name: 'GPS Tracking',
@@ -12,6 +14,7 @@ const Plugins = () => {
       version: '1.2.0',
       isEnabled: true,
       isCore: true,
+      access: ['Fleet Manager', 'Admin'],
     },
     {
       id: 'maintenance-scheduler',
@@ -21,6 +24,7 @@ const Plugins = () => {
       version: '1.0.3',
       isEnabled: true,
       isCore: true,
+      access: ['Fleet Manager', 'Admin'],
     },
     {
       id: 'fuel-management',
@@ -30,6 +34,7 @@ const Plugins = () => {
       version: '1.1.5',
       isEnabled: true,
       isCore: true,
+      access: ['Fleet Manager', 'Admin'],
     },
     {
       id: 'driver-management',
@@ -39,6 +44,7 @@ const Plugins = () => {
       version: '1.2.1',
       isEnabled: false,
       isCore: false,
+      access: ['Fleet Manager', 'Admin'],
     },
     {
       id: 'route-optimization',
@@ -48,6 +54,7 @@ const Plugins = () => {
       version: '2.0.1',
       isEnabled: true,
       isCore: false,
+      access: ['Fleet Manager', 'Admin'],
     },
     {
       id: 'expense-tracker',
@@ -57,8 +64,25 @@ const Plugins = () => {
       version: '1.3.4',
       isEnabled: false,
       isCore: false,
+      access: ['Admin'],
     },
-  ];
+  ]);
+
+  // Handler for changing access for a plugin
+  const handleAccessToggle = (pluginId, role) => {
+    setPlugins((prev) =>
+      prev.map((plugin) =>
+        plugin.id === pluginId
+          ? {
+            ...plugin,
+            access: plugin.access.includes(role)
+              ? plugin.access.filter((r) => r !== role)
+              : [...plugin.access, role],
+          }
+          : plugin
+      )
+    );
+  };
 
   return (
     <div className="container mx-auto py-8">
@@ -71,15 +95,21 @@ const Plugins = () => {
       </header>
 
       <div className="grid grid-cols-1 gap-6">
-        {plugins.map(plugin => (
-          <PluginItem key={plugin.id} plugin={plugin} />
+        {plugins.map((plugin) => (
+          <PluginItem
+            key={plugin.id}
+            plugin={plugin}
+            onAccessToggle={handleAccessToggle}
+          />
         ))}
       </div>
     </div>
   );
 };
 
-const PluginItem = ({ plugin }) => {
+const PluginItem = ({plugin, onAccessToggle}) => {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
   return (
     <div className="bg-card rounded-lg shadow-md p-6 border border-border">
       <div className="flex flex-wrap justify-between items-start">
@@ -97,6 +127,38 @@ const PluginItem = ({ plugin }) => {
             <p>Author: {plugin.author}</p>
             <p>Version: {plugin.version}</p>
           </div>
+          <div className="mt-4 relative">
+            <label className="block font-medium mb-1">User Access</label>
+            <button
+              type="button"
+              className="border rounded px-2 py-1 w-full text-left bg-background"
+              onClick={() => setDropdownOpen((open) => !open)}
+            >
+              {plugin.access.length === 0
+                ? 'No Access'
+                : plugin.access.join(', ')}
+              <span className="float-right">{dropdownOpen ? '▲' : '▼'}</span>
+            </button>
+            {dropdownOpen && (
+              <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-900 border rounded shadow">
+                {userTypes.map((type) => (
+                  <div
+                    key={type}
+                    className="flex items-center px-3 py-2 cursor-pointer hover:bg-accent"
+                    onClick={() => onAccessToggle(plugin.id, type)}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={plugin.access.includes(type)}
+                      readOnly
+                      className="mr-2"
+                    />
+                    <span>{type}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex flex-col items-end space-y-4">
           <div className="flex items-center">
@@ -111,11 +173,12 @@ const PluginItem = ({ plugin }) => {
                 id={`toggle-${plugin.id}`}
                 defaultChecked={plugin.isEnabled}
                 className="sr-only peer"
+                tabIndex={-1}
+                readOnly
               />
               <span
-                className={`absolute left-1 top-1 w-4 h-4 rounded-full transition-all duration-200 ${
-                  plugin.isEnabled ? 'bg-primary translate-x-6' : 'bg-foreground'
-                }`}
+                className={`absolute left-1 top-1 w-4 h-4 rounded-full transition-all duration-200 ${plugin.isEnabled ? 'bg-primary translate-x-6' : 'bg-foreground'
+                  }`}
               ></span>
             </div>
           </div>
