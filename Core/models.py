@@ -26,6 +26,7 @@ class UserModel(BaseModel):
     email: str
     password: str
     role: str
+    phoneNo: Optional[str] = None
     preferences: Optional[List[str]] = []
 
     class Config:
