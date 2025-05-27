@@ -84,6 +84,17 @@ const Plugins = () => {
     );
   };
 
+  // Handler for toggling enabled/disabled
+  const handleEnabledToggle = (pluginId) => {
+    setPlugins((prev) =>
+      prev.map((plugin) =>
+        plugin.id === pluginId
+          ? {...plugin, isEnabled: !plugin.isEnabled}
+          : plugin
+      )
+    );
+  };
+
   return (
     <div className="container mx-auto py-8">
       <header className="mb-8 flex justify-between items-center">
@@ -100,6 +111,7 @@ const Plugins = () => {
             key={plugin.id}
             plugin={plugin}
             onAccessToggle={handleAccessToggle}
+            onEnabledToggle={handleEnabledToggle}
           />
         ))}
       </div>
@@ -107,7 +119,7 @@ const Plugins = () => {
   );
 };
 
-const PluginItem = ({plugin, onAccessToggle}) => {
+const PluginItem = ({plugin, onAccessToggle, onEnabledToggle}) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
@@ -167,20 +179,29 @@ const PluginItem = ({plugin, onAccessToggle}) => {
             >
               {plugin.isEnabled ? 'Enabled' : 'Disabled'}
             </span>
-            <div className="relative inline-block w-12 h-6 rounded-full bg-secondary">
-              <input
-                type="checkbox"
-                id={`toggle-${plugin.id}`}
-                defaultChecked={plugin.isEnabled}
-                className="sr-only peer"
-                tabIndex={-1}
-                readOnly
-              />
+            <button
+              className="relative inline-block w-12 h-6 rounded-full bg-secondary focus:outline-none"
+              onClick={() => onEnabledToggle(plugin.id)}
+              aria-label={plugin.isEnabled ? 'Disable plugin' : 'Enable plugin'}
+              type="button"
+            >
               <span
                 className={`absolute left-1 top-1 w-4 h-4 rounded-full transition-all duration-200 ${plugin.isEnabled ? 'bg-primary translate-x-6' : 'bg-foreground'
                   }`}
+                style={{
+                  transform: plugin.isEnabled
+                    ? 'translateX(1.5rem)'
+                    : 'translateX(0)',
+                }}
               ></span>
-            </div>
+              <input
+                type="checkbox"
+                checked={plugin.isEnabled}
+                readOnly
+                className="sr-only"
+                tabIndex={-1}
+              />
+            </button>
           </div>
           <div className="flex space-x-2">
             <Button variant="outline" size="sm">
