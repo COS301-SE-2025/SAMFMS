@@ -3,7 +3,6 @@ const hostname = "localhost:8000";
 export const API_URL = `http://${hostname}/api`;
 
 export const API = {
-  listVehicles: `${API_URL}/vehicles`,
   login: `${API_URL}/login`,
   logout: `${API_URL}/logout`,
   user: `${API_URL}/user`,
