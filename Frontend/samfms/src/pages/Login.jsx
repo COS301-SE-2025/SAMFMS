@@ -8,6 +8,14 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({
+    email: '',
+    password: '',
+  });
+  const [touched, setTouched] = useState({
+    email: false,
+    password: false,
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -16,9 +24,87 @@ const Login = () => {
       navigate('/dashboard');
     }
   }, [navigate]);
+  // Validate email
+  const validateEmail = email => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim()) {
+      return 'Email is required';
+    } else if (!emailRegex.test(email)) {
+      return 'Invalid email format';
+    }
+    return '';
+  };
+
+  // Validate password
+  const validatePassword = password => {
+    if (!password.trim()) {
+      return 'Password is required';
+    } else if (password.length < 6) {
+      return 'Password must be at least 6 characters';
+    }
+    return '';
+  };
+
+  // Handle blur events
+  const handleBlur = field => {
+    setTouched({ ...touched, [field]: true });
+
+    if (field === 'email') {
+      setValidationErrors({
+        ...validationErrors,
+        email: validateEmail(email),
+      });
+    } else if (field === 'password') {
+      setValidationErrors({
+        ...validationErrors,
+        password: validatePassword(password),
+      });
+    }
+  };
+
+  // Handle change events with validation
+  const handleChange = (field, value) => {
+    if (field === 'email') {
+      setEmail(value);
+      if (touched.email) {
+        setValidationErrors({
+          ...validationErrors,
+          email: validateEmail(value),
+        });
+      }
+    } else if (field === 'password') {
+      setPassword(value);
+      if (touched.password) {
+        setValidationErrors({
+          ...validationErrors,
+          password: validatePassword(value),
+        });
+      }
+    }
+  };
 
   const handleSubmit = async e => {
     e.preventDefault();
+
+    // Validate all fields
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(password);
+
+    setValidationErrors({
+      email: emailError,
+      password: passwordError,
+    });
+
+    setTouched({
+      email: true,
+      password: true,
+    });
+
+    // If any validation errors, prevent form submission
+    if (emailError || passwordError) {
+      return;
+    }
+
     setError('');
     setLoading(true);
 
@@ -112,8 +198,7 @@ const Login = () => {
               >
                 <span className="block sm:inline">{error}</span>
               </div>
-            )}
-
+            )}{' '}
             <div className="space-y-2">
               <label htmlFor="email" className="block text-sm font-medium text-primary-900">
                 Email
@@ -123,12 +208,17 @@ const Login = () => {
                 type="email"
                 placeholder="Enter your email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={e => handleChange('email', e.target.value)}
+                onBlur={() => handleBlur('email')}
                 required
-                className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
+                  validationErrors.email && touched.email ? 'border-red-500' : 'border-primary-200'
+                }`}
               />
+              {validationErrors.email && touched.email && (
+                <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>
+              )}
             </div>
-
             <div className="space-y-2">
               <label htmlFor="password" className="block text-sm font-medium text-primary-900">
                 Password
@@ -138,12 +228,19 @@ const Login = () => {
                 type="password"
                 placeholder="Enter your password"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={e => handleChange('password', e.target.value)}
+                onBlur={() => handleBlur('password')}
                 required
-                className="w-full p-2 border border-primary-200 rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02]"
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
+                  validationErrors.password && touched.password
+                    ? 'border-red-500'
+                    : 'border-primary-200'
+                }`}
               />
+              {validationErrors.password && touched.password && (
+                <p className="text-red-500 text-xs mt-1">{validationErrors.password}</p>
+              )}
             </div>
-
             <Button
               type="submit"
               disabled={loading}
@@ -161,7 +258,6 @@ const Login = () => {
             >
               {loading ? 'Logging in...' : 'Login'}
             </Button>
-
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300"></div>
@@ -170,7 +266,6 @@ const Login = () => {
                 <span className="px-2 bg-foreground text-primary-700">Or</span>
               </div>
             </div>
-
             <Button
               className="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-100 text-gray-800 border border-gray-300 transform transition-transform duration-300 hover:scale-[1.02] active:scale-[0.98] hover:shadow-md"
               onClick={() => console.log('Google login clicked')}
@@ -200,7 +295,6 @@ const Login = () => {
               </svg>
               Continue with Google
             </Button>
-
             <div className="text-center text-sm text-primary-800 mt-4">
               <span>Don't have an account? </span>
               <Link

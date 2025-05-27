@@ -25,7 +25,7 @@ class SignupRequest(BaseModel):
     role: str = "user"  # Default role
     phoneNo: str = None
     details: dict = {}
-    preferences: list = []
+    preferences: dict = {}
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -43,6 +43,9 @@ class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
 
+class UpdatePreferencesRequest(BaseModel):
+    preferences: dict
+
 
 @router.post("/signup", response_model=TokenResponse)
 async def signup(user_data: SignupRequest):
@@ -54,10 +57,24 @@ async def signup(user_data: SignupRequest):
             raise HTTPException(
                 status_code=400,
                 detail="User with this email already exists"
-            )
-
-        # Hash the password
+            )        # Hash the password
         hashed_password = get_password_hash(user_data.password)
+        
+        # Set default preferences if none provided
+        default_preferences = {
+            "theme": "light",
+            "animations": "true",
+            "email_alerts": "true",
+            "push_notifications": "true",
+            "timezone": "UTC-5 (Eastern Time)",
+            "date_format": "MM/DD/YYYY",
+            "two_factor": "false",
+            "activity_log": "true",
+            "session_timeout": "30 minutes"
+        }
+        
+        # Merge provided preferences with defaults
+        user_preferences = {**default_preferences, **user_data.preferences}
         
         # Create user model
         user_model = UserModel(
@@ -67,7 +84,7 @@ async def signup(user_data: SignupRequest):
             role=user_data.role,
             details=user_data.details,
             phoneNo=user_data.phoneNo,
-            preferences=user_data.preferences
+            preferences=user_preferences
         )
         
         # Insert user into database
@@ -90,7 +107,17 @@ async def signup(user_data: SignupRequest):
             role=created_user["role"],
             phoneNo=created_user.get("phoneNo"),
             details=created_user.get("details", {}),
-            preferences=created_user.get("preferences", [])
+            preferences=created_user.get("preferences", {
+                "theme": "light",
+                "animations": "true",
+                "email_alerts": "true",
+                "push_notifications": "true",
+                "timezone": "UTC-5 (Eastern Time)",
+                "date_format": "MM/DD/YYYY",
+                "two_factor": "false",
+                "activity_log": "true",
+                "session_timeout": "30 minutes"
+            })
         )
         
         return TokenResponse(
@@ -179,7 +206,17 @@ async def get_current_user_info(current_user: dict = Depends(get_current_active_
             role=current_user["role"],
             phoneNo=current_user.get("phoneNo"),
             details=current_user.get("details", {}),
-            preferences=current_user.get("preferences", [])
+            preferences=current_user.get("preferences", {
+                "theme": "light",
+                "animations": "true",
+                "email_alerts": "true",
+                "push_notifications": "true",
+                "timezone": "UTC-5 (Eastern Time)",
+                "date_format": "MM/DD/YYYY",
+                "two_factor": "false",
+                "activity_log": "true",
+                "session_timeout": "30 minutes"
+            })
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching user info: {str(e)}")
@@ -218,3 +255,27 @@ async def change_password(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error changing password: {str(e)}")
+
+
+@router.post("/update-preferences", response_model=MessageResponse)
+async def update_preferences(
+    preferences_data: UpdatePreferencesRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Update user preferences."""
+    try:
+        # Update preferences in database
+        result = await users_collection.update_one(
+            {"_id": current_user["_id"]},
+            {"$set": {"preferences": preferences_data.preferences}}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return MessageResponse(message="Preferences updated successfully")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating preferences: {str(e)}")
