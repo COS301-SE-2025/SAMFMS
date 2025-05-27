@@ -1,6 +1,6 @@
 import aio_pika
 import json
-import admin
+from . import admin
 
 async def publish_message(event_type: str, message: dict):
     connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)

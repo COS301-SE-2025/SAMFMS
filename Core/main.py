@@ -2,9 +2,7 @@ from fastapi import FastAPI, HTTPException
 from motor.motor_asyncio import AsyncIOMotorClient
 import uvicorn
 from routes import user
-from rabbitmq import producer, consumer
-from rabbitmq import admin
-from rabbitmq import producer, consumer
+from rabbitmq import producer, consumer, admin
 
 
 from database import db

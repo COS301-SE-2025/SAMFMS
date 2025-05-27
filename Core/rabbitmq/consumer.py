@@ -1,7 +1,7 @@
 import aio_pika
 import asyncio
 import json
-import admin
+from . import admin
 
 async def handle_message(message: aio_pika.IncomingMessage):
     async with message.process():
