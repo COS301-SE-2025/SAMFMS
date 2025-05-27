@@ -1,5 +1,6 @@
 import React from 'react';
-import { Button } from '../components/ui/button';
+import {Button} from '../components/ui/button';
+import DeleteAccount from '../components/DeleteAccount';
 
 const Account = () => {
   return (
@@ -86,6 +87,9 @@ const Account = () => {
               </div>
             </form>
           </div>
+
+          {/* Delete Account section */}
+          <DeleteAccount />
         </div>
       </div>
     </div>
