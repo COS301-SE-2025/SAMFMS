@@ -27,8 +27,17 @@ class UserModel(BaseModel):
     password: str
     role: str
     phoneNo: Optional[str] = None
-    preferences: Optional[List[str]] = []
-
+    preferences: Optional[Dict[str, str]] = {
+        "theme": "light",
+        "animations": "true",
+        "email_alerts": "true",
+        "push_notifications": "true",
+        "timezone": "UTC-5 (Eastern Time)",        "date_format": "MM/DD/YYYY",
+        "two_factor": "false",
+        "activity_log": "true",
+        "session_timeout": "30 minutes"
+    }
+    
     class Config:
         validate_by_name = True
         arbitrary_types_allowed = True
@@ -42,7 +51,17 @@ class UserModel(BaseModel):
                 "password": "securepassword",
                 "role": "admin",
                 "phoneNo": "123-456-7890",
-                "preferences": ["dark_mode", "email_notifications"]
+                "preferences": {
+                    "theme": "dark",
+                    "animations": "true",
+                    "email_alerts": "true",
+                    "push_notifications": "false",
+                    "timezone": "UTC-5 (Eastern Time)",
+                    "date_format": "DD/MM/YYYY",
+                    "two_factor": "true",
+                    "activity_log": "true",
+                    "session_timeout": "1 hour"
+                }
             }
         }
 
@@ -54,7 +73,7 @@ class UserResponse(BaseModel):
     email: str
     role: str
     phoneNo: Optional[str] = None
-    preferences: Optional[List[str]] = []
+    preferences: Optional[Dict[str, str]] = {}
 
     class Config:
         validate_by_name = True

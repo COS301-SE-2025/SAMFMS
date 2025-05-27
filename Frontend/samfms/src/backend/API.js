@@ -10,6 +10,7 @@ export const API = {
   users: `${API_URL}/users`,
   changePassword: `${API_URL}/change-password`,
   deleteAccount: `${API_URL}/account`,
+  updatePreferences: `${API_URL}/update-preferences`,
 };
 
 export const signup = async (full_name, email, password, confirmPassword, phoneNo, role) => {
