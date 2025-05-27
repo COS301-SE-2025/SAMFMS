@@ -6,6 +6,7 @@ import VehicleActions from '../components/vehicles/VehicleActions';
 import VehicleDetailsModal from '../components/vehicles/VehicleDetailsModal';
 import DriverAssignmentModal from '../components/vehicles/DriverAssignmentModal';
 import DataVisualization from '../components/vehicles/DataVisualization';
+import AddVehicleModal from '../components/vehicles/AddVehicleModal';
 
 const Vehicles = () => {
   const [selectedVehicles, setSelectedVehicles] = useState([]);
@@ -18,6 +19,7 @@ const Vehicles = () => {
   const [sortField, setSortField] = useState('id');
   const [sortDirection, setSortDirection] = useState('asc');
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [showAddVehicleModal, setShowAddVehicleModal] = useState(false); 
   // Sample data
   const vehicles = [
     {
@@ -251,7 +253,10 @@ const Vehicles = () => {
       <div className="bg-card rounded-lg shadow-md p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold">Manage Vehicles</h2>
-          <button className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2">
+          <button
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
+            onClick={() => setShowAddVehicleModal(true)}
+          >
             <PlusCircle size={18} />
             <span>Add Vehicle</span>
           </button>
@@ -305,6 +310,14 @@ const Vehicles = () => {
           handleSelectVehicle={handleSelectVehicle}
           vehicles={vehicles}
           currentVehicle={currentVehicle}
+        />
+      )}{' '}
+      {/* Add Vehicle Modal */}
+      {showAddVehicleModal && (
+        <AddVehicleModal
+
+          //closeModal={() => setShowAddVehicleModal(false)}
+          // vehicles={vehicles}
         />
       )}{' '}
       {/* Data visualization section */}
