@@ -6,11 +6,110 @@ from bson import ObjectId
 from typing import List, Optional
 from database import db
 import uuid
+import random
+import re
 
 router = APIRouter()
 drivers_collection = db.drivers
 users_collection = db.users
 security = HTTPBearer()
+
+
+def validate_sa_phone_number(phone: str) -> bool:
+    """
+    Validate South African phone number format
+    Accepts: +27123456789, 0123456789
+    """
+    if not phone:
+        return True  # Optional field
+    
+    # Remove spaces and normalize
+    phone_clean = re.sub(r'\s+', '', phone)
+    
+    # SA phone regex: +27 followed by 9 digits or 0 followed by 9 digits
+    sa_phone_regex = r'^(\+27|0)[1-9][0-9]{8}$'
+    
+    return bool(re.match(sa_phone_regex, phone_clean))
+
+
+def validate_sa_license_number(license_number: str) -> bool:
+    """
+    Validate South African license number format
+    SA license numbers are typically 13 digits
+    """
+    if not license_number:
+        return False
+    
+    # Remove spaces and normalize
+    license_clean = re.sub(r'\s+', '', license_number)
+    
+    # SA license regex: 13 digits
+    sa_license_regex = r'^[0-9]{13}$'
+    
+    return bool(re.match(sa_license_regex, license_clean))
+
+
+async def generate_unique_employee_id():
+    """
+    Generate a unique 6-digit employee ID with format EMP-XXXXXX
+    where XXXXXX is a 6-digit number
+    """
+    max_attempts = 100  # Prevent infinite loop
+    attempts = 0
+    
+    while attempts < max_attempts:
+        # Generate a 6-digit number (100000 to 999999)
+        employee_number = random.randint(100000, 999999)
+        employee_id = f"EMP-{employee_number}"
+        
+        # Check if this employee ID already exists
+        existing_driver = await drivers_collection.find_one({"employee_id": employee_id})
+        if not existing_driver:
+            return employee_id
+        
+        attempts += 1
+    
+    # If we couldn't generate a unique ID after max_attempts, use timestamp fallback
+    import time
+    timestamp_id = f"EMP-{int(time.time()) % 1000000:06d}"
+    return timestamp_id
+
+
+def validate_sa_phone_number(phone_number: str) -> bool:
+    """
+    Validate South African phone number format
+    Accepts: +27123456789 or 0123456789 (with or without spaces)
+    """
+    if not phone_number:
+        return True  # Optional field
+    
+    # Remove spaces and other formatting
+    clean_phone = phone_number.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+    
+    # South African phone number regex
+    # +27 followed by 9 digits or 0 followed by 9 digits
+    import re
+    sa_phone_pattern = r'^(\+27|0)[1-9][0-9]{8}$'
+    
+    return bool(re.match(sa_phone_pattern, clean_phone))
+
+
+def validate_sa_license_number(license_number: str) -> bool:
+    """
+    Validate South African driver's license number format
+    SA license numbers are typically 13 digits
+    """
+    if not license_number:
+        return False
+    
+    # Remove spaces and other formatting
+    clean_license = license_number.replace(" ", "").replace("-", "")
+    
+    # SA license number should be 13 digits
+    import re
+    sa_license_pattern = r'^[0-9]{13}$'
+    
+    return bool(re.match(sa_license_pattern, clean_license))
 
 
 @router.post("/drivers", response_model=DriverResponse, status_code=status.HTTP_201_CREATED)
@@ -23,6 +122,26 @@ async def create_driver(
     The user entry contains basic user information, the driver entry contains driver-specific details.
     """
     try:
+        # Validate phone numbers (South African format)
+        if driver_data.phoneNo and not validate_sa_phone_number(driver_data.phoneNo):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid phone number format. Please use SA format: +27123456789 or 0123456789"
+            )
+            
+        if driver_data.emergency_contact and not validate_sa_phone_number(driver_data.emergency_contact):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid emergency contact format. Please use SA format: +27123456789 or 0123456789"
+            )
+        
+        # Validate license number (South African format)
+        if not validate_sa_license_number(driver_data.license_number):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid license number format. SA license numbers must be 13 digits"
+            )
+        
         # Check if email already exists
         existing_user = await users_collection.find_one({"email": driver_data.email})
         if existing_user:
@@ -63,6 +182,8 @@ async def create_driver(
         # Insert user
         user_result = await users_collection.insert_one(user_dict)
         user_id = str(user_result.inserted_id)
+          # Generate unique 6-digit employee ID
+        employee_id = await generate_unique_employee_id()
         
         # Create driver entry
         driver_dict = {
@@ -72,7 +193,7 @@ async def create_driver(
             "license_expiry": driver_data.license_expiry,
             "status": "available",
             "department": driver_data.department,
-            "employee_id": driver_data.employee_id or f"EMP-{str(uuid.uuid4())[:8].upper()}",
+            "employee_id": employee_id,
             "joining_date": driver_data.joining_date,
             "emergency_contact": driver_data.emergency_contact,
             "rating": 0.0,

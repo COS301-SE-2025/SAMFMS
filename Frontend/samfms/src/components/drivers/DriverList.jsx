@@ -1,4 +1,5 @@
 import React from 'react';
+import { Eye, Edit } from 'lucide-react';
 import StatusBadge from '../vehicles/StatusBadge';
 import Pagination from '../vehicles/Pagination';
 import SortableHeader from '../vehicles/SortableHeader';
@@ -13,6 +14,7 @@ const DriverList = ({
   sortDirection,
   handleSort,
   openDriverDetails,
+  onEditDriver,
   currentPage,
   totalPages,
   itemsPerPage,
@@ -43,10 +45,9 @@ const DriverList = ({
                   onChange={handleSelectAll}
                   className="rounded border-gray-300"
                 />
-              </th>
-              <SortableHeader
-                field="id"
-                label="Driver ID"
+              </th>              <SortableHeader
+                field="employeeId"
+                label="Employee ID"
                 currentSortField={sortField}
                 currentSortDirection={sortDirection}
                 onSort={handleSort}
@@ -102,9 +103,8 @@ const DriverList = ({
                     onChange={() => handleSelectDriver(driver.id)}
                     className="rounded border-gray-300"
                   />
-                </td>
-                <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
-                  {driver.id}
+                </td>                <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
+                  {driver.employeeId}
                 </td>
                 <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
                   {driver.name}

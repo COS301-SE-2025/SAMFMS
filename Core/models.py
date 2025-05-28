@@ -208,7 +208,6 @@ class DriverCreateRequest(BaseModel):
     license_type: str
     license_expiry: str
     department: Optional[str] = None
-    employee_id: Optional[str] = None
     joining_date: Optional[str] = None
     emergency_contact: Optional[str] = None
 

@@ -5,6 +5,7 @@ import DriverSearch from '../components/drivers/DriverSearch';
 import DriverActions from '../components/drivers/DriverActions';
 import DriverDetailsModal from '../components/drivers/DriverDetailsModal';
 import VehicleAssignmentModal from '../components/drivers/VehicleAssignmentModal';
+import AddDriverModal from '../components/drivers/AddDriverModal';
 import DataVisualization from '../components/drivers/DataVisualization';
 import { getDrivers, deleteDriver, searchDrivers } from '../backend/API';
 
@@ -23,6 +24,7 @@ const Drivers = () => {
   const [sortField, setSortField] = useState('id');
   const [sortDirection, setSortDirection] = useState('asc');
   const [showVehicleAssignmentModal, setShowVehicleAssignmentModal] = useState(false);
+  const [showAddDriverModal, setShowAddDriverModal] = useState(false);
   const [filters, setFilters] = useState({
     status: '',
     department: '',
@@ -242,11 +244,36 @@ const Drivers = () => {
   const openVehicleAssignmentModal = () => {
     setShowVehicleAssignmentModal(true);
   };
-
   // Close vehicle assignment modal
   const closeVehicleAssignmentModal = () => {
     setShowVehicleAssignmentModal(false);
   };
+
+  // Handle driver added callback
+  const handleDriverAdded = async newDriver => {
+    try {
+      // Transform the new driver data and add to the list
+      const transformedDriver = transformDriverData(newDriver);
+      setDrivers(prevDrivers => [...prevDrivers, transformedDriver]);
+      setFilteredDrivers(prevFiltered => [...prevFiltered, transformedDriver]);
+
+      // Show success message (you can replace this with a proper toast notification)
+      alert(`Driver "${transformedDriver.name}" has been added successfully!`);
+    } catch (error) {
+      console.error('Error processing new driver:', error);
+      // Refresh the entire list as fallback
+      try {
+        const response = await getDrivers({ limit: 100 });
+        const transformedDrivers = response.map(transformDriverData);
+        setDrivers(transformedDrivers);
+        setFilteredDrivers(transformedDrivers);
+      } catch (refreshError) {
+        console.error('Error refreshing drivers list:', refreshError);
+        setError('Driver added but failed to refresh list. Please refresh the page.');
+      }
+    }
+  };
+
   // Export selected drivers
   const exportSelectedDrivers = () => {
     const selectedData = sortedDrivers.filter(driver => selectedDrivers.includes(driver.id));
@@ -271,21 +298,22 @@ const Drivers = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">Fleet Drivers</h1>
-
       {/* Error Message */}
       {error && (
         <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-md mb-6">
           <p>{error}</p>
         </div>
       )}
-
       <div className="bg-card rounded-lg shadow-md p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold">
             Manage Drivers
             {loading && <span className="text-sm text-muted-foreground ml-2">(Loading...)</span>}
-          </h2>
-          <button className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2">
+          </h2>{' '}
+          <button
+            onClick={() => setShowAddDriverModal(true)}
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
+          >
             <PlusCircle size={18} />
             <span>Add Driver</span>
           </button>
@@ -342,7 +370,6 @@ const Drivers = () => {
           />
         )}
       </div>
-
       {/* Driver Details Modal */}
       {driverDetailsOpen && currentDriver && (
         <DriverDetailsModal
@@ -350,8 +377,7 @@ const Drivers = () => {
           closeDriverDetails={closeDriverDetails}
           openVehicleAssignmentModal={openVehicleAssignmentModal}
         />
-      )}
-
+      )}{' '}
       {/* Vehicle Assignment Modal */}
       {showVehicleAssignmentModal && (
         <VehicleAssignmentModal
@@ -360,7 +386,13 @@ const Drivers = () => {
           currentDriver={currentDriver}
         />
       )}
-
+      {/* Add Driver Modal */}
+      {showAddDriverModal && (
+        <AddDriverModal
+          closeModal={() => setShowAddDriverModal(false)}
+          onDriverAdded={handleDriverAdded}
+        />
+      )}
       {/* Data visualization section */}
       <DataVisualization />
     </div>

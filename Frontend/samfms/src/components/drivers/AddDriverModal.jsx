@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Phone, Mail, Calendar, Building, IdCard, License } from 'lucide-react';
+import { X, User, Phone, Mail, Calendar, Building, CreditCard } from 'lucide-react';
 import { createDriver } from '../../backend/API';
 
 const AddDriverModal = ({ closeModal, onDriverAdded }) => {
@@ -8,10 +8,9 @@ const AddDriverModal = ({ closeModal, onDriverAdded }) => {
     email: '',
     phoneNo: '',
     license_number: '',
-    license_type: 'Class C',
+    license_type: 'Code B (Light Motor Vehicle)',
     license_expiry: '',
     department: '',
-    employee_id: '',
     joining_date: '',
     emergency_contact: '',
   });
@@ -26,7 +25,6 @@ const AddDriverModal = ({ closeModal, onDriverAdded }) => {
       [name]: value,
     }));
   };
-
   const handleSubmit = async e => {
     e.preventDefault();
     setLoading(true);
@@ -49,8 +47,29 @@ const AddDriverModal = ({ closeModal, onDriverAdded }) => {
         throw new Error('Please enter a valid email address');
       }
 
+      // Validate phone number format (South African format)
+      if (formData.phoneNo) {
+        const phoneRegex = /^(\+27|0)[1-9][0-9]{8}$/;
+        if (!phoneRegex.test(formData.phoneNo.replace(/\s+/g, ''))) {
+          throw new Error(
+            'Please enter a valid South African phone number (e.g., +27123456789 or 0123456789)'
+          );
+        }
+      }
+
+      // Validate emergency contact format if provided
+      if (formData.emergency_contact) {
+        const emergencyPhoneRegex = /^(\+27|0)[1-9][0-9]{8}$/;
+        if (!emergencyPhoneRegex.test(formData.emergency_contact.replace(/\s+/g, ''))) {
+          throw new Error('Please enter a valid South African emergency contact number');
+        }
+      } // Auto-generate employee ID if not provided
+      const submissionData = {
+        ...formData,
+      };
+
       // Create driver
-      const newDriver = await createDriver(formData);
+      const newDriver = await createDriver(submissionData);
 
       // Call the callback to refresh the drivers list
       if (onDriverAdded) {
@@ -65,8 +84,17 @@ const AddDriverModal = ({ closeModal, onDriverAdded }) => {
       setLoading(false);
     }
   };
-
-  const licenseTypes = ['Class A', 'Class B', 'Class C', 'CDL', 'Motorcycle', 'Commercial'];
+  const licenseTypes = [
+    'Code EB (Light Motor Vehicle)',
+    'Code B (Light Motor Vehicle)',
+    'Code C1 (Medium Heavy Vehicle)',
+    'Code C (Heavy Vehicle)',
+    'Code EC1 (Medium Heavy Vehicle with Trailer)',
+    'Code EC (Heavy Vehicle with Trailer)',
+    'Code A (Motorcycle)',
+    'Code A1 (Light Motorcycle)',
+    'Professional Driving Permit (PrDP)',
+  ];
   const departments = ['Sales', 'Operations', 'Delivery', 'Executive', 'Support', 'Maintenance'];
 
   return (
@@ -131,7 +159,7 @@ const AddDriverModal = ({ closeModal, onDriverAdded }) => {
                       required
                     />
                   </div>
-                </div>
+                </div>{' '}
                 <div>
                   <label className="block text-sm font-medium mb-2">Phone Number</label>
                   <div className="relative">
@@ -145,29 +173,36 @@ const AddDriverModal = ({ closeModal, onDriverAdded }) => {
                       value={formData.phoneNo}
                       onChange={handleInputChange}
                       className="w-full pl-10 pr-3 py-2 border border-input rounded-md bg-background"
-                      placeholder="(555) 123-4567"
+                      placeholder="+27123456789 or 0123456789"
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    South African format: +27123456789 or 0123456789
+                  </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Emergency Contact</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Emergency Contact (Optional)
+                  </label>
                   <input
                     type="tel"
                     name="emergency_contact"
                     value={formData.emergency_contact}
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-input rounded-md bg-background"
-                    placeholder="Emergency contact number"
+                    placeholder="+27123456789 or 0123456789"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Optional: Emergency contact phone number
+                  </p>
                 </div>
               </div>
-            </div>
-
+            </div>{' '}
             {/* License Information */}
             <div>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <License size={20} />
-                License Information
+                <CreditCard size={20} />
+                South African Driver's License Information
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -180,12 +215,13 @@ const AddDriverModal = ({ closeModal, onDriverAdded }) => {
                     value={formData.license_number}
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-input rounded-md bg-background"
-                    placeholder="DL1234567"
+                    placeholder="e.g., 1234567890123"
                     required
                   />
+                  <p className="text-xs text-muted-foreground mt-1">SA license number format</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">License Type</label>
+                  <label className="block text-sm font-medium mb-2">License Code/Type</label>
                   <select
                     name="license_type"
                     value={formData.license_type}
@@ -220,14 +256,13 @@ const AddDriverModal = ({ closeModal, onDriverAdded }) => {
                 </div>
               </div>
             </div>
-
             {/* Employment Information */}
             <div>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Building size={20} />
                 Employment Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              </h3>{' '}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Department</label>
                   <select
@@ -245,23 +280,6 @@ const AddDriverModal = ({ closeModal, onDriverAdded }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Employee ID</label>
-                  <div className="relative">
-                    <IdCard
-                      size={16}
-                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
-                    />
-                    <input
-                      type="text"
-                      name="employee_id"
-                      value={formData.employee_id}
-                      onChange={handleInputChange}
-                      className="w-full pl-10 pr-3 py-2 border border-input rounded-md bg-background"
-                      placeholder="EMP-1234 (auto-generated if empty)"
-                    />
-                  </div>
-                </div>
-                <div>
                   <label className="block text-sm font-medium mb-2">Joining Date</label>
                   <input
                     type="date"
@@ -273,7 +291,6 @@ const AddDriverModal = ({ closeModal, onDriverAdded }) => {
                 </div>
               </div>
             </div>
-
             {/* Submit Buttons */}
             <div className="flex justify-end gap-3 pt-4 border-t border-border">
               <button
