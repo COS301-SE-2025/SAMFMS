@@ -8,6 +8,7 @@ from rabbitmq import producer, consumer, admin
 from routes import user
 from routes import auth
 from routes import vehicle
+from routes import driver
 from database import db
 
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +35,7 @@ app.add_middleware(
 app.include_router(user.router)
 app.include_router(auth.router)
 app.include_router(vehicle.router)
+app.include_router(driver.router)
 
 
 

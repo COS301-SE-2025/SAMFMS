@@ -1,7 +1,12 @@
 import React from 'react';
 import { Users, Download, Upload, FileText, Tag, Trash2 } from 'lucide-react';
 
-const VehicleActions = ({ selectedVehicles, openAssignmentModal, exportSelectedVehicles }) => {
+const VehicleActions = ({
+  selectedVehicles,
+  openAssignmentModal,
+  exportSelectedVehicles,
+  onDeleteSelected,
+}) => {
   return (
     <>
       {/* Main Actions */}
@@ -46,8 +51,11 @@ const VehicleActions = ({ selectedVehicles, openAssignmentModal, exportSelectedV
             <button className="text-sm text-primary hover:text-primary/80 flex items-center gap-1">
               <Tag size={14} />
               Add Tag
-            </button>
-            <button className="text-sm text-destructive hover:text-destructive/80 flex items-center gap-1">
+            </button>{' '}
+            <button
+              onClick={onDeleteSelected}
+              className="text-sm text-destructive hover:text-destructive/80 flex items-center gap-1"
+            >
               <Trash2 size={14} />
               Delete
             </button>

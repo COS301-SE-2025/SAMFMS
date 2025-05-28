@@ -2,7 +2,13 @@ import React from 'react';
 import { X, Calendar, AlertTriangle, RefreshCw, Edit2, Trash2, Users } from 'lucide-react';
 import TagList from './TagList';
 
-const VehicleDetailsModal = ({ vehicle, closeVehicleDetails, openAssignmentModal }) => {
+const VehicleDetailsModal = ({
+  vehicle,
+  closeVehicleDetails,
+  openAssignmentModal,
+  onEditVehicle,
+  onDeleteVehicle,
+}) => {
   if (!vehicle) return null;
 
   return (
@@ -169,12 +175,30 @@ const VehicleDetailsModal = ({ vehicle, closeVehicleDetails, openAssignmentModal
                   <button className="w-full py-2 border border-border rounded-md flex items-center justify-center gap-2 hover:bg-accent/20 transition">
                     <RefreshCw size={14} />
                     <span>Update Status</span>
-                  </button>
-                  <button className="w-full py-2 border border-border rounded-md flex items-center justify-center gap-2 hover:bg-accent/20 transition">
+                  </button>{' '}
+                  <button
+                    className="w-full py-2 border border-border rounded-md flex items-center justify-center gap-2 hover:bg-accent/20 transition"
+                    onClick={() => {
+                      closeVehicleDetails();
+                      onEditVehicle?.(vehicle);
+                    }}
+                  >
                     <Edit2 size={14} />
                     <span>Edit Details</span>
                   </button>
-                  <button className="w-full py-2 border border-destructive text-destructive rounded-md flex items-center justify-center gap-2 hover:bg-destructive/10 transition">
+                  <button
+                    className="w-full py-2 border border-destructive text-destructive rounded-md flex items-center justify-center gap-2 hover:bg-destructive/10 transition"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `Are you sure you want to delete ${vehicle.make} ${vehicle.model}?`
+                        )
+                      ) {
+                        closeVehicleDetails();
+                        onDeleteVehicle?.(vehicle.id);
+                      }
+                    }}
+                  >
                     <Trash2 size={14} />
                     <span>Delete Vehicle</span>
                   </button>
