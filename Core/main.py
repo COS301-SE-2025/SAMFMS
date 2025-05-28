@@ -1,36 +1,104 @@
 from fastapi import FastAPI, HTTPException
-from models import UserModel
+from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
-from bson import ObjectId
 import uvicorn
+import asyncio
+import logging
+from rabbitmq import producer, consumer, admin
+from routes import user
+from routes import auth
+from routes import vehicle
+from database import db
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-@app.post("/users/", response_model=UserModel)
-async def create_user(user: UserModel):
-    user_dict = user.model_dump(by_alias=True)
-    result = await users_collection.insert_one(user_dict)
-    user_dict["_id"] = result.inserted_id
-    return user_dict
+# Configure CORS
+origins = [
+    "http://localhost:3000",     # React development server
+    "http://127.0.0.1:3000",
+    "http://localhost:5000",     # Production build if served differently
+    "*",                        # Optional: Allow all origins (less secure)
+]
 
-@app.get("/users/{id}", response_model=UserModel)
-async def get_user(id: str):
-    if (user := await users_collection.find_one({"_id": ObjectId(id)})) is not None:
-        return user
-    raise HTTPException(status_code=404, detail="User not found")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],        # Allow all methods including OPTIONS
+    allow_headers=["*"],        # Allow all headers
+)
 
-@app.get("/test-db")
-async def test_db_connection():
+app.include_router(user.router)
+app.include_router(auth.router)
+app.include_router(vehicle.router)
+
+
+
+
+
+
+@app.get("/")
+async def root():
+    return {"message": "SAMFMS API is running"}
+
+@app.on_event("startup")
+
+async def startup_event():
+
+    await admin.broadcast_topics()
+
+    async def safe_consume():
+
+        try:
+
+            await consumer.consume_messages("user_events")
+
+        except Exception as e:
+
+            logger.error(f"Error in consumer: {e}")
+
+
+
+    asyncio.create_task(safe_consume())
+
+
+
+
+
+@app.post("/send/")
+
+async def send_message(data: dict):
+
     try:
-        collections = await db.list_collection_names()
-        return {"status": "success", "collections": collections}
+
+        await producer.publish_message("user_events", data)
+
+        return {"status": "message sent"}
+
     except Exception as e:
-        return {"status": "error", "detail": str(e)}
+
+        logger.error(f"Failed to send message: {str(e)}")
+
+        raise HTTPException(status_code=500, detail="Failed to send message")
 
 
-client = AsyncIOMotorClient("mongodb://localhost:27017")
+
+
+
+#await producer.publish_message("user.created", {"id": 1, "name": "Alice"})
+
+
+
+
+#####################################################################################################################
+client = AsyncIOMotorClient("mongodb://host.docker.internal:27017")
 db = client.mcore
 users_collection = db.users
 
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+    
