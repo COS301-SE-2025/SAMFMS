@@ -9,7 +9,7 @@
 | Resource | Link |
 |----------|------|
 | 📄 SRS Document | [Requirements](https://docs.google.com/document/d/1En1Mck7JwaSdKjgyvRhmX5pXqHhVSUlhZhp7XU-f_K4/edit?tab=t.0) |
-| 📊 Project Board | [Project Board]([link-to-project-board](https://github.com/orgs/COS301-SE-2025/projects/208))
+| 📊 Project Board | [Project Board](https://github.com/orgs/COS301-SE-2025/projects/208)
 
 ---
 
