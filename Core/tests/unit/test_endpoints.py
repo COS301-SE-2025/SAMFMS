@@ -1,22 +1,13 @@
 import pytest
-
-
-pytest.importorskip("pytest_asyncio")
 import pytest_asyncio 
-
 from fastapi import FastAPI
 from httpx import AsyncClient, ASGITransport
 from bson import ObjectId
 
-
 from routes.user import router
-
-
 
 pytest_plugins = ("pytest_asyncio",)
 pytestmark = pytest.mark.asyncio
-
-
 
 class _FakeInsertResult:
     def __init__(self, inserted_id):
@@ -55,7 +46,7 @@ async def test_test_db_connection_success(app, monkeypatch):
 
         users = None
 
-    monkeypatch.setattr("Core.routes.user.db", _MockDB())
+    monkeypatch.setattr("routes.user.db", _MockDB())
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -72,7 +63,7 @@ async def test_test_db_connection_error(app, monkeypatch):
 
         users = None
 
-    monkeypatch.setattr("Core.routes.user.db", _MockDB())
+    monkeypatch.setattr("routes.user.db", _MockDB())
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -86,7 +77,7 @@ async def test_test_db_connection_error(app, monkeypatch):
 
 async def test_create_user_persists_and_echoes_payload(app, monkeypatch):
     collection = _MockCollection()
-    monkeypatch.setattr("Core.routes.user.users_collection", collection)
+    monkeypatch.setattr("routes.user.users_collection", collection)
 
     payload = {
         "details": {"ID": "12345678"},
@@ -127,7 +118,7 @@ async def test_get_user_found(app, monkeypatch):
             "preferences": ["light_mode"]
         }]
     )
-    monkeypatch.setattr("Core.routes.user.users_collection", collection)
+    monkeypatch.setattr("routes.user.users_collection", collection)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -139,7 +130,7 @@ async def test_get_user_found(app, monkeypatch):
 
 async def test_get_user_not_found(app, monkeypatch):
     collection = _MockCollection()
-    monkeypatch.setattr("Core.routes.user.users_collection", collection)
+    monkeypatch.setattr("routes.user.users_collection", collection)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
