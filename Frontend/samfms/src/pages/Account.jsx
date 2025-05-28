@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from '../components/ui/button';
+import {Button} from '../components/ui/button';
 
 const Account = () => {
   return (
@@ -86,6 +86,8 @@ const Account = () => {
               </div>
             </form>
           </div>
+
+
         </div>
       </div>
     </div>

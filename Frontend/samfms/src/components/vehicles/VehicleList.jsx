@@ -98,18 +98,18 @@ const VehicleList = ({
                 <td className="py-3 px-4">{vehicle.make}</td>
                 <td className="py-3 px-4">{vehicle.model}</td>
                 <td className="py-3 px-4">{vehicle.year}</td>
-                <td className="py-3 px-4">{vehicle.mileage} km</td>
+                <td className="py-3 px-4">{vehicle.mileage} km</td>{' '}
                 <td className="py-3 px-4">
                   <div className="flex items-center">
                     <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium mr-2">
-                      {vehicle.driver !== 'Unassigned'
+                      {vehicle.driver && vehicle.driver !== 'Unassigned'
                         ? vehicle.driver
                             .split(' ')
                             .map(n => n[0])
                             .join('')
                         : 'UA'}
                     </div>
-                    {vehicle.driver}
+                    {vehicle.driver || 'Unassigned'}
                   </div>
                 </td>
                 <td className="py-3 px-4">

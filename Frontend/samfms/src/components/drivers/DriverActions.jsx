@@ -1,7 +1,7 @@
 import React from 'react';
 import { Download, UserPlus, Trash2 } from 'lucide-react';
 
-const DriverActions = ({ selectedDrivers, exportSelectedDrivers }) => {
+const DriverActions = ({ selectedDrivers, exportSelectedDrivers, onDeleteSelected }) => {
   return (
     <div className="mb-6">
       {selectedDrivers.length > 0 ? (
@@ -18,7 +18,10 @@ const DriverActions = ({ selectedDrivers, exportSelectedDrivers }) => {
             <UserPlus size={16} />
             Assign Vehicle
           </button>
-          <button className="flex items-center gap-1 text-sm px-3 py-1.5 border border-destructive text-destructive rounded-md hover:bg-destructive/10">
+          <button
+            onClick={onDeleteSelected}
+            className="flex items-center gap-1 text-sm px-3 py-1.5 border border-destructive text-destructive rounded-md hover:bg-destructive/10"
+          >
             <Trash2 size={16} />
             Delete
           </button>

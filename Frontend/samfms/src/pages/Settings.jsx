@@ -1,21 +1,106 @@
-import React from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import ThemeToggle from '../components/ThemeToggle';
+import { getCurrentUser, authFetch, API_URL } from '../backend/API';
 
 const Settings = () => {
+  const [settings, setSettings] = useState({
+    theme: 'light',
+    animations: 'true',
+    'email-alerts': 'true',
+    'push-notifications': 'true',
+    timezone: 'UTC-5 (Eastern Time)',
+    'date-format': 'MM/DD/YYYY',
+    'two-factor': 'false',
+    'activity-log': 'true',
+    'session-timeout': '30 minutes',
+  });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  // Load user preferences on component mount
+  useEffect(() => {
+    const user = getCurrentUser();
+    if (user && user.preferences) {
+      setSettings(prevSettings => ({
+        ...prevSettings,
+        ...user.preferences,
+      }));
+    }
+  }, []);
+
+  const handleSettingChange = (key, value) => {
+    setSettings(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const handleSaveSettings = async () => {
+    setLoading(true);
+    setMessage('');
+
+    try {
+      const user = getCurrentUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Convert settings object to match backend format
+      const preferencesData = {};
+      Object.keys(settings).forEach(key => {
+        preferencesData[key.replace('-', '_')] = settings[key];
+      });
+
+      const response = await authFetch(`${API_URL}/update-preferences`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ preferences: preferencesData }),
+      });
+
+      if (response.ok) {
+        setMessage('Settings saved successfully!');
+        // Update local storage
+        const updatedUser = { ...user, preferences: preferencesData };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      } else {
+        throw new Error('Failed to save settings');
+      }
+    } catch (error) {
+      setMessage('Error saving settings: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetDefaults = () => {
+    setSettings({
+      theme: 'light',
+      animations: 'true',
+      'email-alerts': 'true',
+      'push-notifications': 'true',
+      timezone: 'UTC-5 (Eastern Time)',
+      'date-format': 'MM/DD/YYYY',
+      'two-factor': 'false',
+      'activity-log': 'true',
+      'session-timeout': '30 minutes',
+    });
+    setMessage('Settings reset to defaults');
+  };
   return (
     <div className="container mx-auto py-8">
       <header className="mb-8">
         <h1 className="text-4xl font-bold">Settings</h1>
         <p className="text-muted-foreground">Configure system preferences and options</p>
       </header>
-
       <div className="grid grid-cols-1 gap-8">
         {' '}
         <div className="bg-card rounded-lg shadow-md p-6 border border-border">
           <h2 className="text-xl font-semibold mb-2">Appearance</h2>
-          <p className="text-muted-foreground mb-6">Customize how SAMFMS looks and feels</p>
-
+          <p className="text-muted-foreground mb-6">Customize how SAMFMS looks and feels</p>{' '}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -25,26 +110,7 @@ const Settings = () => {
                 <p className="text-sm text-muted-foreground">Switch between light and dark mode</p>
               </div>
               <ThemeToggle />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <label htmlFor="density" className="block text-sm font-medium">
-                  Density
-                </label>
-                <p className="text-sm text-muted-foreground">
-                  Control the density of the UI elements
-                </p>
-              </div>
-              <select
-                id="density"
-                className="bg-background border border-input rounded-md px-3 py-1"
-              >
-                <option>Comfortable</option>
-                <option>Compact</option>
-              </select>
-            </div>
-
+            </div>{' '}
             <div className="flex items-center justify-between">
               <div>
                 <label htmlFor="animations" className="block text-sm font-medium">
@@ -53,43 +119,39 @@ const Settings = () => {
                 <p className="text-sm text-muted-foreground">Enable or disable UI animations</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" value="" className="sr-only peer" defaultChecked />
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={settings.animations === 'true'}
+                  onChange={e =>
+                    handleSettingChange('animations', e.target.checked ? 'true' : 'false')
+                  }
+                />
                 <div className="w-11 h-6 bg-muted rounded-full peer peer-checked:bg-primary"></div>
               </label>
             </div>
           </div>
-        </div>
+        </div>{' '}
         <SettingsSection
           title="Notifications"
           description="Manage your notification preferences"
+          settings={settings}
+          handleSettingChange={handleSettingChange}
           options={[
-            { id: 'email-alerts', label: 'Email Alerts', value: true, type: 'toggle' },
-            { id: 'push-notifications', label: 'Push Notifications', value: true, type: 'toggle' },
-            { id: 'sms', label: 'SMS Notifications', value: false, type: 'toggle' },
-            {
-              id: 'notification-sound',
-              label: 'Notification Sound',
-              value: 'Standard',
-              type: 'select',
-              choices: ['None', 'Standard', 'Alert'],
-            },
+
+            { id: 'email-alerts', label: 'Email Alerts', type: 'toggle' },
+            { id: 'push-notifications', label: 'Push Notifications', type: 'toggle' },
           ]}
-        />
+        />{' '}
         <SettingsSection
           title="Regional"
           description="Configure regional settings"
+          settings={settings}
+          handleSettingChange={handleSettingChange}
           options={[
-            {
-              id: 'language',
-              label: 'Language',
-              value: 'English',
-              type: 'select',
-              choices: ['English', 'Spanish', 'French', 'German'],
-            },
             {
               id: 'timezone',
               label: 'Timezone',
-              value: 'UTC-5 (Eastern Time)',
               type: 'select',
               choices: [
                 'UTC-5 (Eastern Time)',
@@ -101,56 +163,54 @@ const Settings = () => {
             {
               id: 'date-format',
               label: 'Date Format',
-              value: 'MM/DD/YYYY',
               type: 'select',
               choices: ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'],
             },
-            {
-              id: 'distance-unit',
-              label: 'Distance Unit',
-              value: 'Miles',
-              type: 'select',
-              choices: ['Kilometers', 'Miles'],
-            },
-            {
-              id: 'fuel-unit',
-              label: 'Fuel Unit',
-              value: 'Gallons',
-              type: 'select',
-              choices: ['Liters', 'Gallons'],
-            },
           ]}
-        />
+        />{' '}
         <SettingsSection
           title="Privacy & Security"
           description="Manage your privacy and security settings"
+          settings={settings}
+          handleSettingChange={handleSettingChange}
           options={[
-            { id: 'two-factor', label: 'Two-factor Authentication', value: false, type: 'toggle' },
-            { id: 'data-sharing', label: 'Data Sharing', value: true, type: 'toggle' },
-            { id: 'activity-log', label: 'Activity Logging', value: true, type: 'toggle' },
+
+            { id: 'two-factor', label: 'Two-factor Authentication', type: 'toggle' },
+            { id: 'activity-log', label: 'Activity Logging', type: 'toggle' },
             {
               id: 'session-timeout',
               label: 'Session Timeout',
-              value: '30 minutes',
               type: 'select',
               choices: ['15 minutes', '30 minutes', '1 hour', '4 hours'],
             },
           ]}
         />
-      </div>
 
+      </div>{' '}
+      {message && (
+        <div
+          className={`mb-4 p-3 rounded-md ${
+            message.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+          }`}
+        >
+          {message}
+        </div>
+      )}
       <div className="flex justify-end mt-8">
-        <Button variant="outline" className="mr-4">
+        <Button variant="outline" className="mr-4" onClick={handleResetDefaults}>
           Reset to Defaults
         </Button>
-        <Button>Save Settings</Button>
+        <Button onClick={handleSaveSettings} disabled={loading}>
+          {loading ? 'Saving...' : 'Save Settings'}
+        </Button>
       </div>
     </div>
   );
 };
 
 // A section component for grouping related settings
-const SettingsSection = ({ title, description, options }) => {
+
+const SettingsSection = ({ title, description, options, settings, handleSettingChange }) => {
   return (
     <div className="bg-card rounded-lg shadow-md p-6 border border-border">
       <h2 className="text-xl font-semibold mb-2">{title}</h2>
@@ -173,19 +233,24 @@ const SettingsSection = ({ title, description, options }) => {
                   <input
                     type="checkbox"
                     id={option.id}
-                    defaultChecked={option.value}
+                    checked={settings[option.id] === 'true'}
+                    onChange={e =>
+                      handleSettingChange(option.id, e.target.checked ? 'true' : 'false')
+                    }
                     className="sr-only peer"
                   />
                   <span
+
                     className={`absolute left-1 top-1 w-4 h-4 rounded-full transition-all duration-200 ${
-                      option.value ? 'bg-primary translate-x-6' : 'bg-foreground'
+                      settings[option.id] === 'true' ? 'bg-primary translate-x-6' : 'bg-foreground'
                     }`}
                   ></span>
                 </div>
               ) : option.type === 'select' ? (
                 <select
                   id={option.id}
-                  defaultValue={option.value}
+                  value={settings[option.id] || option.choices[0]}
+                  onChange={e => handleSettingChange(option.id, e.target.value)}
                   className="p-1 border rounded-md"
                 >
                   {option.choices.map(choice => (

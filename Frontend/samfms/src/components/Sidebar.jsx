@@ -1,10 +1,8 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { cn } from '../lib/utils';
-import { useTheme } from '../contexts/ThemeContext';
+import React, {useState} from 'react';
+import {Link, useLocation} from 'react-router-dom';
+import {cn} from '../lib/utils';
+import {useTheme} from '../contexts/ThemeContext';
 import {
-  ChevronLeft,
-  ChevronRight,
   Home,
   Settings,
   User,
@@ -15,26 +13,26 @@ import {
   Navigation,
   Wrench,
 } from 'lucide-react';
-import { Button } from './ui/button';
+import {Button} from './ui/button';
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { theme } = useTheme();
+  const {theme} = useTheme();
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: <Home size={20} /> },
-    { path: '/vehicles', label: 'Vehicles', icon: <Car size={20} /> },
-    { path: '/drivers', label: 'Drivers', icon: <Users size={20} /> },
-    { path: '/tracking', label: 'Tracking', icon: <Map size={20} /> },
-    { path: '/trips', label: 'Trips', icon: <Navigation size={20} /> },
-    { path: '/maintenance', label: 'Maintenance', icon: <Wrench size={20} /> },
-    { path: '/plugins', label: 'Plugins', icon: <Package2 size={20} /> },
-    { path: '/settings', label: 'Settings', icon: <Settings size={20} /> },
-    { path: '/account', label: 'Account', icon: <User size={20} /> },
+    {path: '/dashboard', label: 'Dashboard', icon: <Home size={20} />},
+    {path: '/vehicles', label: 'Vehicles', icon: <Car size={20} />},
+    {path: '/drivers', label: 'Drivers', icon: <Users size={20} />},
+    {path: '/tracking', label: 'Tracking', icon: <Map size={20} />},
+    {path: '/trips', label: 'Trips', icon: <Navigation size={20} />},
+    {path: '/maintenance', label: 'Maintenance', icon: <Wrench size={20} />},
+    {path: '/plugins', label: 'Plugins', icon: <Package2 size={20} />},
+    {path: '/settings', label: 'Settings', icon: <Settings size={20} />},
+    {path: '/account', label: 'Account', icon: <User size={20} />},
   ];
 
   const toggleSidebar = () => {
-    setCollapsed(!collapsed);
+    setCollapsed((prev) => !prev);
   };
 
   // Check if a path is active
@@ -49,12 +47,17 @@ const Sidebar = () => {
         collapsed ? 'w-16' : 'w-64'
       )}
     >
-      {' '}
       {/* Sidebar header */}
-      <div className="p-4 flex items-center justify-between border-b border-border">
-        {!collapsed && (
-          <div className="flex items-center">
-            {' '}
+      <div
+        className="p-4 flex items-center justify-between border-b border-border cursor-pointer"
+        onClick={toggleSidebar}
+        tabIndex={0}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        role="button"
+      >
+        {/* Logo as expand/collapse button */}
+        {!collapsed ? (
+          <div className="flex items-center w-full">
             <img
               src={
                 theme === 'dark'
@@ -65,23 +68,15 @@ const Sidebar = () => {
               className="h-8"
             />
           </div>
+        ) : (
+          <div className="w-full flex items-center justify-center">
+            <img
+              src={theme === 'dark' ? '/logo/logo_icon_dark.svg' : '/logo/logo_icon_light.svg'}
+              alt="SAMFMS Icon"
+              className="h-8"
+            />
+          </div>
         )}
-        {collapsed && (
-          <img
-            src={theme === 'dark' ? '/logo/logo_icon_dark.svg' : '/logo/logo_icon_light.svg'}
-            alt="SAMFMS Icon"
-            className="h-8 mx-auto"
-          />
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={toggleSidebar}
-          className={cn('ml-auto', collapsed && 'mx-auto')}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-        </Button>
       </div>
       {/* Navigation links */}
       <nav className="flex-1 py-4">
