@@ -10,7 +10,7 @@
 |----------|------|
 | 📄 SRS Document | [Requirements](https://docs.google.com/document/d/1En1Mck7JwaSdKjgyvRhmX5pXqHhVSUlhZhp7XU-f_K4/edit?tab=t.0) |
 | 📊 Project Board | [Project Board](https://github.com/orgs/COS301-SE-2025/projects/208)
-
+| Demo 1 Video| [Video](https://www.youtube.com/watch?v=5UzDGd2WiVQ)|
 ---
 
 ## 👥 Meet the Team 
