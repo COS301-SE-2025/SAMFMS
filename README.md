@@ -64,6 +64,14 @@ Here’s our awesome team behind **Firewall Five**:
       <td><a href="https://www.linkedin.com/in/morne-van-heerden-a0b173355/" style="font-size: 18px;">@Morné van heerden</a></td>
       <td style="font-size: 18px;">Devops, Systems Engineer and Services engineer. Responsible for the maintenance and upkeep of the Github repository.</td>
     </tr>
+    <tr>
+      <td><img src="https://github.com/herrie732.png" width="80"></td>
+      <td><a href="https://github.com/herrie732" style="font-size: 18px;">@herrie732</a></td>
+      <td style="font-size: 18px;">Mr. Herman Johan Engelbrecht</td>
+      <td style="font-size: 18px;">u22512374</td>
+      <td><a href="https://www.linkedin.com/in/herman-johan-engelbrecht-a6b6a8327/" style="font-size: 18px;">@Herman Johan Engelbrecht</a></td>
+      <td style="font-size: 18px;"><strong>Integration engineer/ Services engineer.</strong></td>
+    </tr>
   </tbody>
 </table>
 
