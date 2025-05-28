@@ -1,4 +1,5 @@
 import React from 'react';
+import { Eye, Edit, Trash2 } from 'lucide-react';
 import StatusBadge from '../vehicles/StatusBadge';
 import Pagination from '../vehicles/Pagination';
 import SortableHeader from '../vehicles/SortableHeader';
@@ -13,6 +14,8 @@ const DriverList = ({
   sortDirection,
   handleSort,
   openDriverDetails,
+  onEditDriver,
+  onDeleteDriver,
   currentPage,
   totalPages,
   itemsPerPage,
@@ -43,10 +46,10 @@ const DriverList = ({
                   onChange={handleSelectAll}
                   className="rounded border-gray-300"
                 />
-              </th>
+              </th>{' '}
               <SortableHeader
-                field="id"
-                label="Driver ID"
+                field="employeeId"
+                label="Employee ID"
                 currentSortField={sortField}
                 currentSortDirection={sortDirection}
                 onSort={handleSort}
@@ -95,16 +98,17 @@ const DriverList = ({
                 key={driver.id}
                 className="border-t border-border hover:bg-accent/10 cursor-pointer"
               >
+                {' '}
                 <td className="px-4 py-3">
                   <input
                     type="checkbox"
-                    checked={selectedDrivers.includes(driver.id)}
-                    onChange={() => handleSelectDriver(driver.id)}
+                    checked={selectedDrivers.includes(driver.employeeId)}
+                    onChange={() => handleSelectDriver(driver.employeeId)}
                     className="rounded border-gray-300"
                   />
-                </td>
+                </td>{' '}
                 <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
-                  {driver.id}
+                  {driver.employeeId}
                 </td>
                 <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
                   {driver.name}
@@ -120,15 +124,60 @@ const DriverList = ({
                 </td>
                 <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
                   <StatusBadge status={driver.status} type={getStatusColor(driver.status)} />
-                </td>
+                </td>{' '}
                 <td className="px-4 py-3 space-x-2">
                   <button
-                    className="text-primary hover:text-primary/80"
-                    onClick={() => openDriverDetails(driver)}
+                    className="text-primary hover:text-primary/80 inline-flex items-center gap-1"
+                    onClick={e => {
+                      e.stopPropagation();
+                      openDriverDetails(driver);
+                    }}
                   >
+                    <Eye size={16} />
                     View
+                  </button>{' '}
+                  <button
+                    className="text-primary hover:text-primary/80 inline-flex items-center gap-1"
+                    onClick={e => {
+                      e.stopPropagation();
+                      onEditDriver?.(driver);
+                    }}
+                  >
+                    <Edit size={16} />
+                    Edit
+                  </button>{' '}
+                  <button
+                    className="text-destructive hover:text-destructive/80 inline-flex items-center gap-1"
+                    onClick={e => {
+                      e.stopPropagation();
+                      console.log('Delete clicked for driver:', driver);
+
+                      if (
+                        window.confirm(
+                          `Are you sure you want to delete ${driver.name} (${driver.employeeId})?`
+                        )
+                      ) {
+                        // Make sure we have a valid employee ID to pass to the delete function
+                        if (!driver.employeeId) {
+                          console.error(
+                            'Error: Cannot delete driver - Employee ID is missing or undefined',
+                            driver
+                          );
+                          alert(
+                            `Error: Cannot delete driver "${driver.name}" - missing Employee ID`
+                          );
+                          return;
+                        }
+
+                        console.log('Calling onDeleteDriver with Employee ID:', driver.employeeId);
+                        // Pass the employee ID for backend operations
+                        onDeleteDriver?.(driver.employeeId);
+                      }
+                    }}
+                  >
+                    <Trash2 size={16} />
+                    Delete
                   </button>
-                  <button className="text-primary hover:text-primary/80">Edit</button>
                 </td>
               </tr>
             ))}
