@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer
 from models import UserModel, UserResponse
-from auth_utils import (
+from utils.auth_utils import (
     authenticate_user, 
     create_access_token, 
     get_password_hash, 
