@@ -1,61 +1,43 @@
 name: CI
 
+# ───────────────────────────
+# Trigger ONLY on pushes to main
+# ───────────────────────────
 on:
   push:
     branches:
       - main
 
-# Stop overlapping runs on main (saves minutes)
+# Cancel overlapping main builds to save minutes
 concurrency:
   group: ci-main
   cancel-in-progress: true
 
 jobs:
-  test:
+  unit-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 4        # hard cap on runner time
+    timeout-minutes: 3       # hard kill-switch for hung runs
 
     steps:
-    # 0. Checkout the code
+    # 1. Check out code
     - uses: actions/checkout@v4
 
-    # 1. Enable Buildx (BuildKit) for fast, cache-aware builds
+    # 2. Enable BuildKit (optional but harmless)
     - uses: docker/setup-buildx-action@v3
 
-    # 2. Restore the layer-cache from the previous run
-    - name: Restore buildx cache
-      uses: actions/cache@v4
-      with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-buildx-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-buildx-
-
-    # 3. Build *only* what the tests need, spin up the stack & wait
-    - name: Build images + start services
+    # 3. Build the lean test image and start the minimal stack
+    - name: Build images & start services
       run: |
-        docker compose -f docker-compose.test.yml build --pull      # ← flags dropped
+        docker compose -f docker-compose.test.yml build --pull
         docker compose -f docker-compose.test.yml up -d --wait --wait-timeout 60
 
-        docker compose -f docker-compose.test.yml \
-          up -d --wait --wait-timeout 60
-
-
-    # 4. Run the actual unit-tests
+    # 4. Run the unit tests
     - name: Run pytest
       run: |
-        docker compose -f docker-compose.test.yml \
-          run --rm api pytest --disable-warnings --tb=no
+        docker compose -f docker-compose.test.yml run --rm mcore
 
-    # 5. Rotate the layer cache for the next workflow run
-    - name: Save updated cache
-      if: always()
-      run: |
-        rm -rf /tmp/.buildx-cache
-        mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
-    # 6. (Optional) free runner disk before the VM is torn down
-    - name: Final docker cleanup
+    # 5. Clean up to free runner disk
+    - name: Tear down stack
       if: always()
       run: |
         docker compose -f docker-compose.test.yml down -v --remove-orphans
