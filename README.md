@@ -35,7 +35,7 @@ Here’s our awesome team behind **Firewall Five**:
       <td style="font-size: 18px;">Mr. Stefan Jansen van Rensburg</td>
       <td style="font-size: 18px;">u22550055</td>
       <td><a href="https://linkedin.com/in/stefan-JvR" style="font-size: 18px;">@Stefan Jansen van Rensburg</a></td>
-      <td style="font-size: 18px;"><strong>Team lead/ Project manager.</strong>, management of <strong>CI\CD</strong> , Worked on <strong>Daemon.</strong> // Features: storage, CRUD operations, reading and writing files, server creation and user management</td>
+      <td style="font-size: 18px;"><strong>Team lead/ Project manager.</strong</td>
     </tr>
   </tbody>
 </table>
@@ -56,17 +56,26 @@ Here’s our awesome team behind **Firewall Five**:
 ---
 ## 🛠️ Project Features
 ### 💻 **Technologies Used**:
+[![Leaflet](https://img.shields.io/badge/Leaflet-199900?style=for-the-badge&logo=leaflet&logoColor=white)](https://leafletjs.com/)
+[![RabbitMQ](https://img.shields.io/badge/RabbitMQ-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white)](https://www.rabbitmq.com/)
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-4DB33D?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+
+
 
 **Key Components**:  
 
   1. **🔧 MCORE**  
-   - Manages NoSQL database operations, storage, and real-time events  
-   - Implements all CRUD operations  
-   - Directly interacts with the storage system (reading/writing files)
+   - Manages the Fleet Management System
+   - Allows adding and removing vehicles and users
+   - Facilitates communication between SBlocks and sends information to the UI
 
 2. **🌐 SBlocks**  
-   - Exposes endpoints for CRUD operations, authentication, and event subscriptions
+   - Perform most analytical tasks and add functionality to the system as plugins
 
 3. **🖼️ UI**  
-   - Web-based interface for visual database management
+   - Web-based interface for visual fleet management

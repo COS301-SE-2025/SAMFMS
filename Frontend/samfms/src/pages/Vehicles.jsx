@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlusCircle } from 'lucide-react';
 import VehicleList from '../components/vehicles/VehicleList';
 import VehicleSearch from '../components/vehicles/VehicleSearch';
@@ -6,8 +6,10 @@ import VehicleActions from '../components/vehicles/VehicleActions';
 import VehicleDetailsModal from '../components/vehicles/VehicleDetailsModal';
 import DriverAssignmentModal from '../components/vehicles/DriverAssignmentModal';
 import DataVisualization from '../components/vehicles/DataVisualization';
+import AddVehicleModal from '../components/vehicles/AddVehicleModal';
 
 const Vehicles = () => {
+  const [vehicles, setVehicles] = useState([]);
   const [selectedVehicles, setSelectedVehicles] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -18,136 +20,16 @@ const Vehicles = () => {
   const [sortField, setSortField] = useState('id');
   const [sortDirection, setSortDirection] = useState('asc');
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
-  // Sample data
-  const vehicles = [
-    {
-      id: 'VEH-001',
-      make: 'Toyota',
-      model: 'Camry',
-      year: '2023',
-      mileage: '15,430',
-      driver: 'John Doe',
-      status: 'Active',
-      vin: 'JT2BF22K1W0158036',
-      licensePlate: 'ABC-1234',
-      fuelType: 'Hybrid',
-      department: 'Sales',
-      lastService: '2023-09-15',
-      nextService: '2024-03-15',
-      fuelEfficiency: '52 mpg',
-      tags: ['Executive', 'Sales', 'East Region'],
-      acquisitionDate: '2023-01-15',
-      insuranceExpiry: '2024-01-15',
-      lastDriver: 'Emily White',
-      maintenanceCosts: [
-        { date: '2023-03-10', cost: 120, type: 'Oil Change' },
-        { date: '2023-06-20', cost: 85, type: 'Tire Rotation' },
-        { date: '2023-09-15', cost: 350, type: 'Brake Service' },
-      ],
-    },
-    {
-      id: 'VEH-002',
-      make: 'Ford',
-      model: 'Transit',
-      year: '2022',
-      mileage: '28,745',
-      driver: 'Emma Johnson',
-      status: 'Maintenance',
-      vin: '1FTYR10D98PA22005',
-      licensePlate: 'XYZ-5678',
-      fuelType: 'Diesel',
-      department: 'Delivery',
-      lastService: '2023-08-20',
-      nextService: '2024-02-20',
-      fuelEfficiency: '24 mpg',
-      tags: ['Delivery', 'North Region', 'High Mileage'],
-      acquisitionDate: '2022-03-10',
-      insuranceExpiry: '2024-03-10',
-      lastDriver: 'James Wilson',
-      maintenanceCosts: [
-        { date: '2022-06-15', cost: 150, type: 'Oil Change' },
-        { date: '2022-10-05', cost: 280, type: 'Tire Replacement' },
-        { date: '2023-02-18', cost: 420, type: 'Major Service' },
-        { date: '2023-08-20', cost: 1200, type: 'Transmission Repair' },
-      ],
-    },
-    {
-      id: 'VEH-003',
-      make: 'Honda',
-      model: 'Civic',
-      year: '2021',
-      mileage: '32,120',
-      driver: 'Michael Smith',
-      status: 'Active',
-      vin: '19XFC2F59NE002281',
-      licensePlate: 'DEF-9012',
-      fuelType: 'Gasoline',
-      department: 'Support',
-      lastService: '2023-10-05',
-      nextService: '2024-04-05',
-      fuelEfficiency: '38 mpg',
-      tags: ['Support', 'Field Tech', 'West Region'],
-      acquisitionDate: '2021-11-22',
-      insuranceExpiry: '2024-11-22',
-      lastDriver: 'Michael Smith',
-      maintenanceCosts: [
-        { date: '2022-05-12', cost: 95, type: 'Oil Change' },
-        { date: '2022-11-30', cost: 210, type: 'Brake Service' },
-        { date: '2023-04-22', cost: 150, type: 'General Inspection' },
-        { date: '2023-10-05', cost: 320, type: 'Major Service' },
-      ],
-    },
-    {
-      id: 'VEH-004',
-      make: 'Tesla',
-      model: 'Model 3',
-      year: '2023',
-      mileage: '8,215',
-      driver: 'Sarah Davis',
-      status: 'Active',
-      vin: '5YJ3E1EA0PF290559',
-      licensePlate: 'GHI-3456',
-      fuelType: 'Electric',
-      department: 'Executive',
-      lastService: '2023-11-10',
-      nextService: '2024-05-10',
-      fuelEfficiency: '132 MPGe',
-      tags: ['Executive', 'Low Emissions', 'South Region'],
-      acquisitionDate: '2023-05-18',
-      insuranceExpiry: '2024-05-18',
-      lastDriver: 'Sarah Davis',
-      maintenanceCosts: [
-        { date: '2023-08-15', cost: 180, type: 'Tire Rotation' },
-        { date: '2023-11-10', cost: 250, type: 'Software Update & Inspection' },
-      ],
-    },
-    {
-      id: 'VEH-005',
-      make: 'Chevrolet',
-      model: 'Silverado',
-      year: '2021',
-      mileage: '45,670',
-      driver: 'Unassigned',
-      status: 'Maintenance',
-      vin: '1GCUYAEF8MZ145263',
-      licensePlate: 'JKL-7890',
-      fuelType: 'Gasoline',
-      department: 'Construction',
-      lastService: '2023-07-25',
-      nextService: '2024-01-25',
-      fuelEfficiency: '20 mpg',
-      tags: ['Construction', 'Heavy Duty', 'Central Region'],
-      acquisitionDate: '2021-09-05',
-      insuranceExpiry: '2024-09-05',
-      lastDriver: 'Robert Brown',
-      maintenanceCosts: [
-        { date: '2022-03-18', cost: 160, type: 'Oil Change' },
-        { date: '2022-09-30', cost: 380, type: 'Suspension Repair' },
-        { date: '2023-01-15', cost: 220, type: 'Electrical System' },
-        { date: '2023-07-25', cost: 1450, type: 'Engine Repair' },
-      ],
-    },
-  ];
+  const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
+
+  // Make GET requestion to vehicle.py to retrieve the vehicles
+  useEffect(() => {
+    fetch('http://localhost:8000/vehicles')
+      .then(res => res.json())
+      .then(data => setVehicles(data))
+      .catch(err => console.error('Failed to fetch vehicles:', err));
+  }, []);
+
 
   // Sorting function
   const handleSort = field => {
@@ -251,7 +133,10 @@ const Vehicles = () => {
       <div className="bg-card rounded-lg shadow-md p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold">Manage Vehicles</h2>
-          <button className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2">
+          <button
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
+            onClick={() => setShowAddVehicleModal(true)}
+          >
             <PlusCircle size={18} />
             <span>Add Vehicle</span>
           </button>
@@ -260,7 +145,7 @@ const Vehicles = () => {
         <VehicleSearch
           filterOpen={filterOpen}
           setFilterOpen={setFilterOpen}
-          onSearch={() => {}}
+          onSearch={() => { }}
           onApplyFilters={() => setFilterOpen(false)}
           onResetFilters={() => setFilterOpen(false)}
         />{' '}
@@ -305,6 +190,15 @@ const Vehicles = () => {
           handleSelectVehicle={handleSelectVehicle}
           vehicles={vehicles}
           currentVehicle={currentVehicle}
+        />
+      )}{' '}
+      {/* Add Vehicle Modal */}
+      {showAddVehicleModal && (
+        <AddVehicleModal
+          closeModal={() => setShowAddVehicleModal(false)}
+          vehicles={vehicles}
+          setVehicles={setVehicles}
+
         />
       )}{' '}
       {/* Data visualization section */}
