@@ -18,9 +18,9 @@ async def publish_message(event_type: str, message: dict):
             routing_key=event_type
         )
 
-        logger.info(f"📤 Published message to queue: {event_type} -> {message}")
+        logger.info(f"Published message to queue: {event_type} -> {message}")
         await connection.close()
         
     except Exception as e:
-        logger.error(f"❌ Failed to publish message: {str(e)}")
+        logger.error(f"Failed to publish message: {str(e)}")
         raise
