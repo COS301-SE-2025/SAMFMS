@@ -7,4 +7,6 @@ bcrypt
 python-multipart
 email-validator
 pytest
+pytest-asyncio
 httpx
+aiohttp
