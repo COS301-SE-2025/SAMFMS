@@ -35,7 +35,7 @@ Here’s our awesome team behind **Firewall Five**:
       <td style="font-size: 18px;">Mr. Stefan Jansen van Rensburg</td>
       <td style="font-size: 18px;">u22550055</td>
       <td><a href="https://linkedin.com/in/stefan-JvR" style="font-size: 18px;">@Stefan Jansen van Rensburg</a></td>
-      <td style="font-size: 18px;"><strong>Team lead/ Project manager.</strong</td>
+      <td style="font-size: 18px;"><strong>Team lead/ Project manager. Software architect, project manager and data engineer. </strong</td>
     </tr>
     <tr>
       <td><img src="https://github.com/22590732.png" width="80"></td>
