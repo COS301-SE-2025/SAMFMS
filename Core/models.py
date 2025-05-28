@@ -32,7 +32,8 @@ class UserModel(BaseModel):
         "animations": "true",
         "email_alerts": "true",
         "push_notifications": "true",
-        "timezone": "UTC-5 (Eastern Time)",        "date_format": "MM/DD/YYYY",
+        "timezone": "UTC-5 (Eastern Time)",
+        "date_format": "MM/DD/YYYY",
         "two_factor": "false",
         "activity_log": "true",
         "session_timeout": "30 minutes"
@@ -78,3 +79,63 @@ class UserResponse(BaseModel):
     class Config:
         validate_by_name = True
         json_encoders = {ObjectId: str}
+
+
+class VehicleModel(BaseModel):
+    id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    make: str
+    model: str
+    year: int
+    vin: str
+    license_plate: str
+    color: Optional[str] = None
+    fuel_type: Optional[str] = "gasoline"
+    mileage: Optional[int] = 0
+    status: Optional[str] = "active"  # active, inactive, maintenance
+    driver_id: Optional[str] = None
+    
+    class Config:
+        validate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+        json_schema_extra = {
+            "example": {
+                "make": "Toyota",
+                "model": "Camry",
+                "year": 2020,
+                "vin": "1HGBH41JXMN109186",
+                "license_plate": "ABC123",
+                "color": "Silver",
+                "fuel_type": "gasoline",
+                "mileage": 15000,
+                "status": "active"
+            }
+        }
+
+
+class VehicleResponse(BaseModel):
+    id: str = Field(alias="_id")
+    make: str
+    model: str
+    year: int
+    vin: str
+    license_plate: str
+    color: Optional[str] = None
+    fuel_type: Optional[str] = "gasoline"
+    mileage: Optional[int] = 0
+    status: Optional[str] = "active"
+    driver_id: Optional[str] = None
+
+    class Config:
+        validate_by_name = True
+        json_encoders = {ObjectId: str}
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
