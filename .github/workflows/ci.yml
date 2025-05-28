@@ -34,10 +34,8 @@ jobs:
     # 3. Build *only* what the tests need, spin up the stack & wait
     - name: Build images + start services
       run: |
-        docker compose -f docker-compose.test.yml \
-          build --pull \
-          --cache-from type=local,src=/tmp/.buildx-cache \
-          --cache-to   type=local,dest=/tmp/.buildx-cache-new,mode=max
+        docker compose -f docker-compose.test.yml build --pull      # ← flags dropped
+        docker compose -f docker-compose.test.yml up -d --wait --wait-timeout 60
 
         docker compose -f docker-compose.test.yml \
           up -d --wait --wait-timeout 60
