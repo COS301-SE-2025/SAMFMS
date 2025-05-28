@@ -284,18 +284,22 @@ async def get_driver(
     current_user: dict = Depends(get_current_active_user)
 ):
     """
-    Get a specific driver by ID
+    Get a specific driver by ID or employee ID
     """
     try:
-        # Validate ObjectId
-        if not ObjectId.is_valid(driver_id):
+        # First check if this is an employee ID (starts with EMP-)
+        if driver_id.startswith("EMP-"):
+            driver = await drivers_collection.find_one({"employee_id": driver_id})
+        # If not an employee ID, try as MongoDB ObjectId
+        elif ObjectId.is_valid(driver_id):
+            driver = await drivers_collection.find_one({"_id": ObjectId(driver_id)})
+        else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid driver ID format"
             )
         
-        # Get driver
-        driver = await drivers_collection.find_one({"_id": ObjectId(driver_id)})
+        # Check if driver exists
         if not driver:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -333,11 +337,21 @@ async def update_driver(
     current_user: dict = Depends(get_current_active_user)
 ):
     """
-    Update a driver's information
+    Update a driver's information using either ObjectId or employee ID
     """
     try:
-        # Validate ObjectId
-        if not ObjectId.is_valid(driver_id):
+        # First check if this is an employee ID (starts with EMP-)
+        if driver_id.startswith("EMP-"):
+            existing_driver = await drivers_collection.find_one({"employee_id": driver_id})
+            if existing_driver:
+                driver_id = str(existing_driver["_id"])
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Driver not found with the provided employee ID"
+                )
+        # If not an employee ID, validate as MongoDB ObjectId
+        elif not ObjectId.is_valid(driver_id):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid driver ID format"
@@ -408,16 +422,26 @@ async def delete_driver(
     current_user: dict = Depends(get_current_active_user)
 ):
     """
-    Delete a driver (and their associated user)
+    Delete a driver (and their associated user) using either ObjectId or employee ID
     """
     try:
-        # Validate ObjectId
-        if not ObjectId.is_valid(driver_id):
+        # First check if this is an employee ID (starts with EMP-)
+        if driver_id.startswith("EMP-"):
+            driver = await drivers_collection.find_one({"employee_id": driver_id})
+            if driver:
+                driver_id = str(driver["_id"])
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Driver not found with the provided employee ID"
+                )
+        # If not an employee ID, validate as MongoDB ObjectId
+        elif not ObjectId.is_valid(driver_id):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid driver ID format"
             )
-        
+            
         # Get driver to find associated user
         driver = await drivers_collection.find_one({"_id": ObjectId(driver_id)})
         if not driver:

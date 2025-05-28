@@ -6,6 +6,7 @@ import DriverActions from '../components/drivers/DriverActions';
 import DriverDetailsModal from '../components/drivers/DriverDetailsModal';
 import VehicleAssignmentModal from '../components/drivers/VehicleAssignmentModal';
 import AddDriverModal from '../components/drivers/AddDriverModal';
+import EditDriverModal from '../components/drivers/EditDriverModal';
 import DataVisualization from '../components/drivers/DataVisualization';
 import { getDrivers, deleteDriver, searchDrivers } from '../backend/API';
 
@@ -21,10 +22,12 @@ const Drivers = () => {
   const [currentDriver, setCurrentDriver] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
-  const [sortField, setSortField] = useState('id');
+  const [sortField, setSortField] = useState('employeeId');
   const [sortDirection, setSortDirection] = useState('asc');
   const [showVehicleAssignmentModal, setShowVehicleAssignmentModal] = useState(false);
   const [showAddDriverModal, setShowAddDriverModal] = useState(false);
+  const [showEditDriverModal, setShowEditDriverModal] = useState(false);
+  const [driverToEdit, setDriverToEdit] = useState(null);
   const [filters, setFilters] = useState({
     status: '',
     department: '',
@@ -33,13 +36,21 @@ const Drivers = () => {
   const capitalizeStatus = useCallback(status => {
     if (!status) return 'Unknown';
     return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  }, []);
-
-  // Transform backend driver data to frontend format
+  }, []); // Transform backend driver data to frontend format
   const transformDriverData = useCallback(
     backendDriver => {
+      // Debug logging to see what we're receiving
+      console.log('Transforming backend driver data:', backendDriver);
+
+      // Store MongoDB ObjectId for backward compatibility
+      const driverId = backendDriver.id || backendDriver._id;
+
+      // Get employee ID - this is now our primary identifier for drivers
+      const employeeId = backendDriver.employee_id;
+      console.log('Using employee ID:', employeeId, 'MongoDB ID:', driverId);
+
       return {
-        id: backendDriver.id,
+        id: driverId, // Keep this for backward compatibility
         name: backendDriver.user_info?.full_name || 'Unknown',
         licenseNumber: backendDriver.license_number,
         phone: backendDriver.user_info?.phoneNo || 'N/A',
@@ -50,7 +61,7 @@ const Drivers = () => {
         emergencyContact: backendDriver.emergency_contact || 'N/A',
         department: backendDriver.department || 'N/A',
         joiningDate: backendDriver.joining_date || 'N/A',
-        employeeId: backendDriver.employee_id || 'N/A',
+        employeeId: employeeId || 'N/A', // This is now our primary identifier
         rating: backendDriver.rating?.toString() || '0.0',
         currentVehicle: null, // TODO: Implement vehicle relationship
         trips: [], // TODO: Implement trip history
@@ -141,23 +152,26 @@ const Drivers = () => {
       licenseType: '',
     });
     setCurrentPage(1); // Reset to first page
-  };
-
-  // Handle driver deletion
-  const handleDeleteDriver = async driverId => {
+  }; // Handle driver deletion
+  const handleDeleteDriver = async employeeId => {
     try {
+      // Validate that we have a valid employee ID before proceeding
+      if (!employeeId) {
+        throw new Error('Invalid driver employee ID: Employee ID is undefined');
+      }
+
       setLoading(true);
-      await deleteDriver(driverId);
+      await deleteDriver(employeeId);
 
       // Remove the deleted driver from local state
-      const updatedDrivers = drivers.filter(driver => driver.id !== driverId);
-      const updatedFiltered = filteredDrivers.filter(driver => driver.id !== driverId);
+      const updatedDrivers = drivers.filter(driver => driver.employeeId !== employeeId);
+      const updatedFiltered = filteredDrivers.filter(driver => driver.employeeId !== employeeId);
 
       setDrivers(updatedDrivers);
       setFilteredDrivers(updatedFiltered);
 
       // Remove from selected drivers if selected
-      setSelectedDrivers(selectedDrivers.filter(id => id !== driverId));
+      setSelectedDrivers(selectedDrivers.filter(id => id !== employeeId));
 
       // Show success message (you might want to add a toast notification here)
       console.log('Driver deleted successfully');
@@ -207,24 +221,31 @@ const Drivers = () => {
   const indexOfLastDriver = currentPage * itemsPerPage;
   const indexOfFirstDriver = indexOfLastDriver - itemsPerPage;
   const currentDrivers = sortedDrivers.slice(indexOfFirstDriver, indexOfLastDriver);
-  const totalPages = Math.ceil(sortedDrivers.length / itemsPerPage);
-
-  // Toggle select all
+  const totalPages = Math.ceil(sortedDrivers.length / itemsPerPage); // Toggle select all
   const handleSelectAll = () => {
     if (selectAll) {
       setSelectedDrivers([]);
     } else {
-      setSelectedDrivers(currentDrivers.map(driver => driver.id));
+      // Make sure we only select drivers with valid employee IDs
+      setSelectedDrivers(
+        currentDrivers.filter(driver => driver.employeeId).map(driver => driver.employeeId)
+      );
     }
     setSelectAll(!selectAll);
   };
 
   // Toggle select individual driver
-  const handleSelectDriver = driverId => {
-    if (selectedDrivers.includes(driverId)) {
-      setSelectedDrivers(selectedDrivers.filter(id => id !== driverId));
+  const handleSelectDriver = employeeId => {
+    // Validate the employee ID
+    if (!employeeId) {
+      console.error('Attempted to select driver with invalid employee ID');
+      return;
+    }
+
+    if (selectedDrivers.includes(employeeId)) {
+      setSelectedDrivers(selectedDrivers.filter(id => id !== employeeId));
     } else {
-      setSelectedDrivers([...selectedDrivers, driverId]);
+      setSelectedDrivers([...selectedDrivers, employeeId]);
     }
   };
 
@@ -248,7 +269,6 @@ const Drivers = () => {
   const closeVehicleAssignmentModal = () => {
     setShowVehicleAssignmentModal(false);
   };
-
   // Handle driver added callback
   const handleDriverAdded = async newDriver => {
     try {
@@ -270,6 +290,52 @@ const Drivers = () => {
       } catch (refreshError) {
         console.error('Error refreshing drivers list:', refreshError);
         setError('Driver added but failed to refresh list. Please refresh the page.');
+      }
+    }
+  };
+
+  // Handle edit driver
+  const handleEditDriver = driver => {
+    setDriverToEdit(driver);
+    setShowEditDriverModal(true);
+  };
+
+  // Close edit driver modal
+  const closeEditDriverModal = () => {
+    setShowEditDriverModal(false);
+    setDriverToEdit(null);
+  };
+  // Handle driver updated callback
+  const handleDriverUpdated = async updatedDriver => {
+    try {
+      // Transform the updated driver data
+      const transformedDriver = transformDriverData(updatedDriver);
+
+      // Update the driver in both arrays using employee ID instead of MongoDB ID
+      setDrivers(prevDrivers =>
+        prevDrivers.map(driver =>
+          driver.employeeId === transformedDriver.employeeId ? transformedDriver : driver
+        )
+      );
+      setFilteredDrivers(prevFiltered =>
+        prevFiltered.map(driver =>
+          driver.employeeId === transformedDriver.employeeId ? transformedDriver : driver
+        )
+      );
+
+      // Show success message
+      alert(`Driver "${transformedDriver.name}" has been updated successfully!`);
+    } catch (error) {
+      console.error('Error processing updated driver:', error);
+      // Refresh the entire list as fallback
+      try {
+        const response = await getDrivers({ limit: 100 });
+        const transformedDrivers = response.map(transformDriverData);
+        setDrivers(transformedDrivers);
+        setFilteredDrivers(transformedDrivers);
+      } catch (refreshError) {
+        console.error('Error refreshing drivers list:', refreshError);
+        setError('Driver updated but failed to refresh list. Please refresh the page.');
       }
     }
   };
@@ -318,7 +384,6 @@ const Drivers = () => {
             <span>Add Driver</span>
           </button>
         </div>
-
         {/* Search and filter bar */}
         <DriverSearch
           filterOpen={filterOpen}
@@ -327,21 +392,24 @@ const Drivers = () => {
           onApplyFilters={handleApplyFilters}
           onResetFilters={handleResetFilters}
         />
-
-        {/* Driver actions */}
+        {/* Driver actions */}{' '}
         <DriverActions
           selectedDrivers={selectedDrivers}
           exportSelectedDrivers={exportSelectedDrivers}
           onDeleteSelected={() => {
+            // Filter out any undefined employee IDs
+            const validEmployeeIds = selectedDrivers.filter(id => id);
+
             if (
-              selectedDrivers.length > 0 &&
-              window.confirm(`Are you sure you want to delete ${selectedDrivers.length} driver(s)?`)
+              validEmployeeIds.length > 0 &&
+              window.confirm(
+                `Are you sure you want to delete ${validEmployeeIds.length} driver(s)?`
+              )
             ) {
-              selectedDrivers.forEach(driverId => handleDeleteDriver(driverId));
+              validEmployeeIds.forEach(employeeId => handleDeleteDriver(employeeId));
             }
           }}
         />
-
         {/* Loading State */}
         {loading && drivers.length === 0 ? (
           <div className="text-center py-8">
@@ -349,8 +417,7 @@ const Drivers = () => {
             <p className="text-muted-foreground">Loading drivers...</p>
           </div>
         ) : (
-          /* Driver list with pagination */
-          <DriverList
+          /* Driver list with pagination */ <DriverList
             drivers={currentDrivers}
             selectedDrivers={selectedDrivers}
             handleSelectDriver={handleSelectDriver}
@@ -360,6 +427,8 @@ const Drivers = () => {
             sortDirection={sortDirection}
             handleSort={handleSort}
             openDriverDetails={openDriverDetails}
+            onEditDriver={handleEditDriver}
+            onDeleteDriver={handleDeleteDriver}
             currentPage={currentPage}
             totalPages={totalPages}
             itemsPerPage={itemsPerPage}
@@ -385,12 +454,20 @@ const Drivers = () => {
           selectedDrivers={selectedDrivers}
           currentDriver={currentDriver}
         />
-      )}
+      )}{' '}
       {/* Add Driver Modal */}
       {showAddDriverModal && (
         <AddDriverModal
           closeModal={() => setShowAddDriverModal(false)}
           onDriverAdded={handleDriverAdded}
+        />
+      )}
+      {/* Edit Driver Modal */}
+      {showEditDriverModal && driverToEdit && (
+        <EditDriverModal
+          driver={driverToEdit}
+          closeModal={closeEditDriverModal}
+          onDriverUpdated={handleDriverUpdated}
         />
       )}
       {/* Data visualization section */}

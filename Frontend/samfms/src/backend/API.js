@@ -167,6 +167,12 @@ export const getDriver = async driverId => {
     throw new Error('No authentication token found');
   }
 
+  // Validate driver ID
+  if (!driverId) {
+    throw new Error('No driver ID provided');
+  }
+
+  // Use the provided ID (could be either MongoDB ObjectId or employee ID)
   const response = await fetch(DRIVER_API.getDriver(driverId), {
     method: 'GET',
     headers: {
@@ -188,6 +194,12 @@ export const updateDriver = async (driverId, updateData) => {
     throw new Error('No authentication token found');
   }
 
+  // Validate driver ID
+  if (!driverId) {
+    throw new Error('No driver ID provided');
+  }
+
+  // Use the provided ID (could be either MongoDB ObjectId or employee ID)
   const response = await fetch(DRIVER_API.updateDriver(driverId), {
     method: 'PUT',
     headers: {
@@ -211,6 +223,12 @@ export const deleteDriver = async driverId => {
     throw new Error('No authentication token found');
   }
 
+  // Validate driver ID
+  if (!driverId) {
+    throw new Error('No driver ID provided');
+  }
+
+  // Use the provided ID (could be either MongoDB ObjectId or employee ID)
   const response = await fetch(DRIVER_API.deleteDriver(driverId), {
     method: 'DELETE',
     headers: {
