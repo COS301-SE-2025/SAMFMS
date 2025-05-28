@@ -14,12 +14,15 @@ const VehicleList = ({
   sortDirection,
   handleSort,
   openVehicleDetails,
+  onEditVehicle,
+  onDeleteVehicle,
   currentPage,
   totalPages,
   itemsPerPage,
   changeItemsPerPage,
   goToNextPage,
   goToPrevPage,
+  totalVehicles,
 }) => {
   return (
     <>
@@ -114,13 +117,29 @@ const VehicleList = ({
                 </td>
                 <td className="py-3 px-4">
                   <StatusBadge status={vehicle.status} />
-                </td>
+                </td>{' '}
                 <td className="py-3 px-4" onClick={e => e.stopPropagation()}>
                   <div className="flex space-x-2">
-                    <button className="text-primary hover:text-primary/80" title="Edit">
+                    <button
+                      className="text-primary hover:text-primary/80"
+                      title="Edit"
+                      onClick={() => onEditVehicle?.(vehicle)}
+                    >
                       <Edit2 size={16} />
                     </button>
-                    <button className="text-destructive hover:text-destructive/80" title="Delete">
+                    <button
+                      className="text-destructive hover:text-destructive/80"
+                      title="Delete"
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `Are you sure you want to delete ${vehicle.make} ${vehicle.model}?`
+                          )
+                        ) {
+                          onDeleteVehicle?.(vehicle.id);
+                        }
+                      }}
+                    >
                       <Trash2 size={16} />
                     </button>
                   </div>

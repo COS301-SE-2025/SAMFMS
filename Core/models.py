@@ -125,10 +125,23 @@ class VehicleResponse(BaseModel):
     mileage: Optional[int] = 0
     status: Optional[str] = "active"
     driver_id: Optional[str] = None
+    driver_name: Optional[str] = None
 
     class Config:
         validate_by_name = True
         json_encoders = {ObjectId: str}
+        
+class VehicleUpdateRequest(BaseModel):
+    make: Optional[str] = None
+    model: Optional[str] = None
+    year: Optional[int] = None
+    vin: Optional[str] = None
+    license_plate: Optional[str] = None
+    color: Optional[str] = None
+    fuel_type: Optional[str] = None
+    mileage: Optional[int] = None
+    status: Optional[str] = None
+    driver_id: Optional[str] = None
 
 
 class LoginRequest(BaseModel):

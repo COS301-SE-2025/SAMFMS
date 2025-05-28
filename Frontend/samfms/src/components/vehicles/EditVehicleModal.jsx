@@ -1,22 +1,37 @@
-import React, { useState } from 'react';
-import { createVehicle } from '../../backend/API';
+import React, { useState, useEffect } from 'react';
+import { updateVehicle } from '../../backend/API';
 
-const initialForm = {
-  make: '',
-  model: '',
-  year: '',
-  vin: '',
-  license_plate: '',
-  color: '',
-  fuel_type: 'gasoline',
-  mileage: 0,
-  status: 'active',
-};
-
-const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
-  const [form, setForm] = useState(initialForm);
+const EditVehicleModal = ({ vehicle, closeModal, onVehicleUpdated }) => {
+  const [form, setForm] = useState({
+    make: '',
+    model: '',
+    year: '',
+    vin: '',
+    license_plate: '',
+    color: '',
+    fuel_type: '',
+    mileage: '',
+    status: '',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Initialize form with vehicle data
+  useEffect(() => {
+    if (vehicle) {
+      setForm({
+        make: vehicle.make || '',
+        model: vehicle.model || '',
+        year: vehicle.year || '',
+        vin: vehicle.vin || '',
+        license_plate: vehicle.licensePlate || '',
+        color: vehicle.color || '',
+        fuel_type: vehicle.fuelType || '',
+        mileage: vehicle.mileage ? parseInt(vehicle.mileage) : 0,
+        status: vehicle.status?.toLowerCase() || 'active',
+      });
+    }
+  }, [vehicle]);
 
   const handleChange = e => {
     const { name, value } = e.target;
@@ -30,12 +45,12 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
 
     try {
       // Validate VIN (should be 17 characters)
-      if (form.vin.length !== 17) {
+      if (form.vin && form.vin.length !== 17) {
         throw new Error('VIN must be exactly 17 characters');
       }
 
       // Validate license plate
-      if (form.license_plate.length < 4 || form.license_plate.length > 10) {
+      if (form.license_plate && (form.license_plate.length < 4 || form.license_plate.length > 10)) {
         throw new Error('License plate must be 4-10 characters');
       }
 
@@ -45,19 +60,12 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
         throw new Error('Year must be between 1900 and 2030');
       }
 
-      // Convert mileage to number
-      const formData = {
-        ...form,
-        year: parseInt(form.year),
-        mileage: parseInt(form.mileage),
-      };
-
-      const newVehicle = await createVehicle(formData);
-      setVehicles(prev => [...prev, newVehicle]);
+      const response = await updateVehicle(vehicle.id, form);
+      onVehicleUpdated(response);
       closeModal();
     } catch (err) {
-      console.error('Error adding vehicle:', err);
-      setError(err.message || 'Failed to add vehicle');
+      console.error('Error updating vehicle:', err);
+      setError(err.message || 'Failed to update vehicle');
     } finally {
       setLoading(false);
     }
@@ -66,16 +74,18 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-card dark:bg-card p-6 rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl font-semibold mb-4 text-card-foreground">Add New Vehicle</h2>{' '}
+        <h2 className="text-xl font-semibold mb-4 text-card-foreground">Edit Vehicle</h2>
+
         {error && (
           <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded mb-4">
             {error}
           </div>
         )}
+
         <form onSubmit={handleSubmit} className="space-y-3">
+          {' '}
           <div>
-            {' '}
-            <label className="block text-sm font-medium text-card-foreground mb-1">Make*</label>
+            <label className="block text-sm font-medium text-card-foreground mb-1">Make</label>
             <input
               name="make"
               value={form.make}
@@ -83,10 +93,9 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
               className="w-full border p-2 rounded bg-background dark:bg-muted text-foreground dark:text-foreground"
               required
             />
-          </div>
+          </div>{' '}
           <div>
-            {' '}
-            <label className="block text-sm font-medium text-card-foreground mb-1">Model*</label>
+            <label className="block text-sm font-medium text-card-foreground mb-1">Model</label>
             <input
               name="model"
               value={form.model}
@@ -94,10 +103,9 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
               className="w-full border p-2 rounded bg-background dark:bg-muted text-foreground dark:text-foreground"
               required
             />
-          </div>
+          </div>{' '}
           <div>
-            {' '}
-            <label className="block text-sm font-medium text-card-foreground mb-1">Year*</label>
+            <label className="block text-sm font-medium text-card-foreground mb-1">Year</label>
             <input
               name="year"
               value={form.year}
@@ -108,11 +116,10 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
               className="w-full border p-2 rounded bg-background dark:bg-muted text-foreground dark:text-foreground"
               required
             />
-          </div>
+          </div>{' '}
           <div>
-            {' '}
             <label className="block text-sm font-medium text-card-foreground mb-1">
-              VIN* (17 characters)
+              VIN (17 characters)
             </label>
             <input
               name="vin"
@@ -123,11 +130,10 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
               minLength="17"
               required
             />
-          </div>
+          </div>{' '}
           <div>
-            {' '}
             <label className="block text-sm font-medium text-card-foreground mb-1">
-              License Plate*
+              License Plate
             </label>
             <input
               name="license_plate"
@@ -136,9 +142,8 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
               className="w-full border p-2 rounded bg-background dark:bg-muted text-foreground dark:text-foreground"
               required
             />
-          </div>
+          </div>{' '}
           <div>
-            {' '}
             <label className="block text-sm font-medium text-card-foreground mb-1">Color</label>
             <input
               name="color"
@@ -148,9 +153,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
             />
           </div>{' '}
           <div>
-            <label className="block text-sm font-medium text-card-foreground mb-1">
-              Fuel Type*
-            </label>
+            <label className="block text-sm font-medium text-card-foreground mb-1">Fuel Type</label>
             <select
               name="fuel_type"
               value={form.fuel_type}
@@ -163,48 +166,48 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
               <option value="hybrid">Hybrid</option>
               <option value="electric">Electric</option>
             </select>
-          </div>{' '}
+          </div>
           <div>
-            <label className="block text-sm font-medium text-card-foreground mb-1">Mileage*</label>
+            <label className="block text-sm font-medium mb-1">Mileage</label>
             <input
               name="mileage"
               value={form.mileage}
               onChange={handleChange}
               type="number"
               min="0"
-              className="w-full border p-2 rounded bg-background dark:bg-muted text-foreground dark:text-foreground"
+              className="w-full border p-2 rounded"
               required
             />
-          </div>{' '}
+          </div>
           <div>
-            <label className="block text-sm font-medium text-card-foreground mb-1">Status*</label>
+            <label className="block text-sm font-medium mb-1">Status</label>
             <select
               name="status"
               value={form.status}
               onChange={handleChange}
-              className="w-full border p-2 rounded bg-background dark:bg-muted text-foreground dark:text-foreground"
+              className="w-full border p-2 rounded"
               required
             >
               <option value="active">Active</option>
               <option value="maintenance">Maintenance</option>
               <option value="inactive">Inactive</option>
             </select>
-          </div>{' '}
+          </div>
           <div className="flex justify-end gap-2 mt-4">
             <button
               type="button"
               onClick={closeModal}
-              className="px-4 py-2 rounded bg-secondary hover:bg-secondary/80 text-secondary-foreground"
+              className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
               disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded bg-primary text-primary-foreground hover:bg-primary/90"
+              className="px-4 py-2 rounded bg-primary text-white hover:bg-primary/90"
               disabled={loading}
             >
-              {loading ? 'Adding...' : 'Add Vehicle'}
+              {loading ? 'Updating...' : 'Update Vehicle'}
             </button>
           </div>
         </form>
@@ -213,4 +216,4 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
   );
 };
 
-export default AddVehicleModal;
+export default EditVehicleModal;

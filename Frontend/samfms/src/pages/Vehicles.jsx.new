@@ -1,3 +1,4 @@
+// filepath: c:\Users\user\OneDrive\Documents\capstone\repo\SAMFMS\Frontend\samfms\src\pages\Vehicles.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { PlusCircle } from 'lucide-react';
 import VehicleList from '../components/vehicles/VehicleList';
@@ -12,7 +13,7 @@ import { getVehicles, deleteVehicle, searchVehicles } from '../backend/API';
 
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
-  // Removed unused state variable for filteredVehicles
+  const [filteredVehicles, setFilteredVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedVehicles, setSelectedVehicles] = useState([]);
@@ -45,9 +46,7 @@ const Vehicles = () => {
       color: backendVehicle.color || 'N/A',
       fuelType: backendVehicle.fuel_type || 'N/A',
       mileage: backendVehicle.mileage?.toString() || '0',
-      status:
-        backendVehicle.status?.charAt(0).toUpperCase() + backendVehicle.status?.slice(1) ||
-        'Active',
+      status: backendVehicle.status?.charAt(0).toUpperCase() + backendVehicle.status?.slice(1) || 'Active',
       driver: backendVehicle.driver_name || 'Unassigned',
       driverId: backendVehicle.driver_id || null,
       department: backendVehicle.department || 'N/A',
@@ -83,17 +82,21 @@ const Vehicles = () => {
 
         const response = await getVehicles(params);
         const transformedVehicles = response.map(transformVehicleData);
+
         setVehicles(transformedVehicles);
+        setFilteredVehicles(transformedVehicles);
       } catch (err) {
         console.error('Error loading vehicles:', err);
         setError(err.message || 'Failed to load vehicles');
         setVehicles([]);
+        setFilteredVehicles([]);
       } finally {
         setLoading(false);
       }
     };
     loadVehicles();
   }, [filters, transformVehicleData]);
+
   // Handle search functionality
   const handleSearch = async searchQuery => {
     try {
@@ -108,11 +111,13 @@ const Vehicles = () => {
           ...(filters.make && { make_filter: filters.make }),
         });
         const transformedVehicles = response.map(transformVehicleData);
+        setFilteredVehicles(transformedVehicles);
         setVehicles(transformedVehicles);
       } else {
         // Search vehicles
-        const results = await searchVehicles(searchQuery);
-        const transformedResults = results.map(transformVehicleData);
+        const searchResults = await searchVehicles(searchQuery);
+        const transformedResults = searchResults.map(transformVehicleData);
+        setFilteredVehicles(transformedResults);
         setVehicles(transformedResults);
       }
 
@@ -188,15 +193,11 @@ const Vehicles = () => {
 
       // Update the vehicle in the array
       setVehicles(prevVehicles =>
-        prevVehicles.map(vehicle =>
-          vehicle.id === transformedVehicle.id ? transformedVehicle : vehicle
-        )
+        prevVehicles.map(vehicle => (vehicle.id === transformedVehicle.id ? transformedVehicle : vehicle))
       );
 
       // Show success message
-      alert(
-        `Vehicle "${transformedVehicle.make} ${transformedVehicle.model}" has been updated successfully!`
-      );
+      alert(`Vehicle "${transformedVehicle.make} ${transformedVehicle.model}" has been updated successfully!`);
     } catch (error) {
       console.error('Error processing updated vehicle:', error);
       // Refresh the entire list as fallback
@@ -244,8 +245,6 @@ const Vehicles = () => {
   const currentVehicles = sortedVehicles.slice(indexOfFirstVehicle, indexOfLastVehicle);
   const totalPages = Math.ceil(vehicles.length / itemsPerPage);
 
-  // Sorting is now handled in the VehicleList component
-
   // Toggle select all (update to use currentVehicles)
   const handleSelectAll = () => {
     if (selectAll) {
@@ -286,7 +285,6 @@ const Vehicles = () => {
   const closeAssignmentModal = () => {
     setShowAssignmentModal(false);
   };
-  // Analytics are always shown now
 
   // Bulk operations
   const exportSelectedVehicles = () => {
@@ -309,6 +307,7 @@ const Vehicles = () => {
     setItemsPerPage(parseInt(e.target.value));
     setCurrentPage(1); // Reset to first page
   };
+  
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">Fleet Vehicles</h1>
@@ -322,14 +321,16 @@ const Vehicles = () => {
             <PlusCircle size={18} />
             <span>Add Vehicle</span>
           </button>
-        </div>{' '}
+        </div>
+        
         {/* Error Message */}
         {error && (
           <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-md mb-6">
             <p>{error}</p>
           </div>
         )}
-        {/* Search and filter bar */}{' '}
+        
+        {/* Search and filter bar */}
         <VehicleSearch
           filterOpen={filterOpen}
           setFilterOpen={setFilterOpen}
@@ -337,7 +338,8 @@ const Vehicles = () => {
           onApplyFilters={handleApplyFilters}
           onResetFilters={handleResetFilters}
         />
-        {/* Vehicle actions buttons and bulk actions */}{' '}
+        
+        {/* Vehicle actions buttons and bulk actions */}
         <VehicleActions
           selectedVehicles={selectedVehicles}
           openAssignmentModal={openAssignmentModal}
@@ -345,14 +347,13 @@ const Vehicles = () => {
           onDeleteSelected={() => {
             if (
               selectedVehicles.length > 0 &&
-              window.confirm(
-                `Are you sure you want to delete ${selectedVehicles.length} vehicle(s)?`
-              )
+              window.confirm(`Are you sure you want to delete ${selectedVehicles.length} vehicle(s)?`)
             ) {
               selectedVehicles.forEach(vehicleId => handleDeleteVehicle(vehicleId));
             }
           }}
         />
+        
         {/* Loading State */}
         {loading && vehicles.length === 0 ? (
           <div className="text-center py-8">
@@ -383,6 +384,7 @@ const Vehicles = () => {
           />
         )}
       </div>
+      
       {/* Vehicle Details Modal */}
       {vehicleDetailsOpen && currentVehicle && (
         <VehicleDetailsModal
@@ -393,6 +395,7 @@ const Vehicles = () => {
           onDeleteVehicle={handleDeleteVehicle}
         />
       )}
+      
       {/* Driver Assignment Modal */}
       {showAssignmentModal && (
         <DriverAssignmentModal
@@ -402,7 +405,8 @@ const Vehicles = () => {
           vehicles={vehicles}
           currentVehicle={currentVehicle}
         />
-      )}{' '}
+      )}
+      
       {/* Add Vehicle Modal */}
       {showAddVehicleModal && (
         <AddVehicleModal
@@ -411,6 +415,7 @@ const Vehicles = () => {
           setVehicles={setVehicles}
         />
       )}
+      
       {/* Edit Vehicle Modal */}
       {showEditVehicleModal && vehicleToEdit && (
         <EditVehicleModal
@@ -419,6 +424,7 @@ const Vehicles = () => {
           onVehicleUpdated={handleVehicleUpdated}
         />
       )}
+      
       {/* Data visualization section */}
       <DataVisualization />
     </div>
