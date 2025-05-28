@@ -32,7 +32,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
 
   const handleSubmit = async e => {
     e.preventDefault();
-    const response = await fetch('http://localhost:8000/vehicles', {
+    const response = await fetch('http://mcore:8000/vehicles', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),

@@ -21,3 +21,12 @@ async def add_vehicle(vehicle: dict = Body(...)):
     vehicle["_id"] = str(result.inserted_id)
     return vehicle
 
+# Function to delete a vehicle
+@router.delete("/vehicles/{vehicle_id}")
+async def delete_vehicle(vehicle_id: str):
+    result = await db.vehicles.delete_one({"id": vehicle_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    return {"message": "Vehicle deleted"}
+
+

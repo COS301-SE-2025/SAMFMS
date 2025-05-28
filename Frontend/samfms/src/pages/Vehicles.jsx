@@ -10,6 +10,7 @@ import AddVehicleModal from '../components/vehicles/AddVehicleModal';
 
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
+  ////
   const [selectedVehicles, setSelectedVehicles] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -24,7 +25,7 @@ const Vehicles = () => {
 
   // Make GET requestion to vehicle.py to retrieve the vehicles
   useEffect(() => {
-    fetch('http://localhost:8000/vehicles')
+    fetch('http://mcore:8000/vehicles')
       .then(res => res.json())
       .then(data => setVehicles(data))
       .catch(err => console.error('Failed to fetch vehicles:', err));
@@ -127,6 +128,17 @@ const Vehicles = () => {
     setItemsPerPage(parseInt(e.target.value));
     setCurrentPage(1); // Reset to first page
   };
+
+  // Delete vehicle function
+  const handleDeleteVehicle = async (vehicleId) => {
+    await fetch(`http://localhost:8000/vehicles/${vehicleId}`, {
+      method: 'DELETE',
+    });
+    setVehicles(vehicles.filter(vehicle => vehicle.id !== vehicleId));
+  };
+
+  console.log('selectedVehicles: ', selectedVehicles);
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">Fleet Vehicles</h1>
@@ -154,6 +166,7 @@ const Vehicles = () => {
           selectedVehicles={selectedVehicles}
           openAssignmentModal={openAssignmentModal}
           exportSelectedVehicles={exportSelectedVehicles}
+          handleDeleteVehicle={handleDeleteVehicle}
         />{' '}
         {/* Vehicle list with pagination */}
         <VehicleList
@@ -172,6 +185,7 @@ const Vehicles = () => {
           changeItemsPerPage={changeItemsPerPage}
           goToNextPage={goToNextPage}
           goToPrevPage={goToPrevPage}
+          onDeleteVehicle={handleDeleteVehicle} // Pass delete handler to VehicleList
         />
       </div>{' '}
       {/* Vehicle Details Modal */}
