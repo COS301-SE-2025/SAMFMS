@@ -212,3 +212,116 @@ async def delete_vehicle(
         logger.error(f"Error deleting vehicle: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete vehicle: {str(e)}")
 
+# Function to update an existing vehicle
+@router.put("/vehicles/{vehicle_id}", response_model=VehicleResponse)
+async def update_vehicle(
+    vehicle_id: str,
+    vehicle_update: VehicleUpdateRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    try:
+        # Validate ObjectId
+        if not ObjectId.is_valid(vehicle_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid vehicle ID format"
+            )
+        
+        # Check if vehicle exists
+        existing_vehicle = await db.vehicles.find_one({"_id": ObjectId(vehicle_id)})
+        if not existing_vehicle:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Vehicle not found"
+            )
+        
+        # Prepare update data (only include fields that are not None)
+        update_data = {}
+        for field, value in vehicle_update.model_dump(exclude_unset=True).items():
+            if value is not None:
+                update_data[field] = value
+        
+        if not update_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No valid fields to update"
+            )
+        
+        # Validate VIN if provided
+        if "vin" in update_data:
+            if not validate_vin(update_data["vin"]):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid VIN format. VIN must be 17 characters."
+                )
+            
+            # Check if VIN is already used by another vehicle
+            existing_vin = await db.vehicles.find_one({
+                "vin": update_data["vin"],
+                "_id": {"$ne": ObjectId(vehicle_id)}
+            })
+            if existing_vin:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Vehicle with this VIN already exists"
+                )
+        
+        # Validate license plate if provided
+        if "license_plate" in update_data:
+            if not validate_license_plate(update_data["license_plate"]):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid license plate format."
+                )
+            
+            # Check if license plate is already used by another vehicle
+            existing_plate = await db.vehicles.find_one({
+                "license_plate": update_data["license_plate"],
+                "_id": {"$ne": ObjectId(vehicle_id)}
+            })
+            if existing_plate:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Vehicle with this license plate already exists"
+                )
+        
+        # Update vehicle
+        result = await db.vehicles.update_one(
+            {"_id": ObjectId(vehicle_id)},
+            {"$set": update_data}
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No changes made to vehicle"
+            )
+        
+        # Get updated vehicle
+        updated_vehicle = await db.vehicles.find_one({"_id": ObjectId(vehicle_id)})
+        
+        # Convert ObjectId to string for JSON serialization
+        updated_vehicle["_id"] = str(updated_vehicle["_id"])
+        
+        # Get driver information if available
+        if updated_vehicle.get("driver_id"):
+            try:
+                driver = await db.drivers.find_one({"_id": ObjectId(updated_vehicle["driver_id"])})
+                if driver:
+                    user = await db.users.find_one({"_id": ObjectId(driver["user_id"])})
+                    if user:
+                        updated_vehicle["driver_name"] = user.get("full_name", "Unknown")
+            except Exception as e:
+                logger.error(f"Error fetching driver for updated vehicle: {e}")
+        
+        return VehicleResponse(**updated_vehicle)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating vehicle: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update vehicle: {str(e)}"
+        )
+
