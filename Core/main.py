@@ -1,6 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from routes.auth_utils import get_current_user
+from pydantic import BaseModel
 import uvicorn
 import asyncio
 import logging
@@ -15,12 +17,14 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
+class TokenValidationResponse(BaseModel):
+    valid: bool
+
 # Configure CORS
 origins = [
     "http://localhost:3000",     # React development server
     "http://127.0.0.1:3000",
     "http://localhost:5000",     # Production build if served differently
-    "*",                        # Optional: Allow all origins (less secure)
 ]
 
 app.add_middleware(
@@ -29,6 +33,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],        # Allow all methods including OPTIONS
     allow_headers=["*"],        # Allow all headers
+    expose_headers=["*"]
 )
 
 app.include_router(user.router)
@@ -36,14 +41,20 @@ app.include_router(auth.router)
 app.include_router(vehicle.router)
 app.include_router(driver.router)
 
-
-
-
-
+@app.get("/auth/validate-token", response_model=TokenValidationResponse)
+async def validate_token(current_user: dict = Depends(get_current_user)):
+    """
+    Validates the current JWT token.
+    Returns true if the token is valid (user is authenticated).
+    """
+    return {"valid": True}
 
 @app.get("/")
 async def root():
     return {"message": "SAMFMS API is running"}
+
+
+
 
 
 

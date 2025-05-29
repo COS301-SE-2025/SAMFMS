@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
-import { login, isAuthenticated } from '../backend/API.js';
+import { useAuth } from '../auth/UseAuth';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -16,69 +16,59 @@ const Login = () => {
     email: false,
     password: false,
   });
+
   const navigate = useNavigate();
+  const { login, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    // If user is already authenticated, redirect to dashboard
-    if (isAuthenticated()) {
-      navigate('/dashboard');
-    }
-  }, [navigate]);
-  // Validate email
+    const checkAuth = async () => {
+      if (isAuthenticated) {
+        navigate('/dashboard');
+      }
+    };
+    checkAuth();
+  }, [isAuthenticated, navigate]);
+
   const validateEmail = email => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim()) {
-      return 'Email is required';
-    } else if (!emailRegex.test(email)) {
-      return 'Invalid email format';
-    }
+    if (!email.trim()) return 'Email is required';
+    if (!emailRegex.test(email)) return 'Invalid email format';
     return '';
   };
 
-  // Validate password
   const validatePassword = password => {
-    if (!password.trim()) {
-      return 'Password is required';
-    } else if (password.length < 6) {
-      return 'Password must be at least 6 characters';
-    }
+    if (!password.trim()) return 'Password is required';
+    if (password.length < 6) return 'Password must be at least 6 characters';
     return '';
   };
 
-  // Handle blur events
   const handleBlur = field => {
-    setTouched({ ...touched, [field]: true });
-
-    if (field === 'email') {
-      setValidationErrors({
-        ...validationErrors,
-        email: validateEmail(email),
-      });
-    } else if (field === 'password') {
-      setValidationErrors({
-        ...validationErrors,
-        password: validatePassword(password),
-      });
-    }
+    setTouched(prev => ({ ...prev, [field]: true }));
+    setValidationErrors(prev => ({
+      ...prev,
+      [field]:
+        field === 'email'
+          ? validateEmail(email)
+          : validatePassword(password),
+    }));
   };
 
-  // Handle change events with validation
   const handleChange = (field, value) => {
     if (field === 'email') {
       setEmail(value);
       if (touched.email) {
-        setValidationErrors({
-          ...validationErrors,
+        setValidationErrors(prev => ({
+          ...prev,
           email: validateEmail(value),
-        });
+        }));
       }
     } else if (field === 'password') {
       setPassword(value);
       if (touched.password) {
-        setValidationErrors({
-          ...validationErrors,
+        setValidationErrors(prev => ({
+          ...prev,
           password: validatePassword(value),
-        });
+        }));
       }
     }
   };
@@ -86,7 +76,6 @@ const Login = () => {
   const handleSubmit = async e => {
     e.preventDefault();
 
-    // Validate all fields
     const emailError = validateEmail(email);
     const passwordError = validatePassword(password);
 
@@ -94,25 +83,18 @@ const Login = () => {
       email: emailError,
       password: passwordError,
     });
+    setTouched({ email: true, password: true });
 
-    setTouched({
-      email: true,
-      password: true,
-    });
-
-    // If any validation errors, prevent form submission
-    if (emailError || passwordError) {
-      return;
-    }
+    if (emailError || passwordError) return;
 
     setError('');
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(email, password); 
       navigate('/dashboard');
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -211,9 +193,8 @@ const Login = () => {
                 onChange={e => handleChange('email', e.target.value)}
                 onBlur={() => handleBlur('email')}
                 required
-                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
-                  validationErrors.email && touched.email ? 'border-red-500' : 'border-primary-200'
-                }`}
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${validationErrors.email && touched.email ? 'border-red-500' : 'border-primary-200'
+                  }`}
               />
               {validationErrors.email && touched.email && (
                 <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>
@@ -231,11 +212,10 @@ const Login = () => {
                 onChange={e => handleChange('password', e.target.value)}
                 onBlur={() => handleBlur('password')}
                 required
-                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
-                  validationErrors.password && touched.password
-                    ? 'border-red-500'
-                    : 'border-primary-200'
-                }`}
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${validationErrors.password && touched.password
+                  ? 'border-red-500'
+                  : 'border-primary-200'
+                  }`}
               />
               {validationErrors.password && touched.password && (
                 <p className="text-red-500 text-xs mt-1">{validationErrors.password}</p>

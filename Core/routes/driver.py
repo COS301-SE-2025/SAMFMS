@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer
 from models import DriverModel, DriverResponse, DriverCreateRequest, DriverUpdateRequest, UserModel, UserResponse
-from auth_utils import get_current_active_user
+from .auth_utils import get_current_active_user
 from bson import ObjectId
 from typing import List, Optional
 from database import db

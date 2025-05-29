@@ -17,7 +17,7 @@ services:
       - RABBITMQ_DEFAULT_PASS=guest
 
   mcore:
-    build: ./core
+    build: ./Core
     command: sh /app/start.sh
     ports:
       - '8000:8000'

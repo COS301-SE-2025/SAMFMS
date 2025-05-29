@@ -101,7 +101,7 @@ const VehicleList = ({
                 <td className="py-3 px-4">{vehicle.make}</td>
                 <td className="py-3 px-4">{vehicle.model}</td>
                 <td className="py-3 px-4">{vehicle.year}</td>
-                <td className="py-3 px-4">{vehicle.mileage} km</td>{' '}
+                <td className="py-3 px-4">{vehicle.mileage} km</td>{}
                 <td className="py-3 px-4">
                   <div className="flex items-center">
                     <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium mr-2">
@@ -117,7 +117,7 @@ const VehicleList = ({
                 </td>
                 <td className="py-3 px-4">
                   <StatusBadge status={vehicle.status} />
-                </td>{' '}
+                </td>{}
                 <td className="py-3 px-4" onClick={e => e.stopPropagation()}>
                   <div className="flex space-x-2">
                     <button

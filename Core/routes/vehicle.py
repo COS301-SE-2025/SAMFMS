@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, Body, Depends, status
 from models import VehicleModel, VehicleResponse, VehicleUpdateRequest
-from auth_utils import get_current_active_user
+from .auth_utils import get_current_active_user
 from bson import ObjectId
 from database import db
+from typing import List
 from typing import List, Optional, Dict, Any
 import logging
 import re
@@ -173,6 +174,54 @@ async def add_vehicle(
     except Exception as e:
         logger.error(f"Error adding vehicle: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to add vehicle: {str(e)}")
+
+# Function to search for a vehicle
+@router.get("/vehicles/search/{query}",response_model=List[VehicleResponse])
+async def search_vehicles(
+    query: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    try:
+        logger.info(f"Search query received: {query}")
+        query = query.strip()
+        regex_query = {"$regex": query, "$options": "i"}
+        search_conditions = [
+            {"make": regex_query},
+            {"model": regex_query},
+            {"vin": regex_query},
+            {"license_plate": regex_query},
+            {"color": regex_query},
+            {"fuel_type": regex_query},
+            {"status": regex_query},
+        ]
+
+        search_query = {"$or": search_conditions}
+        cursor = db.vehicles.find(search_query)
+        results = []
+
+        async for vehicle in cursor:
+            vehicle["_id"] = str(vehicle["_id"])
+
+            # If a driver is linked, attach their name
+            if vehicle.get("driver_id"):
+                try:
+                    driver = await db.drivers.find_one({"_id": ObjectId(vehicle["driver_id"])})
+                    if driver:
+                        user = await db.users.find_one({"_id": ObjectId(driver["user_id"])})
+                        if user:
+                            vehicle["driver_name"] = user.get("full_name", "Unknown")
+                except Exception as e:
+                    logger.error(f"Error fetching driver info for vehicle: {e}")
+                    vehicle["driver_name"] = "Unknown"
+
+            results.append(VehicleResponse(**vehicle))
+
+        return results
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error searching for vehicle: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to search for vehicle: {str(e)}")
 
 # Function to delete a vehicle
 @router.delete("/vehicles/{vehicle_id}", response_model=Dict[str, Any])

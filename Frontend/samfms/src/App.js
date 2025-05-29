@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 import 'leaflet/dist/leaflet.css';
@@ -5,6 +6,7 @@ import 'leaflet/dist/leaflet.css';
 // Import layout and contexts
 import Layout from './components/Layout';
 import ThemeProvider from './contexts/ThemeContext';
+import { AuthProvider } from './auth/AuthProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Import pages
@@ -22,31 +24,33 @@ import Maintenance from './pages/Maintenance';
 
 function App() {
   return (
-    <ThemeProvider>
-      <Router>
-        <Routes>
-          {' '}
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          {/* Protected routes inside Layout */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/vehicles" element={<Vehicles />} />
-              <Route path="/drivers" element={<Drivers />} />
-              <Route path="/tracking" element={<Tracking />} />
-              <Route path="/trips" element={<Trips />} />
-              <Route path="/maintenance" element={<Maintenance />} />
-              <Route path="/account" element={<Account />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/plugins" element={<Plugins />} />
+    <AuthProvider> {}
+      <ThemeProvider>
+        <Router>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+
+            {/* Protected routes inside Layout */}
+            <Route element={<ProtectedRoute />}>
+              <Route element={<Layout />}>
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="vehicles" element={<Vehicles />} />
+                <Route path="drivers" element={<Drivers />} />
+                <Route path="tracking" element={<Tracking />} />
+                <Route path="trips" element={<Trips />} />
+                <Route path="maintenance" element={<Maintenance />} />
+                <Route path="account" element={<Account />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="plugins" element={<Plugins />} />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
-      </Router>
-    </ThemeProvider>
+          </Routes>
+        </Router>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 
