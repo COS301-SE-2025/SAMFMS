@@ -245,24 +245,35 @@ const Vehicles = () => {
   const totalPages = Math.ceil(vehicles.length / itemsPerPage);
 
   // Sorting is now handled in the VehicleList component
-
   // Toggle select all (update to use currentVehicles)
   const handleSelectAll = () => {
     if (selectAll) {
       setSelectedVehicles([]);
+      setSelectAll(false);
     } else {
       setSelectedVehicles(currentVehicles.map(vehicle => vehicle.id));
+      setSelectAll(true);
     }
-    setSelectAll(!selectAll);
   };
 
   // Toggle select individual vehicle
   const handleSelectVehicle = vehicleId => {
-    if (selectedVehicles.includes(vehicleId)) {
-      setSelectedVehicles(selectedVehicles.filter(id => id !== vehicleId));
-    } else {
-      setSelectedVehicles([...selectedVehicles, vehicleId]);
-    }
+    setSelectedVehicles(prev => {
+      if (prev.includes(vehicleId)) {
+        const newSelected = prev.filter(id => id !== vehicleId);
+        // Update selectAll state based on whether all current vehicles are selected
+        setSelectAll(
+          newSelected.length > 0 &&
+            currentVehicles.every(vehicle => newSelected.includes(vehicle.id))
+        );
+        return newSelected;
+      } else {
+        const newSelected = [...prev, vehicleId];
+        // Update selectAll state based on whether all current vehicles are selected
+        setSelectAll(currentVehicles.every(vehicle => newSelected.includes(vehicle.id)));
+        return newSelected;
+      }
+    });
   };
 
   // Open vehicle details

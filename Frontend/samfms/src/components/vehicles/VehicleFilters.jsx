@@ -117,7 +117,7 @@ const VehicleFilters = ({ filterOpen, setFilterOpen, onApplyFilters, onResetFilt
                 onChange={handleChange}
               >
                 <option value="">All Fuel Types</option>
-                <option value="gasoline">Gasoline</option>
+                <option value="petrol">Petrol</option>
                 <option value="diesel">Diesel</option>
                 <option value="hybrid">Hybrid</option>
                 <option value="electric">Electric</option>
