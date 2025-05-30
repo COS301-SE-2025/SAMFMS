@@ -3,17 +3,52 @@ from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import uvicorn
 import asyncio
-import logging
-from routes import user
-from routes import auth
-from routes import vehicle
+from contextlib import asynccontextmanager
 from routes import driver
+# Note: user, auth, and vehicle routes moved to separate microservices
+# - Authentication: Security Sblock
+# - Users: Users Dblock  
+# - Vehicles: Management Sblock & Vehicles Dblock
 from database import db
+from logging_config import setup_logging, get_logger
+from middleware import LoggingMiddleware, SecurityHeadersMiddleware
+from health_metrics import health_check, metrics_endpoint
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Setup structured logging
+setup_logging()
+logger = get_logger(__name__)
 
-app = FastAPI()
+# Application lifespan events
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handle application startup and shutdown events."""
+    # Startup
+    logger.info("🚀 Core service starting up...")
+    
+    # Test database connection
+    try:
+        # Test MongoDB connection
+        client = AsyncIOMotorClient("mongodb://host.docker.internal:27017")
+        await client.admin.command('ping')
+        logger.info("✅ Successfully connected to MongoDB")
+        client.close()
+    except Exception as e:
+        logger.error(f"❌ Failed to connect to MongoDB: {e}")
+    
+    logger.info("✅ Core service startup completed")
+    
+    yield
+    
+    # Shutdown
+    logger.info("🛑 Core service shutting down...")
+    logger.info("✅ Core service shutdown completed")
+
+app = FastAPI(
+    title="SAMFMS Core Service",
+    description="Central API gateway for South African Fleet Management System",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
 # Configure CORS
 origins = [
@@ -31,29 +66,119 @@ app.add_middleware(
     allow_headers=["*"],        # Allow all headers
 )
 
-app.include_router(user.router)
-app.include_router(auth.router)
-app.include_router(vehicle.router)
-app.include_router(driver.router)
+# Add custom middleware
+app.add_middleware(LoggingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
+# Include routers
+# Note: User, auth, and vehicle routes moved to separate microservices
+app.include_router(driver.router, tags=["Drivers"])
 
+# Health and metrics endpoints
+app.add_api_route("/health", health_check, methods=["GET"], tags=["Health"])
+app.add_api_route("/metrics", metrics_endpoint, methods=["GET"], tags=["Metrics"])
 
-
-
-
-@app.get("/")
+@app.get("/", tags=["Root"])
 async def root():
-    return {"message": "SAMFMS API is running"}
+    """Root endpoint for the Core service."""
+    logger.info("Root endpoint accessed")
+    return {
+        "message": "SAMFMS Core API is running",
+        "service": "core",
+        "version": "1.0.0",
+        "status": "healthy"
+    }
 
+# Gateway endpoints for microservices
+@app.get("/api/gateway/services", tags=["Gateway"])
+async def get_microservices():
+    """Get available microservices and their endpoints."""
+    logger.info("Gateway services endpoint accessed")
+    return {
+        "services": {
+            "security": {
+                "description": "Authentication and security management",
+                "base_url": "http://security:8000",
+                "endpoints": {
+                    "login": "/api/v1/auth/login",
+                    "register": "/api/v1/auth/register",
+                    "change_password": "/api/v1/auth/change-password"
+                }
+            },
+            "users": {
+                "description": "User profile data management",
+                "base_url": "http://users:8000",
+                "endpoints": {
+                    "profiles": "/api/v1/users",
+                    "preferences": "/api/v1/users/{user_id}/preferences"
+                }
+            },
+            "management": {
+                "description": "Vehicle assignment and usage management",
+                "base_url": "http://management:8000",
+                "endpoints": {
+                    "assignments": "/api/v1/vehicles/assignments",
+                    "usage": "/api/v1/vehicles/usage",
+                    "status": "/api/v1/vehicles/status"
+                }
+            },
+            "vehicles": {
+                "description": "Vehicle technical specifications and maintenance",
+                "base_url": "http://vehicles:8000",
+                "endpoints": {
+                    "vehicles": "/api/v1/vehicles",
+                    "maintenance": "/api/v1/vehicles/{vehicle_id}/maintenance",
+                    "specifications": "/api/v1/vehicles/{vehicle_id}/specifications"
+                }
+            }
+        },
+        "message": "SAMFMS microservices architecture",
+        "version": "2.0.0"
+    }
 
-
-
-#####################################################################################################################
-client = AsyncIOMotorClient("mongodb://host.docker.internal:27017")
-db = client.mcore
-users_collection = db.users
-
+@app.get("/api/gateway/health", tags=["Gateway"])
+async def gateway_health_check():
+    """Check health of all microservices."""
+    import aiohttp
+    import asyncio
+    
+    services = {
+        "security": "http://security:8000/health",
+        "users": "http://users:8000/health", 
+        "management": "http://management:8000/health",
+        "vehicles": "http://vehicles:8000/health"
+    }
+    
+    async def check_service(name, url):
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=5) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return name, {"status": "healthy", "details": data}
+                    else:
+                        return name, {"status": "unhealthy", "error": f"HTTP {response.status}"}
+        except Exception as e:
+            return name, {"status": "unhealthy", "error": str(e)}
+    
+    # Check all services concurrently
+    tasks = [check_service(name, url) for name, url in services.items()]
+    results = await asyncio.gather(*tasks)
+    
+    service_health = dict(results)
+    overall_healthy = all(service["status"] == "healthy" for service in service_health.values())
+    
+    return {
+        "overall_status": "healthy" if overall_healthy else "degraded",
+        "services": service_health,
+        "timestamp": "2025-05-30T00:00:00Z"
+    }
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-    
+    logger.info("🚀 Starting Core service...")
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=8000,
+        log_config=None  # Use our custom logging configuration
+    )

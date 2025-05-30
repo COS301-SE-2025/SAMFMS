@@ -1,52 +1,81 @@
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 import redis
-import pika
-import logging
+from routes import router as users_router
+from database import test_database_connection, create_indexes
+from message_queue import mq_consumer
+from logging_config import setup_logging, get_logger
+from middleware import LoggingMiddleware, SecurityHeadersMiddleware
+from health_metrics import health_check, metrics_endpoint
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Setup structured logging
+setup_logging()
+logger = get_logger(__name__)
 
-app = FastAPI(title="Users Data Service", version="1.0.0")
 
-# Initialize Redis connection
-redis_client = redis.Redis(host='redis', port=6379, decode_responses=True)
-
-# Initialize RabbitMQ connection
-def get_rabbitmq_connection():
-    try:
-        connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host='rabbitmq', 
-                                    credentials=pika.PlainCredentials('guest', 'guest'))
-        )
-        return connection
-    except Exception as e:
-        logger.error(f"Failed to connect to RabbitMQ: {e}")
-        return None
-
-@app.on_event("startup")
-async def startup_event():
-    logger.info("Users Data Service starting up...")
+# Application lifespan events
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handle application startup and shutdown events."""
+    # Startup
+    logger.info("👥 Users Data service starting up...")
+    
+    # Test database connection
+    await test_database_connection()
+    
+    # Create database indexes
+    await create_indexes()
+    
     # Test Redis connection
     try:
+        redis_client = redis.Redis(host='redis', port=6379, decode_responses=True)
         redis_client.ping()
-        logger.info("Redis connection successful")
+        logger.info("✅ Successfully connected to Redis")
     except Exception as e:
-        logger.error(f"Redis connection failed: {e}")
+        logger.error(f"❌ Failed to connect to Redis: {e}")
     
-    # Test RabbitMQ connection
-    connection = get_rabbitmq_connection()
-    if connection:
-        logger.info("RabbitMQ connection successful")
-        connection.close()
+    # Start message queue consumer
+    mq_consumer.start_consuming()
+    
+    logger.info("✅ Users Data service startup completed")
+    
+    yield
+    
+    # Shutdown
+    logger.info("🛑 Users Data service shutting down...")
+    mq_consumer.stop_consuming()
+    logger.info("✅ Users Data service shutdown completed")
 
-@app.get("/")
+
+app = FastAPI(
+    title="SAMFMS Users Data Service",
+    description="User profile data management service for SAMFMS",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# Add middleware
+app.add_middleware(LoggingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Include routers
+app.include_router(users_router)
+
+# Health and metrics endpoints
+app.add_api_route("/health", health_check, methods=["GET"], tags=["Health"])
+app.add_api_route("/metrics", metrics_endpoint, methods=["GET"], tags=["Metrics"])
+
+
+@app.get("/", tags=["Root"])
 def read_root():
-    return {"message": "Hello from Users Data Service", "service": "users_data"}
-
-@app.get("/health")
-def health_check():
-    return {"status": "healthy", "service": "users_data"}
+    """Root endpoint for the Users Data service."""
+    logger.info("Root endpoint accessed")
+    return {
+        "message": "SAMFMS Users Data Service",
+        "service": "users_data",
+        "version": "1.0.0",
+        "description": "User profile data management service"
+    }
 
 if __name__ == "__main__":
     import uvicorn

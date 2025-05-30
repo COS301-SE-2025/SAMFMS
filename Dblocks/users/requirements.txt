@@ -2,3 +2,6 @@ fastapi
 uvicorn[standard]
 redis
 pika
+motor
+pymongo
+pydantic[email]
