@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   rabbitmq:
     image: rabbitmq:3-management
@@ -16,47 +14,249 @@ services:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped # MongoDB instances for each service
+  mongodb_core:
+    image: mongo:7
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodb_core_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  mongodb_gps:
+    image: mongo:7
+    ports:
+      - '27018:27017'
+    volumes:
+      - mongodb_gps_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  mongodb_trip_planning:
+    image: mongo:7
+    ports:
+      - '27019:27017'
+    volumes:
+      - mongodb_trip_planning_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  mongodb_vehicle_maintenance:
+    image: mongo:7
+    ports:
+      - '27020:27017'
+    volumes:
+      - mongodb_vehicle_maintenance_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
   mcore:
-    build: ./core
+    build: ./Core
     command: sh /app/start.sh
     ports:
       - '8000:8000'
-      - '27017:27017'
     depends_on:
       rabbitmq:
         condition: service_healthy
+      mongodb_core:
+        condition: service_healthy
     restart: unless-stopped
+    environment:
+      - MONGODB_URL=mongodb://mongodb_core:27017
 
   gps_service:
     build: ./Sblocks/gps
-    command: sh /app/start.sh
+    command: python /startup.py
     ports:
       - '8001:8000'
-      - '27018:27017'
     depends_on:
       rabbitmq:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb_gps:
+        condition: service_healthy
     restart: unless-stopped
+    environment:
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=production
+      - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
+      - MONGODB_URL=mongodb://mongodb_gps:27017
 
   trip_planning_service:
     build: ./Sblocks/trip_planning
-    command: sh /app/start.sh
+    command: python /startup.py
     ports:
       - '8002:8000'
-      - '27019:27017'
     depends_on:
       rabbitmq:
         condition: service_healthy
+      mongodb_trip_planning:
+        condition: service_healthy
     restart: unless-stopped
+    environment:
+      - MONGODB_URL=mongodb://mongodb_trip_planning:27017
 
   vehicle_maintenance_service:
     build: ./Sblocks/vehicle_maintainence
-    command: sh /app/start.sh
+    command: python /startup.py
     ports:
-      - '8003:8000'
-      - '27020:27017'
+      - '8004:8000'
     depends_on:
       rabbitmq:
+        condition: service_healthy
+      mongodb_vehicle_maintenance:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      - MONGODB_URL=mongodb://mongodb_vehicle_maintenance:27017
+
+  utilities_service:
+    build: ./Sblocks/utilities
+    command: sh /app/start.sh
+    ports:
+      - '8006:8000'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  security_service:
+    build: ./Sblocks/security
+    command: sh /app/start.sh
+    ports:
+      - '8007:8000'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  management_service:
+    build: ./Sblocks/management
+    command: sh /app/start.sh
+    ports:
+      - '8008:8000'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  micro_frontend_service:
+    build: ./Sblocks/micro_frontend
+    command: sh /app/start.sh
+    ports:
+      - '8009:8000'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  user_dblock:
+    build: ./Dblocks/users
+    command: sh /app/start.sh
+    ports:
+      - '8003:8003'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongodb_core:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      - MONGODB_URL=mongodb://mongodb_core:27017
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
+
+  vehicle_dblock:
+    build: ./Dblocks/vehicles
+    command: sh /app/start.sh
+    ports:
+      - '8005:8005'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongodb_core:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      - MONGODB_URL=mongodb://mongodb_core:27017
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
+
+  users_dblock:
+    build: ./Dblocks/users
+    command: sh /app/start.sh
+    ports:
+      - '8010:8000'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  vehicles_dblock:
+    build: ./Dblocks/vehicles
+    command: sh /app/start.sh
+    ports:
+      - '8011:8000'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  gps_dblock:
+    build: ./Dblocks/gps
+    command: sh /app/start.sh
+    ports:
+      - '8012:8000'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 
@@ -67,3 +267,10 @@ services:
     depends_on:
       - mcore
     restart: unless-stopped
+
+volumes:
+  mongodb_core_data:
+  mongodb_gps_data:
+  mongodb_trip_planning_data:
+  mongodb_vehicle_maintenance_data:
+  redis_data:
