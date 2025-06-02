@@ -42,18 +42,22 @@ class SecurityUser(BaseModel):
 
 
 class UserProfile(BaseModel):
-    """Non-security user data for Users Dblock"""
+    """User profile data stored in Users Dblock"""
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    user_id: str
     full_name: str
+    email: str
+    password: str
+    role: str
     phoneNo: Optional[str] = None
-    details: Dict = {}
+    details: Optional[Dict[str, str]] = {}
     preferences: Dict = {
         "theme": "light",
         "animations": "true",
         "email_alerts": "true",
         "push_notifications": "true",
         "timezone": "UTC-5 (Eastern Time)",
-        "date_format": "MM/DD/YYYY",
+        "date_format": "DD/MM/YYYY",
         "two_factor": "false",
         "activity_log": "true",
         "session_timeout": "30 minutes"
@@ -65,6 +69,29 @@ class UserProfile(BaseModel):
         validate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
+        json_schema_extra = {
+            "example":{
+                "id": "60d5f484f1a2b3c4d5e6f7g8",
+                "user_id": "user123",
+                "full_name": "Alice Smith",
+                "email": "Password123#",
+                "password": "securepassword",
+                "role": "admin",
+                "phoneNo": "123-456-7890",
+                "details": {"ID": "12345678"},
+                "preferences": {
+                    "theme": "dark",
+                    "animations": "true",
+                    "email_alerts": "true",
+                    "push_notifications": "false",
+                    "timezone": "UTC-1 (Eastern Time)",
+                    "date_format": "DD/MM/YYYY",
+                    "two_factor": "false",
+                    "activity_log": "true",
+                    "session_timeout": "30 minutes"
+                },
+            }
+        }
 
 
 # Request/Response models

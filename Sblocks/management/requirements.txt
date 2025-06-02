@@ -1,12 +1,8 @@
 fastapi
 uvicorn[standard]
 redis
-pika
-sqlalchemy
-psycopg2-binary
 pymongo
 motor
 pyjwt
 requests
 python-multipart
-alembic

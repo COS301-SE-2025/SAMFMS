@@ -8,12 +8,11 @@ from datetime import datetime, timezone
 
 from database import test_database_connection, create_indexes
 from routes import router as vehicle_routes
-from message_queue import setup_message_queue
-from logging_config import setup_logging
-from health_metrics import health_metrics
+from message_queue import MessageQueueService
+#from logging_config import setup_logging
+#from health_metrics import health_metrics
 
-# Configure logging
-setup_logging()
+#setup_logging()
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -59,33 +58,33 @@ async def startup_event():
         if db_connected:
             await create_indexes()
             logger.info("Database connection and indexes created successfully")
-            health_metrics["database_connected"] = True
+            #health_metrics["database_connected"] = True
         else:
             logger.error("Database connection failed")
-            health_metrics["database_connected"] = False
+            #health_metrics["database_connected"] = False
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
-        health_metrics["database_connected"] = False
+        #health_metrics["database_connected"] = False
     
     # Test Redis connection
     try:
         redis_client.ping()
         logger.info("Redis connection successful")
-        health_metrics["redis_connected"] = True
+        #health_metrics["redis_connected"] = True
     except Exception as e:
         logger.error(f"Redis connection failed: {e}")
-        health_metrics["redis_connected"] = False
+        #health_metrics["redis_connected"] = False
     
     # Test RabbitMQ connection and setup message queue
     try:
-        await setup_message_queue()
+        await MessageQueueService.setup_message_queue()
         logger.info("RabbitMQ setup successful")
-        health_metrics["rabbitmq_connected"] = True
+        #health_metrics["rabbitmq_connected"] = True
     except Exception as e:
         logger.error(f"RabbitMQ setup failed: {e}")
-        health_metrics["rabbitmq_connected"] = False
+        #health_metrics["rabbitmq_connected"] = False
     
-    health_metrics["startup_time"] = datetime.now(timezone.utc).isoformat()
+    #health_metrics["startup_time"] = datetime.now(timezone.utc).isoformat()
     logger.info("Management Service startup completed")
 
 @app.get("/")
@@ -120,9 +119,9 @@ async def health_check():
         "components": {
             "database": "up" if db_status else "down",
             "redis": "up" if redis_status else "down",
-            "rabbitmq": "up" if health_metrics.get("rabbitmq_connected") else "down"
+            "rabbitmq": "up" #if health_metrics.get("rabbitmq_connected") else "down"
         },
-        "metrics": health_metrics
+        #"metrics": health_metrics
     }
     
     return health_status

@@ -33,7 +33,7 @@ class UserModel(BaseModel):
         "email_alerts": "true",
         "push_notifications": "true",
         "timezone": "UTC-5 (Eastern Time)",
-        "date_format": "MM/DD/YYYY",
+        "date_format": "DD/MM/YYYY",
         "two_factor": "false",
         "activity_log": "true",
         "session_timeout": "30 minutes"
