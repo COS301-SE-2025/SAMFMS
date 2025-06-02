@@ -15,7 +15,7 @@ services:
       - RABBITMQ_DEFAULT_PASS=guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-    restart: unless-stopped
+    restart: no
 
   redis:
     image: redis:7-alpine
@@ -30,7 +30,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    restart: unless-stopped # MongoDB instances for each service
+    restart: no # MongoDB instances for each service
   mongodb_core:
     image: mongo:7
     ports:
@@ -43,7 +43,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    restart: unless-stopped
+    restart: no
 
   mongodb_gps:
     image: mongo:7
@@ -57,7 +57,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    restart: unless-stopped
+    restart: no
 
   mongodb_trip_planning:
     image: mongo:7
@@ -71,7 +71,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    restart: unless-stopped
+    restart: no
   mongodb_vehicle_maintenance:
     image: mongo:7
     ports:
@@ -84,7 +84,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    restart: unless-stopped
+    restart: no
 
   mongodb_security:
     image: mongo:7
@@ -98,7 +98,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    restart: unless-stopped
+    restart: no
 
   mongodb_users:
     image: mongo:7
@@ -112,7 +112,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    restart: unless-stopped
+    restart: no
 
   mongodb_vehicles:
     image: mongo:7
@@ -126,7 +126,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    restart: unless-stopped
+    restart: no
 
   mongodb_management:
     image: mongo:7
@@ -140,7 +140,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    restart: unless-stopped
+    restart: no
 
   mcore:
     build: ./Core
@@ -152,7 +152,7 @@ services:
         condition: service_healthy
       mongodb_core:
         condition: service_healthy
-    restart: unless-stopped
+    restart: no
     environment:
       - MONGODB_URL=mongodb://mongodb_core:27017
 
@@ -168,7 +168,7 @@ services:
         condition: service_healthy
       mongodb_gps:
         condition: service_healthy
-    restart: unless-stopped
+    restart: no
     environment:
       - LOG_LEVEL=INFO
       - ENVIRONMENT=production
@@ -186,7 +186,7 @@ services:
         condition: service_healthy
       mongodb_trip_planning:
         condition: service_healthy
-    restart: unless-stopped
+    restart: no
     environment:
       - MONGODB_URL=mongodb://mongodb_trip_planning:27017
 
@@ -200,7 +200,7 @@ services:
         condition: service_healthy
       mongodb_vehicle_maintenance:
         condition: service_healthy
-    restart: unless-stopped
+    restart: no
     environment:
       - MONGODB_URL=mongodb://mongodb_vehicle_maintenance:27017
   utilities_service:
@@ -213,7 +213,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: unless-stopped
+    restart: no
 
   security_service:
     build: ./Sblocks/security
@@ -227,7 +227,7 @@ services:
         condition: service_healthy
       mongodb_security:
         condition: service_healthy
-    restart: unless-stopped
+    restart: no
     environment:
       - DATABASE_URL=mongodb://mongodb_security:27017/security_db
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
@@ -244,7 +244,7 @@ services:
         condition: service_healthy
       mongodb_management:
         condition: service_healthy
-    restart: unless-stopped
+    restart: no
     environment:
       - DATABASE_URL=mongodb://mongodb_management:27017/management_db
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
@@ -260,7 +260,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: unless-stopped
+    restart: no
   users_dblock:
     build: ./Dblocks/users
     command: sh /app/start.sh
@@ -273,7 +273,7 @@ services:
         condition: service_healthy
       mongodb_users:
         condition: service_healthy
-    restart: unless-stopped
+    restart: no
     environment:
       - DATABASE_URL=mongodb://mongodb_users:27017/users_db
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
@@ -291,7 +291,7 @@ services:
         condition: service_healthy
       mongodb_vehicles:
         condition: service_healthy
-    restart: unless-stopped
+    restart: no
     environment:
       - DATABASE_URL=mongodb://mongodb_vehicles:27017/vehicles_db
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
@@ -307,7 +307,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: unless-stopped
+    restart: no
 
   frontend:
     build: ./Frontend/samfms
@@ -315,7 +315,7 @@ services:
       - '3000:3000'
     depends_on:
       - mcore
-    restart: unless-stopped
+    restart: no
 
 volumes:
   mongodb_core_data:

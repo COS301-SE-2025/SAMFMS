@@ -6,7 +6,7 @@ from database import test_database_connection, create_indexes
 from message_queue import mq_consumer
 from logging_config import setup_logging, get_logger
 from middleware import LoggingMiddleware, SecurityHeadersMiddleware
-from health_metrics import health_check, metrics_endpoint
+from health_metrics import metrics_router
 
 # Setup structured logging
 setup_logging()
@@ -61,9 +61,8 @@ app.add_middleware(SecurityHeadersMiddleware)
 # Include routers
 app.include_router(users_router)
 
-# Health and metrics endpoints
-app.add_api_route("/health", health_check, methods=["GET"], tags=["Health"])
-app.add_api_route("/metrics", metrics_endpoint, methods=["GET"], tags=["Metrics"])
+# Include health and metrics router
+app.include_router(metrics_router)
 
 
 @app.get("/", tags=["Root"])

@@ -5,3 +5,4 @@ pika
 motor
 pymongo
 pydantic[email]
+psutil

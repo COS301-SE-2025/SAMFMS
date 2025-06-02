@@ -1,38 +1,53 @@
-from sqlalchemy import create_engine, event, text
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
 import os
 import logging
+import motor.motor_asyncio
 from datetime import datetime, timezone
-from typing import Optional
-
-from .models import Base
+from typing import Optional, Dict, List, Any
+from bson import ObjectId
 
 logger = logging.getLogger(__name__)
 
 # Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./vehicles.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "mongodb://localhost:27017/vehicles_db")
+DATABASE_NAME = DATABASE_URL.split("/")[-1]
+client = motor.motor_asyncio.AsyncIOMotorClient(DATABASE_URL)
+db = client[DATABASE_NAME]
 
-# Create engine with appropriate settings
-if DATABASE_URL.startswith("sqlite"):
-    engine = create_engine(
-        DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-        echo=False
-    )
-else:
-    engine = create_engine(DATABASE_URL, echo=False)
+# Collections
+vehicles_collection = db.vehicles
+maintenance_records_collection = db.maintenance_records
+vehicle_specifications_collection = db.vehicle_specifications
+vehicle_documents_collection = db.vehicle_documents
+vehicle_activity_log_collection = db.vehicle_activity_log
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Create indexes
+async def create_indexes():
+    """Create indexes for better query performance"""
+    try:
+        # Vehicle indexes
+        await vehicles_collection.create_index([("make", 1), ("model", 1)])
+        await vehicles_collection.create_index([("year", 1), ("is_active", 1)])
+        await vehicles_collection.create_index([("fuel_type", 1)])
+        
+        # Maintenance records indexes
+        await maintenance_records_collection.create_index([("vehicle_id", 1), ("service_date", 1)])
+        await maintenance_records_collection.create_index([("maintenance_type", 1), ("service_date", 1)])
+        await maintenance_records_collection.create_index([("next_service_date", 1)])
+        
+        # Vehicle specifications indexes
+        await vehicle_specifications_collection.create_index([("vehicle_id", 1)])
+        
+        # Vehicle documents indexes
+        await vehicle_documents_collection.create_index([("vehicle_id", 1), ("document_type", 1)])
+        await vehicle_documents_collection.create_index([("expiry_date", 1), ("is_valid", 1)])
+        
+        logger.info("Database indexes initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to create database indexes: {e}")
 
 def get_db():
-    """Dependency to get database session"""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    """Dependency to get database client"""
+    return db
 
 def init_database():
     """Initialize the database with tables and indexes"""
