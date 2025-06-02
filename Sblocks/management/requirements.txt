@@ -3,6 +3,7 @@ uvicorn[standard]
 redis
 pymongo
 motor
+pika
 pyjwt
 requests
 python-multipart
