@@ -6,11 +6,11 @@ import logging
 import json
 from datetime import datetime, timezone
 
-from .database import engine, Base, get_db
-from .routes import router as vehicle_routes
-from .message_queue import setup_message_queue
-from .logging_config import setup_logging
-from .health_metrics import health_metrics
+from database import engine, Base, get_db
+from routes import router as vehicle_routes
+from message_queue import setup_message_queue
+from logging_config import setup_logging
+from health_metrics import health_metrics
 
 # Configure logging
 setup_logging()

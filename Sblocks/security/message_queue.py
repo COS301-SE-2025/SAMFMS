@@ -42,11 +42,11 @@ class MessageQueueService:
             self._setup_exchanges_and_queues()
             
             logger.info("Successfully connected to RabbitMQ with optimized settings")
-            return True
-        except Exception as e:
+            return True        except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
             return False
-      def _setup_exchanges_and_queues(self):
+    
+    def _setup_exchanges_and_queues(self):
         """Setup RabbitMQ exchanges and queues with optimized settings"""
         # User-related exchanges with optimized settings
         self.channel.exchange_declare(

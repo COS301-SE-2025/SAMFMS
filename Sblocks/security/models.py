@@ -72,10 +72,21 @@ class SignupRequest(BaseModel):
     full_name: str
     email: EmailStr
     password: str
-    role: str = "user"
+    role: Optional[str] = None  # No default role - must be assigned
     phoneNo: Optional[str] = None
     details: Dict = {}
     preferences: Dict = {}
+
+
+class InviteUserRequest(BaseModel):
+    """Admin/Fleet Manager can invite users with specific roles"""
+    full_name: str
+    email: EmailStr
+    role: str  # Required - either "fleet_manager" or "driver"
+    phoneNo: Optional[str] = None
+    details: Dict = {}
+    preferences: Dict = {}
+    custom_permissions: Optional[List[str]] = None  # Admin can grant custom permissions
 
 
 class LoginRequest(BaseModel):
@@ -88,6 +99,7 @@ class TokenResponse(BaseModel):
     token_type: str
     user_id: str
     role: str
+    permissions: List[str]
 
 
 class MessageResponse(BaseModel):
@@ -99,6 +111,13 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 
+class UpdatePermissionsRequest(BaseModel):
+    """Admin can update user permissions"""
+    user_id: str
+    role: Optional[str] = None
+    custom_permissions: Optional[List[str]] = None
+
+
 class UpdatePreferencesRequest(BaseModel):
     preferences: Dict
 
@@ -108,6 +127,7 @@ class UserResponse(BaseModel):
     full_name: str
     email: str
     role: str
+    permissions: List[str]
     phoneNo: Optional[str] = None
     details: Dict = {}
     preferences: Dict = {}

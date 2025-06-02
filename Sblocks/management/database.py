@@ -17,6 +17,12 @@ vehicle_management_collection = db.vehicle_management
 vehicle_assignments_collection = db.vehicle_assignments
 vehicle_usage_logs_collection = db.vehicle_usage_logs
 fleet_analytics_collection = db.fleet_analytics
+drivers_collection = db.drivers  # Driver management collection
+
+
+def get_driver_collection():
+    """Get the driver collection for driver management"""
+    return drivers_collection
 
 
 async def test_database_connection():
@@ -51,6 +57,14 @@ async def create_indexes():
         await vehicle_usage_logs_collection.create_index("driver_id")
         await vehicle_usage_logs_collection.create_index("trip_start")
         await vehicle_usage_logs_collection.create_index([("vehicle_id", 1), ("trip_start", -1)])
+        
+        # Driver management indexes
+        await drivers_collection.create_index("employee_id", unique=True)
+        await drivers_collection.create_index("license_number", unique=True)
+        await drivers_collection.create_index("user_id")
+        await drivers_collection.create_index("status")
+        await drivers_collection.create_index("department")
+        await drivers_collection.create_index("current_vehicle_id")
         
         # Fleet analytics indexes
         await fleet_analytics_collection.create_index("date")

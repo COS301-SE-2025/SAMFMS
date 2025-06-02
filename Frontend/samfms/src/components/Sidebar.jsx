@@ -1,7 +1,7 @@
-import React, {useState} from 'react';
-import {Link, useLocation} from 'react-router-dom';
-import {cn} from '../lib/utils';
-import {useTheme} from '../contexts/ThemeContext';
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { cn } from '../lib/utils';
+import { useTheme } from '../contexts/ThemeContext';
 import {
   Home,
   Settings,
@@ -12,27 +12,76 @@ import {
   Map,
   Navigation,
   Wrench,
+  UserPlus,
 } from 'lucide-react';
-import {Button} from './ui/button';
+import { Button } from './ui/button';
+import { useAuth, PERMISSIONS, ROLES } from './RBACUtils';
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const {theme} = useTheme();
-  const navItems = [
-    {path: '/dashboard', label: 'Dashboard', icon: <Home size={20} />},
-    {path: '/vehicles', label: 'Vehicles', icon: <Car size={20} />},
-    {path: '/drivers', label: 'Drivers', icon: <Users size={20} />},
-    {path: '/tracking', label: 'Tracking', icon: <Map size={20} />},
-    {path: '/trips', label: 'Trips', icon: <Navigation size={20} />},
-    {path: '/maintenance', label: 'Maintenance', icon: <Wrench size={20} />},
-    {path: '/plugins', label: 'Plugins', icon: <Package2 size={20} />},
-    {path: '/settings', label: 'Settings', icon: <Settings size={20} />},
-    {path: '/account', label: 'Account', icon: <User size={20} />},
+  const { theme } = useTheme();
+  const { hasPermission, hasAnyRole } = useAuth();
+  // Define navigation items with permission requirements
+  const allNavItems = [
+    { path: '/dashboard', label: 'Dashboard', icon: <Home size={20} />, permission: null }, // Always visible
+    {
+      path: '/vehicles',
+      label: 'Vehicles',
+      icon: <Car size={20} />,
+      permission: PERMISSIONS.VEHICLES_READ,
+    },
+    {
+      path: '/drivers',
+      label: 'Drivers',
+      icon: <Users size={20} />,
+      permission: PERMISSIONS.DRIVERS_READ,
+    },
+    {
+      path: '/tracking',
+      label: 'Tracking',
+      icon: <Map size={20} />,
+      permission: PERMISSIONS.VEHICLES_READ,
+    },
+    {
+      path: '/trips',
+      label: 'Trips',
+      icon: <Navigation size={20} />,
+      permission: PERMISSIONS.TRIPS_READ_OWN,
+    },
+    {
+      path: '/maintenance',
+      label: 'Maintenance',
+      icon: <Wrench size={20} />,
+      permission: PERMISSIONS.MAINTENANCE_READ_ASSIGNED,
+    },
+    {
+      path: '/users',
+      label: 'User Management',
+      icon: <UserPlus size={20} />,
+      roles: [ROLES.ADMIN],
+    }, // Admin only
+    { path: '/plugins', label: 'Plugins', icon: <Package2 size={20} />, roles: [ROLES.ADMIN] }, // Admin only
+    { path: '/settings', label: 'Settings', icon: <Settings size={20} />, permission: null }, // Always visible
+    { path: '/account', label: 'Account', icon: <User size={20} />, permission: null }, // Always visible
   ];
 
+  // Filter navigation items based on user permissions
+  const navItems = allNavItems.filter(item => {
+    // If no permission or role required, show the item
+    if (!item.permission && !item.roles) return true;
+
+    // Check role-based access
+    if (item.roles && !hasAnyRole(item.roles)) return false;
+
+    // Check permission-based access
+    if (item.permission && !hasPermission(item.permission)) return false;
+
+    return true;
+  });
+
   const toggleSidebar = () => {
-    setCollapsed((prev) => !prev);
+    setCollapsed(prev => !prev);
   };
 
   // Check if a path is active

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Body, Depends, status
+from fastapi.security import HTTPAuthorizationCredentials
 from models import VehicleModel, VehicleResponse, VehicleUpdateRequest
-from auth_utils import get_current_active_user
+from auth_utils import get_current_active_user, require_permission, check_permission, security
 from bson import ObjectId
 from database import db
 from typing import List, Optional, Dict, Any
@@ -46,8 +47,19 @@ async def list_vehicles(
     limit: int = 100,
     status_filter: Optional[str] = None,
     make_filter: Optional[str] = None,
-    current_user: dict = Depends(get_current_active_user)
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    # Verify permissions and get user info
+    from auth_utils import verify_token_with_security_service, check_permission
+    current_user = verify_token_with_security_service(credentials.credentials)
+    
+    # Check if user has permission to read vehicles
+    if not check_permission(current_user.get("permissions", []), "vehicles:read"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to view vehicles"
+        )
+    
     try:
         # Build filter query
         filter_query = {}
@@ -55,6 +67,16 @@ async def list_vehicles(
             filter_query["status"] = status_filter
         if make_filter:
             filter_query["make"] = make_filter
+        
+        # For drivers, only show vehicles assigned to them
+        if current_user.get("role") == "driver":
+            # Find driver record for current user
+            driver = await db.drivers.find_one({"user_id": current_user["user_id"]})
+            if driver:
+                filter_query["driver_id"] = str(driver["_id"])
+            else:
+                # If no driver record found, return empty list
+                return []
             
         # Get vehicles with pagination
         vehicles_cursor = db.vehicles.find(filter_query).skip(skip).limit(limit)
@@ -86,8 +108,19 @@ async def list_vehicles(
 @router.get("/vehicles/{vehicle_id}", response_model=VehicleResponse)
 async def get_vehicle(
     vehicle_id: str,
-    current_user: dict = Depends(get_current_active_user)
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    # Verify permissions and get user info
+    from auth_utils import verify_token_with_security_service, check_permission
+    current_user = verify_token_with_security_service(credentials.credentials)
+    
+    # Check if user has permission to read vehicles
+    if not check_permission(current_user.get("permissions", []), "vehicles:read"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to view vehicles"
+        )
+    
     try:
         # Validate ObjectId
         if not ObjectId.is_valid(vehicle_id):
@@ -103,6 +136,15 @@ async def get_vehicle(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Vehicle not found"
             )
+        
+        # For drivers, check if this vehicle is assigned to them
+        if current_user.get("role") == "driver":
+            driver = await db.drivers.find_one({"user_id": current_user["user_id"]})
+            if not driver or str(vehicle.get("driver_id")) != str(driver["_id"]):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You can only view vehicles assigned to you"
+                )
         
         # Convert ObjectId to string for JSON serialization
         vehicle["_id"] = str(vehicle["_id"])
@@ -129,8 +171,19 @@ async def get_vehicle(
 @router.post("/vehicles", response_model=VehicleResponse)
 async def add_vehicle(
     vehicle: VehicleModel,
-    current_user: dict = Depends(get_current_active_user)
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    # Verify permissions and get user info
+    from auth_utils import verify_token_with_security_service, check_permission
+    current_user = verify_token_with_security_service(credentials.credentials)
+    
+    # Check if user has permission to create vehicles (admin and fleet_manager only)
+    if not check_permission(current_user.get("permissions", []), "vehicles:write"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to add vehicles"
+        )
+    
     try:
         # Convert the model to dict and remove the id field for insertion
         vehicle_dict = vehicle.dict(by_alias=True, exclude={"id"})
@@ -178,8 +231,19 @@ async def add_vehicle(
 @router.delete("/vehicles/{vehicle_id}", response_model=Dict[str, Any])
 async def delete_vehicle(
     vehicle_id: str,
-    current_user: dict = Depends(get_current_active_user)
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    # Verify permissions and get user info
+    from auth_utils import verify_token_with_security_service, check_permission
+    current_user = verify_token_with_security_service(credentials.credentials)
+    
+    # Check if user has permission to delete vehicles (admin and fleet_manager only)
+    if not check_permission(current_user.get("permissions", []), "vehicles:delete"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to delete vehicles"
+        )
+    
     try:
         # Validate ObjectId
         if not ObjectId.is_valid(vehicle_id):
@@ -217,8 +281,19 @@ async def delete_vehicle(
 async def update_vehicle(
     vehicle_id: str,
     vehicle_update: VehicleUpdateRequest,
-    current_user: dict = Depends(get_current_active_user)
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    # Verify permissions and get user info
+    from auth_utils import verify_token_with_security_service, check_permission
+    current_user = verify_token_with_security_service(credentials.credentials)
+    
+    # Check if user has permission to update vehicles (admin and fleet_manager only)
+    if not check_permission(current_user.get("permissions", []), "vehicles:write"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to update vehicles"
+        )
+    
     try:
         # Validate ObjectId
         if not ObjectId.is_valid(vehicle_id):

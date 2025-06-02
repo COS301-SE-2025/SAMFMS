@@ -3,17 +3,21 @@ const hostname = 'localhost:8000';
 export const API_URL = `http://${hostname}`;
 
 export const API = {
-  login: `${API_URL}/login`,
-  signup: `${API_URL}/signup`,
-  logout: `${API_URL}/logout`,
-  me: `${API_URL}/me`,
-  users: `${API_URL}/users`,
-  changePassword: `${API_URL}/change-password`,
-  deleteAccount: `${API_URL}/account`,
-  updatePreferences: `${API_URL}/update-preferences`,
+  login: `${API_URL}/auth/login`,
+  signup: `${API_URL}/auth/signup`,
+  logout: `${API_URL}/auth/logout`,
+  me: `${API_URL}/auth/me`,
+  users: `${API_URL}/auth/users`,
+  changePassword: `${API_URL}/auth/change-password`,
+  deleteAccount: `${API_URL}/auth/account`,
+  updatePreferences: `${API_URL}/auth/update-preferences`,
+  inviteUser: `${API_URL}/auth/invite-user`,
+  updatePermissions: `${API_URL}/auth/update-permissions`,
+  getRoles: `${API_URL}/auth/roles`,
+  verifyPermission: `${API_URL}/auth/verify-permission`,
 };
 
-export const signup = async (full_name, email, password, confirmPassword, phoneNo, role) => {
+export const signup = async (full_name, email, password, confirmPassword, phoneNo) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     throw new Error('Invalid email format');
@@ -23,7 +27,7 @@ export const signup = async (full_name, email, password, confirmPassword, phoneN
     throw new Error('Passwords do not match');
   }
 
-  const response = await fetch(`${API_URL}/signup`, {
+  const response = await fetch(`${API_URL}/auth/signup`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -33,7 +37,7 @@ export const signup = async (full_name, email, password, confirmPassword, phoneN
       email,
       password,
       phoneNo,
-      role: role || 'user',
+      // No role specified - will be assigned based on first user logic or require invitation
     }),
   });
 
@@ -46,7 +50,7 @@ export const login = async (email, password) => {
     throw new Error('Invalid email format');
   }
 
-  const response = await fetch(`${API_URL}/login`, {
+  const response = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -63,9 +67,16 @@ export const login = async (email, password) => {
   }
 
   const data = await response.json();
-  // Store token in localStorage
+  // Store token and user data with role and permissions
   localStorage.setItem('token', data.access_token);
-  localStorage.setItem('user', JSON.stringify(data.user));
+  localStorage.setItem(
+    'user',
+    JSON.stringify({
+      id: data.user_id,
+      role: data.role,
+      permissions: data.permissions,
+    })
+  );
   return data;
 };
 
@@ -98,14 +109,14 @@ export const authFetch = async (url, options = {}) => {
   return fetch(url, { ...options, headers });
 };
 
-// Driver API endpoints
+// Driver API endpoints - Now served by Management Service
 export const DRIVER_API = {
-  drivers: `${API_URL}/drivers`,
-  createDriver: `${API_URL}/drivers`,
-  getDriver: id => `${API_URL}/drivers/${id}`,
-  updateDriver: id => `${API_URL}/drivers/${id}`,
-  deleteDriver: id => `${API_URL}/drivers/${id}`,
-  searchDrivers: query => `${API_URL}/drivers/search/${query}`,
+  drivers: `http://localhost:8007/api/v1/vehicles/drivers`,
+  createDriver: `http://localhost:8007/api/v1/vehicles/drivers`,
+  getDriver: id => `http://localhost:8007/api/v1/vehicles/drivers/${id}`,
+  updateDriver: id => `http://localhost:8007/api/v1/vehicles/drivers/${id}`,
+  deleteDriver: id => `http://localhost:8007/api/v1/vehicles/drivers/${id}`,
+  searchDrivers: query => `http://localhost:8007/api/v1/vehicles/drivers/search/${query}`,
 };
 
 // Vehicle API endpoints
@@ -420,6 +431,135 @@ export const searchVehicles = async query => {
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.detail || 'Failed to search vehicles');
+  }
+
+  return response.json();
+};
+
+// RBAC Helper Functions
+export const hasPermission = permission => {
+  const user = getCurrentUser();
+  if (!user || !user.permissions) return false;
+
+  return user.permissions.includes(permission) || user.permissions.includes('*');
+};
+
+export const hasRole = role => {
+  const user = getCurrentUser();
+  if (!user) return false;
+
+  return user.role === role;
+};
+
+export const hasAnyRole = roles => {
+  const user = getCurrentUser();
+  if (!user) return false;
+
+  return roles.includes(user.role);
+};
+
+// Admin Functions for User Management
+export const inviteUser = async userData => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(API.inviteUser, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(userData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to invite user');
+  }
+
+  return response.json();
+};
+
+export const listUsers = async () => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(API.users, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to fetch users');
+  }
+
+  return response.json();
+};
+
+export const updateUserPermissions = async userData => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(API.updatePermissions, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(userData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to update user permissions');
+  }
+
+  return response.json();
+};
+
+export const getRoles = async () => {
+  const response = await fetch(API.getRoles, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to fetch roles');
+  }
+
+  return response.json();
+};
+
+export const verifyPermission = async permission => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(API.verifyPermission, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ permission }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to verify permission');
   }
 
   return response.json();
