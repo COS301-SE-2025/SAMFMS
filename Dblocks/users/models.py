@@ -23,7 +23,7 @@ class PyObjectId(ObjectId):
 class UserProfile(BaseModel):
     """User profile data stored in Users Dblock"""
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
-    user_id: str  # Reference ID from Security service
+    user_id: str
     full_name: str
     phoneNo: Optional[str] = None
     details: Dict = {}

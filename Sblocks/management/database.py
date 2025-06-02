@@ -4,20 +4,17 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Database configuration
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://host.docker.internal:27017")
 DATABASE_NAME = "management_db"
 
-# MongoDB connection
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
 db = client[DATABASE_NAME]
 
-# Collections
 vehicle_management_collection = db.vehicle_management
 vehicle_assignments_collection = db.vehicle_assignments
 vehicle_usage_logs_collection = db.vehicle_usage_logs
 fleet_analytics_collection = db.fleet_analytics
-drivers_collection = db.drivers  # Driver management collection
+drivers_collection = db.drivers
 
 
 def get_driver_collection():
@@ -29,50 +26,33 @@ async def test_database_connection():
     """Test the database connection"""
     try:
         await client.admin.command('ping')
-        logger.info("✅ Successfully connected to Management database")
+        logger.info("Successfully connected to Management database")
         return True
     except Exception as e:
-        logger.error(f"❌ Failed to connect to Management database: {e}")
+        logger.error(f"Failed to connect to Management database: {e}")
         return False
 
 
 async def create_indexes():
     """Create database indexes for optimal performance"""
     try:
-        # Vehicle management indexes
         await vehicle_management_collection.create_index("vehicle_id", unique=True)
-        await vehicle_management_collection.create_index("status")
-        await vehicle_management_collection.create_index("current_driver_id")
-        await vehicle_management_collection.create_index("department")
         
-        # Vehicle assignments indexes
         await vehicle_assignments_collection.create_index("vehicle_id")
         await vehicle_assignments_collection.create_index("driver_id")
-        await vehicle_assignments_collection.create_index("status")
-        await vehicle_assignments_collection.create_index("start_date")
-        await vehicle_assignments_collection.create_index([("vehicle_id", 1), ("status", 1)])
         
-        # Vehicle usage logs indexes
         await vehicle_usage_logs_collection.create_index("vehicle_id")
         await vehicle_usage_logs_collection.create_index("driver_id")
-        await vehicle_usage_logs_collection.create_index("trip_start")
-        await vehicle_usage_logs_collection.create_index([("vehicle_id", 1), ("trip_start", -1)])
         
-        # Driver management indexes
         await drivers_collection.create_index("employee_id", unique=True)
-        await drivers_collection.create_index("license_number", unique=True)
         await drivers_collection.create_index("user_id")
-        await drivers_collection.create_index("status")
-        await drivers_collection.create_index("department")
         await drivers_collection.create_index("current_vehicle_id")
         
-        # Fleet analytics indexes
-        await fleet_analytics_collection.create_index("date")
         await fleet_analytics_collection.create_index("vehicle_id")
         
-        logger.info("✅ Database indexes created successfully")
+        logger.info("Database indexes created successfully")
     except Exception as e:
-        logger.error(f"❌ Failed to create database indexes: {e}")
+        logger.error(f"Failed to create database indexes: {e}")
 
 
 async def log_management_event(vehicle_id: str, action: str, details: dict = None):
@@ -86,9 +66,9 @@ async def log_management_event(vehicle_id: str, action: str, details: dict = Non
             "timestamp": datetime.utcnow()
         }
         await fleet_analytics_collection.insert_one(log_entry)
-        logger.info(f"📝 Logged management event: {action} for vehicle {vehicle_id}")
+        logger.info(f"Logged management event: {action} for vehicle {vehicle_id}")
     except Exception as e:
-        logger.error(f"❌ Failed to log management event: {e}")
+        logger.error(f"Failed to log management event: {e}")
 
 
 async def get_vehicle_utilization_stats(vehicle_id: str = None, days: int = 30):
@@ -118,5 +98,5 @@ async def get_vehicle_utilization_stats(vehicle_id: str = None, days: int = 30):
         return results
         
     except Exception as e:
-        logger.error(f"❌ Failed to get utilization stats: {e}")
+        logger.error(f"Failed to get utilization stats: {e}")
         return []

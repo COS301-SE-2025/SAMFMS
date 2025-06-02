@@ -4,15 +4,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import uvicorn
 import asyncio
 from contextlib import asynccontextmanager
-# Note: All business logic routes moved to separate microservices:
-# - Authentication: Security Sblock
-# - Users: Users Dblock  
-# - Vehicles: Management Sblock & Vehicles Dblock  
-# - Drivers: Management Sblock (moved for better organization)
 from database import db
 from logging_config import setup_logging, get_logger
-from middleware import LoggingMiddleware, SecurityHeadersMiddleware
-from health_metrics import health_check, metrics_endpoint
 
 # Setup structured logging
 setup_logging()
@@ -65,22 +58,6 @@ app.add_middleware(
     allow_methods=["*"],        # Allow all methods including OPTIONS
     allow_headers=["*"],        # Allow all headers
 )
-
-# Add custom middleware
-app.add_middleware(LoggingMiddleware)
-app.add_middleware(SecurityHeadersMiddleware)
-
-# Include routers
-# Note: All business logic routes moved to separate microservices:
-# - Authentication: Security Sblock
-# - Users: Users Dblock  
-# - Vehicles: Management Sblock & Vehicles Dblock
-# - Drivers: Management Sblock (moved for better organization)
-# app.include_router(driver.router, tags=["Drivers"])  # Moved to Management Sblock
-
-# Health and metrics endpoints
-app.add_api_route("/health", health_check, methods=["GET"], tags=["Health"])
-app.add_api_route("/metrics", metrics_endpoint, methods=["GET"], tags=["Metrics"])
 
 @app.get("/", tags=["Root"])
 async def root():

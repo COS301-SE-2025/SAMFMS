@@ -49,7 +49,8 @@ class MessageQueueService:
         except Exception as e:
             logger.error(f"Failed to get RabbitMQ connection: {e}")
             return None
-          def connect(self):
+        
+    def connect(self):
         """Establish connection to RabbitMQ with optimized settings"""
         try:
             connection = self._get_connection()
@@ -103,7 +104,7 @@ class MessageQueueService:
             queue='vehicle_management_updates', 
             routing_key='vehicle.management.*'
         )
-      def publish_vehicle_created(self, vehicle_data: VehicleCreatedMessage):
+    def publish_vehicle_created(self, vehicle_data: VehicleCreatedMessage):
         """Publish vehicle created event to Vehicles Dblock"""
         try:
             if not self._get_connection():
@@ -125,7 +126,7 @@ class MessageQueueService:
             logger.error(f"Failed to publish vehicle created event: {e}")
             # Reset connection on error
             self.connection = None
-      def publish_vehicle_updated(self, vehicle_data: VehicleUpdatedMessage):
+    def publish_vehicle_updated(self, vehicle_data: VehicleUpdatedMessage):
         """Publish vehicle updated event to Vehicles Dblock"""
         try:
             if not self._get_connection():
@@ -147,7 +148,7 @@ class MessageQueueService:
             logger.error(f"Failed to publish vehicle updated event: {e}")
             # Reset connection on error
             self.connection = None
-      def publish_vehicle_deleted(self, vehicle_data: VehicleDeletedMessage):
+    def publish_vehicle_deleted(self, vehicle_data: VehicleDeletedMessage):
         """Publish vehicle deleted event to Vehicles Dblock"""
         try:
             if not self._get_connection():
@@ -169,7 +170,7 @@ class MessageQueueService:
             logger.error(f"Failed to publish vehicle deleted event: {e}")
             # Reset connection on error
             self.connection = None
-      def publish_vehicle_status_changed(self, vehicle_id: str, old_status: str, new_status: str):
+    def publish_vehicle_status_changed(self, vehicle_id: str, old_status: str, new_status: str):
         """Publish vehicle status change event"""
         try:
             if not self._get_connection():
