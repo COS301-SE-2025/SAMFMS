@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 from database import init_database, create_vehicle_activity_log, get_db, check_database_health
 from routes import router as vehicle_routes
-from message_queue import setup_message_consumer
+from message_queue_simple import setup_message_consumer
 from logging_config import setup_logging
 from health_metrics import health_metrics
 
@@ -52,11 +52,10 @@ def get_rabbitmq_connection():
 @app.on_event("startup")
 async def startup_event():
     logger.info("Vehicles Data Service starting up...")
-    
-    # Initialize database
+      # Initialize database
     try:
-        init_database()
-        create_vehicle_activity_log()
+        await init_database()
+        await create_vehicle_activity_log()
         logger.info("Database initialized successfully")
         health_metrics["database_connected"] = True
     except Exception as e:

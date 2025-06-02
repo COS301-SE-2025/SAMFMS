@@ -1,24 +1,24 @@
 import os
 import logging
 import motor.motor_asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, List, Any
 from bson import ObjectId
 
 logger = logging.getLogger(__name__)
 
-# Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "mongodb://localhost:27017/vehicles_db")
-DATABASE_NAME = DATABASE_URL.split("/")[-1]
-client = motor.motor_asyncio.AsyncIOMotorClient(DATABASE_URL)
-db = client[DATABASE_NAME]
+# MongoDB configuration
+MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017/vehicles_db")
+DATABASE_NAME = MONGODB_URL.split("/")[-1]
+mongodb_client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
+mongodb_db = mongodb_client[DATABASE_NAME]
 
-# Collections
-vehicles_collection = db.vehicles
-maintenance_records_collection = db.maintenance_records
-vehicle_specifications_collection = db.vehicle_specifications
-vehicle_documents_collection = db.vehicle_documents
-vehicle_activity_log_collection = db.vehicle_activity_log
+# MongoDB Collections
+vehicles_collection = mongodb_db.vehicles
+maintenance_records_collection = mongodb_db.maintenance_records
+vehicle_specifications_collection = mongodb_db.vehicle_specifications
+vehicle_documents_collection = mongodb_db.vehicle_documents
+vehicle_activity_log_collection = mongodb_db.vehicle_activity_log
 
 # Create indexes
 async def create_indexes():
@@ -41,141 +41,72 @@ async def create_indexes():
         await vehicle_documents_collection.create_index([("vehicle_id", 1), ("document_type", 1)])
         await vehicle_documents_collection.create_index([("expiry_date", 1), ("is_valid", 1)])
         
+        # Vehicle activity log indexes
+        await vehicle_activity_log_collection.create_index([("vehicle_id", 1)])
+        await vehicle_activity_log_collection.create_index([("activity_type", 1), ("timestamp", 1)])
+        await vehicle_activity_log_collection.create_index([("user_id", 1), ("timestamp", 1)])
+        
         logger.info("Database indexes initialized successfully")
     except Exception as e:
         logger.error(f"Failed to create database indexes: {e}")
 
-def get_db():
-    """Dependency to get database client"""
-    return db
+def get_mongodb():
+    """Dependency to get MongoDB database client"""
+    return mongodb_db
 
-def init_database():
-    """Initialize the database with tables and indexes"""
+def get_db():
+    """Dependency to get database client (MongoDB)"""
+    return mongodb_db
+
+async def init_database():
+    """Initialize the database with collections and indexes"""
     try:
-        # Create all tables
-        Base.metadata.create_all(bind=engine)
+        # Ensure the collections exist by touching them
+        await vehicles_collection.find_one({})
+        await maintenance_records_collection.find_one({})
+        await vehicle_specifications_collection.find_one({})
+        await vehicle_documents_collection.find_one({})
+        await vehicle_activity_log_collection.find_one({})
         
-        # Create custom indexes for better performance
-        with engine.connect() as conn:
-            # Vehicle indexes
-            conn.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_vehicles_make_model 
-                ON vehicles (make, model)
-            """))
-            
-            conn.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_vehicles_year_active 
-                ON vehicles (year, is_active)
-            """))
-            
-            conn.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_vehicles_fuel_type 
-                ON vehicles (fuel_type)
-            """))
-            
-            # Maintenance records indexes
-            conn.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_maintenance_vehicle_date 
-                ON maintenance_records (vehicle_id, service_date)
-            """))
-            
-            conn.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_maintenance_type_date 
-                ON maintenance_records (maintenance_type, service_date)
-            """))
-            
-            conn.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_maintenance_next_service 
-                ON maintenance_records (next_service_date)
-            """))
-            
-            # Vehicle specifications indexes
-            conn.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_specs_vehicle_id 
-                ON vehicle_specifications (vehicle_id)
-            """))
-            
-            # Vehicle documents indexes
-            conn.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_documents_vehicle_type 
-                ON vehicle_documents (vehicle_id, document_type)
-            """))
-            
-            conn.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_documents_expiry 
-                ON vehicle_documents (expiry_date, is_valid)
-            """))
-            
-            conn.commit()
-            
-        logger.info("Database initialized successfully with custom indexes")
+        # Create indexes
+        await create_indexes()
+        
+        logger.info("Database initialized successfully")
         
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         raise
 
-# Event listeners for automatic timestamp updates
-@event.listens_for(Base, 'before_update', propagate=True)
-def timestamp_before_update(mapper, connection, target):
-    """Automatically update the updated_at timestamp"""
-    if hasattr(target, 'updated_at'):
-        target.updated_at = datetime.now(timezone.utc)
-
-def create_vehicle_activity_log():
-    """Create a table for vehicle activity logging"""
+# Function needed by main.py
+async def create_vehicle_activity_log():
+    """Create a vehicle activity log collection if it doesn't exist"""
     try:
-        with engine.connect() as conn:
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS vehicle_activity_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    vehicle_id INTEGER NOT NULL,
-                    activity_type VARCHAR(100) NOT NULL,
-                    description TEXT,
-                    details JSON,
-                    user_id INTEGER,
-                    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    source_service VARCHAR(50),
-                    ip_address VARCHAR(45),
-                    user_agent TEXT
-                )
-            """))
-            
-            conn.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_activity_vehicle_id 
-                ON vehicle_activity_log (vehicle_id)
-            """))
-            
-            conn.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_activity_type_timestamp 
-                ON vehicle_activity_log (activity_type, timestamp)
-            """))
-            
-            conn.execute(text("""
-                CREATE INDEX IF NOT EXISTS idx_activity_user_timestamp 
-                ON vehicle_activity_log (user_id, timestamp)
-            """))
-            
-            conn.commit()
-            
-        logger.info("Vehicle activity log table created successfully")
+        # In MongoDB, collections are created automatically when used
+        # Just ensure the collection exists by touching it
+        await vehicle_activity_log_collection.find_one({})
+        
+        # Create indexes for the activity log
+        await vehicle_activity_log_collection.create_index([("vehicle_id", 1)])
+        await vehicle_activity_log_collection.create_index([("timestamp", 1)])
+        await vehicle_activity_log_collection.create_index([("activity_type", 1)])
+        
+        logger.info("Vehicle activity log collection is ready")
         
     except Exception as e:
-        logger.error(f"Failed to create activity log table: {e}")
+        logger.error(f"Failed to setup activity log collection: {e}")
 
 async def log_vehicle_activity(
-    vehicle_id: int,
+    vehicle_id: str,
     activity_type: str,
     description: Optional[str] = None,
     details: Optional[dict] = None,
-    user_id: Optional[int] = None,
+    user_id: Optional[str] = None,
     source_service: str = "vehicles_service",
     ip_address: Optional[str] = None,
     user_agent: Optional[str] = None
 ):
     """Log vehicle-related activities"""
     try:
-        db = SessionLocal()
-        
         log_data = {
             'vehicle_id': vehicle_id,
             'activity_type': activity_type,
@@ -189,122 +120,100 @@ async def log_vehicle_activity(
         }
         
         # Insert log entry
-        db.execute(text("""
-            INSERT INTO vehicle_activity_log 
-            (vehicle_id, activity_type, description, details, user_id, timestamp, source_service, ip_address, user_agent)
-            VALUES (:vehicle_id, :activity_type, :description, :details, :user_id, :timestamp, :source_service, :ip_address, :user_agent)
-        """), log_data)
-        
-        db.commit()
+        await vehicle_activity_log_collection.insert_one(log_data)
         logger.info(f"Activity logged: {activity_type} for vehicle {vehicle_id}")
         
     except Exception as e:
         logger.error(f"Failed to log activity: {e}")
-        if db:
-            db.rollback()
-    finally:
-        if db:
-            db.close()
 
-def get_vehicle_statistics():
+async def get_vehicle_statistics():
     """Get overall vehicle database statistics"""
     try:
-        db = SessionLocal()
-        
         stats = {}
         
         # Get vehicle count by status
-        result = db.execute(text("""
-            SELECT is_active, COUNT(*) as count 
-            FROM vehicles 
-            GROUP BY is_active
-        """)).fetchall()
-        
-        stats['vehicles_by_status'] = {row[0]: row[1] for row in result}
+        status_pipeline = [
+            {"$group": {"_id": "$is_active", "count": {"$sum": 1}}}
+        ]
+        status_result = await vehicles_collection.aggregate(status_pipeline).to_list(length=None)
+        stats['vehicles_by_status'] = {str(item["_id"]): item["count"] for item in status_result}
         
         # Get vehicle count by fuel type
-        result = db.execute(text("""
-            SELECT fuel_type, COUNT(*) as count 
-            FROM vehicles 
-            WHERE fuel_type IS NOT NULL 
-            GROUP BY fuel_type
-        """)).fetchall()
-        
-        stats['vehicles_by_fuel_type'] = {row[0]: row[1] for row in result}
+        fuel_pipeline = [
+            {"$match": {"fuel_type": {"$ne": None}}},
+            {"$group": {"_id": "$fuel_type", "count": {"$sum": 1}}}
+        ]
+        fuel_result = await vehicles_collection.aggregate(fuel_pipeline).to_list(length=None)
+        stats['vehicles_by_fuel_type'] = {str(item["_id"]): item["count"] for item in fuel_result}
         
         # Get maintenance statistics
-        result = db.execute(text("""
-            SELECT 
-                COUNT(*) as total_records,
-                COUNT(DISTINCT vehicle_id) as vehicles_with_maintenance,
-                AVG(cost) as avg_cost
-            FROM maintenance_records
-        """)).fetchone()
+        maintenance_pipeline = [
+            {"$group": {
+                "_id": None,
+                "total_records": {"$sum": 1},
+                "vehicles_with_maintenance": {"$addToSet": "$vehicle_id"},
+                "avg_cost": {"$avg": "$cost"}
+            }}
+        ]
+        maintenance_result = await maintenance_records_collection.aggregate(maintenance_pipeline).to_list(length=1)
         
-        stats['maintenance_stats'] = {
-            'total_records': result[0],
-            'vehicles_with_maintenance': result[1],
-            'average_cost': float(result[2]) if result[2] else 0.0
-        }
+        if maintenance_result:
+            result = maintenance_result[0]
+            stats['maintenance_stats'] = {
+                'total_records': result.get("total_records", 0),
+                'vehicles_with_maintenance': len(result.get("vehicles_with_maintenance", [])),
+                'average_cost': float(result.get("avg_cost", 0)) if result.get("avg_cost") else 0.0
+            }
+        else:
+            stats['maintenance_stats'] = {
+                'total_records': 0,
+                'vehicles_with_maintenance': 0,
+                'average_cost': 0.0
+            }
         
         # Get recent activity count
-        result = db.execute(text("""
-            SELECT COUNT(*) as recent_activities
-            FROM vehicle_activity_log 
-            WHERE timestamp >= datetime('now', '-7 days')
-        """)).fetchone()
+        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        recent_activity_count = await vehicle_activity_log_collection.count_documents({
+            "timestamp": {"$gte": seven_days_ago}
+        })
         
-        stats['recent_activity_count'] = result[0] if result else 0
+        stats['recent_activity_count'] = recent_activity_count
         
         return stats
         
     except Exception as e:
         logger.error(f"Failed to get vehicle statistics: {e}")
         return {}
-    finally:
-        if db:
-            db.close()
 
-def cleanup_old_activity_logs(days: int = 90):
+async def cleanup_old_activity_logs(days: int = 90):
     """Clean up old activity logs to maintain performance"""
     try:
-        db = SessionLocal()
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+        result = await vehicle_activity_log_collection.delete_many(
+            {"timestamp": {"$lt": cutoff_date}}
+        )
         
-        result = db.execute(text("""
-            DELETE FROM vehicle_activity_log 
-            WHERE timestamp < datetime('now', '-{} days')
-        """.format(days)))
-        
-        deleted_count = result.rowcount
-        db.commit()
-        
+        deleted_count = result.deleted_count
         logger.info(f"Cleaned up {deleted_count} old activity log entries")
         return deleted_count
         
     except Exception as e:
         logger.error(f"Failed to cleanup activity logs: {e}")
         return 0
-    finally:
-        if db:
-            db.close()
 
-# Database health check
-def check_database_health():
+async def check_database_health():
     """Check database connectivity and basic functionality"""
     try:
-        db = SessionLocal()
-        
         # Test basic query
-        db.execute(text("SELECT 1"))
+        await mongodb_db.command('ping')
         
-        # Test table existence
-        tables = ['vehicles', 'maintenance_records', 'vehicle_specifications', 'vehicle_documents']
-        for table in tables:
-            result = db.execute(text(f"SELECT COUNT(*) FROM {table}")).fetchone()
-            if result is None:
-                raise Exception(f"Table {table} not accessible")
+        # Test collections existence
+        collections = ['vehicles', 'maintenance_records', 'vehicle_specifications', 'vehicle_documents']
+        for collection_name in collections:
+            collection = mongodb_db[collection_name]
+            count = await collection.count_documents({})
+            logger.debug(f"Collection {collection_name} has {count} documents")
         
-        db.close()
         return True
         
     except Exception as e:

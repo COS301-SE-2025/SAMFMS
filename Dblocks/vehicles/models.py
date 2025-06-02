@@ -1,134 +1,193 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Boolean, JSON
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql import func
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
+from bson import ObjectId
 
-Base = declarative_base()
+class PyObjectId(ObjectId):
+    @classmethod
+    def validate(cls, v):
+        if isinstance(v, ObjectId):
+            return v
+        if isinstance(v, str):
+            if not ObjectId.is_valid(v):
+                raise ValueError("Invalid ObjectId")
+            return ObjectId(v)
+        raise ValueError("Invalid ObjectId")
 
-# SQLAlchemy Models
-class Vehicle(Base):
-    """Vehicle technical specifications and basic information"""
-    __tablename__ = "vehicles"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    vehicle_number = Column(String(50), unique=True, index=True, nullable=False)
-    make = Column(String(100), nullable=False)
-    model = Column(String(100), nullable=False)
-    year = Column(Integer, nullable=False)
-    vin = Column(String(17), unique=True, index=True)
-    license_plate = Column(String(20), unique=True, index=True)
+# Pydantic models for MongoDB
+class VehicleBase(BaseModel):
+    """Base Vehicle model with common fields"""
+    vehicle_number: str
+    make: str
+    model: str
+    year: int
+    vin: Optional[str] = None
+    license_plate: Optional[str] = None
     
     # Technical specifications
-    engine_type = Column(String(100))
-    fuel_type = Column(String(50))
-    fuel_capacity = Column(Float)  # in liters
-    seating_capacity = Column(Integer)
-    max_load_capacity = Column(Float)  # in kg
-    transmission_type = Column(String(50))
-    drive_type = Column(String(50))  # FWD, RWD, AWD, 4WD
+    engine_type: Optional[str] = None
+    fuel_type: Optional[str] = None
+    fuel_capacity: Optional[float] = None  # in liters
+    seating_capacity: Optional[int] = None
+    max_load_capacity: Optional[float] = None  # in kg
+    transmission_type: Optional[str] = None
+    drive_type: Optional[str] = None  # FWD, RWD, AWD, 4WD
     
     # Physical specifications
-    length = Column(Float)  # in meters
-    width = Column(Float)   # in meters
-    height = Column(Float)  # in meters
-    weight = Column(Float)  # in kg
-    color = Column(String(50))
+    length: Optional[float] = None  # in meters
+    width: Optional[float] = None  # in meters
+    height: Optional[float] = None  # in meters
+    weight: Optional[float] = None  # in kg
+    color: Optional[str] = None
     
     # Operational data
-    current_mileage = Column(Float, default=0.0)
-    is_active = Column(Boolean, default=True)
-    purchase_date = Column(DateTime)
-    purchase_price = Column(Float)
+    current_mileage: float = 0.0
+    is_active: bool = True
+    purchase_date: Optional[datetime] = None
+    purchase_price: Optional[float] = None
     
-    # Metadata
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
-    
-    # Additional specifications as JSON
-    additional_specs = Column(JSON)  # For any additional specifications
+    # Additional specifications
+    additional_specs: Optional[Dict[str, Any]] = None
 
-class MaintenanceRecord(Base):
-    """Vehicle maintenance history"""
-    __tablename__ = "maintenance_records"
+class VehicleCreate(VehicleBase):
+    """Vehicle data for creation"""
+    pass
+
+class VehicleUpdate(BaseModel):
+    """Vehicle data for update - all fields optional"""
+    vehicle_number: Optional[str] = None
+    make: Optional[str] = None
+    model: Optional[str] = None
+    year: Optional[int] = None
+    vin: Optional[str] = None
+    license_plate: Optional[str] = None
+    engine_type: Optional[str] = None
+    fuel_type: Optional[str] = None
+    fuel_capacity: Optional[float] = None
+    seating_capacity: Optional[int] = None
+    max_load_capacity: Optional[float] = None
+    transmission_type: Optional[str] = None
+    drive_type: Optional[str] = None
+    length: Optional[float] = None
+    width: Optional[float] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    color: Optional[str] = None
+    current_mileage: Optional[float] = None
+    is_active: Optional[bool] = None
+    purchase_date: Optional[datetime] = None
+    purchase_price: Optional[float] = None
+    additional_specs: Optional[Dict[str, Any]] = None
+
+class VehicleResponse(VehicleBase):
+    """Vehicle data with ID for response"""
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    created_at: datetime
+    updated_at: Optional[datetime] = None
     
-    id = Column(Integer, primary_key=True, index=True)
-    vehicle_id = Column(Integer, index=True, nullable=False)
-    maintenance_type = Column(String(100), nullable=False)  # oil_change, tire_replacement, etc.
-    description = Column(Text)
+    class Config:
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+class MaintenanceRecordBase(BaseModel):
+    """Base Maintenance Record model with common fields"""
+    vehicle_id: str
+    maintenance_type: str
+    description: Optional[str] = None
     
     # Maintenance details
-    service_date = Column(DateTime, nullable=False)
-    service_provider = Column(String(200))
-    cost = Column(Float)
-    mileage_at_service = Column(Float)
+    service_date: datetime
+    service_provider: Optional[str] = None
+    cost: Optional[float] = None
+    mileage_at_service: Optional[float] = None
     
     # Parts and labor
-    parts_replaced = Column(JSON)  # List of parts replaced
-    labor_hours = Column(Float)
-    warranty_until = Column(DateTime)
+    parts_replaced: Optional[List[Dict[str, Any]]] = None
+    labor_hours: Optional[float] = None
+    warranty_until: Optional[datetime] = None
     
     # Next service
-    next_service_date = Column(DateTime)
-    next_service_mileage = Column(Float)
+    next_service_date: Optional[datetime] = None
+    next_service_mileage: Optional[float] = None
     
     # Metadata
-    recorded_by = Column(Integer)  # User ID who recorded the maintenance
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    recorded_by: Optional[str] = None
     
     # Additional notes
-    notes = Column(Text)
+    notes: Optional[str] = None
 
-class VehicleSpecification(Base):
-    """Detailed vehicle specifications and features"""
-    __tablename__ = "vehicle_specifications"
+class MaintenanceRecordCreate(MaintenanceRecordBase):
+    """Maintenance record data for creation"""
+    pass
+
+class MaintenanceRecordUpdate(BaseModel):
+    """Maintenance record data for update - all fields optional"""
+    maintenance_type: Optional[str] = None
+    description: Optional[str] = None
+    service_date: Optional[datetime] = None
+    service_provider: Optional[str] = None
+    cost: Optional[float] = None
+    mileage_at_service: Optional[float] = None
+    parts_replaced: Optional[List[Dict[str, Any]]] = None
+    labor_hours: Optional[float] = None
+    warranty_until: Optional[datetime] = None
+    next_service_date: Optional[datetime] = None
+    next_service_mileage: Optional[float] = None
+    notes: Optional[str] = None
+
+class MaintenanceRecordResponse(MaintenanceRecordBase):
+    """Maintenance record data with ID for response"""
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    created_at: datetime
+    updated_at: Optional[datetime] = None
     
-    id = Column(Integer, primary_key=True, index=True)
-    vehicle_id = Column(Integer, index=True, nullable=False)
+    class Config:
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+class VehicleSpecificationBase(BaseModel):
+    """Base Vehicle Specification model with common fields"""
+    vehicle_id: str
     
     # Engine specifications
-    engine_displacement = Column(Float)  # in liters
-    horsepower = Column(Integer)
-    torque = Column(Integer)  # in Nm
-    compression_ratio = Column(String(20))
+    engine_displacement: Optional[float] = None  # in liters
+    horsepower: Optional[int] = None
+    torque: Optional[int] = None  # in Nm
+    compression_ratio: Optional[str] = None
     
     # Performance
-    top_speed = Column(Integer)  # km/h
-    acceleration_0_100 = Column(Float)  # seconds
-    fuel_efficiency_city = Column(Float)  # km/l
-    fuel_efficiency_highway = Column(Float)  # km/l
-    fuel_efficiency_combined = Column(Float)  # km/l
+    top_speed: Optional[int] = None  # km/h
+    acceleration_0_100: Optional[float] = None  # seconds
+    fuel_efficiency_city: Optional[float] = None  # km/l
+    fuel_efficiency_highway: Optional[float] = None  # km/l
+    fuel_efficiency_combined: Optional[float] = None  # km/l
     
     # Safety features
-    safety_rating = Column(String(10))
-    airbags_count = Column(Integer)
-    has_abs = Column(Boolean, default=False)
-    has_stability_control = Column(Boolean, default=False)
-    has_traction_control = Column(Boolean, default=False)
+    safety_rating: Optional[str] = None
+    airbags_count: Optional[int] = None
+    has_abs: bool = False
+    has_stability_control: bool = False
+    has_traction_control: bool = False
     
     # Technology features
-    infotainment_system = Column(String(100))
-    has_gps = Column(Boolean, default=False)
-    has_bluetooth = Column(Boolean, default=False)
-    has_wifi = Column(Boolean, default=False)
-    has_usb_ports = Column(Boolean, default=False)
-    usb_ports_count = Column(Integer, default=0)
+    infotainment_system: Optional[str] = None
+    has_gps: bool = False
+    has_bluetooth: bool = False
+    has_wifi: bool = False
+    has_usb_ports: bool = False
+    usb_ports_count: int = 0
     
     # Comfort features
-    air_conditioning_type = Column(String(50))
-    seat_material = Column(String(50))
-    has_power_steering = Column(Boolean, default=False)
-    has_power_windows = Column(Boolean, default=False)
-    has_central_locking = Column(Boolean, default=False)
+    air_conditioning_type: Optional[str] = None
+    seat_material: Optional[str] = None
+    has_power_steering: bool = False
+    has_power_windows: bool = False
+    has_central_locking: bool = False
     
-    # Additional features as JSON
-    additional_features = Column(JSON)
-    
-    # Metadata
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    # Additional features
+    additional_features: Optional[Dict[str, Any]] = None
 
 class VehicleDocument(Base):
     """Vehicle-related documents and certificates"""
