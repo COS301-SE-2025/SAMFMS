@@ -31,7 +31,7 @@ class MessageQueueService:
                 frame_max=131072,  # Optimize frame size
                 channel_max=100,   # Limit channels
                 virtual_host='/'
-            )
+            )   
             self.connection = pika.BlockingConnection(connection_params)
             self.channel = self.connection.channel()
             
@@ -39,10 +39,10 @@ class MessageQueueService:
             self.channel.basic_qos(prefetch_count=10, global_qos=False)
             
             # Declare exchanges and queues
-            self._setup_exchanges_and_queues()
-            
+            self._setup_exchanges_and_queues()            
             logger.info("Successfully connected to RabbitMQ with optimized settings")
-            return True        except Exception as e:
+            return True
+        except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
             return False
     
@@ -88,7 +88,8 @@ class MessageQueueService:
             queue='user_security_updates', 
             routing_key='user.security.*'
         )
-      def publish_user_created(self, user_data: UserCreatedMessage):
+        
+    def publish_user_created(self, user_data: UserCreatedMessage):
         """Publish user created event to Users Dblock with optimized settings"""
         try:
             if not self.connection or self.connection.is_closed:
@@ -112,7 +113,7 @@ class MessageQueueService:
             logger.error(f"Failed to publish user created event: {e}")
             # Try to reconnect on next publish
             self.connection = None
-      def publish_user_updated(self, user_data: UserUpdatedMessage):
+    def publish_user_updated(self, user_data: UserUpdatedMessage):
         """Publish user updated event to Users Dblock with optimized settings"""
         try:
             if not self.connection or self.connection.is_closed:

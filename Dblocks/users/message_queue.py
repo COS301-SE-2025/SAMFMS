@@ -38,8 +38,7 @@ class MessageQueueConsumer:
             )
             self.connection = pika.BlockingConnection(connection_params)
             self.channel = self.connection.channel()
-            
-            # Set QoS to process one message at a time to reduce CPU load
+              # Set QoS to process one message at a time to reduce CPU load
             self.channel.basic_qos(prefetch_count=1, global_qos=False)
             
             # Declare exchanges and queues
@@ -50,6 +49,7 @@ class MessageQueueConsumer:
         except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
             return False
+
     def _setup_exchanges_and_queues(self):
         """Setup RabbitMQ exchanges and queues with optimized settings"""
         # User-related exchanges
@@ -71,13 +71,13 @@ class MessageQueueConsumer:
                 'x-overflow': 'drop-head' # Drop oldest messages when full
             }
         )
-        
-        # Bind queues to exchanges
+          # Bind queues to exchanges
         self.channel.queue_bind(
             exchange='user_events',
             queue='user_profile_updates',
             routing_key='user.profile.*'
         )
+        
     def start_consuming(self):
         """Start consuming messages in a separate thread with optimized settings"""
         if not self.connection:

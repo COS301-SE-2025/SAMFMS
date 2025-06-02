@@ -6,7 +6,7 @@ import logging
 import json
 from datetime import datetime, timezone
 
-from database import engine, Base, get_db
+from database import test_database_connection, create_indexes
 from routes import router as vehicle_routes
 from message_queue import setup_message_queue
 from logging_config import setup_logging
@@ -53,12 +53,19 @@ def get_rabbitmq_connection():
 async def startup_event():
     logger.info("Management Service starting up...")
     
-    # Create database tables
+    # Test database connection and create indexes
     try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created successfully")
+        db_connected = await test_database_connection()
+        if db_connected:
+            await create_indexes()
+            logger.info("Database connection and indexes created successfully")
+            health_metrics["database_connected"] = True
+        else:
+            logger.error("Database connection failed")
+            health_metrics["database_connected"] = False
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
+        health_metrics["database_connected"] = False
     
     # Test Redis connection
     try:
@@ -91,13 +98,11 @@ def read_root():
     }
 
 @app.get("/health")
-def health_check():
+async def health_check():
     """Health check endpoint with detailed status"""
     try:
         # Test database connection
-        db = next(get_db())
-        db.execute("SELECT 1")
-        db_status = True
+        db_status = await test_database_connection()
     except Exception:
         db_status = False
     
