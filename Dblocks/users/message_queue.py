@@ -50,7 +50,7 @@ class MessageQueueConsumer:
         except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
             return False
-      def _setup_exchanges_and_queues(self):
+    def _setup_exchanges_and_queues(self):
         """Setup RabbitMQ exchanges and queues with optimized settings"""
         # User-related exchanges
         self.channel.exchange_declare(
@@ -78,7 +78,7 @@ class MessageQueueConsumer:
             queue='user_profile_updates',
             routing_key='user.profile.*'
         )
-      def start_consuming(self):
+    def start_consuming(self):
         """Start consuming messages in a separate thread with optimized settings"""
         if not self.connection:
             if not self.connect():
@@ -111,7 +111,7 @@ class MessageQueueConsumer:
                     threading.Event().wait(1)
         except Exception as e:
             logger.error(f"Error in message consumption: {e}")
-      def _handle_user_profile_message(self, channel, method, properties, body):
+    def _handle_user_profile_message(self, channel, method, properties, body):
         """Handle user profile messages with synchronous processing"""
         try:
             message_data = json.loads(body)

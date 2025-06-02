@@ -4,7 +4,6 @@ import logging
 import asyncio
 from typing import Dict, Any
 from datetime import datetime, timezone
-from sqlalchemy.orm import Session
 
 from .database import SessionLocal, log_vehicle_activity
 from .models import Vehicle, MaintenanceRecord, VehicleEventMessage
@@ -16,7 +15,7 @@ class VehicleMessageConsumer:
         self.connection = None
         self.channel = None
         self.setup_connection()
-      def setup_connection(self):
+    def setup_connection(self):
         """Setup RabbitMQ connection and channel with optimized settings"""
         try:
             credentials = pika.PlainCredentials('guest', 'guest')
@@ -83,7 +82,7 @@ class VehicleMessageConsumer:
         except Exception as e:
             logger.error(f"Failed to setup RabbitMQ connection: {e}")
             raise
-      def process_vehicle_event(self, ch, method, properties, body):
+    def process_vehicle_event(self, ch, method, properties, body):
         """Process incoming vehicle events"""
         try:
             # Parse message
@@ -155,7 +154,7 @@ class VehicleMessageConsumer:
                 purchase_price=vehicle_data.get('purchase_price'),
                 additional_specs=vehicle_data.get('additional_specs')
             )
-              db.add(vehicle)
+            db.add(vehicle)
             db.commit()
             
             # Log activity synchronously to avoid async/sync context issues
@@ -204,7 +203,7 @@ class VehicleMessageConsumer:
             for field, value in update_data.items():
                 if hasattr(vehicle, field):
                     setattr(vehicle, field, value)
-              vehicle.updated_at = datetime.now(timezone.utc)
+                vehicle.updated_at = datetime.now(timezone.utc)
             db.commit()
             
             # Log activity synchronously
@@ -282,7 +281,7 @@ class VehicleMessageConsumer:
         finally:
             if db:
                 db.close()
-      def handle_assignment_created(self, event: VehicleEventMessage):
+    def handle_assignment_created(self, event: VehicleEventMessage):
         """Handle vehicle assignment creation"""
         try:
             # Log the assignment activity synchronously
@@ -311,7 +310,7 @@ class VehicleMessageConsumer:
             
         except Exception as e:
             logger.error(f"Error handling assignment creation: {e}")
-      def handle_assignment_updated(self, event: VehicleEventMessage):
+    def handle_assignment_updated(self, event: VehicleEventMessage):
         """Handle vehicle assignment update"""
         try:
             # Log the assignment update synchronously
@@ -426,7 +425,7 @@ class VehicleMessageConsumer:
         finally:
             if db:
                 db.close()
-      def handle_maintenance_due(self, event: VehicleEventMessage):
+    def handle_maintenance_due(self, event: VehicleEventMessage):
         """Handle maintenance due notification"""
         try:
             # Log the maintenance due activity synchronously
@@ -454,7 +453,7 @@ class VehicleMessageConsumer:
             
         except Exception as e:
             logger.error(f"Error handling maintenance due: {e}")
-      def start_consuming(self):
+    def start_consuming(self):
         """Start consuming messages with optimized settings"""
         try:
             self.channel.basic_qos(prefetch_count=1)
