@@ -45,15 +45,11 @@ class VehicleManagement(BaseModel):
     vehicle_id: str  # Reference to vehicle in Vehicles Dblock
     status: VehicleStatus = VehicleStatus.AVAILABLE
     current_driver_id: Optional[str] = None
-    current_assignment_id: Optional[str] = None
     department: Optional[str] = None
-    cost_center: Optional[str] = None
     daily_rate: Optional[float] = None
     mileage_rate: Optional[float] = None
     fuel_budget: Optional[float] = None
     insurance_policy: Optional[str] = None
-    next_service_date: Optional[datetime] = None
-    last_inspection_date: Optional[datetime] = None
     location: Optional[Dict] = None  # Current location
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
