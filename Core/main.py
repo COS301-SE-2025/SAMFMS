@@ -4,11 +4,11 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import uvicorn
 import asyncio
 from contextlib import asynccontextmanager
-from routes import driver
-# Note: user, auth, and vehicle routes moved to separate microservices
+# Note: All business logic routes moved to separate microservices:
 # - Authentication: Security Sblock
 # - Users: Users Dblock  
-# - Vehicles: Management Sblock & Vehicles Dblock
+# - Vehicles: Management Sblock & Vehicles Dblock  
+# - Drivers: Management Sblock (moved for better organization)
 from database import db
 from logging_config import setup_logging, get_logger
 from middleware import LoggingMiddleware, SecurityHeadersMiddleware
@@ -71,8 +71,12 @@ app.add_middleware(LoggingMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
 # Include routers
-# Note: User, auth, and vehicle routes moved to separate microservices
-app.include_router(driver.router, tags=["Drivers"])
+# Note: All business logic routes moved to separate microservices:
+# - Authentication: Security Sblock
+# - Users: Users Dblock  
+# - Vehicles: Management Sblock & Vehicles Dblock
+# - Drivers: Management Sblock (moved for better organization)
+# app.include_router(driver.router, tags=["Drivers"])  # Moved to Management Sblock
 
 # Health and metrics endpoints
 app.add_api_route("/health", health_check, methods=["GET"], tags=["Health"])
@@ -112,14 +116,15 @@ async def get_microservices():
                     "profiles": "/api/v1/users",
                     "preferences": "/api/v1/users/{user_id}/preferences"
                 }
-            },
-            "management": {
-                "description": "Vehicle assignment and usage management",
+            },            "management": {
+                "description": "Vehicle assignment, usage management, and driver management",
                 "base_url": "http://management:8000",
                 "endpoints": {
                     "assignments": "/api/v1/vehicles/assignments",
                     "usage": "/api/v1/vehicles/usage",
-                    "status": "/api/v1/vehicles/status"
+                    "status": "/api/v1/vehicles/status",
+                    "drivers": "/api/v1/vehicles/drivers",
+                    "driver_search": "/api/v1/vehicles/drivers/search/{query}"
                 }
             },
             "vehicles": {
