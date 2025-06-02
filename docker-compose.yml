@@ -16,7 +16,6 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     restart: no
-
   redis:
     image: redis:7-alpine
     ports:
@@ -26,11 +25,13 @@ services:
       - redis_data:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
+      interval: 30s # Reduced frequency
       timeout: 5s
-      retries: 5
+      retries: 3 # Reduced retries
       start_period: 10s
-    restart: no # MongoDB instances for each service
+    restart: no
+
+  # MongoDB instances for each service
   mongodb_core:
     image: mongo:7
     ports:
@@ -39,12 +40,12 @@ services:
       - mongodb_core_data:/data/db
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s # Reduced frequency
+      timeout: 10s
+      retries: 3
       start_period: 30s
     restart: no
-
+    command: mongod --quiet --logpath /dev/null
   mongodb_gps:
     image: mongo:7
     ports:
@@ -53,12 +54,12 @@ services:
       - mongodb_gps_data:/data/db
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s # Reduced frequency
+      timeout: 10s
+      retries: 3
       start_period: 30s
     restart: no
-
+    command: mongod --quiet --logpath /dev/null
   mongodb_trip_planning:
     image: mongo:7
     ports:
@@ -67,11 +68,13 @@ services:
       - mongodb_trip_planning_data:/data/db
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s # Reduced frequency
+      timeout: 10s
+      retries: 3
       start_period: 30s
     restart: no
+    command: mongod --quiet --logpath /dev/null
+
   mongodb_vehicle_maintenance:
     image: mongo:7
     ports:
@@ -80,12 +83,12 @@ services:
       - mongodb_vehicle_maintenance_data:/data/db
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s # Reduced frequency
+      timeout: 10s
+      retries: 3
       start_period: 30s
     restart: no
-
+    command: mongod --quiet --logpath /dev/null
   mongodb_security:
     image: mongo:7
     ports:
@@ -94,12 +97,12 @@ services:
       - mongodb_security_data:/data/db
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s # Reduced frequency
+      timeout: 10s
+      retries: 3
       start_period: 30s
     restart: no
-
+    command: mongod --quiet --logpath /dev/null
   mongodb_users:
     image: mongo:7
     ports:
@@ -108,12 +111,12 @@ services:
       - mongodb_users_data:/data/db
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s # Reduced frequency
+      timeout: 10s
+      retries: 3
       start_period: 30s
     restart: no
-
+    command: mongod --quiet --logpath /dev/null
   mongodb_vehicles:
     image: mongo:7
     ports:
@@ -122,12 +125,12 @@ services:
       - mongodb_vehicles_data:/data/db
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s # Reduced frequency
+      timeout: 10s
+      retries: 3
       start_period: 30s
     restart: no
-
+    command: mongod --quiet --logpath /dev/null
   mongodb_management:
     image: mongo:7
     ports:
@@ -136,11 +139,12 @@ services:
       - mongodb_management_data:/data/db
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s # Reduced frequency
+      timeout: 10s
+      retries: 3
       start_period: 30s
     restart: no
+    command: mongod --quiet --logpath /dev/null
 
   mcore:
     build: ./Core
