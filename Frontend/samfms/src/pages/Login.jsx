@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
-import { login, isAuthenticated } from '../backend/API.js';
+import { login, isAuthenticated } from '../backend/api/auth.js';
 
 const Login = () => {
   const [email, setEmail] = useState('');

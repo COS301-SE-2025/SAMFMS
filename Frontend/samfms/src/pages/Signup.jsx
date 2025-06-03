@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
-import { signup, isAuthenticated } from '../backend/API.js';
+import { signup, isAuthenticated } from '../backend/api/auth.js';
 
 const Signup = () => {
   const [fullName, setFullName] = useState('');
