@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, root_validator
 from typing import Optional, Dict, List
 from bson import ObjectId
 from datetime import datetime
@@ -34,6 +34,15 @@ class SecurityUser(BaseModel):
     password_reset_token: Optional[str] = None
     two_factor_enabled: bool = False
     permissions: list = []
+    approved: bool = False
+
+    @root_validator(pre=True)
+    def enforce_approved_based_on_role(cls, values):
+        role = values.get("role")
+        approved = values.get("approved", False)
+        if role == "admin":
+            values["approved"] = True
+        return values
     
     class Config:
         validate_by_name = True
