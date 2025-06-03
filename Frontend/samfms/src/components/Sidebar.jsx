@@ -14,7 +14,6 @@ import {
   Wrench,
   UserPlus,
 } from 'lucide-react';
-import { Button } from './ui/button';
 import { useAuth, PERMISSIONS, ROLES } from './RBACUtils';
 
 const Sidebar = () => {

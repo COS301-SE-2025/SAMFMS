@@ -34,10 +34,13 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Successfully connected to Redis")
     except Exception as e:
         logger.error(f"❌ Failed to connect to Redis: {e}")
-    
-    # Connect to RabbitMQ
+      # Connect to RabbitMQ
     if mq_service.connect():
         logger.info("✅ Successfully connected to RabbitMQ")
+        
+        # Publish service status (will be consumed by Core)
+        mq_service.publish_service_status("up")
+        logger.info("📤 Published service startup message to Core")
     else:
         logger.error("❌ Failed to connect to RabbitMQ")
     

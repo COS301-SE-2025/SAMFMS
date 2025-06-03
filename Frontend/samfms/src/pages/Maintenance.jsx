@@ -1,31 +1,42 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 
 const vehicles = [
-  {id: 'VEH-001', name: 'Toyota Camry'},
-  {id: 'VEH-002', name: 'Ford Transit'},
-  {id: 'VEH-003', name: 'Nissan NP200'},
+  { id: 'VEH-001', name: 'Toyota Camry' },
+  { id: 'VEH-002', name: 'Ford Transit' },
+  { id: 'VEH-003', name: 'Nissan NP200' },
 ];
 
-const serviceTypes = [
-  'Oil Change',
-  'Brake Service',
-  'Tire Rotation',
-  'Annual Inspection',
-];
+const serviceTypes = ['Oil Change', 'Brake Service', 'Tire Rotation', 'Annual Inspection'];
 
 // Mock analytics data
 const mockAnalytics = {
   costs: {
-    'VEH-001': {monthly: 1200, quarterly: 3400, yearly: 13500},
-    'VEH-002': {monthly: 900, quarterly: 2600, yearly: 10500},
-    'VEH-003': {monthly: 700, quarterly: 2100, yearly: 8500},
+    'VEH-001': { monthly: 1200, quarterly: 3400, yearly: 13500 },
+    'VEH-002': { monthly: 900, quarterly: 2600, yearly: 10500 },
+    'VEH-003': { monthly: 700, quarterly: 2100, yearly: 8500 },
   },
   faults: [
     // Each entry is for a month, for all vehicles
-    {month: 'Jan', faults: {'VEH-001': 1, 'VEH-002': 0, 'VEH-003': 1}, repairs: {'VEH-001': 1, 'VEH-002': 0, 'VEH-003': 1}},
-    {month: 'Feb', faults: {'VEH-001': 0, 'VEH-002': 1, 'VEH-003': 0}, repairs: {'VEH-001': 0, 'VEH-002': 1, 'VEH-003': 0}},
-    {month: 'Mar', faults: {'VEH-001': 2, 'VEH-002': 1, 'VEH-003': 0}, repairs: {'VEH-001': 2, 'VEH-002': 1, 'VEH-003': 0}},
-    {month: 'Apr', faults: {'VEH-001': 0, 'VEH-002': 0, 'VEH-003': 1}, repairs: {'VEH-001': 0, 'VEH-002': 0, 'VEH-003': 1}},
+    {
+      month: 'Jan',
+      faults: { 'VEH-001': 1, 'VEH-002': 0, 'VEH-003': 1 },
+      repairs: { 'VEH-001': 1, 'VEH-002': 0, 'VEH-003': 1 },
+    },
+    {
+      month: 'Feb',
+      faults: { 'VEH-001': 0, 'VEH-002': 1, 'VEH-003': 0 },
+      repairs: { 'VEH-001': 0, 'VEH-002': 1, 'VEH-003': 0 },
+    },
+    {
+      month: 'Mar',
+      faults: { 'VEH-001': 2, 'VEH-002': 1, 'VEH-003': 0 },
+      repairs: { 'VEH-001': 2, 'VEH-002': 1, 'VEH-003': 0 },
+    },
+    {
+      month: 'Apr',
+      faults: { 'VEH-001': 0, 'VEH-002': 0, 'VEH-003': 1 },
+      repairs: { 'VEH-001': 0, 'VEH-002': 0, 'VEH-003': 1 },
+    },
   ],
 };
 
@@ -56,8 +67,8 @@ const Maintenance = () => {
     dueDate: '',
   });
 
-  const handleChange = (e) => {
-    setForm({...form, [e.target.name]: e.target.value});
+  const handleChange = e => {
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   // Open popup for new or edit
@@ -73,13 +84,13 @@ const Maintenance = () => {
       });
     } else {
       // New: reset form
-      setForm({vehicle: '', serviceType: '', dueDate: ''});
+      setForm({ vehicle: '', serviceType: '', dueDate: '' });
     }
     setShowPopup(true);
   };
 
   // Add or update maintenance
-  const handleSubmit = (e) => {
+  const handleSubmit = e => {
     e.preventDefault();
     if (editIndex !== null) {
       // Update existing
@@ -106,11 +117,11 @@ const Maintenance = () => {
     }
     setShowPopup(false);
     setEditIndex(null);
-    setForm({vehicle: '', serviceType: '', dueDate: ''});
+    setForm({ vehicle: '', serviceType: '', dueDate: '' });
   };
 
   // Mocked functionality for completing maintenance
-  const handleComplete = (index) => {
+  const handleComplete = index => {
     const updated = [...maintenanceList];
     updated[index] = {
       ...updated[index],
@@ -120,32 +131,25 @@ const Maintenance = () => {
   };
 
   // Helper to get vehicle display name
-  const getVehicleName = (id) => {
-    const v = vehicles.find((v) => v.id === id);
+  const getVehicleName = id => {
+    const v = vehicles.find(v => v.id === id);
     return v ? `${v.name} (${v.id})` : id;
   };
 
   // Helper to format date
-  const formatDate = (dateStr) => {
+  const formatDate = dateStr => {
     const d = new Date(dateStr);
-    return d.toLocaleDateString(undefined, {year: 'numeric', month: 'long', day: 'numeric'});
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
   // Analytics helpers
-  const getServiceCount = (vehicleId) =>
-    maintenanceList.filter((m) => m.vehicle === vehicleId).length;
-
-  // For alignment: find the longest vehicle name
-  const longestNameLength = vehicles.reduce(
-    (max, v) => (v.name.length > max ? v.name.length : max),
-    0
-  );
+  const getServiceCount = vehicleId => maintenanceList.filter(m => m.vehicle === vehicleId).length;
 
   // Calculate total faults and repairs for each vehicle over the last 4 months
-  const getTotalFaults = (vehicleId) =>
+  const getTotalFaults = vehicleId =>
     mockAnalytics.faults.reduce((sum, month) => sum + (month.faults[vehicleId] || 0), 0);
 
-  const getTotalRepairs = (vehicleId) =>
+  const getTotalRepairs = vehicleId =>
     mockAnalytics.faults.reduce((sum, month) => sum + (month.repairs[vehicleId] || 0), 0);
 
   // Calculate grand totals for blocks
@@ -229,15 +233,25 @@ const Maintenance = () => {
             {/* Analytics summary blocks */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
               <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 flex flex-col items-center">
-                <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">{totalFaults}</span>
-                <span className="text-sm text-gray-600 dark:text-gray-300">Total Faults (4 months)</span>
+                <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                  {totalFaults}
+                </span>
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                  Total Faults (4 months)
+                </span>
               </div>
               <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 flex flex-col items-center">
-                <span className="text-2xl font-bold text-green-700 dark:text-green-300">{totalRepairs}</span>
-                <span className="text-sm text-gray-600 dark:text-gray-300">Total Repairs (4 months)</span>
+                <span className="text-2xl font-bold text-green-700 dark:text-green-300">
+                  {totalRepairs}
+                </span>
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                  Total Repairs (4 months)
+                </span>
               </div>
               <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 flex flex-col items-center">
-                <span className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">{totalServices}</span>
+                <span className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                  {totalServices}
+                </span>
                 <span className="text-sm text-gray-600 dark:text-gray-300">Total Services</span>
               </div>
             </div>
@@ -256,12 +270,18 @@ const Maintenance = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {vehicles.map((v) => (
+                  {vehicles.map(v => (
                     <tr key={v.id}>
                       <td className="py-1 px-2 border">{getVehicleName(v.id)}</td>
-                      <td className="py-1 px-2 border">R{mockAnalytics.costs[v.id]?.monthly ?? '-'}</td>
-                      <td className="py-1 px-2 border">R{mockAnalytics.costs[v.id]?.quarterly ?? '-'}</td>
-                      <td className="py-1 px-2 border">R{mockAnalytics.costs[v.id]?.yearly ?? '-'}</td>
+                      <td className="py-1 px-2 border">
+                        R{mockAnalytics.costs[v.id]?.monthly ?? '-'}
+                      </td>
+                      <td className="py-1 px-2 border">
+                        R{mockAnalytics.costs[v.id]?.quarterly ?? '-'}
+                      </td>
+                      <td className="py-1 px-2 border">
+                        R{mockAnalytics.costs[v.id]?.yearly ?? '-'}
+                      </td>
                       <td className="py-1 px-2 border">{getServiceCount(v.id)}</td>
                       <td className="py-1 px-2 border">{getTotalFaults(v.id)}</td>
                       <td className="py-1 px-2 border">{getTotalRepairs(v.id)}</td>
@@ -315,7 +335,7 @@ const Maintenance = () => {
                   className="w-full border rounded p-2"
                 >
                   <option value="">Select vehicle</option>
-                  {vehicles.map((v) => (
+                  {vehicles.map(v => (
                     <option key={v.id} value={v.id}>
                       {v.name} ({v.id})
                     </option>
@@ -332,8 +352,10 @@ const Maintenance = () => {
                   className="w-full border rounded p-2"
                 >
                   <option value="">Select service</option>
-                  {serviceTypes.map((type) => (
-                    <option key={type} value={type}>{type}</option>
+                  {serviceTypes.map(type => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
                   ))}
                 </select>
               </div>

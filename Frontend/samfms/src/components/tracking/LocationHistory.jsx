@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Search, Calendar, Clock, Download, Filter } from 'lucide-react';
 
 const LocationHistory = ({ vehicles, drivers }) => {
@@ -10,7 +10,7 @@ const LocationHistory = ({ vehicles, drivers }) => {
   const [filterType, setFilterType] = useState('all');
 
   // Sample history data
-  const [historyData, setHistoryData] = useState([
+  const [historyData] = useState([
     {
       timestamp: '08:15 AM',
       type: 'start',

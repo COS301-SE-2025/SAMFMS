@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { useAuth, ROLES, PERMISSIONS } from './RBACUtils';
+import { useAuth, ROLES } from './RBACUtils';
 import { inviteUser, listUsers, updateUserPermissions, getRoles } from '../backend/API.js';
 
 const UserManagement = () => {
   const { hasPermission, hasRole } = useAuth();
   const [users, setUsers] = useState([]);
-  const [roles, setRoles] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -20,6 +19,15 @@ const UserManagement = () => {
   });
   const [showInviteForm, setShowInviteForm] = useState(false);
 
+  // Move useEffect before any conditional returns to comply with Rules of Hooks
+  useEffect(() => {
+    // Only load data if user has permission
+    if (hasPermission('users:manage') || hasRole(ROLES.ADMIN)) {
+      loadUsers();
+      loadRoles();
+    }
+  }, [hasPermission, hasRole]);
+
   // Only admin can access this component
   if (!hasPermission('users:manage') && !hasRole(ROLES.ADMIN)) {
     return (
@@ -30,11 +38,6 @@ const UserManagement = () => {
       </div>
     );
   }
-
-  useEffect(() => {
-    loadUsers();
-    loadRoles();
-  }, []);
 
   const loadUsers = async () => {
     try {
@@ -47,11 +50,10 @@ const UserManagement = () => {
       setLoading(false);
     }
   };
-
   const loadRoles = async () => {
     try {
-      const rolesData = await getRoles();
-      setRoles(rolesData);
+      await getRoles();
+      // Role data is typically used for dropdowns, but if not needed, we can remove this
     } catch (err) {
       console.error('Failed to load roles:', err);
     }

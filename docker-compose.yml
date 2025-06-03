@@ -145,7 +145,6 @@ services:
       start_period: 30s
     restart: no
     command: mongod --quiet --logpath /dev/null
-
   mcore:
     build: ./Core
     command: sh /app/start.sh
@@ -156,9 +155,12 @@ services:
         condition: service_healthy
       mongodb_core:
         condition: service_healthy
+      security_service:
+        condition: service_started
     restart: no
     environment:
       - MONGODB_URL=mongodb://mongodb_core:27017
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
 
   gps_service:
     build: ./Sblocks/gps

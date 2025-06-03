@@ -120,7 +120,7 @@ export const ROLES = {
   DRIVER: 'driver',
 };
 
-export default {
+const RBACUtils = {
   withPermission,
   withRole,
   withAnyRole,
@@ -131,3 +131,5 @@ export default {
   PERMISSIONS,
   ROLES,
 };
+
+export default RBACUtils;

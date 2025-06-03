@@ -160,6 +160,36 @@ class MessageQueueService:
         except Exception as e:
             logger.error(f"Failed to publish user deleted event: {e}")
             self.connection = None
+      def publish_service_status(self, status="up"):
+        """Publish service status to Core"""
+        try:
+            if not self.connection or self.connection.is_closed:
+                if not self.connect():
+                    logger.error("Cannot publish status: no connection to RabbitMQ")
+                    return
+                    
+            import time
+            message = {
+                "type": "service_status",
+                "service": "security",
+                "status": status,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+            }
+            
+            self.channel.queue_declare(queue="service_status", durable=True)
+            self.channel.basic_publish(
+                exchange='',
+                routing_key='service_status',
+                body=json.dumps(message).encode(),
+                properties=pika.BasicProperties(
+                    delivery_mode=1,
+                    content_type='application/json'
+                )
+            )
+            logger.info(f"Published security service status: {status}")
+        except Exception as e:
+            logger.error(f"Failed to publish service status: {e}")
+            self.connection = None
     
     def close(self):
         """Close RabbitMQ connection"""
