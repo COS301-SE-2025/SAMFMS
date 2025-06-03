@@ -3,48 +3,48 @@ from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import uvicorn
 import asyncio
+import aio_pika
 from contextlib import asynccontextmanager
 from database import db
 from logging_config import setup_logging, get_logger
 
-# Setup structured logging
+
 setup_logging()
 logger = get_logger(__name__)
 
-# Import the message consumer
 from rabbitmq.consumer import consume_messages
+from rabbitmq.admin import create_exchange
+from rabbitmq.producer import publish_message
 
-# Application lifespan events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle application startup and shutdown events."""
-    # Startup
-    logger.info("🚀 Core service starting up...")
+    logger.info("Core service starting up...")
     
-    # Test database connection
     try:
-        # Test MongoDB connection
         client = AsyncIOMotorClient("mongodb://host.docker.internal:27017")
         await client.admin.command('ping')
-        logger.info("✅ Successfully connected to MongoDB")
+        logger.info("Successfully connected to MongoDB")
         client.close()
     except Exception as e:
-        logger.error(f"❌ Failed to connect to MongoDB: {e}")
+        logger.error(f"Failed to connect to MongoDB: {e}")
     
-    # Start consuming messages from the service_status queue
+
     consumer_task = asyncio.create_task(consume_messages("service_status"))
+    await create_exchange("general", aio_pika.ExchangeType.FANOUT)
+    await publish_message("general", aio_pika.ExchangeType.FANOUT, {"message": "Core service started"})
+
     logger.info("Started consuming messages from service_status queue")
     
-    logger.info("✅ Core service startup completed")
+    logger.info("Core service startup completed")
     
     yield
     
-    # Shutdown
-    logger.info("🛑 Core service shutting down...")
-    # Cancel consumer task if it's still running
+
+    logger.info("Core service shutting down...")
     if not consumer_task.done():
         consumer_task.cancel()
-    logger.info("✅ Core service shutdown completed")
+    logger.info("Core service shutdown completed")
 
 app = FastAPI(
     title="SAMFMS Core Service",
@@ -53,7 +53,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS
 origins = [
     "http://localhost:3000",     # React development server
     "http://127.0.0.1:3000",
