@@ -118,14 +118,28 @@ async def signup(user_data: SignupRequest, request: Request):
         
         # Insert security data
         await security_users_collection.insert_one(security_user_data)
-        
+          # Prepare default preferences if none provided
+        user_preferences = user_data.preferences
+        if not user_preferences:
+            user_preferences = {
+                "theme": "light",
+                "animations": "true",
+                "email_alerts": "true",
+                "push_notifications": "true",
+                "timezone": "UTC-5 (Eastern Time)",
+                "date_format": "DD/MM/YYYY",
+                "two_factor": "false",
+                "activity_log": "true",
+                "session_timeout": "30 minutes"
+            }
+            
         # Publish user profile data to Users Dblock via message queue
         profile_message = UserCreatedMessage(
             user_id=user_id,
             full_name=user_data.full_name,
             phoneNo=user_data.phoneNo,
             details=user_data.details,
-            preferences=user_data.preferences
+            preferences=user_preferences
         )
         
         if mq_service.connection:
@@ -153,14 +167,14 @@ async def signup(user_data: SignupRequest, request: Request):
                 "role": role,
                 "is_first_user": is_first_user
             }
-        )
-        
+        )          
         return TokenResponse(
             access_token=access_token,
             token_type="bearer",
             user_id=user_id,
             role=role,
-            permissions=permissions
+            permissions=permissions,
+            preferences=user_preferences
         )
         
     except HTTPException:
@@ -258,13 +272,16 @@ async def login(login_data: LoginRequest, request: Request):
             action="successful_login",
             details={"ip_address": str(request.client.host)}
         )
+          # Fetch user preferences from Users Dblock
+        preferences = await get_user_preferences(security_user["user_id"])
         
         return TokenResponse(
             access_token=access_token,
             token_type="bearer",
             user_id=security_user["user_id"],
             role=security_user["role"],
-            permissions=user_permissions
+            permissions=user_permissions,
+            preferences=preferences
         )
         
     except HTTPException:
@@ -689,3 +706,18 @@ async def verify_user_permission(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error verifying permission: {str(e)}"
         )
+
+
+async def get_user_preferences(user_id: str) -> Dict:
+    """Get user preferences from Users Dblock"""
+    try:
+        response = requests.get(f"{USERS_DBLOCK_URL}/users/{user_id}")
+        if response.status_code == 200:
+            user_data = response.json()
+            return user_data.get("preferences", {})
+        else:
+            logger.warning(f"Failed to fetch user preferences from Users Dblock: {response.status_code}")
+            return {}
+    except Exception as e:
+        logger.error(f"Error fetching user preferences: {e}")
+        return {}

@@ -71,21 +71,28 @@ async def periodic_cleanup():
 
 app = FastAPI(
     title="SAMFMS Security Service",
-    description="Authentication and authorization service for SAMFMS",
+    description="Authentication and authorization for South African Fleet Management System",
     version="1.0.0",
     lifespan=lifespan
 )
 
-# Add middleware
+# Configure middleware
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
 # Include routers
 app.include_router(auth_router)
 
-# Health and metrics endpoints
-app.add_api_route("/health", health_check, methods=["GET"], tags=["Health"])
-app.add_api_route("/metrics", metrics_endpoint, methods=["GET"], tags=["Metrics"])
+# Health check endpoint
+@app.get("/health", tags=["Health"])
+async def simple_health_check():
+    """Simple health check endpoint"""
+    return {"status": "healthy", "service": "security"}
+
+# Detailed health metrics
+@app.get("/metrics", tags=["Monitoring"])
+async def metrics():
+    return await metrics_endpoint()
 
 
 @app.get("/", tags=["Root"])

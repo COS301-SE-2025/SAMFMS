@@ -1,4 +1,4 @@
-const hostname = 'localhost:8001';  // Core service port
+const hostname = 'localhost:8000'; // Core service port
 
 export const API_URL = `http://${hostname}`;
 

@@ -102,7 +102,17 @@ class SignupRequest(BaseModel):
     role: Optional[str] = None  # No default role - must be assigned
     phoneNo: Optional[str] = None
     details: Dict = {}
-    preferences: Dict = {}
+    preferences: Dict = {
+        "theme": "light",
+        "animations": "true",
+        "email_alerts": "true",
+        "push_notifications": "true",
+        "timezone": "UTC-5 (Eastern Time)",
+        "date_format": "DD/MM/YYYY",
+        "two_factor": "false",
+        "activity_log": "true",
+        "session_timeout": "30 minutes"
+    }
 
 
 class InviteUserRequest(BaseModel):
@@ -127,6 +137,7 @@ class TokenResponse(BaseModel):
     user_id: str
     role: str
     permissions: List[str]
+    preferences: Dict = {}
 
 
 class MessageResponse(BaseModel):
