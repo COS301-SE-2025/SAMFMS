@@ -3,13 +3,17 @@ const hostname = 'localhost:8000';
 export const API_URL = `http://${hostname}`;
 
 export const API = {
-  login: `${API_URL}/login`,
-  signup: `${API_URL}/signup`,
-  logout: `${API_URL}/logout`,
-  me: `${API_URL}/me`,
-  users: `${API_URL}/users`,
-  changePassword: `${API_URL}/change-password`,
-  deleteAccount: `${API_URL}/account`,
+  login: `${API_URL}/auth/login`,
+  signup: `${API_URL}/auth/signup`,
+  logout: `${API_URL}/auth/logout`,
+  me: `${API_URL}/auth/me`,
+  users: `${API_URL}/auth/users`,
+  changePassword: `${API_URL}/auth/change-password`,
+  deleteAccount: `${API_URL}/auth/account`,
+  inviteUser: `${API_URL}/auth/invite-user`,
+  updatePermissions: `${API_URL}/auth/update-permissions`,
+  getRoles: `${API_URL}/auth/roles`,
+  verifyPermission: `${API_URL}/auth/verify-permission`,
 };
 
 export const signup = async (
@@ -17,8 +21,7 @@ export const signup = async (
   email: string,
   password: string,
   confirmPassword: string,
-  phoneNo?: string,
-  role?: string
+  phoneNo?: string
 ): Promise<Response | Error> => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
@@ -29,7 +32,7 @@ export const signup = async (
     throw new Error('Passwords do not match');
   }
 
-  const response = await fetch(`${API_URL}/signup`, {
+  const response = await fetch(`${API_URL}/auth/signup`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -39,7 +42,7 @@ export const signup = async (
       email,
       password,
       phoneNo,
-      role: role || 'user',
+      // No role specified - will be assigned based on first user logic or require invitation
     }),
   });
 
@@ -52,7 +55,7 @@ export const login = async (email: string, password: string): Promise<any> => {
     throw new Error('Invalid email format');
   }
 
-  const response = await fetch(`${API_URL}/login`, {
+  const response = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -69,9 +72,16 @@ export const login = async (email: string, password: string): Promise<any> => {
   }
 
   const data = await response.json();
-  // Store token in localStorage
+  // Store token and user data with role and permissions
   localStorage.setItem('token', data.access_token);
-  localStorage.setItem('user', JSON.stringify(data.user));
+  localStorage.setItem(
+    'user',
+    JSON.stringify({
+      id: data.user_id,
+      role: data.role,
+      permissions: data.permissions,
+    })
+  );
   return data;
 };
 

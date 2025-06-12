@@ -19,6 +19,7 @@ import Drivers from './pages/Drivers';
 import Tracking from './pages/Tracking';
 import Trips from './pages/Trips';
 import Maintenance from './pages/Maintenance';
+import UserManagement from './components/UserManagement';
 
 function App() {
   return (
@@ -29,7 +30,7 @@ function App() {
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          {/* Protected routes inside Layout */}
+          {/* Protected routes inside Layout */}{' '}
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Layout />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
@@ -42,6 +43,7 @@ function App() {
               <Route path="/account" element={<Account />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/plugins" element={<Plugins />} />
+              <Route path="/users" element={<UserManagement />} />
             </Route>
           </Route>
         </Routes>

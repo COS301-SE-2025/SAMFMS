@@ -70,10 +70,10 @@ const DriverDetailsModal = ({ driver, closeDriverDetails, openVehicleAssignmentM
                       .split(' ')
                       .map(name => name[0])
                       .join('')}
-                  </div>
+                  </div>{' '}
                   <div>
                     <h3 className="text-xl font-bold">{driver.name}</h3>
-                    <p className="text-muted-foreground">ID: {driver.id}</p>
+                    <p className="text-muted-foreground">Employee ID: {driver.employeeId}</p>
                     <StatusBadge status={driver.status} type={getStatusColor(driver.status)} />
                   </div>
                 </div>

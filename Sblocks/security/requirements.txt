@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+redis
+pika
+motor
+pymongo
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart
+email-validator
+requests
+pydantic[email]
+psutil

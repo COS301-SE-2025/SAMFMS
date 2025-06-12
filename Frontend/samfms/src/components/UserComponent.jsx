@@ -19,7 +19,17 @@ const UserComponent = () => {
   useEffect(() => {
     const currentUser = getCurrentUser();
     if (currentUser) {
-      setUser(currentUser);
+      // Map role to display name
+      const roleDisplayNames = {
+        admin: 'Administrator',
+        fleet_manager: 'Fleet Manager',
+        driver: 'Driver',
+      };
+
+      setUser({
+        ...currentUser,
+        role: roleDisplayNames[currentUser.role] || currentUser.role,
+      });
     }
   }, []);
 
