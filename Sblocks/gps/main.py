@@ -7,21 +7,17 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Import custom modules
 from logging_config import setup_logging, get_logger
 from connections import ConnectionManager
 from middleware import get_logging_middleware, get_security_middleware
 from health_metrics import get_health_status, get_metrics
 
-# Service configuration
 SERVICE_NAME = "gps-service"
 SERVICE_VERSION = "1.0.0"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
-# Initialize logging
 logger = setup_logging(SERVICE_NAME)
 
-# Initialize FastAPI app
 app = FastAPI(
     title="GPS Service",
     version=SERVICE_VERSION,
@@ -72,6 +68,12 @@ async def startup_event():
         logger.error("Failed to establish RabbitMQ connection")
     
     logger.info("GPS Service startup completed")
+
+    from rabbitmq.consumer import consume_messages
+    from rabbitmq.admin import create_exchange
+    from rabbitmq.producer import publish_message
+
+    
 
 
 @app.on_event("shutdown")
