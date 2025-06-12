@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import ThemeToggle from '../components/ThemeToggle';
-import { getCurrentUser, authFetch, API_URL } from '../backend/API';
+import { getCurrentUser, updatePreferences } from '../backend/api/auth';
 
 const Settings = () => {
   const [settings, setSettings] = useState({
@@ -36,7 +35,6 @@ const Settings = () => {
       [key]: value,
     }));
   };
-
   const handleSaveSettings = async () => {
     setLoading(true);
     setMessage('');
@@ -53,22 +51,10 @@ const Settings = () => {
         preferencesData[key.replace('-', '_')] = settings[key];
       });
 
-      const response = await authFetch(`${API_URL}/update-preferences`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ preferences: preferencesData }),
-      });
-
-      if (response.ok) {
-        setMessage('Settings saved successfully!');
-        // Update local storage
-        const updatedUser = { ...user, preferences: preferencesData };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-      } else {
-        throw new Error('Failed to save settings');
-      }
+      // Use the updatePreferences function from auth.js
+      await updatePreferences(preferencesData);
+      setMessage('Settings saved successfully!');
+      // User data in localStorage is already updated by the updatePreferences function
     } catch (error) {
       setMessage('Error saving settings: ' + error.message);
     } finally {
@@ -138,7 +124,6 @@ const Settings = () => {
           settings={settings}
           handleSettingChange={handleSettingChange}
           options={[
-
             { id: 'email-alerts', label: 'Email Alerts', type: 'toggle' },
             { id: 'push-notifications', label: 'Push Notifications', type: 'toggle' },
           ]}
@@ -174,7 +159,6 @@ const Settings = () => {
           settings={settings}
           handleSettingChange={handleSettingChange}
           options={[
-
             { id: 'two-factor', label: 'Two-factor Authentication', type: 'toggle' },
             { id: 'activity-log', label: 'Activity Logging', type: 'toggle' },
             {
@@ -185,7 +169,6 @@ const Settings = () => {
             },
           ]}
         />
-
       </div>{' '}
       {message && (
         <div
@@ -240,7 +223,6 @@ const SettingsSection = ({ title, description, options, settings, handleSettingC
                     className="sr-only peer"
                   />
                   <span
-
                     className={`absolute left-1 top-1 w-4 h-4 rounded-full transition-all duration-200 ${
                       settings[option.id] === 'true' ? 'bg-primary translate-x-6' : 'bg-foreground'
                     }`}

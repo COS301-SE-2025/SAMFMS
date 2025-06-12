@@ -1,10 +1,20 @@
 #!/bin/bash
 
-# Create directory for MongoDB data if it doesn't exist
-mkdir -p /data/db
+# Wait for Redis to be ready
+echo "Waiting for Redis..."
+while ! nc -z redis 6379; do
+    sleep 1
+done
+echo "Redis is ready!"
 
-# Start MongoDB
-mongod --fork --logpath /var/log/mongodb.log --dbpath /data/db
+# Wait for RabbitMQ to be ready
+echo "Waiting for RabbitMQ..."
+while ! nc -z rabbitmq 5672; do
+    sleep 1
+done
+echo "RabbitMQ is ready!"
 
-# Start Uvicorn
+# Start the GPS service
+echo "Starting GPS Service..."
 uvicorn main:app --host 0.0.0.0 --port 8000
+

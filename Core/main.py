@@ -1,20 +1,58 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import uvicorn
 import asyncio
-import logging
-from rabbitmq import producer, consumer, admin
-from routes import user
-from routes import auth
-from routes import vehicle
-from routes import driver
+from contextlib import asynccontextmanager
+
 from database import db
+from logging_config import setup_logging, get_logger
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Setup structured logging
+setup_logging()
+logger = get_logger(__name__)
 
-app = FastAPI()
+# Import the message consumer
+from rabbitmq.consumer import consume_messages
+
+# Application lifespan events
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handle application startup and shutdown events."""
+    # Startup
+    logger.info("🚀 Core service starting up...")
+    
+    # Test database connection
+    try:
+        # Test MongoDB connection
+        client = AsyncIOMotorClient("mongodb://host.docker.internal:27017")
+        await client.admin.command('ping')
+        logger.info("✅ Successfully connected to MongoDB")
+        client.close()
+    except Exception as e:
+        logger.error(f"❌ Failed to connect to MongoDB: {e}")
+    
+    # Start consuming messages from the service_status queue
+    consumer_task = asyncio.create_task(consume_messages("service_status"))
+    logger.info("Started consuming messages from service_status queue")
+    
+    logger.info("✅ Core service startup completed")
+    
+    yield
+    
+    # Shutdown
+    logger.info("🛑 Core service shutting down...")
+    # Cancel consumer task if it's still running
+    if not consumer_task.done():
+        consumer_task.cancel()
+    logger.info("✅ Core service shutdown completed")
+
+app = FastAPI(
+    title="SAMFMS Core Service",
+    description="Central API gateway for South African Fleet Management System",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
 # Configure CORS
 origins = [
@@ -32,75 +70,21 @@ app.add_middleware(
     allow_headers=["*"],        # Allow all headers
 )
 
-app.include_router(user.router)
-app.include_router(auth.router)
-app.include_router(vehicle.router)
-app.include_router(driver.router)
+# Import and include the auth router
+from routes.auth import router as auth_router
+app.include_router(auth_router)
 
 
-
-
-
-
-@app.get("/")
-async def root():
-    return {"message": "SAMFMS API is running"}
-
-@app.on_event("startup")
-
-async def startup_event():
-
-    await admin.broadcast_topics()
-
-    async def safe_consume():
-
-        try:
-
-            await consumer.consume_messages("user_events")
-
-        except Exception as e:
-
-            logger.error(f"Error in consumer: {e}")
-
-
-
-    asyncio.create_task(safe_consume())
-
-
-
-
-
-@app.post("/send/")
-
-async def send_message(data: dict):
-
-    try:
-
-        await producer.publish_message("user_events", data)
-
-        return {"status": "message sent"}
-
-    except Exception as e:
-
-        logger.error(f"Failed to send message: {str(e)}")
-
-        raise HTTPException(status_code=500, detail="Failed to send message")
-
-
-
-
-
-#await producer.publish_message("user.created", {"id": 1, "name": "Alice"})
-
-
-
-
-#####################################################################################################################
-client = AsyncIOMotorClient("mongodb://host.docker.internal:27017")
-db = client.mcore
-users_collection = db.users
-
+# Add a route for health checks (needed by Security middleware)
+@app.get("/health", tags=["Health"])
+async def health_check():
+    return {"status": "healthy"}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-    
+    logger.info("🚀 Starting Core service...")
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=8000,
+        log_config=None  # Use our custom logging configuration
+    )

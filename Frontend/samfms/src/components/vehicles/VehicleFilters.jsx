@@ -1,7 +1,40 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Filter, ChevronDown, X } from 'lucide-react';
 
 const VehicleFilters = ({ filterOpen, setFilterOpen, onApplyFilters, onResetFilters }) => {
+  const [filters, setFilters] = useState({
+    status: '',
+    make: '',
+    year: '',
+    department: '',
+    fuelType: '',
+  });
+
+  const handleChange = e => {
+    const { name, value } = e.target;
+    setFilters(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleApply = () => {
+    onApplyFilters(filters);
+    setFilterOpen(false);
+  };
+
+  const handleReset = () => {
+    setFilters({
+      status: '',
+      make: '',
+      year: '',
+      department: '',
+      fuelType: '',
+    });
+    onResetFilters();
+    setFilterOpen(false);
+  };
+
   return (
     <div className="relative">
       <button
@@ -17,7 +50,6 @@ const VehicleFilters = ({ filterOpen, setFilterOpen, onApplyFilters, onResetFilt
           <div className="flex justify-between items-center mb-3">
             <h3 className="font-medium">Filter Vehicles</h3>
             <div className="flex items-center gap-2">
-              <button className="text-xs text-primary">Save Filter</button>
               <button
                 onClick={() => setFilterOpen(false)}
                 className="text-muted-foreground hover:text-foreground"
@@ -29,66 +61,74 @@ const VehicleFilters = ({ filterOpen, setFilterOpen, onApplyFilters, onResetFilt
           <div className="space-y-3">
             <div>
               <label className="text-sm font-medium block mb-1">Status</label>
-              <select className="w-full border border-border rounded-md bg-background p-2">
+              <select
+                className="w-full border border-border rounded-md bg-background p-2"
+                name="status"
+                value={filters.status}
+                onChange={handleChange}
+              >
                 <option value="">All Statuses</option>
                 <option value="active">Active</option>
                 <option value="maintenance">Maintenance</option>
-                <option value="out-of-service">Out of Service</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1">Make</label>
+              <select
+                className="w-full border border-border rounded-md bg-background p-2"
+                name="make"
+                value={filters.make}
+                onChange={handleChange}
+              >
+                <option value="">All Makes</option>
+                <option value="Toyota">Toyota</option>
+                <option value="Ford">Ford</option>
+                <option value="Honda">Honda</option>
+                <option value="Volkswagen">Volkswagen</option>
+                <option value="BMW">BMW</option>
+                <option value="Mercedes">Mercedes</option>
+                <option value="Nissan">Nissan</option>
               </select>
             </div>
             <div>
               <label className="text-sm font-medium block mb-1">Year</label>
-              <select className="w-full border border-border rounded-md bg-background p-2">
+              <select
+                className="w-full border border-border rounded-md bg-background p-2"
+                name="year"
+                value={filters.year}
+                onChange={handleChange}
+              >
                 <option value="">All Years</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
                 <option value="2023">2023</option>
                 <option value="2022">2022</option>
                 <option value="2021">2021</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium block mb-1">Department</label>
-              <select className="w-full border border-border rounded-md bg-background p-2">
-                <option value="">All Departments</option>
-                <option value="sales">Sales</option>
-                <option value="delivery">Delivery</option>
-                <option value="executive">Executive</option>
-                <option value="support">Support</option>
-                <option value="construction">Construction</option>
+                <option value="2020">2020</option>
               </select>
             </div>
             <div>
               <label className="text-sm font-medium block mb-1">Fuel Type</label>
-              <select className="w-full border border-border rounded-md bg-background p-2">
+              <select
+                className="w-full border border-border rounded-md bg-background p-2"
+                name="fuelType"
+                value={filters.fuelType}
+                onChange={handleChange}
+              >
                 <option value="">All Fuel Types</option>
-                <option value="gasoline">Gasoline</option>
+                <option value="petrol">Petrol</option>
                 <option value="diesel">Diesel</option>
                 <option value="hybrid">Hybrid</option>
                 <option value="electric">Electric</option>
               </select>
             </div>
-            <div>
-              <label className="text-sm font-medium block mb-1">Tags</label>
-              <div className="flex flex-wrap gap-1 mb-2">
-                <span className="bg-primary/10 text-primary text-xs px-2 py-1 rounded-full flex items-center">
-                  Executive <X size={12} className="ml-1 cursor-pointer" />
-                </span>
-                <span className="bg-primary/10 text-primary text-xs px-2 py-1 rounded-full flex items-center">
-                  Sales <X size={12} className="ml-1 cursor-pointer" />
-                </span>
-              </div>
-              <div className="relative">
-                <input
-                  className="w-full border border-border rounded-md bg-background p-2"
-                  placeholder="Add tag..."
-                />
-              </div>
-            </div>
             <div className="pt-2 flex justify-between">
-              <button onClick={onResetFilters} className="text-sm text-muted-foreground">
+              <button onClick={handleReset} className="text-sm text-muted-foreground">
                 Reset Filters
               </button>
               <button
-                onClick={onApplyFilters}
+                onClick={handleApply}
                 className="bg-primary text-primary-foreground px-3 py-1 rounded-md text-sm"
               >
                 Apply Filters

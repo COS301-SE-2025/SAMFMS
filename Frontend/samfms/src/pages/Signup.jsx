@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
-import { signup, isAuthenticated } from '../backend/API.js';
+import { signup, isAuthenticated } from '../backend/api/auth.js';
 
 const Signup = () => {
   const [fullName, setFullName] = useState('');
@@ -52,31 +52,6 @@ const Signup = () => {
       return 'Invalid email format';
     }
     return '';
-  };
-  // Calculate password strength for progress bar
-  const calculatePasswordStrength = password => {
-    if (!password) return 0;
-
-    let strength = 0;
-    // Length check
-    if (password.length >= 8) strength += 25;
-    // Contains uppercase
-    if (/[A-Z]/.test(password)) strength += 25;
-    // Contains lowercase
-    if (/[a-z]/.test(password)) strength += 25;
-    // Contains number
-    if (/\d/.test(password)) strength += 25;
-
-    return strength;
-  };
-
-  // Get password strength color and text
-  const getPasswordStrengthInfo = strength => {
-    if (strength === 0) return { color: 'gray-300', text: '' };
-    if (strength <= 25) return { color: 'red-500', text: 'Weak' };
-    if (strength <= 50) return { color: 'yellow-500', text: 'Fair' };
-    if (strength <= 75) return { color: 'blue-500', text: 'Good' };
-    return { color: 'green-500', text: 'Strong' };
   };
 
   // Validate password
