@@ -5,6 +5,7 @@ import uvicorn
 import asyncio
 import aio_pika
 from contextlib import asynccontextmanager
+
 from database import db
 from logging_config import setup_logging, get_logger
 
@@ -68,7 +69,15 @@ app.add_middleware(
     allow_headers=["*"],        # Allow all headers
 )
 
-# NOTE: All API endpoints have been removed from the Core service
+# Import and include the auth router
+from routes.auth import router as auth_router
+app.include_router(auth_router)
+
+
+# Add a route for health checks (needed by Security middleware)
+@app.get("/health", tags=["Health"])
+async def health_check():
+    return {"status": "healthy"}
 
 if __name__ == "__main__":
     logger.info("🚀 Starting Core service...")

@@ -34,6 +34,7 @@ async def publish_message(
         logger.info(f"Published message to {exchange_type} exchange '{exchange_name}': {message}")
     except Exception as e:
         logger.error(f"Failed to publish message to exchange '{exchange_name}': {str(e)}")
+
         raise
     finally:
         await connection.close()

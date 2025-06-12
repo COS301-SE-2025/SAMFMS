@@ -160,7 +160,7 @@ class MessageQueueService:
         except Exception as e:
             logger.error(f"Failed to publish user deleted event: {e}")
             self.connection = None
-      def publish_service_status(self, status="up"):
+    def publish_service_status(self, status="up"):
         """Publish service status to Core"""
         try:
             if not self.connection or self.connection.is_closed:

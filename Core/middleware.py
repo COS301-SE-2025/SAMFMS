@@ -1,6 +1,8 @@
 import logging
 import time
-from fastapi import Request, Response
+from fastapi import Request, Response, HTTPException
+import requests
+import os
 # Use Starlette BaseHTTPMiddleware directly since FastAPI version might be outdated
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -88,3 +90,46 @@ class HealthCheckMiddleware(BaseHTTPMiddleware):
             return response
         
         return await call_next(request)
+
+
+# Define the URL for the Security Sblock
+SECURITY_URL = os.getenv("SECURITY_URL", "http://security_service:8000")
+
+class SecurityServiceMiddleware:
+    """Middleware to check if the Security service is available"""
+    
+    def __init__(self):
+        self.security_service_available = False
+        self.last_check_time = 0
+        self.check_interval = 30  # seconds between availability checks
+    
+    async def __call__(self, request: Request, call_next):
+        # Only check auth endpoints
+        if request.url.path.startswith("/auth"):
+            current_time = time.time()
+            
+            # Only check availability periodically to avoid constant checks
+            if current_time - self.last_check_time > self.check_interval or not self.security_service_available:
+                self.last_check_time = current_time
+                try:
+                    # Simple health check to the security service
+                    response = requests.get(f"{SECURITY_URL}/health", timeout=2)
+                    if response.status_code == 200:
+                        self.security_service_available = True
+                        logger.info("Security service is available")
+                    else:
+                        self.security_service_available = False
+                        logger.warning(f"Security service returned status code: {response.status_code}")
+                except requests.RequestException as e:
+                    self.security_service_available = False
+                    logger.warning(f"Security service is not available: {e}")
+            
+            if not self.security_service_available:
+                return HTTPException(
+                    status_code=503,
+                    detail="Authentication service is currently unavailable. Please try again later."
+                )
+        
+        # Continue processing the request
+        response = await call_next(request)
+        return response

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, root_validator
 from typing import Optional, Dict, List
 from bson import ObjectId
 from datetime import datetime
@@ -34,6 +34,15 @@ class SecurityUser(BaseModel):
     password_reset_token: Optional[str] = None
     two_factor_enabled: bool = False
     permissions: list = []
+    approved: bool = False
+
+    @root_validator(pre=True)
+    def enforce_approved_based_on_role(cls, values):
+        role = values.get("role")
+        approved = values.get("approved", False)
+        if role == "admin":
+            values["approved"] = True
+        return values
     
     class Config:
         validate_by_name = True
@@ -102,7 +111,17 @@ class SignupRequest(BaseModel):
     role: Optional[str] = None  # No default role - must be assigned
     phoneNo: Optional[str] = None
     details: Dict = {}
-    preferences: Dict = {}
+    preferences: Dict = {
+        "theme": "light",
+        "animations": "true",
+        "email_alerts": "true",
+        "push_notifications": "true",
+        "timezone": "UTC-5 (Eastern Time)",
+        "date_format": "DD/MM/YYYY",
+        "two_factor": "false",
+        "activity_log": "true",
+        "session_timeout": "30 minutes"
+    }
 
 
 class InviteUserRequest(BaseModel):
@@ -127,6 +146,7 @@ class TokenResponse(BaseModel):
     user_id: str
     role: str
     permissions: List[str]
+    preferences: Dict = {}
 
 
 class MessageResponse(BaseModel):
