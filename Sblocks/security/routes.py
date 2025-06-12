@@ -101,18 +101,7 @@ async def signup(user_data: SignupRequest, request: Request):
                 )
             role = user_data.role
             permissions = get_role_permissions(role)
-            
-        user_preferences = {
-            "theme": "light",
-            "animations": "true",
-            "email_alerts": "true",
-            "push_notifications": "true",
-            "timezone": "UTC-5 (Eastern Time)",
-            "date_format": "DD/MM/YYYY",
-            "two_factor": "false",
-            "activity_log": "true",
-            "session_timeout": "30 minutes"
-        }
+        
         # Create security user record
         security_user_data = {
             "user_id": user_id,
@@ -124,15 +113,25 @@ async def signup(user_data: SignupRequest, request: Request):
             "two_factor_enabled": False,
             "permissions": permissions,
             "custom_permissions": None,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-            "user_preferences": user_data.preferences
+            "created_at": datetime.utcnow()
         }
         
         # Insert security data
         await security_users_collection.insert_one(security_user_data)
           # Prepare default preferences if none provided
-        
+        user_preferences = user_data.preferences
+        if not user_preferences:
+            user_preferences = {
+                "theme": "light",
+                "animations": "true",
+                "email_alerts": "true",
+                "push_notifications": "true",
+                "timezone": "UTC-5 (Eastern Time)",
+                "date_format": "DD/MM/YYYY",
+                "two_factor": "false",
+                "activity_log": "true",
+                "session_timeout": "30 minutes"
+            }
             
         # Publish user profile data to Users Dblock via message queue
         profile_message = UserCreatedMessage(
