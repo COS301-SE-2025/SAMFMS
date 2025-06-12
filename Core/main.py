@@ -4,6 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import uvicorn
 import asyncio
 from contextlib import asynccontextmanager
+
 from database import db
 from logging_config import setup_logging, get_logger
 
@@ -72,6 +73,7 @@ app.add_middleware(
 # Import and include the auth router
 from routes.auth import router as auth_router
 app.include_router(auth_router)
+
 
 # Add a route for health checks (needed by Security middleware)
 @app.get("/health", tags=["Health"])
