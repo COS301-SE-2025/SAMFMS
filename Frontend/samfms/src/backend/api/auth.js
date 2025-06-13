@@ -44,7 +44,23 @@ export const getToken = () => {
 
 export const getCurrentUser = () => {
   const user = getCookie('user');
-  return user ? JSON.parse(user) : null;
+  const permissions = getCookie('permissions');
+  const preferences = getCookie('preferences');
+
+  if (!user) return null;
+
+  const userData = JSON.parse(user);
+
+  // Add permissions and preferences if available
+  if (permissions) {
+    userData.permissions = JSON.parse(permissions);
+  }
+
+  if (preferences) {
+    userData.preferences = JSON.parse(preferences);
+  }
+
+  return userData;
 };
 
 export const isAuthenticated = () => {
@@ -157,6 +173,18 @@ export const signup = async (full_name, email, password, confirmPassword, phoneN
   if (password !== confirmPassword) {
     throw new Error('Passwords do not match');
   }
+  // Define default preferences
+  const defaultPreferences = {
+    theme: 'light',
+    animations: 'true',
+    email_alerts: 'true',
+    push_notifications: 'true',
+    timezone: 'UTC-5 (Eastern Time)',
+    date_format: 'MM/DD/YYYY',
+    two_factor: 'false',
+    activity_log: 'true',
+    session_timeout: '30 minutes',
+  };
 
   try {
     console.log('Attempting signup for email:', email);
@@ -172,6 +200,7 @@ export const signup = async (full_name, email, password, confirmPassword, phoneN
           email,
           password,
           phoneNo,
+          preferences: defaultPreferences,
           // No role specified - will be assigned based on first user logic or require invitation
         }),
       },
@@ -180,6 +209,7 @@ export const signup = async (full_name, email, password, confirmPassword, phoneN
 
     if (response.ok) {
       const data = await response.json();
+      console.log('Signup response data:', data);
 
       // Store token and user data with role and permissions in cookies (30 days expiry)
       setCookie('token', data.access_token, 30);
@@ -188,7 +218,6 @@ export const signup = async (full_name, email, password, confirmPassword, phoneN
       if (data.refresh_token) {
         setCookie('refresh_token', data.refresh_token, 60); // Longer expiry for refresh token
       }
-
       setCookie(
         'user',
         JSON.stringify({
@@ -200,11 +229,17 @@ export const signup = async (full_name, email, password, confirmPassword, phoneN
 
       // Store permissions and preferences if available
       if (data.permissions) {
+        console.log('Storing permissions in cookie:', data.permissions);
         setCookie('permissions', JSON.stringify(data.permissions), 30);
       }
 
       if (data.preferences) {
+        console.log('Storing preferences in cookie:', data.preferences);
         setCookie('preferences', JSON.stringify(data.preferences), 30);
+      } else {
+        // If no preferences returned, store defaults
+        console.log('No preferences in response, storing defaults');
+        setCookie('preferences', JSON.stringify(defaultPreferences), 30);
       }
 
       // Clear user existence cache after successful signup
