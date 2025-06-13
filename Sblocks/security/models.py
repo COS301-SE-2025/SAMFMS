@@ -35,6 +35,7 @@ class SecurityUser(BaseModel):
     two_factor_enabled: bool = False
     permissions: list = []
     approved: bool = False
+    profile_picture_url: Optional[str] = None
 
     @root_validator(pre=True)
     def enforce_approved_based_on_role(cls, values):
@@ -199,3 +200,19 @@ class UserUpdatedMessage(BaseModel):
 
 class UserDeletedMessage(BaseModel):
     user_id: str
+
+
+class ProfileUpdateRequest(BaseModel):
+    """Model for updating user profile information"""
+    phoneNo: Optional[str] = None
+
+
+class ProfilePictureResponse(BaseModel):
+    """Response after uploading a profile picture"""
+    message: str
+    profile_picture_url: str
+
+
+class PreferencesUpdateRequest(BaseModel):
+    """Model for updating user preferences"""
+    preferences: Dict

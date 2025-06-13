@@ -23,6 +23,8 @@ import {
   getUserInfo,
   checkUserExistence,
   clearUserExistenceCache,
+  updateUserProfile,
+  uploadProfilePicture,
 } from './api/auth';
 
 // Re-export the auth functions for backward compatibility
@@ -49,6 +51,8 @@ export {
   hasAnyRole,
   getUserInfo,
   checkUserExistence,
+  updateUserProfile,
+  uploadProfilePicture,
   clearUserExistenceCache,
 };
 

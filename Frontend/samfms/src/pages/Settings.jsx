@@ -100,9 +100,12 @@ const Settings = () => {
       setLoading(false);
     }
   };
+  const handleResetDefaults = async () => {
+    setLoading(true);
+    setMessage('');
 
-  const handleResetDefaults = () => {
-    setSettings({
+    // Default settings in kebab-case (frontend format)
+    const defaultSettings = {
       theme: 'light',
       animations: 'true',
       'email-alerts': 'true',
@@ -112,8 +115,32 @@ const Settings = () => {
       'two-factor': 'false',
       'activity-log': 'true',
       'session-timeout': '30 minutes',
-    });
-    setMessage('Settings reset to defaults');
+    };
+
+    try {
+      const user = getCurrentUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Update local state first for immediate feedback
+      setSettings(defaultSettings);
+
+      // Convert to snake_case for backend
+      const preferencesData = {};
+      Object.keys(defaultSettings).forEach(key => {
+        preferencesData[key.replace(/-/g, '_')] = defaultSettings[key];
+      });
+
+      // Send to backend
+      await updatePreferences(preferencesData);
+      setMessage('Settings reset to defaults successfully!');
+    } catch (error) {
+      setMessage('Error resetting settings: ' + error.message);
+      console.error('Error resetting defaults:', error);
+    } finally {
+      setLoading(false);
+    }
   };
   return (
     <div className="container mx-auto py-8">

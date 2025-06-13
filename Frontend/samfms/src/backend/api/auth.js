@@ -35,6 +35,8 @@ export const AUTH_API = {
   getRoles: `${API_URL}/auth/roles`,
   verifyPermission: `${API_URL}/auth/verify-permission`,
   userExists: `${API_URL}/auth/user-exists`,
+  updateProfile: `${API_URL}/auth/update-profile`,
+  uploadProfilePicture: `${API_URL}/auth/upload-profile-picture`,
 };
 
 // Helper functions for auth management
@@ -367,23 +369,115 @@ export const updatePreferences = async preferences => {
     throw new Error('No authentication token found');
   }
 
-  const response = await fetch(AUTH_API.updatePreferences, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ preferences }),
-  });
+  try {
+    const response = await fetchWithTimeout(
+      AUTH_API.updatePreferences,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ preferences }),
+      },
+      10000 // 10 second timeout
+    );
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || 'Failed to update preferences');
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to update preferences');
+    }
+
+    // Update preferences cookie
+    setCookie('preferences', JSON.stringify(preferences), 30);
+
+    return response.json();
+  } catch (error) {
+    console.error('Error updating preferences:', error);
+    throw error;
   }
-  // Update preferences cookie
-  setCookie('preferences', JSON.stringify(preferences), 30);
+};
 
-  return response.json();
+// Update User Profile
+export const updateUserProfile = async userData => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  try {
+    const response = await fetchWithTimeout(
+      AUTH_API.updateProfile,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(userData),
+      },
+      10000
+    ); // 10 second timeout
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to update profile');
+    }
+
+    // Update user data in cookies
+    const currentUser = getCurrentUser();
+    const updatedUser = { ...currentUser, ...userData };
+    setCookie('user', JSON.stringify(updatedUser), 30);
+
+    return response.json();
+  } catch (error) {
+    console.error('Profile update error:', error);
+    throw error;
+  }
+};
+
+// Upload Profile Picture
+export const uploadProfilePicture = async file => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('profile_picture', file);
+
+    const response = await fetchWithTimeout(
+      AUTH_API.uploadProfilePicture,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      },
+      20000
+    ); // 20 second timeout for file uploads
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to upload profile picture');
+    }
+
+    const data = await response.json();
+
+    // Update profile picture URL in user data cookie
+    const currentUser = getCurrentUser();
+    if (currentUser && data.profile_picture_url) {
+      currentUser.profile_picture_url = data.profile_picture_url;
+      setCookie('user', JSON.stringify(currentUser), 30);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Profile picture upload error:', error);
+    throw error;
+  }
 };
 
 // Admin Functions for User Management
@@ -522,19 +616,33 @@ export const getUserInfo = async () => {
     throw new Error('No authentication token found');
   }
 
-  const response = await fetch(AUTH_API.me, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  try {
+    const response = await fetchWithTimeout(
+      AUTH_API.me,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+      10000
+    ); // Increase timeout to 10 seconds
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || 'Failed to fetch user info');
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to fetch user info');
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error getting user info:', error);
+    // If we can't get user info from API, try to get it from cookies
+    const cookieUser = getCurrentUser();
+    if (cookieUser) {
+      return cookieUser;
+    }
+    throw error;
   }
-
-  return response.json();
 };
 
 // Utility function to create fetch requests with timeout
