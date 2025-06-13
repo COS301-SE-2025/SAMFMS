@@ -36,6 +36,7 @@ class SecurityUser(BaseModel):
     permissions: list = []
     approved: bool = False
     profile_picture_url: Optional[str] = None
+    full_name: Optional[str] = None
 
     @root_validator(pre=True)
     def enforce_approved_based_on_role(cls, values):
@@ -205,6 +206,7 @@ class UserDeletedMessage(BaseModel):
 class ProfileUpdateRequest(BaseModel):
     """Model for updating user profile information"""
     phoneNo: Optional[str] = None
+    full_name: Optional[str] = None
 
 
 class ProfilePictureResponse(BaseModel):

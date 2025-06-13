@@ -23,6 +23,7 @@ const Account = () => {
   const [profilePicture, setProfilePicture] = useState(null);
   const [editableData, setEditableData] = useState({
     phoneNo: '',
+    full_name: '',
   });
 
   const fileInputRef = useRef(null);
@@ -42,10 +43,10 @@ const Account = () => {
             phoneNo: cookieUser.phoneNo || '',
             ...cookieUser,
           };
-
           setUserData(userDataFromCookie);
           setEditableData({
             phoneNo: userDataFromCookie.phoneNo || '',
+            full_name: userDataFromCookie.full_name || '',
           });
 
           // Set profile picture if available
@@ -68,10 +69,10 @@ const Account = () => {
             const mergedData = {
               ...apiUserData,
             };
-
             setUserData(mergedData);
             setEditableData({
               phoneNo: mergedData.phoneNo || '',
+              full_name: mergedData.full_name || '',
             });
 
             // Update profile picture if available from API
@@ -165,6 +166,10 @@ const Account = () => {
       const updates = {};
       if (editableData.phoneNo !== userData.phoneNo) {
         updates.phoneNo = editableData.phoneNo;
+      }
+
+      if (editableData.full_name !== userData.full_name) {
+        updates.full_name = editableData.full_name;
       }
 
       if (Object.keys(updates).length === 0) {
@@ -326,16 +331,17 @@ const Account = () => {
             <div className="bg-card p-6 rounded-lg shadow-md border border-border mb-6">
               <h2 className="text-xl font-semibold mb-4">Personal Information</h2>
               <form className="space-y-4" onSubmit={handleSubmit}>
+                {' '}
                 <div>
                   <label className="block text-sm font-medium mb-1">Full Name</label>
                   <input
                     type="text"
-                    value={userData.full_name || ''}
-                    readOnly
-                    className="w-full p-2 border rounded-md bg-gray-50"
+                    value={editableData.full_name || ''}
+                    onChange={e => setEditableData({ ...editableData, full_name: e.target.value })}
+                    className="w-full p-2 border rounded-md focus:ring-primary-700 focus:border-primary-700"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Full name can only be changed by an administrator
+                    Your name as it appears in the system
                   </p>
                 </div>
                 <div>

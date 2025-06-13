@@ -36,6 +36,11 @@ class TokenResponse(BaseModel):
 
 class ProfileUpdateRequest(BaseModel):
     phoneNo: Optional[str] = None
+    full_name: Optional[str] = None
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 class PreferencesUpdateRequest(BaseModel):
     preferences: Dict
@@ -250,6 +255,66 @@ async def upload_profile_picture(request: Request, profile_picture: UploadFile =
         logger.error(f"Error uploading profile picture: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+@router.post("/update-preferences")
+async def update_preferences(request: Request, data: PreferencesUpdateRequest):
+    """Update user preferences"""
+    try:
+        # Get the token from the request
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        # Forward the request to the Security service
+        response = requests.post(
+            f"{SECURITY_URL}/auth/update-preferences",
+            headers={"Authorization": token},
+            json=data.dict(),
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Failed to update preferences")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+    except Exception as e:
+        logger.error(f"Error updating preferences: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/change-password")
+async def change_password(request: Request, data: ChangePasswordRequest):
+    """Forward change password request to Security service"""
+    try:
+        # Get the token from the request
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        # Forward the request to the Security service
+        response = requests.post(
+            f"{SECURITY_URL}/auth/change-password",
+            headers={"Authorization": token},
+            json=data.dict(),
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Failed to change password")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error changing password: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 @router.get("/me")
 async def get_user_info(request: Request):
     """Get current user information"""
@@ -279,30 +344,4 @@ async def get_user_info(request: Request):
         )
     except Exception as e:
         logger.error(f"Error getting user info: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-@router.post("/update-preferences")
-async def update_preferences(request: Request, data: PreferencesUpdateRequest):
-    """Update user preferences"""
-    try:
-        # Get the token from the request
-        token = request.headers.get("Authorization")
-        if not token:
-            raise HTTPException(status_code=401, detail="Not authenticated")
-        
-        # Forward the request to the Security service
-        response = requests.post(
-            f"{SECURITY_URL}/auth/update-preferences",
-            headers={"Authorization": token},
-            json=data.dict(),
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            detail = response.json().get("detail", "Failed to update preferences")
-            raise HTTPException(status_code=response.status_code, detail=detail)
-    except Exception as e:
-        logger.error(f"Error updating preferences: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

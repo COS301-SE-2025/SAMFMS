@@ -30,11 +30,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 security = HTTPBearer()
 
-# Define the URL for the Users Dblock
-USERS_DBLOCK_URL = os.getenv("USERS_DBLOCK_URL", "http://users_service:8000")
-
-# Users Dblock service URL
-USERS_DBLOCK_URL = os.getenv("USERS_DBLOCK_URL", "http://users_db_service:8009")
+# User profile data is now stored directly in the security_users_collection
+# No need for a separate Users Dblock service URL
 
 # Path for storing profile pictures
 PROFILE_PICTURES_DIR = os.path.join(os.getcwd(), "profile_pictures")
@@ -42,7 +39,8 @@ PROFILE_PICTURES_DIR = os.path.join(os.getcwd(), "profile_pictures")
 os.makedirs(PROFILE_PICTURES_DIR, exist_ok=True)
 
 # Public URL for accessing profile pictures
-PROFILE_PICTURES_URL = os.getenv("PROFILE_PICTURES_URL", "http://localhost:8000/profile_pictures")
+# Use relative URL instead of absolute URL for better compatibility
+PROFILE_PICTURES_URL = os.getenv("PROFILE_PICTURES_URL", "/static/profile_pictures")
 
 
 async def get_current_user(token: str = Depends(security)):
@@ -116,8 +114,7 @@ async def signup(user_data: SignupRequest, request: Request):
                 "two_factor": "false",
                 "activity_log": "true",
                 "session_timeout": "30 minutes"
-            }
-        # Create security user record
+            }        # Create security user record
         security_user_data = {
             "user_id": user_id,
             "email": user_data.email,
@@ -129,7 +126,8 @@ async def signup(user_data: SignupRequest, request: Request):
             "permissions": permissions,
             "custom_permissions": None,
             "created_at": datetime.utcnow(),
-            "preferences": user_preferences
+            "preferences": user_preferences,
+            "full_name": user_data.full_name  # Add full_name to the security user data
         }
         
         # Insert security data
@@ -403,17 +401,15 @@ async def get_current_user_info(
     current_user: dict = Depends(get_current_user)
 ):
     """Get current user information"""
-    try:
-        # Filter out sensitive fields
+    try:        # Filter out sensitive fields
         user_info = {
-            "user_id": current_user["user_id"],
+            "id": current_user["user_id"],  # Change key from user_id to id to match UserResponse model
             "email": current_user["email"],
-            "full_name": current_user["full_name"],
+            "full_name": current_user.get("full_name", ""), # Use get with default value in case it's missing
             "role": current_user["role"],
             "phoneNo": current_user.get("phoneNo"),
         }
-        
-        # Include additional fields if available
+          # Include additional fields if available
         if "preferences" in current_user:
             user_info["preferences"] = current_user["preferences"]
             
@@ -424,7 +420,11 @@ async def get_current_user_info(
             user_info["permissions"] = current_user["permissions"]
         else:
             # Get permissions for role
-            user_info["permissions"] = await get_role_permissions(current_user["role"])
+            user_info["permissions"] = get_role_permissions(current_user["role"])
+            
+        # Add is_active and last_login fields from the UserResponse model
+        user_info["is_active"] = current_user.get("is_active", True)
+        user_info["last_login"] = current_user.get("last_login")
             
         return user_info
         
@@ -712,14 +712,14 @@ async def verify_user_permission(
 
 
 async def get_user_preferences(user_id: str) -> Dict:
-    """Get user preferences from Users Dblock"""
+    """Get user preferences from security_users_collection"""
     try:
-        response = requests.get(f"{USERS_DBLOCK_URL}/users/{user_id}")
-        if response.status_code == 200:
-            user_data = response.json()
-            return user_data.get("preferences", {})
+        # Get user document from the security_users_collection
+        user_doc = await security_users_collection.find_one({"user_id": user_id})
+        if user_doc and "preferences" in user_doc:
+            return user_doc.get("preferences", {})
         else:
-            logger.warning(f"Failed to fetch user preferences from Users Dblock: {response.status_code}")
+            logger.warning(f"User preferences not found for user_id: {user_id}")
             return {}
     except Exception as e:
         logger.error(f"Error fetching user preferences: {e}")
@@ -764,58 +764,8 @@ async def get_user_count():
         )
 
 
-@router.post("/update-profile", response_model=MessageResponse)
-async def update_profile(
-    data: ProfileUpdateRequest,
-    current_user: SecurityUser = Depends(get_current_user)
-):
-    """Update user profile information"""
-    try:
-        # Get the user ID
-        user_id = current_user.get("user_id")
-        
-        # Prepare the update data for Users Dblock
-        update_data = {}
-        if data.phoneNo is not None:
-            update_data["phoneNo"] = data.phoneNo
-            
-        # If there's nothing to update, return early
-        if not update_data:
-            return {"message": "No changes to apply"}
-            
-        # Update user data in Users Dblock
-        try:
-            response = requests.patch(
-                f"{USERS_DBLOCK_URL}/users/{user_id}",
-                json=update_data,
-                timeout=10
-            )
-            
-            if response.status_code != 200:
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=f"Failed to update user profile in Users Dblock: {response.text}"
-                )
-        except requests.RequestException as e:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Users Dblock service unavailable: {str(e)}"
-            )
-            
-        # Log the event
-        await log_security_event(
-            "profile_update",
-            f"User {current_user.get('email')} updated profile information",
-            user_id=user_id
-        )
-        
-        return {"message": "Profile updated successfully"}
-    except Exception as e:
-        logger.error(f"Error updating profile: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update profile: {str(e)}"
-        )
+# The first update-profile endpoint was removed to avoid conflicts
+# Now using the implementation below that updates the security_users_collection directly
 
 
 @router.post("/upload-profile-picture", response_model=ProfilePictureResponse)
@@ -832,8 +782,7 @@ async def upload_profile_picture(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Only JPEG and PNG files are allowed"
-            )
-          # Create directory for profile pictures if it doesn't exist
+            )        # Create directory for profile pictures if it doesn't exist
         upload_dir = os.path.join("static", "profile_pictures")
         os.makedirs(upload_dir, exist_ok=True)
         
@@ -846,9 +795,8 @@ async def upload_profile_picture(
         # Save the file
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(profile_picture.file, buffer)
-        
-        # Generate URL for the profile picture
-        profile_picture_url = f"/static/profile_pictures/{unique_filename}"
+          # Generate URL for the profile picture
+        profile_picture_url = f"{PROFILE_PICTURES_URL}/{unique_filename}"
         
         # Update user record with profile picture URL
         result = await security_users_collection.update_one(
@@ -897,10 +845,12 @@ async def update_profile(
     try:
         # Prepare update data
         update_data = {}
-        
-        # Only include non-None fields in the update
+          # Only include non-None fields in the update
         if profile_data.phoneNo is not None:
             update_data["phoneNo"] = profile_data.phoneNo
+            
+        if profile_data.full_name is not None:
+            update_data["full_name"] = profile_data.full_name
             
         if not update_data:
             return MessageResponse(message="No changes to update")
@@ -983,21 +933,8 @@ async def update_preferences(
         
         if result.matched_count == 0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        
-        # Try to update the user preferences in the Users Dblock
-        try:
-            users_url = os.environ.get("USERS_DBLOCK_URL", "http://users_service:8000")
-            user_update_response = requests.post(
-                f"{users_url}/users/{user_id}/preferences",
-                json={"preferences": preferences_data.preferences},
-                timeout=5
-            )
-            
-            if not user_update_response.ok:
-                logger.warning(f"Failed to update user preferences in Users Dblock: {user_update_response.status_code}")
-        except Exception as e:
-            # Log error but don't fail the request if Users Dblock is unavailable
-            logger.error(f"Error updating preferences in Users Dblock: {e}")
+          # No need to update preferences in a separate service - 
+        # Security service already stores preferences directly in the security_users_collection
         
         # Log preferences update
         await log_security_event(

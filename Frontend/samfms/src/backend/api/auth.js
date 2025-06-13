@@ -7,12 +7,23 @@ const getApiHostname = () => {
   // Check if we're running inside Docker (based on environment variable that can be set in docker-compose)
   const inDocker = process.env.REACT_APP_DOCKER === 'true';
 
-  // For development environments or when not specified, use localhost
+  // For development environments or when not specified, use the current host
   if (!inDocker) {
+    // When running in a browser, always use the current hostname
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname;
+      return `${host}:8000`;
+    }
     return 'localhost:8000';
   }
 
-  // For Docker environments
+  // In production browser environment, use the current hostname rather than Docker service name
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    return `${host}:8000`;
+  }
+
+  // For Docker environments (server-side)
   return 'core_service:8000';
 };
 
@@ -318,17 +329,21 @@ export const changePassword = async (currentPassword, newPassword) => {
     throw new Error('No authentication token found');
   }
 
-  const response = await fetch(AUTH_API.changePassword, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+  const response = await fetchWithTimeout(
+    AUTH_API.changePassword,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
     },
-    body: JSON.stringify({
-      current_password: currentPassword,
-      new_password: newPassword,
-    }),
-  });
+    10000 // 10 second timeout
+  );
 
   if (!response.ok) {
     const errorData = await response.json();
@@ -463,14 +478,18 @@ export const uploadProfilePicture = async file => {
       const errorData = await response.json();
       throw new Error(errorData.detail || 'Failed to upload profile picture');
     }
-
     const data = await response.json();
 
     // Update profile picture URL in user data cookie
     const currentUser = getCurrentUser();
     if (currentUser && data.profile_picture_url) {
-      currentUser.profile_picture_url = data.profile_picture_url;
-      setCookie('user', JSON.stringify(currentUser), 30);
+      // Create a new object to ensure the cookie is updated
+      const updatedUser = {
+        ...currentUser,
+        profile_picture_url: data.profile_picture_url,
+      };
+      // Update the cookie with the refreshed data
+      setCookie('user', JSON.stringify(updatedUser), 30);
     }
 
     return data;
@@ -613,10 +632,12 @@ export const hasAnyRole = roles => {
 export const getUserInfo = async () => {
   const token = getToken();
   if (!token) {
-    throw new Error('No authentication token found');
+    console.warn('No authentication token found, using cookie data');
+    return getCurrentUser() || {};
   }
 
   try {
+    console.log('Fetching user info from:', AUTH_API.me);
     const response = await fetchWithTimeout(
       AUTH_API.me,
       {
@@ -629,19 +650,28 @@ export const getUserInfo = async () => {
     ); // Increase timeout to 10 seconds
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || 'Failed to fetch user info');
+      console.warn(`Failed to fetch user info: ${response.status}`);
+      throw new Error('Failed to fetch user info from API');
+    }
+    const data = await response.json();
+    console.log('Got user data:', data);
+
+    // Normalize data structure - ensure user_id exists for backward compatibility
+    if (data.id && !data.user_id) {
+      data.user_id = data.id;
     }
 
-    return response.json();
+    return data;
   } catch (error) {
     console.error('Error getting user info:', error);
-    // If we can't get user info from API, try to get it from cookies
+    // If we can't get user info from API, use the data from cookies
     const cookieUser = getCurrentUser();
     if (cookieUser) {
+      console.log('Using cookie data instead:', cookieUser);
       return cookieUser;
     }
-    throw error;
+    // Return empty object to prevent further errors
+    return {};
   }
 };
 
@@ -651,14 +681,32 @@ const fetchWithTimeout = async (url, options = {}, timeout = 5000) => {
   const id = setTimeout(() => controller.abort(), timeout);
 
   try {
+    // Log the request in development
+    console.log(`Fetching ${url}...`);
+
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
     });
     clearTimeout(id);
+
+    // Log response status
+    console.log(`${url} responded with status: ${response.status}`);
+
     return response;
   } catch (error) {
     clearTimeout(id);
+    console.error(`Request to ${url} failed:`, error);
+
+    // Enhance error message for common issues
+    if (error.name === 'AbortError') {
+      throw new Error(`Request to ${url} timed out after ${timeout}ms`);
+    } else if (error.message && error.message.includes('Failed to fetch')) {
+      throw new Error(
+        `Network error when connecting to ${url}. The service may be down or unreachable.`
+      );
+    }
+
     throw error;
   }
 };
