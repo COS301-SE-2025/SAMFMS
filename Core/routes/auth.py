@@ -154,3 +154,38 @@ async def auth_health():
         "security_service": security_status,
         "security_url": SECURITY_URL
     }
+
+@router.get("/user-exists")
+async def check_user_existence():
+    """Check if any users exist in the system"""
+    try:
+        # Forward the request to the Security service
+        response = requests.get(
+            f"{SECURITY_URL}/auth/user-exists",
+            timeout=5
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            # Fallback: Try to get user count if direct endpoint doesn't exist
+            count_response = requests.get(
+                f"{SECURITY_URL}/auth/users/count",
+                timeout=5
+            )
+            
+            if count_response.status_code == 200:
+                data = count_response.json()
+                return {"userExists": data.get("count", 0) > 0}
+            else:
+                logger.warning(f"Failed to check user existence: {response.status_code}")
+                # Default to true for security (better to show login than expose signup unnecessarily)
+                return {"userExists": True}
+                
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service when checking user existence: {e}")
+        # Default to true if we can't connect to the security service
+        return {"userExists": True}
+    except Exception as e:
+        logger.error(f"Error checking user existence: {e}")
+        return {"userExists": True}

@@ -720,3 +720,31 @@ async def invite_user_redirect(
     """Redirect old invite-user endpoint to the new add-user endpoint for backward compatibility"""
     # Simply call the add_user function with the same parameters
     return await add_user(invite_data, credentials)
+
+
+@router.get("/user-exists")
+async def check_user_existence():
+    """Check if any users exist in the system"""
+    try:
+        # Count users in the security database
+        user_count = await security_users_collection.count_documents({})
+        return {"userExists": user_count > 0}
+    except Exception as e:
+        logger.error(f"Error checking user existence: {e}")
+        # Default to true as a security precaution
+        return {"userExists": True}
+
+
+@router.get("/users/count")
+async def get_user_count():
+    """Get the count of users in the system"""
+    try:
+        # Count users in the security database
+        user_count = await security_users_collection.count_documents({})
+        return {"count": user_count}
+    except Exception as e:
+        logger.error(f"Error counting users: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error counting users: {str(e)}"
+        )
