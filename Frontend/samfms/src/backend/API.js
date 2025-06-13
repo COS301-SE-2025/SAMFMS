@@ -21,6 +21,10 @@ import {
   hasRole,
   hasAnyRole,
   getUserInfo,
+  checkUserExistence,
+  clearUserExistenceCache,
+  updateUserProfile,
+  uploadProfilePicture,
 } from './api/auth';
 
 // Re-export the auth functions for backward compatibility
@@ -46,6 +50,10 @@ export {
   hasRole,
   hasAnyRole,
   getUserInfo,
+  checkUserExistence,
+  updateUserProfile,
+  uploadProfilePicture,
+  clearUserExistenceCache,
 };
 
 // Driver API endpoints - Now served by Management Service

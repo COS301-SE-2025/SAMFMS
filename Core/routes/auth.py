@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, Field
 from typing import Dict, List, Optional
@@ -33,6 +33,17 @@ class TokenResponse(BaseModel):
     role: str
     permissions: List[str]
     preferences: Dict = {}
+
+class ProfileUpdateRequest(BaseModel):
+    phoneNo: Optional[str] = None
+    full_name: Optional[str] = None
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+class PreferencesUpdateRequest(BaseModel):
+    preferences: Dict
 
 @router.post("/login", response_model=TokenResponse)
 async def login(login_request: LoginRequest):
@@ -154,3 +165,183 @@ async def auth_health():
         "security_service": security_status,
         "security_url": SECURITY_URL
     }
+
+@router.get("/user-exists")
+async def check_user_existence():
+    """Check if any users exist in the system"""
+    try:
+        # Forward the request to the Security service
+        response = requests.get(
+            f"{SECURITY_URL}/auth/user-exists",
+            timeout=5
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            # Fallback: Try to get user count if direct endpoint doesn't exist
+            count_response = requests.get(
+                f"{SECURITY_URL}/auth/users/count",
+                timeout=5
+            )
+            
+            if count_response.status_code == 200:
+                data = count_response.json()
+                return {"userExists": data.get("count", 0) > 0}
+            else:
+                logger.warning(f"Failed to check user existence: {response.status_code}")
+                # Default to true for security (better to show login than expose signup unnecessarily)
+                return {"userExists": True}
+                
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service when checking user existence: {e}")
+        # Default to true if we can't connect to the security service
+        return {"userExists": True}
+    except Exception as e:
+        logger.error(f"Error checking user existence: {e}")
+        return {"userExists": True}
+
+@router.post("/update-profile")
+async def update_profile(request: Request, data: ProfileUpdateRequest):
+    """Update user profile information"""
+    try:
+        # Get the token from the request
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        # Forward the request to the Security service
+        response = requests.post(
+            f"{SECURITY_URL}/auth/update-profile",
+            headers={"Authorization": token},
+            json=data.dict(exclude_none=True),
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Failed to update profile")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+    except Exception as e:
+        logger.error(f"Error updating profile: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.post("/upload-profile-picture")
+async def upload_profile_picture(request: Request, profile_picture: UploadFile = File(...)):
+    """Upload and update user profile picture"""
+    try:
+        # Get the token from the request
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        # Forward the request and file to the Security service
+        files = {"profile_picture": (profile_picture.filename, profile_picture.file, profile_picture.content_type)}
+        
+        response = requests.post(
+            f"{SECURITY_URL}/auth/upload-profile-picture",
+            headers={"Authorization": token},
+            files=files,
+            timeout=30  # Longer timeout for file upload
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Failed to upload profile picture")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+    except Exception as e:
+        logger.error(f"Error uploading profile picture: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.post("/update-preferences")
+async def update_preferences(request: Request, data: PreferencesUpdateRequest):
+    """Update user preferences"""
+    try:
+        # Get the token from the request
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        # Forward the request to the Security service
+        response = requests.post(
+            f"{SECURITY_URL}/auth/update-preferences",
+            headers={"Authorization": token},
+            json=data.dict(),
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Failed to update preferences")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+    except Exception as e:
+        logger.error(f"Error updating preferences: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/change-password")
+async def change_password(request: Request, data: ChangePasswordRequest):
+    """Forward change password request to Security service"""
+    try:
+        # Get the token from the request
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        # Forward the request to the Security service
+        response = requests.post(
+            f"{SECURITY_URL}/auth/change-password",
+            headers={"Authorization": token},
+            json=data.dict(),
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Failed to change password")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error changing password: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/me")
+async def get_user_info(request: Request):
+    """Get current user information"""
+    try:
+        # Get the token from the request
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        # Forward the request to the Security service
+        response = requests.get(
+            f"{SECURITY_URL}/auth/me",
+            headers={"Authorization": token},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Failed to get user information")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error getting user info: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

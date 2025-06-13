@@ -35,6 +35,8 @@ class SecurityUser(BaseModel):
     two_factor_enabled: bool = False
     permissions: list = []
     approved: bool = False
+    profile_picture_url: Optional[str] = None
+    full_name: Optional[str] = None
 
     @root_validator(pre=True)
     def enforce_approved_based_on_role(cls, values):
@@ -125,10 +127,11 @@ class SignupRequest(BaseModel):
 
 
 class InviteUserRequest(BaseModel):
-    """Admin/Fleet Manager can invite users with specific roles"""
+    """Admin/Fleet Manager can add users with specific roles"""
     full_name: str
     email: EmailStr
-    role: str  # Required - either "fleet_manager" or "driver"
+    password: str  # Password for the new user
+    role: str  # Required - either "admin", "fleet_manager" or "driver"
     phoneNo: Optional[str] = None
     details: Dict = {}
     preferences: Dict = {}
@@ -198,3 +201,20 @@ class UserUpdatedMessage(BaseModel):
 
 class UserDeletedMessage(BaseModel):
     user_id: str
+
+
+class ProfileUpdateRequest(BaseModel):
+    """Model for updating user profile information"""
+    phoneNo: Optional[str] = None
+    full_name: Optional[str] = None
+
+
+class ProfilePictureResponse(BaseModel):
+    """Response after uploading a profile picture"""
+    message: str
+    profile_picture_url: str
+
+
+class PreferencesUpdateRequest(BaseModel):
+    """Model for updating user preferences"""
+    preferences: Dict

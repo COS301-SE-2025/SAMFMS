@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
-import { Link, useNavigate } from 'react-router-dom';
-import { login, isAuthenticated } from '../backend/api/auth.js';
+import { useNavigate } from 'react-router-dom';
+import {
+  login,
+  isAuthenticated,
+  checkUserExistence,
+  clearUserExistenceCache,
+} from '../backend/API.js';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingUsers, setCheckingUsers] = useState(true);
   const [validationErrors, setValidationErrors] = useState({
     email: '',
     password: '',
@@ -17,12 +23,58 @@ const Login = () => {
     password: false,
   });
   const navigate = useNavigate();
-
   useEffect(() => {
     // If user is already authenticated, redirect to dashboard
     if (isAuthenticated()) {
       navigate('/dashboard');
-    }
+      return;
+    } // Flag to track if the component is still mounted
+    let isMounted = true; // Clear the cache when the Login component mounts to ensure fresh check
+    clearUserExistenceCache();
+
+    // Check if there are any users in the system
+    const checkUsers = async () => {
+      try {
+        // Only set loading state if component is still mounted
+        if (isMounted) setCheckingUsers(true);
+
+        // Add a safety timeout promise
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(new Error('User existence check timed out'));
+          }, 3000);
+        });
+
+        // Create a promise for the user existence check with a forced refresh
+        const userCheckPromise = checkUserExistence(true); // Force refresh
+
+        // Race the promises to handle timeout gracefully
+        const usersExist = await Promise.race([userCheckPromise, timeoutPromise]).catch(err => {
+          console.error('Error in checkUserExistence:', err);
+          return true; // Default to assuming users exist if there's an error/timeout
+        });
+
+        if (!isMounted) return; // Exit if component unmounted during the check
+
+        console.log('Users exist check result:', usersExist);
+
+        // If no users exist, redirect to signup page
+        if (usersExist === false) {
+          console.log('No users exist, redirecting to signup');
+          navigate('/signup');
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        console.error('Error checking user existence:', error);
+      } finally {
+        if (isMounted) setCheckingUsers(false);
+      }
+    };
+
+    checkUsers(); // Cleanup function
+    return () => {
+      isMounted = false;
+    };
   }, [navigate]);
   // Validate email
   const validateEmail = email => {
@@ -117,6 +169,17 @@ const Login = () => {
       setLoading(false);
     }
   };
+  // Display loading state while checking for users
+  if (checkingUsers) {
+    return (
+      <div className="min-h-screen flex justify-center items-center bg-primary-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-800 mx-auto mb-4"></div>
+          <p className="text-primary-800">Checking system...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row overflow-hidden">
@@ -149,7 +212,7 @@ const Login = () => {
           <img
             src="/logo/logo_dark.svg"
             alt="SAMFMS Logo"
-            className="h-64 mx-auto mb-6 animate-fadeIn animate-float hover:animate-pulse hover:animate-none transition-all duration-300 drop-shadow-xl transform hover:rotate-3 hover:brightness-110"
+            className="h-64 mx-auto mb-6 animate-fadeIn transition-all duration-300 drop-shadow-xl transform hover:rotate-3 hover:brightness-110"
           />
         </div>
       </div>
@@ -182,7 +245,7 @@ const Login = () => {
             <img
               src="/logo/logo_dark.svg"
               alt="SAMFMS Logo"
-              className="h-24 mx-auto mb-2 animate-fadeIn animate-float hover:animate-pulse hover:animate-none transition-all duration-300 drop-shadow-lg"
+              className="h-24 mx-auto mb-2 animate-fadeIn transition-all duration-300 drop-shadow-lg"
             />
             <p className="text-sm text-primary-700">Smart Fleet Management System</p>
           </div>
@@ -292,18 +355,9 @@ const Login = () => {
                   d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571
                   c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"
                 />
-              </svg>
+              </svg>{' '}
               Continue with Google
             </Button>
-            <div className="text-center text-sm text-primary-800 mt-4">
-              <span>Don't have an account? </span>
-              <Link
-                to="/signup"
-                className="font-medium text-primary-700 hover:text-primary-800 hover:underline transition-all duration-200"
-              >
-                Sign up
-              </Link>
-            </div>
           </form>
         </div>
       </div>

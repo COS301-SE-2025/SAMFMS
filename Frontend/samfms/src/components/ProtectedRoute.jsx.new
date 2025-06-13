@@ -6,6 +6,7 @@ const ProtectedRoute = () => {
   const [loading, setLoading] = useState(true);
   const [redirectTo, setRedirectTo] = useState('/login');
   const [error, setError] = useState(false);
+
   useEffect(() => {
     // Add a safety timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
@@ -14,7 +15,7 @@ const ProtectedRoute = () => {
         setLoading(false);
       }
     }, 5000); // 5 second maximum loading time
-
+    
     const checkAuthAndUsers = async () => {
       try {
         // First check if the user is already authenticated
@@ -25,7 +26,7 @@ const ProtectedRoute = () => {
 
         // Clear cache to ensure fresh check when determining routes
         clearUserExistenceCache();
-
+        
         // If no users exist in the system, redirect to signup instead of login
         const usersExist = await checkUserExistence(true);
         setRedirectTo(usersExist ? '/login' : '/signup');
@@ -40,8 +41,9 @@ const ProtectedRoute = () => {
     };
 
     checkAuthAndUsers();
+
     return () => clearTimeout(timeoutId); // Cleanup timeout on unmount
-  }, [loading]); // Added loading dependency to satisfy the ESLint rule
+  }, []);
 
   if (loading) {
     return (

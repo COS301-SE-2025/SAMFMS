@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
-import { Link, useNavigate } from 'react-router-dom';
-import { signup, isAuthenticated } from '../backend/api/auth.js';
+import { useNavigate } from 'react-router-dom';
+import {
+  signup,
+  isAuthenticated,
+  checkUserExistence,
+  clearUserExistenceCache,
+} from '../backend/API.js';
 
 const Signup = () => {
   const [fullName, setFullName] = useState('');
@@ -11,6 +16,7 @@ const Signup = () => {
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingUsers, setCheckingUsers] = useState(true);
   const [validationErrors, setValidationErrors] = useState({
     fullName: '',
     email: '',
@@ -26,13 +32,66 @@ const Signup = () => {
     phone: false,
   });
   const navigate = useNavigate();
-
   useEffect(() => {
     // If user is already authenticated, redirect to dashboard
     if (isAuthenticated()) {
       navigate('/dashboard');
-    }
-  }, [navigate]);
+      return;
+    } // Flag to track if component is still mounted
+    let isMounted = true;
+
+    // Clear the cache when the Signup component mounts to ensure fresh check
+    clearUserExistenceCache();
+
+    // Add a safety timeout to prevent infinite loading state
+    const timeoutId = setTimeout(() => {
+      if (isMounted) {
+        setCheckingUsers(false);
+        console.log('Safety timeout triggered in Signup');
+      }
+    }, 3000); // 3 second maximum loading time
+
+    // Check if users exist in the system
+    const checkUsers = async () => {
+      try {
+        if (isMounted) setCheckingUsers(true);
+
+        // For direct access to signup page, we need to check if users exist
+        // Force a fresh check rather than using cached data
+        const usersExist = await checkUserExistence(true).catch(err => {
+          console.error('Error in checkUserExistence:', err);
+          return null; // Return null to indicate unknown status
+        });
+
+        if (!isMounted) return; // Don't proceed if unmounted
+
+        console.log('Users exist check result in Signup:', usersExist);
+
+        // Only redirect if we're sure users exist, otherwise allow signup
+        if (usersExist === true) {
+          console.log('Users exist, redirecting to login');
+          setError('Direct signup is not allowed. Please contact an administrator.');
+          navigate('/login');
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error checking user existence:', error);
+        }
+      } finally {
+        if (isMounted) {
+          setCheckingUsers(false);
+        }
+      }
+    };
+
+    checkUsers();
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [navigate, setCheckingUsers]);
   // Validate full name
   const validateFullName = name => {
     if (!name.trim()) {
@@ -183,7 +242,6 @@ const Signup = () => {
         break;
     }
   };
-
   const handleSubmit = async e => {
     e.preventDefault();
 
@@ -219,19 +277,39 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      const response = await signup(fullName, email, password, confirmPassword, phone);
-      if (!response.ok) {
-        const data = await response.json();
+      // The signup function now processes the response and sets cookies directly
+      const result = await signup(fullName, email, password, confirmPassword, phone);
+
+      if (result.access_token) {
+        // Signup was successful and authentication data was stored in cookies
+        console.log('Signup successful, redirecting to dashboard');
+        // Redirect to dashboard instead of login
+        navigate('/dashboard');
+      } else if (!result.ok) {
+        // Handle case where signup function returns a response object
+        const data = await result.json();
         throw new Error(data.detail || 'Signup failed');
+      } else {
+        // Unexpected result format
+        throw new Error('Unexpected response format from signup');
       }
-      // Signup was successful, redirect to login
-      navigate('/login');
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
+  // Display loading state while checking for users
+  if (checkingUsers) {
+    return (
+      <div className="min-h-screen flex justify-center items-center bg-primary-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-800 mx-auto mb-4"></div>
+          <p className="text-primary-800">Checking system status...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row overflow-hidden">
@@ -264,7 +342,7 @@ const Signup = () => {
           <img
             src="/logo/logo_dark.svg"
             alt="SAMFMS Logo"
-            className="h-64 mx-auto mb-6 animate-fadeIn animate-float hover:animate-pulse hover:animate-none transition-all duration-300 drop-shadow-xl transform hover:rotate-3 hover:brightness-110"
+            className="h-64 mx-auto mb-6 animate-fadeIn transition-all duration-300 drop-shadow-xl transform hover:rotate-3 hover:brightness-110"
           />
         </div>
       </div>
@@ -297,7 +375,7 @@ const Signup = () => {
             <img
               src="/logo/logo_dark.svg"
               alt="SAMFMS Logo"
-              className="h-24 mx-auto mb-2 animate-fadeIn animate-float hover:animate-pulse hover:animate-none transition-all duration-300 drop-shadow-lg"
+              className="h-24 mx-auto mb-2 animate-fadeIn transition-all duration-300 drop-shadow-lg"
             />
             <p className="text-sm text-primary-700">Smart Fleet Management System</p>
           </div>
@@ -475,16 +553,7 @@ const Signup = () => {
                 />
               </svg>
               Continue with Google
-            </Button>
-            <div className="text-center text-sm text-primary-800 mt-4">
-              <span>Already have an account? </span>
-              <Link
-                to="/login"
-                className="font-medium text-primary-700 hover:text-primary-800 hover:underline transition-all duration-200"
-              >
-                Login
-              </Link>
-            </div>
+            </Button>{' '}
           </form>
         </div>
       </div>

@@ -1,14 +1,15 @@
-from fastapi import APIRouter, HTTPException, Depends, status, Request
+from fastapi import APIRouter, HTTPException, Depends, status, Request, File, UploadFile, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from models import (
     SignupRequest, InviteUserRequest, LoginRequest, TokenResponse, MessageResponse,
     ChangePasswordRequest, UpdatePermissionsRequest, SecurityUser, UserCreatedMessage,
-    UserDeletedMessage, UserResponse
+    UserDeletedMessage, UserResponse, ProfileUpdateRequest, ProfilePictureResponse,
+    PreferencesUpdateRequest
 )
 from auth_utils import (
     verify_password, get_password_hash, create_access_token,
     verify_access_token, get_current_user, get_role_permissions,
-    require_role, require_permission, ROLES, DEFAULT_FIRST_USER_ROLE,
+    require_role, require_permission, has_permission, ROLES, DEFAULT_FIRST_USER_ROLE,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 from database import (
@@ -23,13 +24,23 @@ import logging
 import uuid
 import requests
 import os
+import shutil
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 security = HTTPBearer()
 
-# Users Dblock service URL
-USERS_DBLOCK_URL = os.getenv("USERS_DBLOCK_URL", "http://users_db_service:8009")
+# User profile data is now stored directly in the security_users_collection
+# No need for a separate Users Dblock service URL
+
+# Path for storing profile pictures
+PROFILE_PICTURES_DIR = os.path.join(os.getcwd(), "profile_pictures")
+# Create directory if it doesn't exist
+os.makedirs(PROFILE_PICTURES_DIR, exist_ok=True)
+
+# Public URL for accessing profile pictures
+# Use relative URL instead of absolute URL for better compatibility
+PROFILE_PICTURES_URL = os.getenv("PROFILE_PICTURES_URL", "/static/profile_pictures")
 
 
 async def get_current_user(token: str = Depends(security)):
@@ -63,7 +74,7 @@ async def get_current_user(token: str = Depends(security)):
 
 @router.post("/signup", response_model=TokenResponse)
 async def signup(user_data: SignupRequest, request: Request):
-    """Create a new user account - first user becomes admin, others need invitation"""
+    """Create a new user account - only allows first user to become admin"""
     try:
         # Check if user already exists
         existing_user = await security_users_collection.find_one({"email": user_data.email})
@@ -77,10 +88,11 @@ async def signup(user_data: SignupRequest, request: Request):
         user_count = await security_users_collection.count_documents({})
         is_first_user = user_count == 0
         
-        if not is_first_user and not user_data.role:
+        # Only allow signup for the first user
+        if not is_first_user:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Role assignment required. Please contact an administrator for access."
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Direct signup is not allowed. Please contact an administrator to create an account."
             )
         
         # Generate unique user ID
@@ -88,21 +100,21 @@ async def signup(user_data: SignupRequest, request: Request):
         
         # Hash the password
         hashed_password = get_password_hash(user_data.password)
+          # First user is always admin
+        role = DEFAULT_FIRST_USER_ROLE  # "admin"
+        permissions = get_role_permissions(role)
         
-        # Determine role and permissions
-        if is_first_user:
-            role = DEFAULT_FIRST_USER_ROLE  # "admin"
-            permissions = get_role_permissions(role)
-        else:
-            if user_data.role not in ROLES:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid role. Valid roles: {list(ROLES.keys())}"
-                )
-            role = user_data.role
-            permissions = get_role_permissions(role)
-        
-        # Create security user record
+        user_preferences = {
+                "theme": "light",
+                "animations": "true",
+                "email_alerts": "true",
+                "push_notifications": "true",
+                "timezone": "UTC-5 (Eastern Time)",
+                "date_format": "DD/MM/YYYY",
+                "two_factor": "false",
+                "activity_log": "true",
+                "session_timeout": "30 minutes"
+            }        # Create security user record
         security_user_data = {
             "user_id": user_id,
             "email": user_data.email,
@@ -113,25 +125,16 @@ async def signup(user_data: SignupRequest, request: Request):
             "two_factor_enabled": False,
             "permissions": permissions,
             "custom_permissions": None,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
+            "preferences": user_preferences,
+            "full_name": user_data.full_name  # Add full_name to the security user data
         }
         
         # Insert security data
         await security_users_collection.insert_one(security_user_data)
           # Prepare default preferences if none provided
         user_preferences = user_data.preferences
-        if not user_preferences:
-            user_preferences = {
-                "theme": "light",
-                "animations": "true",
-                "email_alerts": "true",
-                "push_notifications": "true",
-                "timezone": "UTC-5 (Eastern Time)",
-                "date_format": "DD/MM/YYYY",
-                "two_factor": "false",
-                "activity_log": "true",
-                "session_timeout": "30 minutes"
-            }
+            
             
         # Publish user profile data to Users Dblock via message queue
         profile_message = UserCreatedMessage(
@@ -394,40 +397,42 @@ async def delete_account(
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: dict = Depends(get_current_user)):
-    """Get current user information by combining security and profile data"""
-    try:
-        # Get profile data from Users Dblock service
-        try:
-            response = requests.get(
-                f"{USERS_DBLOCK_URL}/users/{current_user['user_id']}",
-                timeout=5
-            )
-            if response.status_code == 200:
-                profile_data = response.json()
-            else:
-                profile_data = {}
-        except Exception as e:
-            logger.warning(f"Could not fetch profile data: {e}")
-            profile_data = {}
-        
-        return UserResponse(
-            id=current_user["user_id"],
-            full_name=profile_data.get("full_name", ""),
-            email=current_user["email"],
-            role=current_user["role"],
-            phoneNo=profile_data.get("phoneNo"),
-            details=profile_data.get("details", {}),
-            preferences=profile_data.get("preferences", {}),
-            is_active=current_user.get("is_active", True),
-            last_login=current_user.get("last_login")
-        )
+async def get_current_user_info(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get current user information"""
+    try:        # Filter out sensitive fields
+        user_info = {
+            "id": current_user["user_id"],  # Change key from user_id to id to match UserResponse model
+            "email": current_user["email"],
+            "full_name": current_user.get("full_name", ""), # Use get with default value in case it's missing
+            "role": current_user["role"],
+            "phoneNo": current_user.get("phoneNo"),
+        }
+          # Include additional fields if available
+        if "preferences" in current_user:
+            user_info["preferences"] = current_user["preferences"]
+            
+        if "profile_picture_url" in current_user:
+            user_info["profile_picture_url"] = current_user["profile_picture_url"]
+            
+        if "permissions" in current_user:
+            user_info["permissions"] = current_user["permissions"]
+        else:
+            # Get permissions for role
+            user_info["permissions"] = get_role_permissions(current_user["role"])
+            
+        # Add is_active and last_login fields from the UserResponse model
+        user_info["is_active"] = current_user.get("is_active", True)
+        user_info["last_login"] = current_user.get("last_login")
+            
+        return user_info
         
     except Exception as e:
-        logger.error(f"Error fetching user info: {e}")
+        logger.error(f"Error getting user info: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error fetching user info: {str(e)}"
+            detail=f"Error retrieving user information: {str(e)}"
         )
 
 
@@ -442,33 +447,33 @@ async def verify_token(current_user: dict = Depends(get_current_user)):
     }
 
 
-@router.post("/invite-user", response_model=MessageResponse)
-async def invite_user(
+@router.post("/add-user", response_model=MessageResponse)
+async def add_user(
     invite_data: InviteUserRequest,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    """Admin and Fleet Managers can invite new users to the system"""
+    """Admin can add any user, Fleet Managers can add only drivers"""
     try:
-        # Verify current user has permission to invite
+        # Verify current user has permission to add users
         current_user = verify_access_token(credentials.credentials)
         
-        # Check if user has permission to invite
+        # Check if user has permission to add users
         if current_user["role"] == "admin":
-            # Admin can invite anyone
-            allowed_roles = ["fleet_manager", "driver"]
+            # Admin can add admins, fleet managers and drivers
+            allowed_roles = ["admin", "fleet_manager", "driver"]
         elif current_user["role"] == "fleet_manager":
-            # Fleet managers can only invite drivers
+            # Fleet managers can only add drivers
             allowed_roles = ["driver"]
         else:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions to invite users"
+                detail="Insufficient permissions to add users"
             )
         
         if invite_data.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"You can only invite users with roles: {allowed_roles}"
+                detail=f"You can only add users with roles: {allowed_roles}"
             )
         
         # Check if user already exists
@@ -479,12 +484,12 @@ async def invite_user(
                 detail="User with this email already exists"
             )
         
-        # Generate temporary password (user will be required to change on first login)
-        temp_password = f"temp_{uuid.uuid4().hex[:8]}"
+        # Use the provided password
+        password = invite_data.password
         user_id = str(uuid.uuid4())
         
-        # Hash the temporary password
-        hashed_password = get_password_hash(temp_password)
+        # Hash the password
+        hashed_password = get_password_hash(password)
         
         # Determine permissions
         if invite_data.custom_permissions and current_user["role"] == "admin":
@@ -505,8 +510,8 @@ async def invite_user(
             "two_factor_enabled": False,
             "permissions": permissions,
             "custom_permissions": invite_data.custom_permissions if current_user["role"] == "admin" else None,
-            "requires_password_change": True,
-            "invited_by": current_user["user_id"],
+            "requires_password_change": False,
+            "created_by": current_user["user_id"],
             "created_at": datetime.utcnow()
         }
         
@@ -530,27 +535,25 @@ async def invite_user(
         # Log security event
         await log_security_event(
             user_id=current_user["user_id"],
-            action="user_invited",
+            action="user_added",
             details={
-                "invited_user_id": user_id,
-                "invited_email": invite_data.email,
-                "invited_role": invite_data.role
+                "added_user_id": user_id,
+                "email": invite_data.email,
+                "role": invite_data.role
             }
         )
         
-        # In a real system, you'd send an email with temp password
-        # For now, return it in the response (NOT recommended for production)
         return MessageResponse(
-            message=f"User invited successfully. Temporary password: {temp_password} (User must change on first login)"
+            message=f"User {invite_data.full_name} added successfully with role: {invite_data.role}"
         )
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Invite user error: {e}")
+        logger.error(f"Add user error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error inviting user: {str(e)}"
+            detail=f"Error adding user: {str(e)}"
         )
 
 
@@ -709,15 +712,245 @@ async def verify_user_permission(
 
 
 async def get_user_preferences(user_id: str) -> Dict:
-    """Get user preferences from Users Dblock"""
+    """Get user preferences from security_users_collection"""
     try:
-        response = requests.get(f"{USERS_DBLOCK_URL}/users/{user_id}")
-        if response.status_code == 200:
-            user_data = response.json()
-            return user_data.get("preferences", {})
+        # Get user document from the security_users_collection
+        user_doc = await security_users_collection.find_one({"user_id": user_id})
+        if user_doc and "preferences" in user_doc:
+            return user_doc.get("preferences", {})
         else:
-            logger.warning(f"Failed to fetch user preferences from Users Dblock: {response.status_code}")
+            logger.warning(f"User preferences not found for user_id: {user_id}")
             return {}
     except Exception as e:
         logger.error(f"Error fetching user preferences: {e}")
         return {}
+
+
+@router.post("/invite-user", response_model=MessageResponse)
+async def invite_user_redirect(
+    invite_data: InviteUserRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Redirect old invite-user endpoint to the new add-user endpoint for backward compatibility"""
+    # Simply call the add_user function with the same parameters
+    return await add_user(invite_data, credentials)
+
+
+@router.get("/user-exists")
+async def check_user_existence():
+    """Check if any users exist in the system"""
+    try:
+        # Count users in the security database
+        user_count = await security_users_collection.count_documents({})
+        return {"userExists": user_count > 0}
+    except Exception as e:
+        logger.error(f"Error checking user existence: {e}")
+        # Default to true as a security precaution
+        return {"userExists": True}
+
+
+@router.get("/users/count")
+async def get_user_count():
+    """Get the count of users in the system"""
+    try:
+        # Count users in the security database
+        user_count = await security_users_collection.count_documents({})
+        return {"count": user_count}
+    except Exception as e:
+        logger.error(f"Error counting users: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error counting users: {str(e)}"
+        )
+
+
+# The first update-profile endpoint was removed to avoid conflicts
+# Now using the implementation below that updates the security_users_collection directly
+
+
+@router.post("/upload-profile-picture", response_model=ProfilePictureResponse)
+async def upload_profile_picture(
+    profile_picture: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """Upload and update user profile picture"""
+    try:
+        # Validate file type
+        valid_content_types = ["image/jpeg", "image/png", "image/jpg"]
+        if profile_picture.content_type not in valid_content_types:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only JPEG and PNG files are allowed"
+            )        # Create directory for profile pictures if it doesn't exist
+        upload_dir = os.path.join("static", "profile_pictures")
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Generate unique filename with timestamp to prevent caching
+        timestamp = int(datetime.now().timestamp())
+        file_extension = os.path.splitext(profile_picture.filename)[1]
+        unique_filename = f"{current_user['user_id']}_{timestamp}{file_extension}"
+        file_path = os.path.join(upload_dir, unique_filename)
+        
+        # Save the file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(profile_picture.file, buffer)
+          # Generate URL for the profile picture
+        profile_picture_url = f"{PROFILE_PICTURES_URL}/{unique_filename}"
+        
+        # Update user record with profile picture URL
+        result = await security_users_collection.update_one(
+            {"user_id": current_user["user_id"]},
+            {"$set": {"profile_picture_url": profile_picture_url}}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Log profile picture update
+        await log_security_event(
+            user_id=current_user["user_id"],
+            action="profile_picture_updated",
+            details={
+                "file_type": profile_picture.content_type,
+                "ip_address": str(request.client.host) if request else None
+            }
+        )
+        
+        return ProfilePictureResponse(
+            message="Profile picture updated successfully",
+            profile_picture_url=profile_picture_url
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Profile picture upload error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error uploading profile picture: {str(e)}"
+        )
+
+
+@router.post("/update-profile")
+async def update_profile(
+    profile_data: ProfileUpdateRequest,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """Update user profile information"""
+    try:
+        # Prepare update data
+        update_data = {}
+          # Only include non-None fields in the update
+        if profile_data.phoneNo is not None:
+            update_data["phoneNo"] = profile_data.phoneNo
+            
+        if profile_data.full_name is not None:
+            update_data["full_name"] = profile_data.full_name
+            
+        if not update_data:
+            return MessageResponse(message="No changes to update")
+        
+        # Update user in database
+        result = await security_users_collection.update_one(
+            {"user_id": current_user["user_id"]},
+            {"$set": update_data}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Log profile update
+        await log_security_event(
+            user_id=current_user["user_id"],
+            action="profile_updated",
+            details={
+                "fields_updated": list(update_data.keys()),
+                "ip_address": str(request.client.host) if request else None
+            }
+        )
+        
+        # Return updated user data
+        updated_user = await security_users_collection.find_one({"user_id": current_user["user_id"]})
+        
+        if not updated_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found after update"
+            )
+            
+        # Create response with updated fields
+        response_data = {
+            "message": "Profile updated successfully",
+        }
+        
+        # Add updated fields to response
+        for key in update_data:
+            response_data[key] = updated_user.get(key)
+            
+        return response_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Profile update error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating profile: {str(e)}"
+        )
+
+
+@router.post("/update-preferences", response_model=MessageResponse)
+async def update_preferences(
+    preferences_data: PreferencesUpdateRequest,
+    current_user: dict = Depends(get_current_user),
+    request: Request = None
+):
+    """Update user preferences"""
+    try:
+        user_id = current_user["user_id"]
+        
+        # Get the current security user
+        security_user = await security_users_collection.find_one({"user_id": user_id})
+        if not security_user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        
+        # Update the preferences in the user record
+        security_user["preferences"] = preferences_data.preferences
+        
+        # Update the security user record
+        result = await security_users_collection.update_one(
+            {"user_id": user_id},
+            {"$set": {"preferences": preferences_data.preferences}}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+          # No need to update preferences in a separate service - 
+        # Security service already stores preferences directly in the security_users_collection
+        
+        # Log preferences update
+        await log_security_event(
+            user_id=user_id,
+            action="preferences_updated",
+            details={
+                "ip_address": str(request.client.host) if request else None
+            }
+        )
+        
+        return MessageResponse(message="Preferences updated successfully")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating preferences: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating preferences: {str(e)}"
+        )

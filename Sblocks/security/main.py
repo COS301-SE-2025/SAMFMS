@@ -1,7 +1,9 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import redis
 import pika
+import os
 from routes import router as auth_router
 from database import test_database_connection, create_indexes, cleanup_expired_sessions
 from message_queue import mq_service
@@ -12,6 +14,12 @@ from health_metrics import health_check, metrics_endpoint
 # Setup structured logging
 setup_logging()
 logger = get_logger(__name__)
+
+# Path for profile pictures and static files
+PROFILE_PICTURES_DIR = os.path.join(os.getcwd(), "profile_pictures")
+STATIC_DIR = os.path.join(os.getcwd(), "static")
+os.makedirs(PROFILE_PICTURES_DIR, exist_ok=True)
+os.makedirs(os.path.join(STATIC_DIR, "profile_pictures"), exist_ok=True)
 
 
 # Application lifespan events
@@ -82,6 +90,9 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 # Include routers
 app.include_router(auth_router)
+
+# Serve static files for profile pictures
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])
