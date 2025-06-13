@@ -8,7 +8,7 @@ from models import (
 from auth_utils import (
     verify_password, get_password_hash, create_access_token,
     verify_access_token, get_current_user, get_role_permissions,
-    require_role, require_permission, ROLES, DEFAULT_FIRST_USER_ROLE,
+    require_role, require_permission, has_permission, ROLES, DEFAULT_FIRST_USER_ROLE,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 from database import (
@@ -63,7 +63,7 @@ async def get_current_user(token: str = Depends(security)):
 
 @router.post("/signup", response_model=TokenResponse)
 async def signup(user_data: SignupRequest, request: Request):
-    """Create a new user account - first user becomes admin, others need invitation"""
+    """Create a new user account - only allows first user to become admin"""
     try:
         # Check if user already exists
         existing_user = await security_users_collection.find_one({"email": user_data.email})
@@ -77,10 +77,11 @@ async def signup(user_data: SignupRequest, request: Request):
         user_count = await security_users_collection.count_documents({})
         is_first_user = user_count == 0
         
-        if not is_first_user and not user_data.role:
+        # Only allow signup for the first user
+        if not is_first_user:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Role assignment required. Please contact an administrator for access."
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Direct signup is not allowed. Please contact an administrator to create an account."
             )
         
         # Generate unique user ID
@@ -88,19 +89,9 @@ async def signup(user_data: SignupRequest, request: Request):
         
         # Hash the password
         hashed_password = get_password_hash(user_data.password)
-        
-        # Determine role and permissions
-        if is_first_user:
-            role = DEFAULT_FIRST_USER_ROLE  # "admin"
-            permissions = get_role_permissions(role)
-        else:
-            if user_data.role not in ROLES:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid role. Valid roles: {list(ROLES.keys())}"
-                )
-            role = user_data.role
-            permissions = get_role_permissions(role)
+          # First user is always admin
+        role = DEFAULT_FIRST_USER_ROLE  # "admin"
+        permissions = get_role_permissions(role)
         
         # Create security user record
         security_user_data = {
@@ -442,33 +433,33 @@ async def verify_token(current_user: dict = Depends(get_current_user)):
     }
 
 
-@router.post("/invite-user", response_model=MessageResponse)
-async def invite_user(
+@router.post("/add-user", response_model=MessageResponse)
+async def add_user(
     invite_data: InviteUserRequest,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    """Admin and Fleet Managers can invite new users to the system"""
+    """Admin can add any user, Fleet Managers can add only drivers"""
     try:
-        # Verify current user has permission to invite
+        # Verify current user has permission to add users
         current_user = verify_access_token(credentials.credentials)
         
-        # Check if user has permission to invite
+        # Check if user has permission to add users
         if current_user["role"] == "admin":
-            # Admin can invite anyone
-            allowed_roles = ["fleet_manager", "driver"]
+            # Admin can add admins, fleet managers and drivers
+            allowed_roles = ["admin", "fleet_manager", "driver"]
         elif current_user["role"] == "fleet_manager":
-            # Fleet managers can only invite drivers
+            # Fleet managers can only add drivers
             allowed_roles = ["driver"]
         else:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions to invite users"
+                detail="Insufficient permissions to add users"
             )
         
         if invite_data.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"You can only invite users with roles: {allowed_roles}"
+                detail=f"You can only add users with roles: {allowed_roles}"
             )
         
         # Check if user already exists
@@ -479,12 +470,12 @@ async def invite_user(
                 detail="User with this email already exists"
             )
         
-        # Generate temporary password (user will be required to change on first login)
-        temp_password = f"temp_{uuid.uuid4().hex[:8]}"
+        # Use the provided password
+        password = invite_data.password
         user_id = str(uuid.uuid4())
         
-        # Hash the temporary password
-        hashed_password = get_password_hash(temp_password)
+        # Hash the password
+        hashed_password = get_password_hash(password)
         
         # Determine permissions
         if invite_data.custom_permissions and current_user["role"] == "admin":
@@ -505,8 +496,8 @@ async def invite_user(
             "two_factor_enabled": False,
             "permissions": permissions,
             "custom_permissions": invite_data.custom_permissions if current_user["role"] == "admin" else None,
-            "requires_password_change": True,
-            "invited_by": current_user["user_id"],
+            "requires_password_change": False,
+            "created_by": current_user["user_id"],
             "created_at": datetime.utcnow()
         }
         
@@ -530,27 +521,25 @@ async def invite_user(
         # Log security event
         await log_security_event(
             user_id=current_user["user_id"],
-            action="user_invited",
+            action="user_added",
             details={
-                "invited_user_id": user_id,
-                "invited_email": invite_data.email,
-                "invited_role": invite_data.role
+                "added_user_id": user_id,
+                "email": invite_data.email,
+                "role": invite_data.role
             }
         )
         
-        # In a real system, you'd send an email with temp password
-        # For now, return it in the response (NOT recommended for production)
         return MessageResponse(
-            message=f"User invited successfully. Temporary password: {temp_password} (User must change on first login)"
+            message=f"User {invite_data.full_name} added successfully with role: {invite_data.role}"
         )
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Invite user error: {e}")
+        logger.error(f"Add user error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error inviting user: {str(e)}"
+            detail=f"Error adding user: {str(e)}"
         )
 
 
@@ -721,3 +710,13 @@ async def get_user_preferences(user_id: str) -> Dict:
     except Exception as e:
         logger.error(f"Error fetching user preferences: {e}")
         return {}
+
+
+@router.post("/invite-user", response_model=MessageResponse)
+async def invite_user_redirect(
+    invite_data: InviteUserRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Redirect old invite-user endpoint to the new add-user endpoint for backward compatibility"""
+    # Simply call the add_user function with the same parameters
+    return await add_user(invite_data, credentials)

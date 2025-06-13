@@ -125,10 +125,11 @@ class SignupRequest(BaseModel):
 
 
 class InviteUserRequest(BaseModel):
-    """Admin/Fleet Manager can invite users with specific roles"""
+    """Admin/Fleet Manager can add users with specific roles"""
     full_name: str
     email: EmailStr
-    role: str  # Required - either "fleet_manager" or "driver"
+    password: str  # Password for the new user
+    role: str  # Required - either "admin", "fleet_manager" or "driver"
     phoneNo: Optional[str] = None
     details: Dict = {}
     preferences: Dict = {}
