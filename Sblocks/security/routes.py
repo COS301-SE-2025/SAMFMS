@@ -10,16 +10,19 @@ from auth_utils import (
     verify_password, get_password_hash, create_access_token,
     verify_access_token, get_current_user, get_role_permissions,
     require_role, require_permission, has_permission, ROLES, DEFAULT_FIRST_USER_ROLE,
-    ACCESS_TOKEN_EXPIRE_MINUTES
+    ACCESS_TOKEN_EXPIRE_MINUTES, create_refresh_token, verify_refresh_token,
+    LOGIN_ATTEMPT_LIMIT, SECRET_KEY, ALGORITHM
 )
 from database import (
     security_users_collection, test_database_connection,
-    log_security_event
+    log_security_event, blacklist_token, is_token_blacklisted,
+    blacklist_all_user_tokens, get_security_metrics, audit_logs_collection
 )
 from message_queue import mq_service
 from bson import ObjectId
 from datetime import datetime, timedelta
-from typing import List, Dict
+from typing import List, Dict, Optional
+from jose import jwt
 import logging
 import uuid
 import requests
@@ -44,11 +47,21 @@ PROFILE_PICTURES_URL = os.getenv("PROFILE_PICTURES_URL", "/static/profile_pictur
 
 
 async def get_current_user(token: str = Depends(security)):
-    """Get current user from JWT token"""
+    """Get current user from JWT token with blacklist checking"""
     try:
         # Verify token
         payload = verify_access_token(token.credentials)
         user_id = payload["user_id"]
+        token_str = payload.get("token", token.credentials)
+        
+        # Check if token is blacklisted
+        import hashlib
+        token_hash = hashlib.sha256(token_str.encode()).hexdigest()
+        if await is_token_blacklisted(token_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has been revoked"
+            )
         
         # Get user from security database
         security_user = await security_users_collection.find_one({"user_id": user_id})
@@ -64,8 +77,24 @@ async def get_current_user(token: str = Depends(security)):
                 detail="User account is disabled"
             )
         
+        # Check if user was force logged out after token was issued
+        force_logout_after = security_user.get("force_logout_after")
+        if force_logout_after and payload.get("issued_at"):
+            token_issued = datetime.fromtimestamp(payload["issued_at"])
+            if token_issued < force_logout_after:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token invalidated due to security action"
+                )
+        
+        # Add token to payload for logout functionality
+        security_user["token"] = token_str
         return security_user
+        
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Token validation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials"
@@ -190,10 +219,15 @@ async def signup(user_data: SignupRequest, request: Request):
         )
 
 
+LOGIN_ATTEMPT_LIMIT = 5  # Maximum failed login attempts before blocking
+
 @router.post("/login", response_model=TokenResponse)
 async def login(login_data: LoginRequest, request: Request):
     """Authenticate user and return access token"""
     try:
+        # Rate limiting check
+        client_ip = str(request.client.host)
+        
         # Get user by email
         security_user = await security_users_collection.find_one({"email": login_data.email})
         if not security_user:
@@ -203,7 +237,7 @@ async def login(login_data: LoginRequest, request: Request):
                 details={
                     "email": login_data.email,
                     "reason": "user_not_found",
-                    "ip_address": str(request.client.host)
+                    "ip_address": client_ip
                 }
             )
             raise HTTPException(
@@ -211,6 +245,22 @@ async def login(login_data: LoginRequest, request: Request):
                 detail="Incorrect email or password"
             )
         
+        # Check rate limiting - if too many failed attempts
+        failed_attempts = security_user.get("failed_login_attempts", 0)
+        if failed_attempts >= LOGIN_ATTEMPT_LIMIT:
+            await log_security_event(
+                user_id=security_user["user_id"],
+                action="login_blocked",
+                details={
+                    "reason": "too_many_attempts",
+                    "ip_address": client_ip
+                }
+            )
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Too many failed login attempts. Please try again later."
+            )
+
         # Check if account is active
         if not security_user.get("is_active", True):
             await log_security_event(
@@ -218,7 +268,7 @@ async def login(login_data: LoginRequest, request: Request):
                 action="failed_login_attempt",
                 details={
                     "reason": "account_disabled",
-                    "ip_address": str(request.client.host)
+                    "ip_address": client_ip
                 }
             )
             raise HTTPException(
@@ -239,7 +289,7 @@ async def login(login_data: LoginRequest, request: Request):
                 action="failed_login_attempt",
                 details={
                     "reason": "invalid_password",
-                    "ip_address": str(request.client.host)
+                    "ip_address": client_ip
                 }
             )
             raise HTTPException(
@@ -257,7 +307,8 @@ async def login(login_data: LoginRequest, request: Request):
                 }
             }
         )
-          # Create access token with role and permissions
+        
+        # Create access token with role and permissions
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         user_permissions = security_user.get("custom_permissions") or security_user.get("permissions", [])
         access_token = create_access_token(
@@ -269,13 +320,17 @@ async def login(login_data: LoginRequest, request: Request):
             expires_delta=access_token_expires
         )
         
+        # Create refresh token
+        refresh_token = create_refresh_token(security_user["user_id"])
+        
         # Log successful login
         await log_security_event(
             user_id=security_user["user_id"],
             action="successful_login",
-            details={"ip_address": str(request.client.host)}
+            details={"ip_address": client_ip}
         )
-          # Fetch user preferences from Users Dblock
+        
+        # Fetch user preferences
         preferences = await get_user_preferences(security_user["user_id"])
         
         return TokenResponse(
@@ -284,7 +339,8 @@ async def login(login_data: LoginRequest, request: Request):
             user_id=security_user["user_id"],
             role=security_user["role"],
             permissions=user_permissions,
-            preferences=preferences
+            preferences=preferences,
+            refresh_token=refresh_token
         )
         
     except HTTPException:
@@ -297,142 +353,152 @@ async def login(login_data: LoginRequest, request: Request):
         )
 
 
-@router.post("/change-password", response_model=MessageResponse)
-async def change_password(
-    password_data: ChangePasswordRequest,
+@router.post("/logout", response_model=MessageResponse)
+async def logout(
     current_user: dict = Depends(get_current_user),
     request: Request = None
 ):
-    """Change user password"""
+    """Logout user and invalidate token"""
     try:
-        # Verify current password
-        if not verify_password(password_data.current_password, current_user["password_hash"]):
-            await log_security_event(
-                user_id=current_user["user_id"],
-                action="failed_password_change",
-                details={
-                    "reason": "invalid_current_password",
-                    "ip_address": str(request.client.host) if request else None
-                }
-            )
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Current password is incorrect"
-            )
+        user_id = current_user["user_id"]
+        token = current_user.get("token")
         
-        # Hash new password
-        new_hashed_password = get_password_hash(password_data.new_password)
+        if token:
+            # Hash the token for blacklist storage
+            import hashlib
+            token_hash = hashlib.sha256(token.encode()).hexdigest()
+            
+            # Get token expiration from JWT payload
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": False})
+            exp_timestamp = payload.get("exp")
+            expires_at = datetime.fromtimestamp(exp_timestamp) if exp_timestamp else datetime.utcnow() + timedelta(hours=1)
+            
+            # Add token to blacklist
+            await blacklist_token(token_hash, expires_at, user_id)
         
-        # Update password in database
-        result = await security_users_collection.update_one(
-            {"user_id": current_user["user_id"]},
-            {"$set": {"password_hash": new_hashed_password}}
-        )
-        
-        if result.matched_count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
-        
-        # Log password change
+        # Log logout event
         await log_security_event(
-            user_id=current_user["user_id"],
-            action="password_changed",
+            user_id=user_id,
+            action="user_logout",
             details={"ip_address": str(request.client.host) if request else None}
         )
         
-        return MessageResponse(message="Password changed successfully")
+        return MessageResponse(message="Successfully logged out")
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Password change error: {e}")
+        logger.error(f"Logout error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error changing password: {str(e)}"
+            detail=f"Logout error: {str(e)}"
         )
 
 
-@router.delete("/account", response_model=MessageResponse)
-async def delete_account(
+@router.post("/logout-all", response_model=MessageResponse)
+async def logout_all_devices(
     current_user: dict = Depends(get_current_user),
     request: Request = None
 ):
-    """Delete the current user's account"""
+    """Logout user from all devices"""
     try:
         user_id = current_user["user_id"]
         
-        # Delete security user from database
-        result = await security_users_collection.delete_one({"user_id": user_id})
+        # Blacklist all tokens for this user
+        await blacklist_all_user_tokens(user_id)
         
-        if result.deleted_count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
-        
-        # Publish user deletion event to Users Dblock
-        deletion_message = UserDeletedMessage(user_id=user_id)
-        if mq_service.connection:
-            mq_service.publish_user_deleted(deletion_message)
-        
-        # Log account deletion
+        # Log logout all event
         await log_security_event(
             user_id=user_id,
-            action="account_deleted",
+            action="user_logout_all_devices",
             details={"ip_address": str(request.client.host) if request else None}
         )
         
-        return MessageResponse(message="Account deleted successfully")
+        return MessageResponse(message="Successfully logged out from all devices")
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Account deletion error: {e}")
+        logger.error(f"Logout all error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error deleting account: {str(e)}"
+            detail=f"Logout all error: {str(e)}"
         )
 
 
-@router.get("/me", response_model=UserResponse)
-async def get_current_user_info(
-    current_user: dict = Depends(get_current_user)
-):
-    """Get current user information"""
-    try:        # Filter out sensitive fields
-        user_info = {
-            "id": current_user["user_id"],  # Change key from user_id to id to match UserResponse model
-            "email": current_user["email"],
-            "full_name": current_user.get("full_name", ""), # Use get with default value in case it's missing
-            "role": current_user["role"],
-            "phoneNo": current_user.get("phoneNo"),
-        }
-          # Include additional fields if available
-        if "preferences" in current_user:
-            user_info["preferences"] = current_user["preferences"]
-            
-        if "profile_picture_url" in current_user:
-            user_info["profile_picture_url"] = current_user["profile_picture_url"]
-            
-        if "permissions" in current_user:
-            user_info["permissions"] = current_user["permissions"]
-        else:
-            # Get permissions for role
-            user_info["permissions"] = get_role_permissions(current_user["role"])
-            
-        # Add is_active and last_login fields from the UserResponse model
-        user_info["is_active"] = current_user.get("is_active", True)
-        user_info["last_login"] = current_user.get("last_login")
-            
-        return user_info
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_access_token(refresh_token_data: dict):
+    """Refresh access token using refresh token"""
+    try:
+        refresh_token = refresh_token_data.get("refresh_token")
+        if not refresh_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Refresh token is required"
+            )
         
+        # Verify refresh token
+        user_id = verify_refresh_token(refresh_token)
+        
+        # Check if refresh token is blacklisted
+        import hashlib
+        refresh_token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+        if await is_token_blacklisted(refresh_token_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token has been revoked"
+            )
+        
+        # Get user data
+        security_user = await security_users_collection.find_one({"user_id": user_id})
+        if not security_user or not security_user.get("is_active", True):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found or inactive"
+            )
+        
+        # Create new access token
+        user_permissions = security_user.get("custom_permissions") or security_user.get("permissions", [])
+        access_token = create_access_token(
+            data={
+                "sub": user_id,
+                "role": security_user["role"],
+                "permissions": user_permissions
+            }
+        )
+        
+        # Create new refresh token and blacklist the old one
+        new_refresh_token = create_refresh_token(user_id)
+        
+        # Blacklist old refresh token
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": False})
+        exp_timestamp = payload.get("exp")
+        expires_at = datetime.fromtimestamp(exp_timestamp) if exp_timestamp else datetime.utcnow() + timedelta(days=7)
+        await blacklist_token(refresh_token_hash, expires_at, user_id)
+        
+        # Log token refresh
+        await log_security_event(
+            user_id=user_id,
+            action="token_refreshed",
+            details={}
+        )
+        
+        return TokenResponse(
+            access_token=access_token,
+            token_type="bearer",
+            user_id=user_id,
+            role=security_user["role"],
+            permissions=user_permissions,
+            refresh_token=new_refresh_token
+        )
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error getting user info: {e}")
+        logger.error(f"Token refresh error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving user information: {str(e)}"
+            detail=f"Token refresh error: {str(e)}"
         )
 
 
@@ -953,4 +1019,183 @@ async def update_preferences(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating preferences: {str(e)}"
+        )
+
+
+@router.get("/security-metrics")
+async def get_security_metrics_endpoint(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get security metrics - admin only"""
+    try:
+        # Verify current user is admin
+        current_user = verify_access_token(credentials.credentials)
+        if current_user["role"] != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can access security metrics"
+            )
+        
+        metrics = await get_security_metrics()
+        return {
+            "metrics": metrics,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Security metrics error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving security metrics: {str(e)}"
+        )
+
+
+@router.get("/audit-logs")
+async def get_audit_logs(
+    limit: int = 100,
+    offset: int = 0,
+    user_id: Optional[str] = None,
+    action: Optional[str] = None,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get audit logs - admin only"""
+    try:
+        # Verify current user is admin
+        current_user = verify_access_token(credentials.credentials)
+        if current_user["role"] != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can access audit logs"
+            )
+        
+        # Build query
+        query = {}
+        if user_id:
+            query["user_id"] = user_id
+        if action:
+            query["action"] = action
+        
+        # Get logs with pagination
+        cursor = audit_logs_collection.find(query).sort("timestamp", -1).skip(offset).limit(limit)
+        logs = []
+        async for log in cursor:
+            # Convert ObjectId to string for JSON serialization
+            log["_id"] = str(log["_id"])
+            logs.append(log)
+        
+        total = await audit_logs_collection.count_documents(query)
+        
+        return {
+            "logs": logs,
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Audit logs error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving audit logs: {str(e)}"
+        )
+
+
+@router.post("/refresh-token", response_model=TokenResponse)
+async def refresh_token(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Refresh access token using refresh token"""
+    try:
+        # Verify refresh token
+        refresh_token = credentials.credentials
+        
+        try:
+            payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+            token_type = payload.get("type")
+            user_id = payload.get("sub")
+            
+            if token_type != "refresh":
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid token type"
+                )
+                
+        except JWTError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token"
+            )
+        
+        # Check if refresh token is blacklisted
+        import hashlib
+        token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+        if await is_token_blacklisted(token_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token has been revoked"
+            )
+        
+        # Get user from database
+        security_user = await security_users_collection.find_one({"user_id": user_id})
+        if not security_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found"
+            )
+        
+        if not security_user.get("is_active", True):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account is disabled"
+            )
+        
+        # Create new access token
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        user_permissions = security_user.get("custom_permissions") or security_user.get("permissions", [])
+        access_token = create_access_token(
+            data={
+                "sub": user_id,
+                "role": security_user["role"],
+                "permissions": user_permissions
+            },
+            expires_delta=access_token_expires
+        )
+        
+        # Create new refresh token (refresh token rotation)
+        new_refresh_token = create_refresh_token(user_id)
+        
+        # Blacklist old refresh token
+        old_token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+        refresh_exp = datetime.fromtimestamp(payload.get("exp", 0))
+        await blacklist_token(old_token_hash, refresh_exp, user_id)
+        
+        # Log token refresh event
+        await log_security_event(
+            user_id=user_id,
+            action="token_refresh",
+            details={
+                "ip_address": str(request.client.host),
+                "user_agent": request.headers.get("user-agent")
+            }
+        )
+        
+        return TokenResponse(
+            access_token=access_token,
+            token_type="bearer",
+            user_id=user_id,
+            role=security_user["role"],
+            permissions=user_permissions,
+            preferences=security_user.get("preferences", {}),
+            refresh_token=new_refresh_token
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Token refresh error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Token refresh failed"
         )

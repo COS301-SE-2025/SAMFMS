@@ -80,7 +80,90 @@ export const isAuthenticated = () => {
   return !!getCookie('token');
 };
 
-export const logout = () => {
+export const logout = async () => {
+  const token = getToken();
+
+  // Stop token refresh timer
+  try {
+    const { stopTokenRefresh } = await import('../../utils/tokenManager');
+    stopTokenRefresh();
+  } catch (error) {
+    console.error('Failed to stop token refresh:', error);
+  }
+
+  // Call server-side logout if we have a token
+  if (token) {
+    try {
+      await fetchWithTimeout(
+        AUTH_API.logout,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+        5000
+      );
+    } catch (error) {
+      console.error('Server logout failed:', error);
+      // Continue with client-side logout even if server call fails
+    }
+  }
+
+  // Clear client-side storage completely
+  eraseCookie('token');
+  eraseCookie('refresh_token');
+  eraseCookie('user');
+  eraseCookie('permissions');
+  eraseCookie('preferences');
+
+  // Clear any localStorage items that might contain auth data
+  try {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userData');
+    localStorage.removeItem('permissions');
+    localStorage.removeItem('preferences');
+  } catch (error) {
+    console.error('Failed to clear localStorage:', error);
+  }
+
+  // Clear sessionStorage as well
+  try {
+    sessionStorage.clear();
+  } catch (error) {
+    console.error('Failed to clear sessionStorage:', error);
+  }
+
+  // Dispatch logout event for other components
+  window.dispatchEvent(
+    new CustomEvent('authLogout', {
+      detail: { reason: 'user_initiated' },
+    })
+  );
+};
+
+// Enhanced logout with server-side call
+export const logoutFromAllDevices = async () => {
+  const token = getToken();
+
+  if (token) {
+    try {
+      await fetchWithTimeout(
+        `${API_URL}/auth/logout-all`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+        5000
+      );
+    } catch (error) {
+      console.error('Server logout-all failed:', error);
+    }
+  }
+
+  // Clear client-side storage
   eraseCookie('token');
   eraseCookie('refresh_token');
   eraseCookie('user');
@@ -93,11 +176,10 @@ export const logout = () => {
 // It can also be called proactively to refresh a token before it expires
 export const refreshAuthToken = async () => {
   try {
-    const token = getToken();
     const refreshToken = getCookie('refresh_token');
 
-    if (!token && !refreshToken) {
-      throw new Error('No tokens available for refresh');
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
     }
 
     const response = await fetchWithTimeout(
@@ -106,9 +188,8 @@ export const refreshAuthToken = async () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token || ''}`,
         },
-        body: refreshToken ? JSON.stringify({ refresh_token: refreshToken }) : undefined,
+        body: JSON.stringify({ refresh_token: refreshToken }),
       },
       5000
     );
@@ -119,14 +200,30 @@ export const refreshAuthToken = async () => {
 
     const data = await response.json();
 
-    // Update the token in cookie storage
-    setCookie('token', data.access_token, 30);
+    // Update tokens in cookies with shorter expiry for access token
+    setCookie('token', data.access_token, 1 / 96); // 15 minutes (1/96 of a day)
+
+    if (data.refresh_token) {
+      setCookie('refresh_token', data.refresh_token, 7); // 7 days
+    }
+
+    // Update user data
+    setCookie(
+      'user',
+      JSON.stringify({
+        id: data.user_id,
+        role: data.role,
+      }),
+      1
+    );
+
+    setCookie('permissions', JSON.stringify(data.permissions), 1);
 
     return data.access_token;
   } catch (error) {
     console.error('Token refresh failed:', error);
     // On refresh failure, log the user out
-    logout();
+    await logout();
     throw error;
   }
 };
@@ -224,36 +321,41 @@ export const signup = async (full_name, email, password, confirmPassword, phoneN
       const data = await response.json();
       console.log('Signup response data:', data);
 
-      // Store token and user data with role and permissions in cookies (30 days expiry)
-      setCookie('token', data.access_token, 30);
+      // Store tokens with consistent expiry times
+      setCookie('token', data.access_token, 1 / 96); // 15 minutes to match backend
 
       // Store refresh token if available
       if (data.refresh_token) {
-        setCookie('refresh_token', data.refresh_token, 60); // Longer expiry for refresh token
+        setCookie('refresh_token', data.refresh_token, 7); // 7 days for refresh token
       }
       setCookie(
         'user',
         JSON.stringify({
           id: data.user_id,
+          email: email,
           role: data.role,
         }),
-        30
+        1 // 1 day for user data
       );
 
       // Store permissions and preferences if available
       if (data.permissions) {
         console.log('Storing permissions in cookie:', data.permissions);
-        setCookie('permissions', JSON.stringify(data.permissions), 30);
+        setCookie('permissions', JSON.stringify(data.permissions), 1); // 1 day
       }
 
       if (data.preferences) {
         console.log('Storing preferences in cookie:', data.preferences);
-        setCookie('preferences', JSON.stringify(data.preferences), 30);
+        setCookie('preferences', JSON.stringify(data.preferences), 1); // 1 day
       } else {
         // If no preferences returned, store defaults
         console.log('No preferences in response, storing defaults');
-        setCookie('preferences', JSON.stringify(defaultPreferences), 30);
+        setCookie('preferences', JSON.stringify(defaultPreferences), 1);
       }
+
+      // Start automatic token refresh
+      const { startTokenRefresh } = await import('../../utils/tokenManager');
+      startTokenRefresh();
 
       // Clear user existence cache after successful signup
       clearUserExistenceCache();
@@ -295,25 +397,32 @@ export const login = async (email, password) => {
       const errorData = await response.json();
       throw new Error(errorData.detail || 'Login failed');
     }
+    const data = await response.json();
 
-    const data = await response.json(); // Store token and user data with role and permissions in cookies (30 days expiry)
-    setCookie('token', data.access_token, 30);
+    // Store tokens with consistent expiry times
+    setCookie('token', data.access_token, 1 / 96); // 15 minutes to match backend
 
     // Store refresh token if available
     if (data.refresh_token) {
-      setCookie('refresh_token', data.refresh_token, 60); // Longer expiry for refresh token
+      setCookie('refresh_token', data.refresh_token, 7); // 7 days for refresh token
     }
 
+    // Store user data for 24 hours
     setCookie(
       'user',
       JSON.stringify({
         id: data.user_id,
+        email: email,
         role: data.role,
       }),
-      30
+      1 // 1 day
     );
-    setCookie('permissions', JSON.stringify(data.permissions), 30);
-    setCookie('preferences', JSON.stringify(data.preferences), 30);
+    setCookie('permissions', JSON.stringify(data.permissions), 1); // 1 day
+    setCookie('preferences', JSON.stringify(data.preferences), 1); // 1 day
+
+    // Start automatic token refresh
+    const { startTokenRefresh } = await import('../../utils/tokenManager');
+    startTokenRefresh();
 
     return data;
   } catch (error) {

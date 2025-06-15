@@ -6,35 +6,90 @@ Handles JWT token verification and user information extraction
 import jwt
 import logging
 import requests
+import os
+import time
 from typing import Dict, Optional
 from fastapi import HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from collections import defaultdict
+from threading import Lock
 
 logger = logging.getLogger(__name__)
 
-# JWT Configuration - should match the Security service
+# JWT Configuration - must match the Security service exactly
 JWT_ALGORITHM = "HS256"
-JWT_SECRET_KEY = "your-secret-key-here"  # In production, use environment variable
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
+
+if not JWT_SECRET_KEY:
+    logger.error("JWT_SECRET_KEY environment variable is required for production")
+    raise ValueError("JWT_SECRET_KEY must be set in environment variables")
 
 # Security service URL for token verification
 SECURITY_URL = "http://security_service:8000"
 
 security = HTTPBearer()
 
+# Circuit breaker implementation
+class CircuitBreaker:
+    def __init__(self, failure_threshold=5, recovery_timeout=60, expected_exception=Exception):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.expected_exception = expected_exception
+        self.failure_count = 0
+        self.last_failure_time = None
+        self.state = 'CLOSED'  # CLOSED, OPEN, HALF_OPEN
+        self.lock = Lock()
+    
+    def call(self, func, *args, **kwargs):
+        with self.lock:
+            if self.state == 'OPEN':
+                if time.time() - self.last_failure_time > self.recovery_timeout:
+                    self.state = 'HALF_OPEN'
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail="Authentication service is temporarily unavailable"
+                    )
+            
+            try:
+                result = func(*args, **kwargs)
+                self.on_success()
+                return result
+            except self.expected_exception as e:
+                self.on_failure()
+                raise e
+    
+    def on_success(self):
+        self.failure_count = 0
+        self.state = 'CLOSED'
+    
+    def on_failure(self):
+        self.failure_count += 1
+        self.last_failure_time = time.time()
+        if self.failure_count >= self.failure_threshold:
+            self.state = 'OPEN'
+
+# Circuit breaker instance for Security service
+security_service_breaker = CircuitBreaker(
+    failure_threshold=3, 
+    recovery_timeout=30,
+    expected_exception=requests.RequestException
+)
+
+logger.info(f"JWT configuration loaded - Algorithm: {JWT_ALGORITHM}, Token expiry: {ACCESS_TOKEN_EXPIRE_MINUTES} minutes")
+
 def verify_token(credentials: HTTPAuthorizationCredentials) -> Dict:
     """
-    Verify JWT token and return user information
+    Verify JWT token with the Security service
+    Centralized verification ensures consistency and proper session management
     """
     try:
         token = credentials.credentials
         
-        # Try to decode the JWT token locally first
-        try:
-            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-            return payload
-        except jwt.InvalidTokenError:
-            # If local verification fails, try the Security service
-            return verify_token_with_security_service(token)
+        # Always verify with Security service to ensure proper session management
+        # and blacklist checking
+        return verify_token_with_security_service(token)
             
     except Exception as e:
         logger.error(f"Token verification failed: {e}")
@@ -46,9 +101,9 @@ def verify_token(credentials: HTTPAuthorizationCredentials) -> Dict:
 
 def verify_token_with_security_service(token: str) -> Dict:
     """
-    Verify token with the Security service
+    Verify token with the Security service using circuit breaker pattern
     """
-    try:
+    def _verify_request():
         response = requests.post(
             f"{SECURITY_URL}/auth/verify-token",
             headers={"Authorization": f"Bearer {token}"},
@@ -58,11 +113,10 @@ def verify_token_with_security_service(token: str) -> Dict:
         if response.status_code == 200:
             return response.json()
         else:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token verification failed",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise requests.RequestException(f"Token verification failed with status {response.status_code}")
+    
+    try:
+        return security_service_breaker.call(_verify_request)
     except requests.RequestException as e:
         logger.error(f"Failed to verify token with Security service: {e}")
         raise HTTPException(

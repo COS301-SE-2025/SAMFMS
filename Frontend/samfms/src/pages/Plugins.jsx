@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
-import { getPlugins, startPlugin, stopPlugin, updatePluginRoles } from '../backend/api';
+import {
+  getPlugins,
+  startPlugin,
+  stopPlugin,
+  updatePluginRoles,
+  testCoreService,
+} from '../backend/api/plugins';
 
 const userTypes = ['admin', 'fleet_manager', 'driver'];
 
@@ -14,11 +20,19 @@ const Plugins = () => {
   useEffect(() => {
     loadPlugins();
   }, []);
-
   const loadPlugins = async () => {
     try {
       setLoading(true);
       setError('');
+
+      // Test Core service connectivity first
+      console.log('Testing Core service connectivity...');
+      const healthCheck = await testCoreService();
+      if (!healthCheck.success) {
+        throw new Error(`Core service is not accessible: ${healthCheck.error}`);
+      }
+      console.log('Core service is accessible, loading plugins...');
+
       const pluginsData = await getPlugins();
       setPlugins(pluginsData);
     } catch (err) {

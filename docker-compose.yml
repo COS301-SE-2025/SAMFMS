@@ -145,7 +145,6 @@ services:
       start_period: 30s
     restart: no
     command: mongod --quiet --logpath /dev/null
-
   mcore:
     build: ./Core
     command: sh /app/start.sh
@@ -163,6 +162,9 @@ services:
       - MONGODB_URL=mongodb://mongodb_core:27017
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
       - SECURITY_URL=http://security_service:8000
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-default-secret-key-change-in-production}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
 
   gps_service:
     build: ./Sblocks/gps
@@ -222,7 +224,6 @@ services:
       redis:
         condition: service_healthy
     restart: no
-
   security_service:
     build: ./Sblocks/security
     command: sh /app/start.sh
@@ -240,6 +241,7 @@ services:
       - DATABASE_URL=mongodb://mongodb_security:27017/security_db
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
       - REDIS_URL=redis://redis:6379
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-default-secret-key-change-in-production}
   management_service:
     build: ./Sblocks/management
     command: sh /app/start.sh

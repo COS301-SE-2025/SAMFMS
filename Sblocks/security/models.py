@@ -150,6 +150,7 @@ class TokenResponse(BaseModel):
     role: str
     permissions: List[str]
     preferences: Dict = {}
+    refresh_token: Optional[str] = None
 
 
 class MessageResponse(BaseModel):

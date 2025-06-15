@@ -150,6 +150,121 @@ async def verify_token(request: Request):
             detail=f"Error: {str(e)}"
         )
 
+
+@router.post("/logout", response_model=dict)
+async def logout(request: Request):
+    """Proxy the logout request to the Security service"""
+    try:
+        # Get the Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            raise HTTPException(
+                status_code=401,
+                detail="Authorization header is missing"
+            )
+        
+        # Forward the request to the Security service
+        headers = {"Authorization": auth_header}
+        response = requests.post(
+            f"{SECURITY_URL}/auth/logout",
+            headers=headers,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Logout failed")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+            
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Logout error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Logout error: {str(e)}"
+        )
+
+
+@router.post("/logout-all", response_model=dict)
+async def logout_all(request: Request):
+    """Proxy the logout-all request to the Security service"""
+    try:
+        # Get the Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            raise HTTPException(
+                status_code=401,
+                detail="Authorization header is missing"
+            )
+        
+        # Forward the request to the Security service
+        headers = {"Authorization": auth_header}
+        response = requests.post(
+            f"{SECURITY_URL}/auth/logout-all",
+            headers=headers,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Logout from all devices failed")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+            
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Logout all error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Logout all error: {str(e)}"
+        )
+
+
+@router.post("/refresh", response_model=dict)
+async def refresh_token(request: Request):
+    """Proxy the token refresh request to the Security service"""
+    try:
+        # Get request body
+        body = await request.body()
+        
+        # Forward the request to the Security service
+        response = requests.post(
+            f"{SECURITY_URL}/auth/refresh",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Token refresh failed")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+            
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Token refresh error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Token refresh error: {str(e)}"
+        )
+
 @router.get("/health")
 async def auth_health():
     """Check if the auth routes are working and if the Security service is reachable"""
