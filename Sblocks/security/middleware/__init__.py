@@ -1,8 +1,10 @@
 # Import all middleware
-from .security_middleware import LoggingMiddleware, SecurityHeadersMiddleware
+from .logging_middleware import LoggingMiddleware
+from .security_middleware import SecurityHeadersMiddleware, CORSMiddleware
 
 # Export all middleware
 __all__ = [
     "LoggingMiddleware",
-    "SecurityHeadersMiddleware"
+    "SecurityHeadersMiddleware",
+    "CORSMiddleware"
 ]
