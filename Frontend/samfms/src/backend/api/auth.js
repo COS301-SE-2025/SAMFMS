@@ -3,7 +3,7 @@ import { setCookie, getCookie, eraseCookie } from '../../lib/cookies';
 
 // Determine the API hostname depending on environment
 // In Docker, the host should be the service name, not localhost
-const getApiHostname = () => {
+export const getApiHostname = () => {
   // Check if we're running inside Docker (based on environment variable that can be set in docker-compose)
   const inDocker = process.env.REACT_APP_DOCKER === 'true';
 
@@ -676,7 +676,7 @@ export const getUserInfo = async () => {
 };
 
 // Utility function to create fetch requests with timeout
-const fetchWithTimeout = async (url, options = {}, timeout = 5000) => {
+export const fetchWithTimeout = async (url, options = {}, timeout = 5000) => {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
 

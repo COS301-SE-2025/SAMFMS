@@ -1,4 +1,4 @@
-import { getApiHostname, fetchWithTimeout } from './auth';
+import { getApiHostname, fetchWithTimeout, getToken } from './auth';
 
 // Get the API hostname
 const API_URL = `${getApiHostname()}/api`;
@@ -16,7 +16,7 @@ const PLUGIN_ENDPOINTS = {
  */
 export const getPlugins = async () => {
   try {
-    const token = localStorage.getItem('access_token');
+    const token = getToken();
     if (!token) {
       throw new Error('No authentication token found');
     }
@@ -45,7 +45,7 @@ export const getPlugins = async () => {
  */
 export const startPlugin = async pluginId => {
   try {
-    const token = localStorage.getItem('access_token');
+    const token = getToken();
     if (!token) {
       throw new Error('No authentication token found');
     }
@@ -74,7 +74,7 @@ export const startPlugin = async pluginId => {
  */
 export const stopPlugin = async pluginId => {
   try {
-    const token = localStorage.getItem('access_token');
+    const token = getToken();
     if (!token) {
       throw new Error('No authentication token found');
     }
@@ -103,7 +103,7 @@ export const stopPlugin = async pluginId => {
  */
 export const updatePluginRoles = async (pluginId, allowedRoles) => {
   try {
-    const token = localStorage.getItem('access_token');
+    const token = getToken();
     if (!token) {
       throw new Error('No authentication token found');
     }

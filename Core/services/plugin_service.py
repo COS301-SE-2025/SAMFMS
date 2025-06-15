@@ -17,7 +17,7 @@ class PluginManager:
     """Manages plugin lifecycle and permissions"""
     
     def __init__(self):
-        self.docker_client = docker.from_env()
+        self._docker_client = None
         self._db: Optional[AsyncIOMotorDatabase] = None
         
         # Default plugin registry - in a real implementation, this could be loaded from config
@@ -72,17 +72,28 @@ class PluginManager:
                 description="Route optimization and trip planning",
                 version="1.0.0",
                 docker_service_name="samfms-trip_planning-1",
-                status=PluginStatus.INACTIVE,
-                allowed_roles=["admin", "fleet_manager", "driver"],
+                status=PluginStatus.INACTIVE,                allowed_roles=["admin", "fleet_manager", "driver"],
                 port=8005,
                 health_endpoint="/health"
             )
         }
+
+    def get_docker_client(self):
+        """Get Docker client with lazy initialization and error handling"""
+        if self._docker_client is None:
+            try:
+                self._docker_client = docker.from_env()
+                logger.info("Docker client initialized successfully")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Docker client: {e}")
+                logger.warning("Plugin management features will be limited without Docker access")
+                self._docker_client = False  # Mark as failed to avoid retrying
+        return self._docker_client if self._docker_client is not False else None
     
     async def get_database(self):
         """Get database connection"""
         if not self._db:
-            self._db = await get_database()
+            self._db = get_database()
         return self._db
     
     async def get_plugins_collection(self):
@@ -163,8 +174,7 @@ class PluginManager:
         """Update plugin allowed roles"""
         try:
             plugins_collection = await self.get_plugins_collection()
-            result = await plugins_collection.update_one(
-                {"plugin_id": plugin_id},
+            result = await plugins_collection.update_one(                {"plugin_id": plugin_id},
                 {"$set": {"allowed_roles": allowed_roles}}
             )
             return result.modified_count > 0
@@ -175,7 +185,12 @@ class PluginManager:
     def get_container_status(self, service_name: str) -> Optional[str]:
         """Get Docker container status"""
         try:
-            containers = self.docker_client.containers.list(all=True, filters={"name": service_name})
+            docker_client = self.get_docker_client()
+            if not docker_client:
+                logger.warning("Docker client not available for container status check")
+                return None
+                
+            containers = docker_client.containers.list(all=True, filters={"name": service_name})
             if containers:
                 return containers[0].status
             return None
@@ -196,10 +211,19 @@ class PluginManager:
             
             # Update status to starting
             await self.update_plugin_status(plugin_id, PluginStatus.STARTING)
-            
-            # Try to start the container
+              # Try to start the container
             try:
-                containers = self.docker_client.containers.list(
+                docker_client = self.get_docker_client()
+                if not docker_client:
+                    await self.update_plugin_status(plugin_id, PluginStatus.ERROR)
+                    return PluginStatusResponse(
+                        plugin_id=plugin_id,
+                        status=PluginStatus.ERROR,
+                        message="Docker client not available",
+                        container_status="docker_unavailable"
+                    )
+                
+                containers = docker_client.containers.list(
                     all=True, 
                     filters={"name": plugin.docker_service_name}
                 )
@@ -262,10 +286,19 @@ class PluginManager:
             
             # Update status to stopping
             await self.update_plugin_status(plugin_id, PluginStatus.STOPPING)
-            
-            # Try to stop the container
+              # Try to stop the container
             try:
-                containers = self.docker_client.containers.list(
+                docker_client = self.get_docker_client()
+                if not docker_client:
+                    await self.update_plugin_status(plugin_id, PluginStatus.ERROR)
+                    return PluginStatusResponse(
+                        plugin_id=plugin_id,
+                        status=PluginStatus.ERROR,
+                        message="Docker client not available",
+                        container_status="docker_unavailable"
+                    )
+                
+                containers = docker_client.containers.list(
                     all=True, 
                     filters={"name": plugin.docker_service_name}
                 )
