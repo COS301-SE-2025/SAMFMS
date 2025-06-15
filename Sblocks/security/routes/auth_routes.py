@@ -88,3 +88,31 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user_se
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get user information"
         )
+
+
+@router.get("/user-exists")
+async def check_user_existence():
+    """Check if any users exist in the system"""
+    try:
+        from repositories.user_repository import UserRepository
+        user_count = await UserRepository.count_users()
+        return {"userExists": user_count > 0}
+    except Exception as e:
+        logger.error(f"Error checking user existence: {e}")
+        # Default to False for better UX - if we can't check, assume no users for initial setup
+        return {"userExists": False}
+
+
+@router.get("/users/count")
+async def get_user_count():
+    """Get total count of users in the system"""
+    try:
+        from repositories.user_repository import UserRepository
+        user_count = await UserRepository.count_users()
+        return {"count": user_count}
+    except Exception as e:
+        logger.error(f"Error getting user count: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get user count"
+        )

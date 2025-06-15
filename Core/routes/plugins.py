@@ -4,7 +4,7 @@ Plugin management routes for SAMFMS Core service
 
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from typing import List
+from typing import List, Dict, Dict
 import logging
 
 from models.plugin_models import PluginInfo, PluginUpdateRequest, PluginStatusResponse
@@ -200,4 +200,31 @@ async def update_plugin_roles(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating plugin roles: {str(e)}"
+        )
+
+# Add route for getting runtime plugin status
+@router.get("/{plugin_id}/status", response_model=Dict[str, str])
+async def get_plugin_runtime_status(
+    plugin_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get comprehensive runtime status of a plugin"""
+    try:
+        user_info = verify_token(credentials)
+        if user_info.get("role") != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can view plugin runtime status"
+            )
+        
+        status_info = await plugin_manager.get_plugin_runtime_status(plugin_id)
+        return status_info
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting plugin runtime status {plugin_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving plugin runtime status: {str(e)}"
         )

@@ -21,59 +21,66 @@ class PluginManager:
         self._db: Optional[AsyncIOMotorDatabase] = None
         
         # Default plugin registry - in a real implementation, this could be loaded from config
-        self.available_plugins = {
-            "security": PluginInfo(
+        self.available_plugins = {            "security": PluginInfo(
                 plugin_id="security",
                 name="Security Service",
                 description="Authentication and authorization service",
                 version="1.0.0",
-                docker_service_name="samfms-security-1",
+                docker_service_name="security_service",
                 status=PluginStatus.ACTIVE,
                 allowed_roles=["admin", "fleet_manager", "driver"],
-                port=8001,
+                port=8007,
                 health_endpoint="/health"
-            ),
-            "gps": PluginInfo(
+            ),            "gps": PluginInfo(
                 plugin_id="gps",
                 name="GPS Tracking",
                 description="Vehicle location tracking and management",
                 version="1.0.0",
-                docker_service_name="samfms-gps-1",
+                docker_service_name="gps_service",
                 status=PluginStatus.INACTIVE,
                 allowed_roles=["admin", "fleet_manager"],
-                port=8002,
+                port=8001,
                 health_endpoint="/health"
-            ),
-            "management": PluginInfo(
+            ),            "management": PluginInfo(
                 plugin_id="management",
                 name="Fleet Management",
                 description="Vehicle and fleet management operations",
                 version="1.0.0",
-                docker_service_name="samfms-management-1",
+                docker_service_name="management_service",
                 status=PluginStatus.INACTIVE,
                 allowed_roles=["admin", "fleet_manager"],
-                port=8003,
+                port=8010,
                 health_endpoint="/health"
-            ),
-            "vehicle_maintenance": PluginInfo(
+            ),            "vehicle_maintenance": PluginInfo(
                 plugin_id="vehicle_maintenance",
                 name="Vehicle Maintenance",
                 description="Vehicle maintenance scheduling and tracking",
                 version="1.0.0",
-                docker_service_name="samfms-vehicle_maintainence-1",
+                docker_service_name="vehicle_maintenance_service",
                 status=PluginStatus.INACTIVE,
                 allowed_roles=["admin", "fleet_manager"],
                 port=8004,
                 health_endpoint="/health"
-            ),
-            "trip_planning": PluginInfo(
+            ),            "trip_planning": PluginInfo(
                 plugin_id="trip_planning",
                 name="Trip Planning",
                 description="Route optimization and trip planning",
                 version="1.0.0",
-                docker_service_name="samfms-trip_planning-1",
-                status=PluginStatus.INACTIVE,                allowed_roles=["admin", "fleet_manager", "driver"],
-                port=8005,
+                docker_service_name="trip_planning_service",
+                status=PluginStatus.INACTIVE,
+                allowed_roles=["admin", "fleet_manager", "driver"],
+                port=8002,
+                health_endpoint="/health"
+            ),
+            "utilities": PluginInfo(
+                plugin_id="utilities",
+                name="Utilities Service",
+                description="Utility functions and helper services",
+                version="1.0.0",
+                docker_service_name="utilities_service",
+                status=PluginStatus.INACTIVE,
+                allowed_roles=["admin", "fleet_manager"],
+                port=8006,
                 health_endpoint="/health"
             )
         }
@@ -174,7 +181,8 @@ class PluginManager:
         """Update plugin allowed roles"""
         try:
             plugins_collection = await self.get_plugins_collection()
-            result = await plugins_collection.update_one(                {"plugin_id": plugin_id},
+            result = await plugins_collection.update_one(
+                {"plugin_id": plugin_id},
                 {"$set": {"allowed_roles": allowed_roles}}
             )
             return result.modified_count > 0
@@ -183,17 +191,31 @@ class PluginManager:
             return False
     
     def get_container_status(self, service_name: str) -> Optional[str]:
-        """Get Docker container status"""
+        """Get Docker container status for a Docker Compose service"""
         try:
             docker_client = self.get_docker_client()
             if not docker_client:
                 logger.warning("Docker client not available for container status check")
                 return None
+            
+            # Docker Compose creates containers with project prefix
+            # Look for containers with the service name (either exact match or with project prefix)
+            containers = docker_client.containers.list(all=True)
+            
+            for container in containers:
+                # Check if container name contains the service name
+                if service_name in container.name or any(service_name in label for label in container.labels.values()):
+                    return container.status
+                    
+            # If no exact match, try finding by compose service label
+            containers_with_labels = docker_client.containers.list(
+                all=True, 
+                filters={"label": f"com.docker.compose.service={service_name}"}            )
+            
+            if containers_with_labels:
+                return containers_with_labels[0].status
                 
-            containers = docker_client.containers.list(all=True, filters={"name": service_name})
-            if containers:
-                return containers[0].status
-            return None
+            return "not_found"
         except Exception as e:
             logger.error(f"Error getting container status: {e}")
             return None
@@ -211,7 +233,8 @@ class PluginManager:
             
             # Update status to starting
             await self.update_plugin_status(plugin_id, PluginStatus.STARTING)
-              # Try to start the container
+            
+            # Try to start the container
             try:
                 docker_client = self.get_docker_client()
                 if not docker_client:
@@ -223,13 +246,9 @@ class PluginManager:
                         container_status="docker_unavailable"
                     )
                 
-                containers = docker_client.containers.list(
-                    all=True, 
-                    filters={"name": plugin.docker_service_name}
-                )
+                container = self.find_plugin_container(docker_client, plugin.docker_service_name)
                 
-                if containers:
-                    container = containers[0]
+                if container:
                     if container.status == "running":
                         await self.update_plugin_status(plugin_id, PluginStatus.ACTIVE)
                         return PluginStatusResponse(
@@ -239,20 +258,37 @@ class PluginManager:
                             container_status="running"
                         )
                     else:
+                        # Start the container
                         container.start()
-                        await self.update_plugin_status(plugin_id, PluginStatus.ACTIVE)
-                        return PluginStatusResponse(
-                            plugin_id=plugin_id,
-                            status=PluginStatus.ACTIVE,
-                            message="Plugin started successfully",
-                            container_status="running"
-                        )
+                        
+                        # Wait a moment for the container to start
+                        import time
+                        time.sleep(2)
+                        
+                        # Check if it actually started
+                        container.reload()
+                        if container.status == "running":
+                            await self.update_plugin_status(plugin_id, PluginStatus.ACTIVE)
+                            return PluginStatusResponse(
+                                plugin_id=plugin_id,
+                                status=PluginStatus.ACTIVE,
+                                message="Plugin started successfully",
+                                container_status="running"
+                            )
+                        else:
+                            await self.update_plugin_status(plugin_id, PluginStatus.ERROR)
+                            return PluginStatusResponse(
+                                plugin_id=plugin_id,
+                                status=PluginStatus.ERROR,
+                                message=f"Container failed to start, status: {container.status}",
+                                container_status=container.status
+                            )
                 else:
                     await self.update_plugin_status(plugin_id, PluginStatus.ERROR)
                     return PluginStatusResponse(
                         plugin_id=plugin_id,
                         status=PluginStatus.ERROR,
-                        message="Container not found",
+                        message="Container not found. Make sure Docker Compose services are created.",
                         container_status="not_found"
                     )
                     
@@ -270,8 +306,7 @@ class PluginManager:
             return PluginStatusResponse(
                 plugin_id=plugin_id,
                 status=PluginStatus.ERROR,
-                message=f"Error starting plugin: {str(e)}"
-            )
+                message=f"Error starting plugin: {str(e)}"            )
     
     async def stop_plugin(self, plugin_id: str) -> PluginStatusResponse:
         """Stop a plugin (Docker container)"""
@@ -286,7 +321,8 @@ class PluginManager:
             
             # Update status to stopping
             await self.update_plugin_status(plugin_id, PluginStatus.STOPPING)
-              # Try to stop the container
+            
+            # Try to stop the container
             try:
                 docker_client = self.get_docker_client()
                 if not docker_client:
@@ -298,21 +334,24 @@ class PluginManager:
                         container_status="docker_unavailable"
                     )
                 
-                containers = docker_client.containers.list(
-                    all=True, 
-                    filters={"name": plugin.docker_service_name}
-                )
+                container = self.find_plugin_container(docker_client, plugin.docker_service_name)
                 
-                if containers:
-                    container = containers[0]
+                if container:
                     if container.status == "running":
                         container.stop()
+                        
+                        # Wait a moment for the container to stop
+                        import time
+                        time.sleep(2)
+                        
+                        # Check if it actually stopped
+                        container.reload()
                         await self.update_plugin_status(plugin_id, PluginStatus.INACTIVE)
                         return PluginStatusResponse(
                             plugin_id=plugin_id,
                             status=PluginStatus.INACTIVE,
                             message="Plugin stopped successfully",
-                            container_status="exited"
+                            container_status=container.status
                         )
                     else:
                         await self.update_plugin_status(plugin_id, PluginStatus.INACTIVE)
@@ -351,6 +390,94 @@ class PluginManager:
     def user_has_plugin_access(self, user_role: str, plugin: PluginInfo) -> bool:
         """Check if user role has access to plugin"""
         return user_role in plugin.allowed_roles
+
+    def find_plugin_container(self, docker_client, service_name: str):
+        """Find container for a plugin service using multiple strategies"""
+        try:
+            # Strategy 1: Find by Docker Compose service label
+            containers = docker_client.containers.list(
+                all=True, 
+                filters={"label": f"com.docker.compose.service={service_name}"}
+            )
+            
+            if containers:
+                return containers[0]
+            
+            # Strategy 2: Find by container name containing service name
+            all_containers = docker_client.containers.list(all=True)
+            for container in all_containers:
+                if service_name in container.name:
+                    return container
+            
+            # Strategy 3: Find by project and service (for newer Docker Compose)
+            project_containers = docker_client.containers.list(
+                all=True,
+                filters={"label": "com.docker.compose.project=samfms"}
+            )
+            
+            for container in project_containers:
+                labels = container.labels
+                if labels.get("com.docker.compose.service") == service_name:
+                    return container
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error finding container for service {service_name}: {e}")
+            return None
+    
+    async def check_plugin_health(self, plugin: PluginInfo) -> bool:
+        """Check if a plugin service is healthy by testing its health endpoint"""
+        try:
+            import httpx
+            import asyncio
+            
+            health_url = f"http://localhost:{plugin.port}{plugin.health_endpoint}"
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(health_url)
+                return response.status_code == 200
+                
+        except Exception as e:
+            logger.debug(f"Health check failed for plugin {plugin.plugin_id}: {e}")
+            return False
+    
+    async def get_plugin_runtime_status(self, plugin_id: str) -> Dict[str, str]:
+        """Get comprehensive runtime status of a plugin"""
+        try:
+            plugin = await self.get_plugin(plugin_id)
+            if not plugin:
+                return {"status": "not_found", "container_status": "not_found", "health": "unknown"}
+            
+            docker_client = self.get_docker_client()
+            if not docker_client:
+                return {"status": "docker_unavailable", "container_status": "docker_unavailable", "health": "unknown"}
+            
+            container = self.find_plugin_container(docker_client, plugin.docker_service_name)
+            
+            if not container:
+                return {"status": "container_not_found", "container_status": "not_found", "health": "unreachable"}
+            
+            container_status = container.status
+            health_status = "unknown"
+            
+            if container_status == "running":
+                is_healthy = await self.check_plugin_health(plugin)
+                health_status = "healthy" if is_healthy else "unhealthy"
+            else:
+                health_status = "unreachable"
+            
+            return {
+                "status": "running" if container_status == "running" else "stopped",
+                "container_status": container_status,
+                "health": health_status,
+                "container_id": container.short_id,
+                "container_name": container.name
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting runtime status for plugin {plugin_id}: {e}")
+            return {"status": "error", "container_status": "error", "health": "error"}
 
 # Global plugin manager instance
 plugin_manager = PluginManager()

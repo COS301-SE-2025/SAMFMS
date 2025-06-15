@@ -293,8 +293,9 @@ async def check_user_existence():
         
         if response.status_code == 200:
             return response.json()
-        else:
-            # Fallback: Try to get user count if direct endpoint doesn't exist
+        elif response.status_code == 404:
+            # Endpoint doesn't exist, try the count endpoint
+            logger.info("user-exists endpoint not found, trying users/count endpoint")
             count_response = requests.get(
                 f"{SECURITY_URL}/auth/users/count",
                 timeout=5
@@ -304,17 +305,21 @@ async def check_user_existence():
                 data = count_response.json()
                 return {"userExists": data.get("count", 0) > 0}
             else:
-                logger.warning(f"Failed to check user existence: {response.status_code}")
-                # Default to true for security (better to show login than expose signup unnecessarily)
-                return {"userExists": True}
+                logger.warning(f"Both user-exists and users/count endpoints failed. Status: {count_response.status_code}")
+                # Default to false for better UX when endpoints are missing
+                return {"userExists": False}
+        else:
+            logger.warning(f"Security service returned unexpected status: {response.status_code}")
+            # Default to false for better UX when there are errors
+            return {"userExists": False}
                 
     except requests.RequestException as e:
         logger.error(f"Error connecting to Security service when checking user existence: {e}")
-        # Default to true if we can't connect to the security service
-        return {"userExists": True}
+        # Default to false if we can't connect to allow signup flow
+        return {"userExists": False}
     except Exception as e:
         logger.error(f"Error checking user existence: {e}")
-        return {"userExists": True}
+        return {"userExists": False}
 
 @router.post("/update-profile")
 async def update_profile(request: Request, data: ProfileUpdateRequest):
