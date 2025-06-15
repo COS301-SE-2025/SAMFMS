@@ -1,5 +1,8 @@
-# Import middleware for easy access
-from .logging_middleware import LoggingMiddleware
-from .security_middleware import SecurityHeadersMiddleware, CORSMiddleware
+# Import all middleware
+from .security_middleware import LoggingMiddleware, SecurityHeadersMiddleware
 
-__all__ = ['LoggingMiddleware', 'SecurityHeadersMiddleware', 'CORSMiddleware']
+# Export all middleware
+__all__ = [
+    "LoggingMiddleware",
+    "SecurityHeadersMiddleware"
+]

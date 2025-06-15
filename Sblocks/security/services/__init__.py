@@ -2,4 +2,8 @@
 from .auth_service import AuthService
 from .user_service import UserService
 
-__all__ = ['AuthService', 'UserService']
+# Export all services
+__all__ = [
+    "AuthService",
+    "UserService"
+]
