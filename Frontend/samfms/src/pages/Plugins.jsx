@@ -2,44 +2,93 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import {
   getPlugins,
+  getAllPlugins,
   startPlugin,
   stopPlugin,
   updatePluginRoles,
+  getPluginStatus,
   testCoreService,
+  syncPluginStatus,
 } from '../backend/api/plugins';
+import { useAuth, ROLES } from '../components/RBACUtils';
 
 const userTypes = ['admin', 'fleet_manager', 'driver'];
 
 const Plugins = () => {
+  const { hasRole } = useAuth();
   const [plugins, setPlugins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
 
+  // Check if user has admin access
+  const isAdmin = hasRole(ROLES.ADMIN);
   // Load plugins on component mount
   useEffect(() => {
-    loadPlugins();
-  }, []);
-  const loadPlugins = async () => {
+    const initializePlugins = async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        // Test Core service connectivity first
+        console.log('Testing Core service connectivity...');
+        const healthCheck = await testCoreService();
+        if (!healthCheck.success) {
+          throw new Error(`Core service is not accessible: ${healthCheck.error}`);
+        }
+        console.log('Core service is accessible, loading plugins...');
+
+        // Load plugins based on user role
+        const pluginsData = isAdmin ? await getAllPlugins() : await getPlugins();
+        setPlugins(pluginsData);
+      } catch (err) {
+        setError('Failed to load plugins: ' + err.message);
+        console.error('Error loading plugins:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializePlugins();
+  }, [isAdmin]);
+
+  const refreshPlugins = async () => {
     try {
-      setLoading(true);
+      setRefreshing(true);
       setError('');
 
-      // Test Core service connectivity first
-      console.log('Testing Core service connectivity...');
-      const healthCheck = await testCoreService();
-      if (!healthCheck.success) {
-        throw new Error(`Core service is not accessible: ${healthCheck.error}`);
-      }
-      console.log('Core service is accessible, loading plugins...');
-
-      const pluginsData = await getPlugins();
+      const pluginsData = isAdmin ? await getAllPlugins() : await getPlugins();
       setPlugins(pluginsData);
     } catch (err) {
-      setError('Failed to load plugins: ' + err.message);
-      console.error('Error loading plugins:', err);
+      setError('Failed to refresh plugins: ' + err.message);
+      console.error('Error refreshing plugins:', err);
     } finally {
-      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const syncPluginsStatus = async () => {
+    if (!isAdmin) {
+      setError('Only administrators can sync plugin status');
+      return;
+    }
+
+    try {
+      setRefreshing(true);
+      setError('');
+
+      // Sync status with containers
+      await syncPluginStatus();
+
+      // Refresh plugins to get updated status
+      const pluginsData = await getAllPlugins();
+      setPlugins(pluginsData);
+    } catch (err) {
+      setError('Failed to sync plugin status: ' + err.message);
+      console.error('Error syncing plugin status:', err);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -68,9 +117,13 @@ const Plugins = () => {
       setActionLoading(prev => ({ ...prev, [pluginId]: false }));
     }
   };
-
   // Handler for toggling enabled/disabled
   const handleEnabledToggle = async pluginId => {
+    if (!isAdmin) {
+      setError('Only administrators can start/stop plugins');
+      return;
+    }
+
     try {
       setActionLoading(prev => ({ ...prev, [pluginId]: true }));
 
@@ -88,11 +141,30 @@ const Plugins = () => {
       setPlugins(prev =>
         prev.map(p => (p.plugin_id === pluginId ? { ...p, status: result.status } : p))
       );
+
+      // Refresh plugin status after a short delay
+      setTimeout(() => refreshPluginStatus(pluginId), 1000);
     } catch (err) {
       setError('Failed to toggle plugin: ' + err.message);
       console.error('Error toggling plugin:', err);
     } finally {
       setActionLoading(prev => ({ ...prev, [pluginId]: false }));
+    }
+  };
+
+  // Refresh individual plugin status
+  const refreshPluginStatus = async pluginId => {
+    try {
+      const status = await getPluginStatus(pluginId);
+      setPlugins(prev =>
+        prev.map(p =>
+          p.plugin_id === pluginId
+            ? { ...p, status: status.status, container_status: status.container_status }
+            : p
+        )
+      );
+    } catch (err) {
+      console.error('Error refreshing plugin status:', err);
     }
   };
 
@@ -115,10 +187,15 @@ const Plugins = () => {
         <div>
           <h1 className="text-4xl font-bold">Plugins</h1>
           <p className="text-muted-foreground">Manage system plugins and extensions</p>
+        </div>{' '}
+        <div className="flex space-x-2">
+          <Button onClick={refreshPlugins} variant="outline" disabled={refreshing}>
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+          <Button onClick={syncPluginsStatus} variant="outline" disabled={refreshing}>
+            {refreshing ? 'Syncing...' : 'Sync Status'}
+          </Button>
         </div>
-        <Button onClick={loadPlugins} variant="outline">
-          Refresh
-        </Button>
       </header>
 
       {error && (

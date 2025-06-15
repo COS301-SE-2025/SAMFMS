@@ -131,6 +131,7 @@ services:
       start_period: 30s
     restart: no
     command: mongod --quiet --logpath /dev/null
+
   mongodb_management:
     image: mongo:7
     ports:
@@ -145,11 +146,14 @@ services:
       start_period: 30s
     restart: no
     command: mongod --quiet --logpath /dev/null
+
   mcore:
     build: ./Core
     command: sh /app/start.sh
     ports:
       - '8000:8000'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       rabbitmq:
         condition: service_healthy

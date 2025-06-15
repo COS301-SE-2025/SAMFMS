@@ -26,7 +26,7 @@ if not JWT_SECRET_KEY:
     raise ValueError("JWT_SECRET_KEY must be set in environment variables")
 
 # Security service URL for token verification
-SECURITY_URL = "http://security_service:8000"
+SECURITY_URL = os.getenv("SECURITY_URL", "http://security_service:8000")
 
 security = HTTPBearer()
 

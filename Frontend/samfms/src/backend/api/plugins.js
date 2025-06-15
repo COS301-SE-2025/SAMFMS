@@ -1,14 +1,16 @@
 import { getApiHostname, fetchWithTimeout, getToken } from './auth';
 
-// Get the API hostname
-const API_URL = `${getApiHostname()}`;
+// Get the API hostname with protocol
+const API_URL = `http://${getApiHostname()}`;
 
 // Plugin API endpoints
 const PLUGIN_ENDPOINTS = {
-  list: `${API_URL}/plugins/available`,
-  start: pluginId => `${API_URL}/plugins/${pluginId}/start`,
-  stop: pluginId => `${API_URL}/plugins/${pluginId}/stop`,
-  updateRoles: pluginId => `${API_URL}/plugins/${pluginId}/roles`,
+  list: `${API_URL}/api/plugins/available`,
+  all: `${API_URL}/api/plugins/`,
+  start: pluginId => `${API_URL}/api/plugins/${pluginId}/start`,
+  stop: pluginId => `${API_URL}/api/plugins/${pluginId}/stop`,
+  updateRoles: pluginId => `${API_URL}/api/plugins/${pluginId}/roles`,
+  status: pluginId => `${API_URL}/api/plugins/${pluginId}/status`,
 };
 
 /**
@@ -128,10 +130,68 @@ export const updatePluginRoles = async (pluginId, allowedRoles) => {
   }
 };
 
+/**
+ * Get all plugins (admin only)
+ */
+export const getAllPlugins = async () => {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetchWithTimeout(PLUGIN_ENDPOINTS.all, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch all plugins: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching all plugins:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get plugin runtime status
+ */
+export const getPluginStatus = async pluginId => {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetchWithTimeout(PLUGIN_ENDPOINTS.status(pluginId), {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get plugin status: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Error getting plugin status ${pluginId}:`, error);
+    throw error;
+  }
+};
+
 // Test function to check Core service connectivity
 export const testCoreService = async () => {
   try {
-    const healthUrl = `${getApiHostname()}/health`;
+    const healthUrl = `http://${getApiHostname()}/health`;
     console.log('Testing Core service at:', healthUrl);
 
     const response = await fetchWithTimeout(
@@ -156,5 +216,34 @@ export const testCoreService = async () => {
   } catch (error) {
     console.error('Core service connectivity test failed:', error);
     return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Sync plugin status with container status
+ */
+export const syncPluginStatus = async () => {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetchWithTimeout(`${API_URL}/api/plugins/sync-status`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to sync plugin status: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error syncing plugin status:', error);
+    throw error;
   }
 };

@@ -228,3 +228,28 @@ async def get_plugin_runtime_status(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving plugin runtime status: {str(e)}"
         )
+
+@router.post("/sync-status")
+async def sync_plugin_status(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Synchronize plugin status with actual container status - admin only"""
+    try:
+        user_info = verify_token(credentials)
+        if user_info.get("role") != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can sync plugin status"
+            )
+        
+        await plugin_manager.sync_plugin_status()
+        return {"message": "Plugin status synchronized successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error syncing plugin status: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error syncing plugin status: {str(e)}"
+        )

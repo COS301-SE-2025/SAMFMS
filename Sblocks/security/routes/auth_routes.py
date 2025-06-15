@@ -116,3 +116,19 @@ async def get_user_count():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get user count"
         )
+
+
+@router.post("/verify-token")
+async def verify_token(current_user: dict = Depends(get_current_user_secure)):
+    """Verify a JWT token and return user information (used by other services)"""
+    try:
+        # Return user information without sensitive data
+        user_info = {k: v for k, v in current_user.items() 
+                    if k not in ["password_hash", "token", "_id"]}
+        return user_info
+    except Exception as e:
+        logger.error(f"Token verification error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token"
+        )
