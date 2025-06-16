@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import ThemeToggle from '../components/ThemeToggle';
 import { getCurrentUser, updatePreferences } from '../backend/api/auth';
+import { getCookie } from '../lib/cookies';
 
 const Settings = () => {
   const [settings, setSettings] = useState({
@@ -17,15 +18,29 @@ const Settings = () => {
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-
   // Load user preferences on component mount
   useEffect(() => {
-    const user = getCurrentUser();
-    if (user && user.preferences) {
-      setSettings(prevSettings => ({
-        ...prevSettings,
-        ...user.preferences,
-      }));
+    // Get preferences from cookie
+    const preferencesCookie = getCookie('preferences');
+    if (preferencesCookie) {
+      try {
+        const preferences = JSON.parse(preferencesCookie);
+        console.log('Loaded preferences from cookie:', preferences);
+
+        // Convert snake_case keys from backend/cookies to kebab-case for frontend display
+        const formattedPreferences = {};
+        Object.keys(preferences).forEach(key => {
+          const kebabKey = key.replace(/_/g, '-');
+          formattedPreferences[kebabKey] = preferences[key];
+        });
+
+        setSettings(prevSettings => ({
+          ...prevSettings,
+          ...formattedPreferences,
+        }));
+      } catch (error) {
+        console.error('Error parsing preferences cookie:', error);
+      }
     }
   }, []);
 
@@ -45,25 +60,52 @@ const Settings = () => {
         throw new Error('User not authenticated');
       }
 
-      // Convert settings object to match backend format
+      // Convert settings object for backend format
+      // Note: The backend expects snake_case keys while frontend uses kebab-case
       const preferencesData = {};
       Object.keys(settings).forEach(key => {
-        preferencesData[key.replace('-', '_')] = settings[key];
-      });
-
-      // Use the updatePreferences function from auth.js
+        // Replace all dashes with underscores for complete conversion from kebab-case to snake_case
+        preferencesData[key.replace(/-/g, '_')] = settings[key];
+      }); // Use the updatePreferences function from auth.js
       await updatePreferences(preferencesData);
       setMessage('Settings saved successfully!');
-      // User data in localStorage is already updated by the updatePreferences function
+
+      // The updatePreferences function updates the cookies
+      // We should update our local state to reflect the saved preferences
+      // This ensures any changes in key format (kebab-case vs snake_case) are properly handled
+      const preferencesCookie = getCookie('preferences');
+      if (preferencesCookie) {
+        try {
+          const updatedPreferences = JSON.parse(preferencesCookie);
+          console.log('Updated preferences from cookie:', updatedPreferences);
+
+          // Convert snake_case keys back to kebab-case for frontend display
+          const formattedPreferences = {};
+          Object.keys(updatedPreferences).forEach(key => {
+            const kebabKey = key.replace(/_/g, '-');
+            formattedPreferences[kebabKey] = updatedPreferences[key];
+          });
+
+          setSettings(prevSettings => ({
+            ...prevSettings,
+            ...formattedPreferences,
+          }));
+        } catch (error) {
+          console.error('Error parsing updated preferences cookie:', error);
+        }
+      }
     } catch (error) {
       setMessage('Error saving settings: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
+  const handleResetDefaults = async () => {
+    setLoading(true);
+    setMessage('');
 
-  const handleResetDefaults = () => {
-    setSettings({
+    // Default settings in kebab-case (frontend format)
+    const defaultSettings = {
       theme: 'light',
       animations: 'true',
       'email-alerts': 'true',
@@ -73,8 +115,32 @@ const Settings = () => {
       'two-factor': 'false',
       'activity-log': 'true',
       'session-timeout': '30 minutes',
-    });
-    setMessage('Settings reset to defaults');
+    };
+
+    try {
+      const user = getCurrentUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Update local state first for immediate feedback
+      setSettings(defaultSettings);
+
+      // Convert to snake_case for backend
+      const preferencesData = {};
+      Object.keys(defaultSettings).forEach(key => {
+        preferencesData[key.replace(/-/g, '_')] = defaultSettings[key];
+      });
+
+      // Send to backend
+      await updatePreferences(preferencesData);
+      setMessage('Settings reset to defaults successfully!');
+    } catch (error) {
+      setMessage('Error resetting settings: ' + error.message);
+      console.error('Error resetting defaults:', error);
+    } finally {
+      setLoading(false);
+    }
   };
   return (
     <div className="container mx-auto py-8">

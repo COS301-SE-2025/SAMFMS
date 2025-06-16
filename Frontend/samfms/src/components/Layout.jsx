@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
@@ -6,6 +6,57 @@ import UserComponent from './UserComponent';
 
 const Layout = () => {
   const location = useLocation();
+
+  // Initialize session monitoring and token refresh when layout loads
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        // Start session monitoring
+        const { startSessionMonitoring } = await import('../utils/sessionMonitor');
+        startSessionMonitoring();
+
+        // Start token refresh
+        const { startTokenRefresh } = await import('../utils/tokenManager');
+        startTokenRefresh();
+
+        console.log('Authentication monitoring initialized');
+      } catch (error) {
+        console.error('Failed to initialize authentication monitoring:', error);
+      }
+    };
+
+    initializeAuth();
+
+    // Cleanup on unmount
+    return () => {
+      import('../utils/sessionMonitor')
+        .then(({ stopSessionMonitoring }) => {
+          stopSessionMonitoring();
+        })
+        .catch(console.error);
+
+      import('../utils/tokenManager')
+        .then(({ stopTokenRefresh }) => {
+          stopTokenRefresh();
+        })
+        .catch(console.error);
+    };
+  }, []);
+
+  // Track page views when route changes
+  useEffect(() => {
+    const trackPage = async () => {
+      try {
+        const { trackPageView } = await import('../utils/sessionMonitor');
+        trackPageView(location.pathname);
+      } catch (error) {
+        console.error('Failed to track page view:', error);
+      }
+    };
+
+    trackPage();
+  }, [location.pathname]);
+
   // Function to get current page title
   const getCurrentPageTitle = () => {
     const path = location.pathname.split('/')[1];
