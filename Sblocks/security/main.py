@@ -1,17 +1,26 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import redis
 import pika
-from routes import router as auth_router
-from database import test_database_connection, create_indexes, cleanup_expired_sessions
+import os
+from routes import auth_router, user_router, admin_router
+from config.database import test_database_connection, create_indexes, cleanup_expired_sessions
 from message_queue import mq_service
 from logging_config import setup_logging, get_logger
 from middleware import LoggingMiddleware, SecurityHeadersMiddleware
 from health_metrics import health_check, metrics_endpoint
+from config.settings import settings
 
 # Setup structured logging
 setup_logging()
 logger = get_logger(__name__)
+
+# Path for profile pictures and static files
+PROFILE_PICTURES_DIR = os.path.join(os.getcwd(), "profile_pictures")
+STATIC_DIR = os.path.join(os.getcwd(), "static")
+os.makedirs(PROFILE_PICTURES_DIR, exist_ok=True)
+os.makedirs(os.path.join(STATIC_DIR, "profile_pictures"), exist_ok=True)
 
 
 # Application lifespan events
@@ -26,10 +35,9 @@ async def lifespan(app: FastAPI):
     
     # Create database indexes
     await create_indexes()
-    
-    # Test Redis connection
+      # Test Redis connection
     try:
-        redis_client = redis.Redis(host='redis', port=6379, decode_responses=True)
+        redis_client = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
         redis_client.ping()
         logger.info("✅ Successfully connected to Redis")
     except Exception as e:
@@ -82,6 +90,11 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 # Include routers
 app.include_router(auth_router)
+app.include_router(user_router)
+app.include_router(admin_router)
+
+# Serve static files for profile pictures
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])

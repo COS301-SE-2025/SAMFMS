@@ -6,6 +6,8 @@ import 'leaflet/dist/leaflet.css';
 import Layout from './components/Layout';
 import ThemeProvider from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
+import AuthErrorBoundary from './components/AuthErrorBoundary';
 
 // Import pages
 import Login from './pages/Login';
@@ -23,32 +25,54 @@ import UserManagement from './components/UserManagement';
 
 function App() {
   return (
-    <ThemeProvider>
-      <Router>
-        <Routes>
-          {' '}
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          {/* Protected routes inside Layout */}{' '}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/vehicles" element={<Vehicles />} />
-              <Route path="/drivers" element={<Drivers />} />
-              <Route path="/tracking" element={<Tracking />} />
-              <Route path="/trips" element={<Trips />} />
-              <Route path="/maintenance" element={<Maintenance />} />
-              <Route path="/account" element={<Account />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/plugins" element={<Plugins />} />
-              <Route path="/users" element={<UserManagement />} />
+    <ErrorBoundary>
+      <ThemeProvider>
+        <Router>
+          <Routes>
+            {/* Public routes - wrapped in AuthErrorBoundary for auth-related errors */}
+            <Route
+              path="/login"
+              element={
+                <AuthErrorBoundary>
+                  <Login />
+                </AuthErrorBoundary>
+              }
+            />
+            <Route
+              path="/signup"
+              element={
+                <AuthErrorBoundary>
+                  <Signup />
+                </AuthErrorBoundary>
+              }
+            />
+
+            {/* Protected routes inside Layout - all wrapped in AuthErrorBoundary */}
+            <Route
+              element={
+                <AuthErrorBoundary>
+                  <ProtectedRoute />
+                </AuthErrorBoundary>
+              }
+            >
+              <Route path="/" element={<Layout />}>
+                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/vehicles" element={<Vehicles />} />
+                <Route path="/drivers" element={<Drivers />} />
+                <Route path="/tracking" element={<Tracking />} />
+                <Route path="/trips" element={<Trips />} />
+                <Route path="/maintenance" element={<Maintenance />} />
+                <Route path="/account" element={<Account />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/plugins" element={<Plugins />} />
+                <Route path="/users" element={<UserManagement />} />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
-      </Router>
-    </ThemeProvider>
+          </Routes>
+        </Router>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
