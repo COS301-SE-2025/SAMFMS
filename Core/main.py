@@ -30,6 +30,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to connect to MongoDB: {e}")
     
+    # Initialize plugin manager
+    try:
+        from services.plugin_service import plugin_manager
+        await plugin_manager.initialize_plugins()
+        logger.info("Plugin manager initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize plugin manager: {e}")
 
     consumer_task = asyncio.create_task(consume_messages("service_status"))
     await create_exchange("general", aio_pika.ExchangeType.FANOUT)
@@ -69,9 +76,12 @@ app.add_middleware(
     allow_headers=["*"],        # Allow all headers
 )
 
-# Import and include the auth router
+# Import and include routers
 from routes.auth import router as auth_router
+from routes.plugins import router as plugins_router
+
 app.include_router(auth_router)
+app.include_router(plugins_router, prefix="/api")
 
 
 # Add a route for health checks (needed by Security middleware)

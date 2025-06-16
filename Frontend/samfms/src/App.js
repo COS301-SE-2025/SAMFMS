@@ -7,6 +7,7 @@ import Layout from './components/Layout';
 import ThemeProvider from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
+import AuthErrorBoundary from './components/AuthErrorBoundary';
 
 // Import pages
 import Login from './pages/Login';
@@ -28,11 +29,32 @@ function App() {
       <ThemeProvider>
         <Router>
           <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            {/* Protected routes inside Layout */}
-            <Route element={<ProtectedRoute />}>
+            {/* Public routes - wrapped in AuthErrorBoundary for auth-related errors */}
+            <Route
+              path="/login"
+              element={
+                <AuthErrorBoundary>
+                  <Login />
+                </AuthErrorBoundary>
+              }
+            />
+            <Route
+              path="/signup"
+              element={
+                <AuthErrorBoundary>
+                  <Signup />
+                </AuthErrorBoundary>
+              }
+            />
+
+            {/* Protected routes inside Layout - all wrapped in AuthErrorBoundary */}
+            <Route
+              element={
+                <AuthErrorBoundary>
+                  <ProtectedRoute />
+                </AuthErrorBoundary>
+              }
+            >
               <Route path="/" element={<Layout />}>
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />

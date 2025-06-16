@@ -2,13 +2,17 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import redis
-import pika
 import os
-from routes import auth_router, user_router, admin_router
+
+# Import from new structure
+from routes.auth_routes import router as auth_router
+from routes.user_routes import router as user_router
+from routes.admin_routes import router as admin_router
 from config.database import test_database_connection, create_indexes, cleanup_expired_sessions
 from message_queue import mq_service
 from logging_config import setup_logging, get_logger
-from middleware import LoggingMiddleware, SecurityHeadersMiddleware
+from middleware.logging_middleware import LoggingMiddleware
+from middleware.security_middleware import SecurityHeadersMiddleware
 from health_metrics import health_check, metrics_endpoint
 from config.settings import settings
 
@@ -35,14 +39,20 @@ async def lifespan(app: FastAPI):
     
     # Create database indexes
     await create_indexes()
-      # Test Redis connection
+    
+    # Test Redis connection
     try:
-        redis_client = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
+        redis_client = redis.Redis(
+            host=settings.REDIS_HOST, 
+            port=settings.REDIS_PORT, 
+            decode_responses=True
+        )
         redis_client.ping()
         logger.info("✅ Successfully connected to Redis")
     except Exception as e:
         logger.error(f"❌ Failed to connect to Redis: {e}")
-      # Connect to RabbitMQ
+    
+    # Connect to RabbitMQ
     if mq_service.connect():
         logger.info("✅ Successfully connected to RabbitMQ")
         
@@ -80,7 +90,7 @@ async def periodic_cleanup():
 app = FastAPI(
     title="SAMFMS Security Service",
     description="Authentication and authorization for South African Fleet Management System",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan
 )
 
@@ -115,8 +125,9 @@ def read_root():
     return {
         "message": "SAMFMS Security Service",
         "service": "security",
-        "version": "1.0.0",
-        "description": "Authentication and authorization service"
+        "version": "2.0.0",
+        "description": "Authentication and authorization service - Refactored Architecture",
+        "structure": "Improved modular structure with separate layers"
     }
 
 if __name__ == "__main__":

@@ -1,0 +1,121 @@
+from config.database import security_users_collection
+from models.database_models import SecurityUser
+from typing import Optional, Dict, Any
+from bson import ObjectId
+from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class UserRepository:
+    """Repository for user data operations"""
+    
+    @staticmethod
+    async def create_user(user_data: Dict[str, Any]) -> str:
+        """Create a new user and return user_id"""
+        try:
+            result = await security_users_collection.insert_one(user_data)
+            logger.info(f"Created user with ID: {user_data['user_id']}")
+            return user_data['user_id']
+        except Exception as e:
+            logger.error(f"Failed to create user: {e}")
+            raise
+    
+    @staticmethod
+    async def find_by_email(email: str) -> Optional[Dict[str, Any]]:
+        """Find user by email"""
+        try:
+            return await security_users_collection.find_one({"email": email})
+        except Exception as e:
+            logger.error(f"Failed to find user by email: {e}")
+            raise
+    
+    @staticmethod
+    async def find_by_user_id(user_id: str) -> Optional[Dict[str, Any]]:
+        """Find user by user_id"""
+        try:
+            return await security_users_collection.find_one({"user_id": user_id})
+        except Exception as e:
+            logger.error(f"Failed to find user by user_id: {e}")
+            raise
+    
+    @staticmethod
+    async def update_user(user_id: str, updates: Dict[str, Any]) -> bool:
+        """Update user data"""
+        try:
+            result = await security_users_collection.update_one(
+                {"user_id": user_id},
+                {"$set": updates}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            logger.error(f"Failed to update user: {e}")
+            raise
+    
+    @staticmethod
+    async def update_by_filter(filter_dict: Dict[str, Any], updates: Dict[str, Any]) -> bool:
+        """Update user by filter"""
+        try:
+            result = await security_users_collection.update_one(filter_dict, updates)
+            return result.modified_count > 0
+        except Exception as e:
+            logger.error(f"Failed to update user by filter: {e}")
+            raise
+    
+    @staticmethod
+    async def increment_failed_attempts(user_id: str) -> bool:
+        """Increment failed login attempts"""
+        try:
+            result = await security_users_collection.update_one(
+                {"user_id": user_id},
+                {"$inc": {"failed_login_attempts": 1}}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            logger.error(f"Failed to increment failed attempts: {e}")
+            raise
+    
+    @staticmethod
+    async def reset_failed_attempts(user_id: str) -> bool:
+        """Reset failed login attempts and update last login"""
+        try:
+            result = await security_users_collection.update_one(
+                {"user_id": user_id},
+                {
+                    "$set": {"failed_login_attempts": 0, "last_login": datetime.utcnow()}
+                }
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            logger.error(f"Failed to reset failed attempts: {e}")
+            raise
+    
+    @staticmethod
+    async def count_users() -> int:
+        """Count total users"""
+        try:
+            return await security_users_collection.count_documents({})
+        except Exception as e:
+            logger.error(f"Failed to count users: {e}")
+            raise
+    
+    @staticmethod
+    async def get_all_users() -> list:
+        """Get all users"""
+        try:
+            cursor = security_users_collection.find({})
+            return await cursor.to_list(length=None)
+        except Exception as e:
+            logger.error(f"Failed to get all users: {e}")
+            raise
+    
+    @staticmethod
+    async def delete_user(user_id: str) -> bool:
+        """Delete user by user_id"""
+        try:
+            result = await security_users_collection.delete_one({"user_id": user_id})
+            return result.deleted_count > 0
+        except Exception as e:
+            logger.error(f"Failed to delete user: {e}")
+            raise

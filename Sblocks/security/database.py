@@ -1,72 +1,75 @@
 import motor.motor_asyncio
 import os
 import logging
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://host.docker.internal:27017")
-DATABASE_NAME = "security_db"
+# LEGACY FILE - This file is kept for backward compatibility
+# New code should use: from config.database import ...
+# For gradual migration, this file imports from new structure
 
-client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
-db = client[DATABASE_NAME]
+# Import from new structure
+from config.database import (
+    client, db, security_users_collection, sessions_collection, 
+    audit_logs_collection, blacklisted_tokens_collection,
+    test_database_connection, create_indexes, cleanup_expired_sessions
+)
 
-security_users_collection = db.security_users
-sessions_collection = db.sessions
-audit_logs_collection = db.audit_logs
-
-
-async def test_database_connection():
-    """Test the database connection"""
-    try:
-        await client.admin.command('ping')
-        logger.info("Successfully connected to Security database")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to connect to Security database: {e}")
-        return False
-
-
-async def create_indexes():
-    """Create database indexes for optimal performance"""
-    try:
-        await security_users_collection.create_index("email", unique=True)
-        await security_users_collection.create_index("user_id", unique=True)
-        
-        await sessions_collection.create_index("user_id")
-        await sessions_collection.create_index("expires_at")
-        
-        await audit_logs_collection.create_index("user_id")
-        
-        logger.info("Database indexes created successfully")
-    except Exception as e:
-        logger.error(f"Failed to create database indexes: {e}")
-
-
-async def cleanup_expired_sessions():
-    """Clean up expired sessions"""
-    try:
-        from datetime import datetime
-        result = await sessions_collection.delete_many({
-            "expires_at": {"$lt": datetime.utcnow()}
-        })
-        if result.deleted_count > 0:
-            logger.info(f"Cleaned up {result.deleted_count} expired sessions")
-    except Exception as e:
-        logger.error(f"Failed to cleanup expired sessions: {e}")
-
+# Legacy functions redirected to new repositories
+from repositories.audit_repository import AuditRepository, TokenRepository
 
 async def log_security_event(user_id: str, action: str, details: dict = None):
-    """Log security-related events for audit purposes"""
+    """Legacy function - use AuditRepository.log_security_event instead"""
+    return await AuditRepository.log_security_event(user_id, action, details)
+
+async def check_security_alerts(user_id: str, action: str, details: dict = None):
+    """Check for security patterns that require alerting"""
     try:
-        from datetime import datetime
-        audit_entry = {
-            "user_id": user_id,
-            "action": action,
-            "details": details or {},
-            "timestamp": datetime.utcnow(),
-            "ip_address": details.get("ip_address") if details else None
-        }
-        await audit_logs_collection.insert_one(audit_entry)
-        logger.info(f"Logged security event: {action} for user {user_id}")
+        current_time = datetime.utcnow()
+        
+        # Check for multiple failed login attempts
+        if action == "failed_login_attempt":
+            # Count failed attempts in last hour
+            failed_count = await AuditRepository.count_failed_attempts(user_id, 1)
+            
+            if failed_count >= 3:
+                logger.warning(f"SECURITY ALERT: Multiple failed login attempts for user {user_id}")
+                await AuditRepository.log_security_event(
+                    user_id=user_id,
+                    action="security_alert_multiple_failed_logins",
+                    details={"failed_count": failed_count, "time_window": "1_hour"}
+                )
+        
+        # Check for login from multiple IPs
+        elif action == "successful_login":
+            # This could be expanded to check for geographic anomalies
+            pass
+            
     except Exception as e:
-        logger.error(f"Failed to log security event: {e}")
+        logger.error(f"Failed to check security alerts: {e}")
+
+
+async def blacklist_token(token_hash: str, expires_at: datetime, user_id: str = None):
+    """Legacy function - use TokenRepository.blacklist_token instead"""
+    return await TokenRepository.blacklist_token(token_hash, expires_at)
+
+
+async def is_token_blacklisted(token_hash: str) -> bool:
+    """Legacy function - use TokenRepository.is_token_blacklisted instead"""
+    return await TokenRepository.is_token_blacklisted(token_hash)
+
+
+async def blacklist_all_user_tokens(user_id: str):
+    """Legacy function - use TokenRepository.blacklist_all_user_tokens instead"""
+    return await TokenRepository.blacklist_all_user_tokens(user_id)
+
+
+async def get_security_metrics():
+    """Legacy function - use AuditRepository.get_security_metrics instead"""
+    return await AuditRepository.get_security_metrics()
+
+
+# Keep original constants for compatibility
+MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://host.docker.internal:27017")
+DATABASE_NAME = "security_db"

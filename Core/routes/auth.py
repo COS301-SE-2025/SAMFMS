@@ -150,6 +150,121 @@ async def verify_token(request: Request):
             detail=f"Error: {str(e)}"
         )
 
+
+@router.post("/logout", response_model=dict)
+async def logout(request: Request):
+    """Proxy the logout request to the Security service"""
+    try:
+        # Get the Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            raise HTTPException(
+                status_code=401,
+                detail="Authorization header is missing"
+            )
+        
+        # Forward the request to the Security service
+        headers = {"Authorization": auth_header}
+        response = requests.post(
+            f"{SECURITY_URL}/auth/logout",
+            headers=headers,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Logout failed")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+            
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Logout error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Logout error: {str(e)}"
+        )
+
+
+@router.post("/logout-all", response_model=dict)
+async def logout_all(request: Request):
+    """Proxy the logout-all request to the Security service"""
+    try:
+        # Get the Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            raise HTTPException(
+                status_code=401,
+                detail="Authorization header is missing"
+            )
+        
+        # Forward the request to the Security service
+        headers = {"Authorization": auth_header}
+        response = requests.post(
+            f"{SECURITY_URL}/auth/logout-all",
+            headers=headers,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Logout from all devices failed")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+            
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Logout all error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Logout all error: {str(e)}"
+        )
+
+
+@router.post("/refresh", response_model=dict)
+async def refresh_token(request: Request):
+    """Proxy the token refresh request to the Security service"""
+    try:
+        # Get request body
+        body = await request.body()
+        
+        # Forward the request to the Security service
+        response = requests.post(
+            f"{SECURITY_URL}/auth/refresh",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Token refresh failed")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+            
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Token refresh error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Token refresh error: {str(e)}"
+        )
+
 @router.get("/health")
 async def auth_health():
     """Check if the auth routes are working and if the Security service is reachable"""
@@ -178,8 +293,9 @@ async def check_user_existence():
         
         if response.status_code == 200:
             return response.json()
-        else:
-            # Fallback: Try to get user count if direct endpoint doesn't exist
+        elif response.status_code == 404:
+            # Endpoint doesn't exist, try the count endpoint
+            logger.info("user-exists endpoint not found, trying users/count endpoint")
             count_response = requests.get(
                 f"{SECURITY_URL}/auth/users/count",
                 timeout=5
@@ -189,17 +305,21 @@ async def check_user_existence():
                 data = count_response.json()
                 return {"userExists": data.get("count", 0) > 0}
             else:
-                logger.warning(f"Failed to check user existence: {response.status_code}")
-                # Default to true for security (better to show login than expose signup unnecessarily)
-                return {"userExists": True}
+                logger.warning(f"Both user-exists and users/count endpoints failed. Status: {count_response.status_code}")
+                # Default to false for better UX when endpoints are missing
+                return {"userExists": False}
+        else:
+            logger.warning(f"Security service returned unexpected status: {response.status_code}")
+            # Default to false for better UX when there are errors
+            return {"userExists": False}
                 
     except requests.RequestException as e:
         logger.error(f"Error connecting to Security service when checking user existence: {e}")
-        # Default to true if we can't connect to the security service
-        return {"userExists": True}
+        # Default to false if we can't connect to allow signup flow
+        return {"userExists": False}
     except Exception as e:
         logger.error(f"Error checking user existence: {e}")
-        return {"userExists": True}
+        return {"userExists": False}
 
 @router.post("/update-profile")
 async def update_profile(request: Request, data: ProfileUpdateRequest):
