@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
 import { verifyInvitationOTP, completeUserRegistration } from '../backend/API.js';
 
 const UserActivation = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [step, setStep] = useState(1); // 1: Email & OTP, 2: Complete Registration
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -21,6 +22,19 @@ const UserActivation = () => {
 
   // Verified user data from OTP verification
   const [verifiedUser, setVerifiedUser] = useState(null);
+
+  // Extract email from URL parameters on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const emailParam = urlParams.get('email');
+
+    if (emailParam) {
+      setFormData(prevData => ({
+        ...prevData,
+        email: emailParam,
+      }));
+    }
+  }, [location.search]);
 
   const handleOTPSubmit = async e => {
     e.preventDefault();

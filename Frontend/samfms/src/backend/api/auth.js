@@ -236,6 +236,9 @@ export const authFetch = async (url, options = {}) => {
     throw new Error('No authentication token found');
   }
 
+  // Construct full URL if relative path is provided
+  const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+
   const headers = {
     ...options.headers,
     Authorization: `Bearer ${token}`,
@@ -243,7 +246,7 @@ export const authFetch = async (url, options = {}) => {
 
   try {
     // First attempt with current token
-    const response = await fetchWithTimeout(url, { ...options, headers }, 8000);
+    const response = await fetchWithTimeout(fullUrl, { ...options, headers }, 8000);
 
     // If unauthorized, try to refresh token and retry
     if (response.status === 401) {
@@ -257,7 +260,7 @@ export const authFetch = async (url, options = {}) => {
           Authorization: `Bearer ${token}`,
         };
 
-        return fetchWithTimeout(url, { ...options, headers: newHeaders }, 8000);
+        return fetchWithTimeout(fullUrl, { ...options, headers: newHeaders }, 8000);
       } catch (refreshError) {
         console.error('Auth refresh failed:', refreshError);
         // If refresh fails, redirect to login

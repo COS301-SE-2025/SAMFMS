@@ -297,17 +297,20 @@ class InvitationService:
     @staticmethod
     async def _send_invitation_email(invitation: UserInvitation):
         """Send invitation email with OTP"""
-        try:
-            # Email configuration from environment
+        try:            # Email configuration from environment
             smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
             smtp_port = int(os.getenv("SMTP_PORT", "587"))
             smtp_username = os.getenv("SMTP_USERNAME")
             smtp_password = os.getenv("SMTP_PASSWORD")
             from_email = os.getenv("FROM_EMAIL", smtp_username)
+            frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
             
             if not all([smtp_username, smtp_password]):
                 logger.warning("SMTP configuration not found, skipping email send")
                 return
+            
+            # Create activation link
+            activation_link = f"{frontend_url}/activate?email={invitation.email}"
             
             # Create email
             msg = MIMEMultipart()
@@ -315,8 +318,50 @@ class InvitationService:
             msg['To'] = invitation.email
             msg['Subject'] = "Welcome to SAMFMS - Complete Your Registration"
             
-            # Email body
-            body = f"""
+            # Email body with HTML formatting
+            html_body = f"""
+            <html>
+            <body>
+                <h2>Welcome to SAMFMS</h2>
+                <p>Hello <strong>{invitation.full_name}</strong>,</p>
+                
+                <p>You have been invited to join SAMFMS as a <strong>{invitation.role.replace('_', ' ').title()}</strong>.</p>
+                
+                <p>To complete your registration, please use the following One-Time Password (OTP):</p>
+                
+                <div style="background-color: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                    <h3 style="color: #0066cc;">OTP: {invitation.otp}</h3>
+                </div>
+                
+                <p><strong>Click the link below to activate your account:</strong></p>
+                <p><a href="{activation_link}" style="background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Activate Account</a></p>
+                
+                <p>Or copy and paste this link into your browser:</p>
+                <p><a href="{activation_link}">{activation_link}</a></p>
+                
+                <p><strong>Steps to activate your account:</strong></p>
+                <ol>
+                    <li>Click the activation link above or go to: <a href="{activation_link}">{activation_link}</a></li>
+                    <li>Your email address will be pre-filled: <strong>{invitation.email}</strong></li>
+                    <li>Enter the OTP: <strong>{invitation.otp}</strong></li>
+                    <li>Choose a username and password</li>
+                    <li>Complete your profile information</li>
+                </ol>
+                
+                <p><strong>⚠️ Important:</strong> This OTP will expire on <strong>{invitation.expires_at.strftime('%Y-%m-%d at %H:%M UTC')}</strong>.</p>
+                
+                <p>If you did not expect this invitation, please ignore this email.</p>
+                
+                <hr>
+                <p>Best regards,<br>
+                <strong>SAMFMS Team</strong><br>
+                South African Fleet Management System</p>
+            </body>
+            </html>
+            """
+            
+            # Also create a plain text version
+            text_body = f"""
             Hello {invitation.full_name},
             
             You have been invited to join SAMFMS as a {invitation.role.replace('_', ' ').title()}.
@@ -325,21 +370,28 @@ class InvitationService:
             
             OTP: {invitation.otp}
             
-            This OTP will expire on {invitation.expires_at.strftime('%Y-%m-%d at %H:%M UTC')}.
+            Click this link to activate your account:
+            {activation_link}
             
-            To activate your account:
-            1. Go to the SAMFMS registration page
-            2. Enter your email address: {invitation.email}
+            Steps to activate your account:
+            1. Click the activation link above or go to: {activation_link}
+            2. Your email address will be pre-filled: {invitation.email}
             3. Enter the OTP: {invitation.otp}
             4. Choose a username and password
+            5. Complete your profile information
+            
+            ⚠️ Important: This OTP will expire on {invitation.expires_at.strftime('%Y-%m-%d at %H:%M UTC')}.
             
             If you did not expect this invitation, please ignore this email.
             
             Best regards,
             SAMFMS Team
+            South African Fleet Management System
             """
             
-            msg.attach(MIMEText(body, 'plain'))
+            # Attach both HTML and plain text versions
+            msg.attach(MIMEText(text_body, 'plain'))
+            msg.attach(MIMEText(html_body, 'html'))
             
             # Send email
             server = smtplib.SMTP(smtp_server, smtp_port)
