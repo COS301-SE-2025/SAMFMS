@@ -261,15 +261,15 @@ class PluginManager:
             # Look for containers with the service name (either exact match or with project prefix)
             containers = docker_client.containers.list(all=True)
             
-            for container in containers:                # Check if container name contains the service name
+            for container in containers:
+                # Check if container name contains the service name
                 if service_name in container.name or any(service_name in label for label in container.labels.values()):
                     return container.status
                     
             # If no exact match, try finding by compose service label
             containers_with_labels = docker_client.containers.list(
                 all=True, 
-                filters={"label": f"com.docker.compose.service={service_name}"}
-            )
+                filters={"label": f"com.docker.compose.service={service_name}"}            )
             
             if containers_with_labels:
                 return containers_with_labels[0].status
@@ -293,6 +293,7 @@ class PluginManager:
             # Update status to starting
             await self.update_plugin_status(plugin_id, PluginStatus.STARTING)
             
+            # Try to start the container
             try:
                 docker_client = self.get_docker_client()
                 if not docker_client:
@@ -304,77 +305,7 @@ class PluginManager:
                         container_status="docker_unavailable"
                     )
                 
-                # Look for container by service name (Docker Compose naming convention)
-                service_name = plugin.docker_service_name
-                project_name = "samfms"  # Default docker-compose project name
-                
-                # Try different possible container names
-                possible_names = [
-                    f"{project_name}-{service_name}-1",
-                    f"{project_name}_{service_name}_1", 
-                    f"{service_name}-1",
-                    f"{service_name}_1",
-                    service_name
-                ]
-                
-                container = None
-                for name in possible_names:
-                    try:
-                        container = docker_client.containers.get(name)
-                        logger.info(f"Found container: {name}")
-                        break
-                    except docker.errors.NotFound:
-                        continue
-                
-                if not container:
-                    # If no container found, try to create it using docker-compose
-                    logger.info(f"No existing container found for {service_name}, attempting to start with compose")
-                    
-                    # Try to use docker-compose through subprocess
-                    try:
-                        import subprocess
-                        import os
-                        
-                        # Use docker-compose to start the service
-                        compose_cmd = [
-                            "docker-compose", "-p", project_name, 
-                            "up", "-d", service_name
-                        ]
-                        
-                        # Try to find docker-compose.yml
-                        compose_file = "/app/docker-compose.yml"
-                        if not os.path.exists(compose_file):
-                            compose_file = "/docker-compose.yml"
-                        if not os.path.exists(compose_file):
-                            compose_file = "../docker-compose.yml"
-                        
-                        if os.path.exists(compose_file):
-                            compose_cmd.extend(["-f", compose_file])
-                        
-                        result = subprocess.run(
-                            compose_cmd,
-                            capture_output=True,
-                            text=True,
-                            timeout=60
-                        )
-                        
-                        if result.returncode == 0:
-                            # Wait and try to find the container again
-                            import asyncio
-                            await asyncio.sleep(3)
-                            
-                            for name in possible_names:
-                                try:
-                                    container = docker_client.containers.get(name)
-                                    logger.info(f"Found container after compose start: {name}")
-                                    break
-                                except docker.errors.NotFound:
-                                    continue
-                        else:
-                            logger.error(f"Docker compose failed: {result.stderr}")
-                    
-                    except Exception as compose_error:
-                        logger.error(f"Docker compose error: {compose_error}")
+                container = self.find_plugin_container(docker_client, plugin.docker_service_name)
                 
                 if container:
                     if container.status == "running":
@@ -386,56 +317,46 @@ class PluginManager:
                             container_status="running"
                         )
                     else:
-                        # Start the existing container
-                        try:
-                            container.start()
-                            
-                            # Wait for container to start
-                            import asyncio
-                            await asyncio.sleep(3)
-                            
-                            # Check if it started
-                            container.reload()
-                            if container.status == "running":
-                                await self.update_plugin_status(plugin_id, PluginStatus.ACTIVE)
-                                return PluginStatusResponse(
-                                    plugin_id=plugin_id,
-                                    status=PluginStatus.ACTIVE,
-                                    message="Plugin started successfully",
-                                    container_status="running"
-                                )
-                            else:
-                                await self.update_plugin_status(plugin_id, PluginStatus.ERROR)
-                                return PluginStatusResponse(
-                                    plugin_id=plugin_id,
-                                    status=PluginStatus.ERROR,
-                                    message=f"Container failed to start, status: {container.status}",
-                                    container_status=container.status
-                                )
-                        except Exception as start_error:
+                        # Start the container
+                        container.start()
+                        
+                        # Wait a moment for the container to start
+                        import time
+                        time.sleep(2)
+                        
+                        # Check if it actually started
+                        container.reload()
+                        if container.status == "running":
+                            await self.update_plugin_status(plugin_id, PluginStatus.ACTIVE)
+                            return PluginStatusResponse(
+                                plugin_id=plugin_id,
+                                status=PluginStatus.ACTIVE,
+                                message="Plugin started successfully",
+                                container_status="running"
+                            )
+                        else:
                             await self.update_plugin_status(plugin_id, PluginStatus.ERROR)
                             return PluginStatusResponse(
                                 plugin_id=plugin_id,
                                 status=PluginStatus.ERROR,
-                                message=f"Failed to start container: {str(start_error)}",
-                                container_status="start_failed"
+                                message=f"Container failed to start, status: {container.status}",
+                                container_status=container.status
                             )
                 else:
                     await self.update_plugin_status(plugin_id, PluginStatus.ERROR)
                     return PluginStatusResponse(
                         plugin_id=plugin_id,
                         status=PluginStatus.ERROR,
-                        message="Container not found. Please ensure the service is built with docker-compose.",
+                        message="Container not found. Make sure Docker Compose services are created.",
                         container_status="not_found"
                     )
                     
             except Exception as docker_error:
-                logger.error(f"Docker error in start_plugin: {docker_error}")
                 await self.update_plugin_status(plugin_id, PluginStatus.ERROR)
                 return PluginStatusResponse(
                     plugin_id=plugin_id,
                     status=PluginStatus.ERROR,
-                    message=f"Failed to start plugin: {str(docker_error)}",
+                    message=f"Failed to start container: {str(docker_error)}",
                     container_status="error"
                 )
                 
