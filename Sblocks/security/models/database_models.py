@@ -1,7 +1,9 @@
 from pydantic import BaseModel, Field, EmailStr, root_validator
 from typing import Optional, Dict, List
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timedelta
+import secrets
+import string
 
 
 class PyObjectId(ObjectId):
@@ -96,3 +98,34 @@ class UserUpdatedMessage(BaseModel):
 
 class UserDeletedMessage(BaseModel):
     user_id: str
+
+
+class UserInvitation(BaseModel):
+    """User invitation model for OTP-based user activation"""
+    id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    email: EmailStr
+    full_name: str
+    role: str
+    phone_number: Optional[str] = None
+    otp: str = Field(default_factory=lambda: ''.join(secrets.choice(string.digits) for _ in range(6)))
+    invited_by: str  # user_id of admin/fleet_manager who sent the invitation
+    status: str = "invited"  # invited, activated, expired
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime = Field(default_factory=lambda: datetime.utcnow() + timedelta(hours=24))
+    activation_attempts: int = 0
+    max_attempts: int = 3
+    
+    class Config:
+        validate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+    def is_expired(self) -> bool:
+        return datetime.utcnow() > self.expires_at
+    
+    def is_valid_for_activation(self) -> bool:
+        return (
+            self.status == "invited" and 
+            not self.is_expired() and 
+            self.activation_attempts < self.max_attempts
+        )

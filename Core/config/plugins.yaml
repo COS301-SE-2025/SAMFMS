@@ -1,0 +1,72 @@
+plugins:
+  security:
+    name: "Security Service"
+    description: "Authentication and authorization service"
+    version: "1.0.0"
+    docker_service_name: "security_service"
+    port: 8007
+    health_endpoint: "/health"
+    allowed_roles: ["admin", "fleet_manager", "driver"]
+    required: true
+    category: "core"
+    dependencies: ["mongodb_security", "rabbitmq"]
+    
+  gps:
+    name: "GPS Tracking"
+    description: "Vehicle location tracking and management"
+    version: "1.0.0"
+    docker_service_name: "gps_service"
+    port: 8001
+    health_endpoint: "/health"
+    allowed_roles: ["admin", "fleet_manager"]
+    required: false
+    category: "tracking"
+    dependencies: ["mongodb_gps", "rabbitmq", "redis"]
+    
+  management:
+    name: "Fleet Management"
+    description: "Vehicle and fleet management operations"
+    version: "1.0.0"
+    docker_service_name: "management_service"
+    port: 8010
+    health_endpoint: "/health"
+    allowed_roles: ["admin", "fleet_manager"]
+    required: false
+    category: "management"
+    dependencies: ["mongodb_management", "rabbitmq", "redis"]
+    
+  vehicle_maintenance:
+    name: "Vehicle Maintenance"
+    description: "Vehicle maintenance scheduling and tracking"
+    version: "1.0.0"
+    docker_service_name: "vehicle_maintenance_service"
+    port: 8004
+    health_endpoint: "/health"
+    allowed_roles: ["admin", "fleet_manager"]
+    required: false
+    category: "maintenance"
+    dependencies: ["mongodb_vehicle_maintenance", "rabbitmq"]
+    
+  trip_planning:
+    name: "Trip Planning"
+    description: "Route optimization and trip planning"
+    version: "1.0.0"
+    docker_service_name: "trip_planning_service"
+    port: 8002
+    health_endpoint: "/health"
+    allowed_roles: ["admin", "fleet_manager", "driver"]
+    required: false
+    category: "planning"
+    dependencies: ["mongodb_trip_planning", "rabbitmq"]
+    
+  utilities:
+    name: "Utilities Service"
+    description: "Utility functions and helper services"
+    version: "1.0.0"
+    docker_service_name: "utilities_service"
+    port: 8006
+    health_endpoint: "/health"
+    allowed_roles: ["admin", "fleet_manager"]
+    required: false
+    category: "utilities"
+    dependencies: ["rabbitmq", "redis"]
