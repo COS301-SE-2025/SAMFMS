@@ -44,6 +44,13 @@ class AuthService:
             # Hash password
             hashed_password = get_password_hash(user_data["password"])
             
+            # Get default preferences if not provided
+            from models.database_models import UserProfile
+            default_preferences = UserProfile().preferences
+            preferences = user_data.get("preferences", {})
+            if not preferences:
+                preferences = default_preferences
+            
             # Prepare user data for database
             db_user_data = {
                 "user_id": user_id,
@@ -87,7 +94,7 @@ class AuthService:
                 user_id=user_id,
                 role=role,
                 permissions=permissions,
-                preferences=user_data.get("preferences", {})
+                preferences=preferences
             )
         except Exception as e:
             logger.error(f"Signup error: {e}")
@@ -162,6 +169,13 @@ class AuthService:
             }
             access_token = create_access_token(token_data)
             
+            # Get user preferences or use default preferences
+            preferences = security_user.get("preferences", {})
+            if not preferences:
+                # Get default preferences from UserProfile model
+                from models.database_models import UserProfile
+                preferences = UserProfile().preferences
+            
             # Log successful login
             await AuditRepository.log_security_event(
                 user_id=security_user["user_id"],
@@ -175,7 +189,7 @@ class AuthService:
                 user_id=security_user["user_id"],
                 role=security_user["role"],
                 permissions=security_user["permissions"],
-                preferences=security_user.get("preferences", {})
+                preferences=preferences
             )
         except Exception as e:
             logger.error(f"Login error: {e}")

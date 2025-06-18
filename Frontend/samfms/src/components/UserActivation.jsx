@@ -15,13 +15,19 @@ const UserActivation = () => {
   const [formData, setFormData] = useState({
     email: '',
     otp: '',
-    username: '',
     password: '',
     confirmPassword: '',
   });
 
   // Verified user data from OTP verification
   const [verifiedUser, setVerifiedUser] = useState(null);
+
+  // Real-time validation states
+  const [validation, setValidation] = useState({
+    passwordStrength: '',
+    passwordsMatch: false,
+    otpValid: false,
+  });
 
   // Extract email from URL parameters on component mount
   useEffect(() => {
@@ -36,6 +42,35 @@ const UserActivation = () => {
     }
   }, [location.search]);
 
+  // Real-time validation
+  useEffect(() => {
+    const validatePassword = password => {
+      const checks = [
+        { test: /.{8,}/, label: 'At least 8 characters' },
+        { test: /[A-Z]/, label: 'One uppercase letter' },
+        { test: /[a-z]/, label: 'One lowercase letter' },
+        { test: /\d/, label: 'One number' },
+      ];
+
+      const passed = checks.filter(check => check.test.test(password)).length;
+
+      if (passed === 0) return { strength: 'none', message: 'Enter a password' };
+      if (passed < 2) return { strength: 'weak', message: 'Weak password' };
+      if (passed < 3) return { strength: 'medium', message: 'Medium password' };
+      if (passed < 4) return { strength: 'good', message: 'Good password' };
+      return { strength: 'strong', message: 'Strong password' };
+    };
+
+    const passwordValidation = validatePassword(formData.password);
+    setValidation(prev => ({
+      ...prev,
+      passwordStrength: passwordValidation,
+      passwordsMatch:
+        formData.password === formData.confirmPassword && formData.password.length > 0,
+      otpValid: /^\d{6}$/.test(formData.otp),
+    }));
+  }, [formData.password, formData.confirmPassword, formData.otp]);
+
   const handleOTPSubmit = async e => {
     e.preventDefault();
     setError('');
@@ -43,6 +78,11 @@ const UserActivation = () => {
 
     if (!formData.email || !formData.otp) {
       setError('Please enter both email and OTP');
+      return;
+    }
+
+    if (!validation.otpValid) {
+      setError('OTP must be exactly 6 digits');
       return;
     }
 
@@ -65,18 +105,21 @@ const UserActivation = () => {
     setSuccess('');
 
     // Validation
-    if (!formData.username || !formData.password || !formData.confirmPassword) {
+    if (!formData.password || !formData.confirmPassword) {
       setError('Please fill in all required fields');
       return;
     }
 
-    if (formData.password !== formData.confirmPassword) {
+    if (!validation.passwordsMatch) {
       setError('Passwords do not match');
       return;
     }
 
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
+    if (
+      validation.passwordStrength.strength === 'weak' ||
+      validation.passwordStrength.strength === 'none'
+    ) {
+      setError('Please choose a stronger password');
       return;
     }
 
@@ -85,7 +128,7 @@ const UserActivation = () => {
       const result = await completeUserRegistration(
         formData.email,
         formData.otp,
-        formData.username,
+        null, // username is optional now
         formData.password
       );
 
@@ -108,6 +151,23 @@ const UserActivation = () => {
       ...prev,
       [field]: value,
     }));
+    // Clear errors when user types
+    if (error) setError('');
+  };
+
+  const getPasswordStrengthColor = strength => {
+    switch (strength) {
+      case 'weak':
+        return 'text-red-600';
+      case 'medium':
+        return 'text-yellow-600';
+      case 'good':
+        return 'text-blue-600';
+      case 'strong':
+        return 'text-green-600';
+      default:
+        return 'text-gray-400';
+    }
   };
 
   return (
@@ -119,7 +179,7 @@ const UserActivation = () => {
         <p className="mt-2 text-center text-sm text-gray-600">
           {step === 1
             ? 'Enter your email and the OTP you received to continue'
-            : 'Choose your username and password to complete setup'}
+            : 'Choose a secure password to complete setup'}
         </p>
       </div>
 
@@ -170,18 +230,27 @@ const UserActivation = () => {
                     required
                     maxLength="6"
                     value={formData.otp}
-                    onChange={e => handleInputChange('otp', e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    onChange={e => handleInputChange('otp', e.target.value.replace(/\D/g, ''))}
+                    className={`appearance-none block w-full px-3 py-2 border rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
+                      formData.otp.length > 0 && !validation.otpValid
+                        ? 'border-red-300'
+                        : 'border-gray-300'
+                    }`}
                     placeholder="Enter 6-digit OTP"
                   />
                 </div>
-                <p className="mt-1 text-xs text-gray-500">Check your email for the OTP code</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Check your email for the OTP code
+                  {formData.otp.length > 0 && !validation.otpValid && (
+                    <span className="text-red-600 ml-2">• Must be exactly 6 digits</span>
+                  )}
+                </p>
               </div>
 
               <div>
                 <Button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !validation.otpValid}
                   className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
                 >
                   {loading ? 'Verifying...' : 'Verify OTP'}
@@ -194,31 +263,17 @@ const UserActivation = () => {
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
                   <h3 className="text-sm font-medium text-blue-800">
                     Welcome, {verifiedUser.full_name}!
-                  </h3>
+                  </h3>{' '}
                   <p className="text-sm text-blue-600 mt-1">
                     You're being registered as:{' '}
-                    <strong>{verifiedUser.role.replace('_', ' ').toUpperCase()}</strong>
+                    <strong>
+                      {verifiedUser.role
+                        ? verifiedUser.role.replace('_', ' ').toUpperCase()
+                        : 'USER'}
+                    </strong>
                   </p>
                 </div>
               )}
-
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                  Username
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="username"
-                    name="username"
-                    type="text"
-                    required
-                    value={formData.username}
-                    onChange={e => handleInputChange('username', e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="Choose a username"
-                  />
-                </div>
-              </div>
 
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
@@ -236,7 +291,18 @@ const UserActivation = () => {
                     placeholder="Choose a secure password"
                   />
                 </div>
-                <p className="mt-1 text-xs text-gray-500">Must be at least 8 characters long</p>
+                {formData.password && (
+                  <p
+                    className={`mt-1 text-xs ${getPasswordStrengthColor(
+                      validation.passwordStrength.strength
+                    )}`}
+                  >
+                    {validation.passwordStrength.message}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Must contain: 8+ characters, uppercase, lowercase, and number
+                </p>
               </div>
 
               <div>
@@ -254,10 +320,23 @@ const UserActivation = () => {
                     required
                     value={formData.confirmPassword}
                     onChange={e => handleInputChange('confirmPassword', e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className={`appearance-none block w-full px-3 py-2 border rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
+                      formData.confirmPassword.length > 0 && !validation.passwordsMatch
+                        ? 'border-red-300'
+                        : 'border-gray-300'
+                    }`}
                     placeholder="Confirm your password"
                   />
                 </div>
+                {formData.confirmPassword.length > 0 && (
+                  <p
+                    className={`mt-1 text-xs ${
+                      validation.passwordsMatch ? 'text-green-600' : 'text-red-600'
+                    }`}
+                  >
+                    {validation.passwordsMatch ? '✓ Passwords match' : '✗ Passwords do not match'}
+                  </p>
+                )}
               </div>
 
               <div className="flex space-x-3">
@@ -272,7 +351,12 @@ const UserActivation = () => {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={loading}
+                  disabled={
+                    loading ||
+                    !validation.passwordsMatch ||
+                    validation.passwordStrength.strength === 'weak' ||
+                    validation.passwordStrength.strength === 'none'
+                  }
                   className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
                 >
                   {loading ? 'Creating Account...' : 'Complete Registration'}

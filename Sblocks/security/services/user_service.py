@@ -1,15 +1,19 @@
 from repositories.user_repository import UserRepository
 from repositories.audit_repository import AuditRepository
-from models.database_models import UserCreatedMessage, UserUpdatedMessage, UserDeletedMessage
+from models.database_models import UserCreatedMessage, UserUpdatedMessage, UserDeletedMessage, SecurityUser
+from models.api_models import CreateUserRequest
 from typing import Dict, Any, List, Optional
 import logging
+import uuid
+import hashlib
+import os
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 
 class UserService:
     """Service layer for user management operations"""
-    
     @staticmethod
     async def get_all_users() -> List[Dict[str, Any]]:
         """Get all users"""
@@ -22,6 +26,10 @@ class UserService:
                 # Add 'id' field to match the UserResponse model
                 if "user_id" in user and "id" not in user:
                     user["id"] = user["user_id"]
+                # Ensure preferences are included, using default if missing
+                if "preferences" not in user or not user["preferences"]:
+                    from models.database_models import UserProfile
+                    user["preferences"] = UserProfile().preferences
             return users
         except Exception as e:
             logger.error(f"Failed to get all users: {e}")
@@ -38,6 +46,11 @@ class UserService:
                 # Add 'id' field to match the UserResponse model
                 if "user_id" in user and "id" not in user:
                     user["id"] = user["user_id"]
+                
+                # Ensure preferences are included, using default if missing
+                if "preferences" not in user or not user["preferences"]:
+                    from models.database_models import UserProfile
+                    user["preferences"] = UserProfile().preferences
             return user
         except Exception as e:
             logger.error(f"Failed to get user by ID: {e}")
@@ -90,6 +103,42 @@ class UserService:
             return False
         except Exception as e:
             logger.error(f"Failed to update user profile: {e}")
+            raise
+    @staticmethod
+    async def update_user_preferences(user_id: str, preferences: Dict[str, Any]) -> bool:
+        """Update user preferences"""
+        try:
+            logger.info(f"UserService.update_user_preferences called for user_id: {user_id}")
+            logger.info(f"Preferences received: {preferences}")
+              # Validate and sanitize preferences - only allow known preference keys
+            valid_preference_keys = {
+                "theme", "animations", "email_alerts", "push_notifications", 
+                "two_factor", "activity_log", "session_timeout"
+            }
+            
+            safe_preferences = {k: v for k, v in preferences.items() 
+                              if k in valid_preference_keys}
+            
+            logger.info(f"Safe preferences after filtering: {safe_preferences}")
+            
+            if safe_preferences:
+                logger.info(f"Calling UserRepository.update_user with user_id: {user_id}")
+                success = await UserRepository.update_user(user_id, {"preferences": safe_preferences})
+                logger.info(f"UserRepository.update_user returned: {success}")
+                
+                if success:
+                    await AuditRepository.log_security_event(
+                        user_id=user_id,
+                        action="preferences_updated",
+                        details={"preferences": list(safe_preferences.keys())}
+                    )
+                
+                return success
+            else:
+                logger.warning(f"No valid preferences to update for user_id: {user_id}")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to update user preferences: {e}")
             raise
     
     @staticmethod
@@ -161,5 +210,93 @@ class UserService:
             
             return success
         except Exception as e:
-            logger.error(f"Failed to toggle user status: {e}")
+            logger.error(f"Failed to toggle user status: {e}")           
+        raise
+
+    @staticmethod
+    async def create_user_manually(
+        user_data: CreateUserRequest, 
+        created_by_user_id: str
+    ) -> Dict[str, Any]:
+        """Admin can manually create a user without invitation flow"""
+        try:
+            # Add debug logging to see what data we received
+            logger.info(f"User service received user_data: {user_data.dict() if user_data else 'None'}")
+            
+            # Validate that we have the required data
+            if not user_data:
+                raise ValueError("User data is missing or empty")
+            # Check if user already exists
+            existing_user = await UserRepository.find_by_email(user_data.email.lower())
+            if existing_user:
+                raise ValueError("User with this email already exists")
+
+            # Generate unique user ID
+            user_id = str(uuid.uuid4())
+            
+            # Hash the password (with salt)
+            salt = os.urandom(32)  # 32 bytes of random salt
+            password_hash = hashlib.pbkdf2_hmac(
+                'sha256',
+                user_data.password.encode('utf-8'),
+                salt,
+                100000,  # 100,000 iterations
+                dklen=128
+            ).hex()
+            
+            # Create user in security database
+            now = datetime.utcnow()
+            security_user = SecurityUser(
+                user_id=user_id,
+                email=user_data.email.lower(),
+                password_hash=f"{salt.hex()}:{password_hash}",
+                role=user_data.role,
+                is_active=True,
+                approved=True,
+                full_name=user_data.full_name
+            )
+            
+            # Get default preferences from UserProfile model
+            from models.database_models import UserProfile
+            default_preferences = UserProfile().preferences
+            
+            # Save to database
+            await UserRepository.create_user(security_user.dict(exclude={"id"}))
+            
+            # Publish message for user creation to other services
+            user_created_msg = UserCreatedMessage(
+                user_id=user_id,
+                full_name=user_data.full_name,
+                phoneNo=user_data.phoneNo,
+                details=user_data.details or {},
+                preferences=default_preferences  # Include preferences in message
+            )
+            
+            # Publish to message queue (would be implemented in a real system)
+            # await rabbitmq_producer.publish_user_created(user_created_msg)
+            
+            # Log the creation event
+            await AuditRepository.log_security_event(
+                user_id=created_by_user_id,
+                action="manual_user_created",
+                details={
+                    "created_user_id": user_id,
+                    "email": user_data.email,
+                    "role": user_data.role
+                }
+            )
+            
+            return {
+                "message": "User created successfully",
+                "user_id": user_id,
+                "email": user_data.email,
+                "role": user_data.role,
+                "preferences": default_preferences  # Include preferences in response
+            }
+            
+        except ValueError as e:
+            logger.warning(f"Validation error creating user: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to create user manually: {str(e)}")
             raise

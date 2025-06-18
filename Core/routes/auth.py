@@ -45,6 +45,15 @@ class ChangePasswordRequest(BaseModel):
 class PreferencesUpdateRequest(BaseModel):
     preferences: Dict
 
+class CreateUserRequest(BaseModel):
+    """Admin can manually create users without invitation flow"""
+    full_name: str 
+    email: EmailStr
+    role: str
+    password: str
+    phoneNo: Optional[str] = None
+    details: Dict = {}
+
 @router.post("/login", response_model=TokenResponse)
 async def login(login_request: LoginRequest):
     """Proxy the login request to the Security service"""
@@ -384,6 +393,9 @@ async def update_preferences(request: Request, data: PreferencesUpdateRequest):
         if not token:
             raise HTTPException(status_code=401, detail="Not authenticated")
         
+        logger.info(f"Forwarding preferences update to Security service: {SECURITY_URL}/auth/update-preferences")
+        logger.info(f"Request data: {data.dict()}")
+        
         # Forward the request to the Security service
         response = requests.post(
             f"{SECURITY_URL}/auth/update-preferences",
@@ -392,11 +404,21 @@ async def update_preferences(request: Request, data: PreferencesUpdateRequest):
             timeout=10
         )
         
+        logger.info(f"Security service response status: {response.status_code}")
+        
         if response.status_code == 200:
-            return response.json()
+            # Return the full response including updated preferences
+            result = response.json()
+            logger.info(f"Security service response: {result}")
+            return result
         else:
-            detail = response.json().get("detail", "Failed to update preferences")
+            error_response = response.json() if response.content else {"detail": "No response content"}
+            logger.error(f"Security service error response: {error_response}")
+            detail = error_response.get("detail", "Failed to update preferences")
             raise HTTPException(status_code=response.status_code, detail=detail)
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Security service unavailable: {str(e)}")
     except Exception as e:
         logger.error(f"Error updating preferences: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -576,19 +598,32 @@ async def invite_user(request: Request):
         
         # Get request body
         body = await request.json()
-        
-        # Forward the request to the Security service
+          # Forward the request to the Security service
         response = requests.post(
             f"{SECURITY_URL}/admin/invite-user",
             headers={"Authorization": token},
             json=body,
-            timeout=10
+            timeout=15  # Increase timeout to 15 seconds
         )
         
         if response.status_code == 200:
             return response.json()
+        elif response.status_code == 400 and "email" in response.text.lower():
+            # Special handling for email sending failures
+            try:
+                detail = response.json().get("detail", "Failed to send invitation email")
+                logger.warning(f"Email sending failure: {detail}")
+                # Return a more user-friendly error message
+                raise HTTPException(status_code=503, 
+                    detail="Email service is currently unavailable. Your invitation has been saved and emails will be sent when the service is restored.")
+            except ValueError:
+                # If we can't parse the JSON response
+                raise HTTPException(status_code=503, detail="Email service is currently unavailable")
         else:
-            detail = response.json().get("detail", "Failed to invite user")
+            try:
+                detail = response.json().get("detail", "Failed to invite user")
+            except ValueError:
+                detail = "Failed to invite user"
             raise HTTPException(status_code=response.status_code, detail=detail)
     except requests.RequestException as e:
         logger.error(f"Error connecting to Security service: {e}")
@@ -839,4 +874,59 @@ async def complete_registration(request: Request):
         )
     except Exception as e:
         logger.error(f"Error completing registration: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.post("/create-user")
+async def create_user_manually(user_data: CreateUserRequest, request: Request):
+    """Admin can manually create a user without invitation flow"""
+    # Log the incoming request data
+    logger.info(f"Received user creation request. User data model: {user_data}")
+    try:
+        # Get the token from the request
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        # Convert to dict and log what's being sent
+        user_data_dict = user_data.dict()
+        logger.info(f"Sending user creation data to Security service: {user_data_dict}")
+        
+        if not user_data_dict:
+            logger.error("User data dictionary is empty after conversion!")
+            # Ensure we have the expected data structure
+            user_data_dict = {
+                "full_name": user_data.full_name,
+                "email": user_data.email,
+                "role": user_data.role,
+                "password": user_data.password,
+                "phoneNo": user_data.phoneNo if user_data.phoneNo else None,
+                "details": user_data.details if hasattr(user_data, "details") else {}
+            }
+            logger.info(f"Reconstructed user data: {user_data_dict}")
+        
+        # Forward the request to the Security service
+        response = requests.post(
+            f"{SECURITY_URL}/admin/create-user",
+            headers={"Authorization": token},
+            json=user_data_dict,
+            timeout=15
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            try:
+                detail = response.json().get("detail", "Failed to create user")
+            except ValueError:
+                detail = "Failed to create user"
+            raise HTTPException(status_code=response.status_code, detail=detail)
+            
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error creating user: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
