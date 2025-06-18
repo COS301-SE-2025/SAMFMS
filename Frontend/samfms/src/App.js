@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import {BrowserRouter as Router, Routes, Route, Navigate} from 'react-router-dom';
 import './App.css';
 import 'leaflet/dist/leaflet.css';
 
@@ -21,6 +21,7 @@ import Drivers from './pages/Drivers';
 import Tracking from './pages/Tracking';
 import Trips from './pages/Trips';
 import Maintenance from './pages/Maintenance';
+import Help from './pages/Help';
 import UserManagement from './components/UserManagement';
 
 function App() {
@@ -67,6 +68,7 @@ function App() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/plugins" element={<Plugins />} />
                 <Route path="/users" element={<UserManagement />} />
+                <Route path="/help" element={<Help />} />
               </Route>
             </Route>
           </Routes>

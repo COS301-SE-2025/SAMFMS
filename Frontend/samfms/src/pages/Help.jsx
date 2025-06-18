@@ -1,74 +1,95 @@
 import React from 'react';
 import {Button} from '../components/ui/button';
-import ColorPalette from '../components/ColorPalette';
-import DashboardLayoutToolbar from '../components/DashboardLayoutToolbar';
+import {HelpCircle, BookOpen, FileQuestion, Video, Info, Phone} from 'lucide-react';
 
 const Help = () => {
     return (
         <div className="container mx-auto py-8">
             <header className="mb-8">
-                <h1 className="text-4xl font-bold">Help & Getting Started</h1>
-                <p className="text-muted-foreground">
-                    Learn how to use the SAMFMS platform and get the most out of your fleet management experience.
+                <h1 className="text-3xl font-bold flex items-center gap-2">
+                    <HelpCircle size={28} />
+                    Help Center
+                </h1>
+                <p className="text-muted-foreground mt-2">
+                    Find guides, tutorials, and answers to frequently asked questions about SAMFMS.
                 </p>
             </header>
 
-            {/* Layout toolbar below the top toolbar */}
-            <DashboardLayoutToolbar />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                {/* Quick help section */}
+                <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <BookOpen size={20} />
+                        Getting Started
+                    </h2>
+                    <p className="text-muted-foreground mb-4">
+                        New to SAMFMS? Check out these resources to help you get started:
+                    </p>
+                    <ul className="space-y-2 ml-6 list-disc text-foreground">
+                        <li>System overview</li>
+                        <li>User account setup</li>
+                        <li>Basic navigation guide</li>
+                        <li>Understanding permissions</li>
+                    </ul>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <HelpCard
-                    title="Navigating the Dashboard"
-                    content="A quick overview of the dashboard layout and main features."
-                    footer="Read more"
-                />
-                <HelpCard
-                    title="Managing Vehicles"
-                    content="How to add, edit, and monitor your fleet vehicles."
-                    footer="Vehicle management guide"
-                />
-                <HelpCard
-                    title="Trip Planning"
-                    content="Step-by-step instructions for planning and tracking trips."
-                    footer="Trip planning tutorial"
-                />
-                <HelpCard
-                    title="Maintenance Scheduling"
-                    content="Learn how to schedule and track vehicle maintenance."
-                    footer="Maintenance help"
-                />
-                <HelpCard
-                    title="Driver Management"
-                    content="Add, assign, and monitor drivers in your fleet."
-                    footer="Driver management tips"
-                />
-                <HelpCard
-                    title="Frequently Asked Questions"
-                    content="Find answers to common questions about SAMFMS."
-                    footer="View FAQ"
-                />
+                {/* FAQ section */}
+                <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <FileQuestion size={20} />
+                        Frequently Asked Questions
+                    </h2>
+                    <p className="text-muted-foreground mb-4">
+                        Find quick answers to common questions:
+                    </p>
+                    <ul className="space-y-2 ml-6 list-disc text-foreground">
+                        <li>How do I reset my password?</li>
+                        <li>Where can I view my trip history?</li>
+                        <li>How do I assign a vehicle to a driver?</li>
+                        <li>Can I export my reports?</li>
+                    </ul>
+                </div>
             </div>
 
-            <div className="mt-12 border-t border-border pt-8">
-                <ColorPalette />
-            </div>
-        </div>
-    );
-};
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <Video size={20} />
+                        Video Tutorials
+                    </h2>
+                    <p className="text-muted-foreground">
+                        Watch step-by-step guides on using different features of SAMFMS.
+                    </p>
+                </div>
 
-// A simple card component for the help page
-const HelpCard = ({title, content, footer}) => {
-    return (
-        <div className="bg-card rounded-lg shadow-md p-6 border border-border">
-            <h2 className="text-xl font-semibold mb-4">{title}</h2>
-            <p className="text-foreground mb-6">{content}</p>
-            <div className="border-t border-border pt-4">
-                <Button
-                    variant="ghost"
-                    className="p-0 h-auto text-sm text-muted-foreground hover:text-foreground"
-                >
-                    {footer}
-                </Button>
+                <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <Info size={20} />
+                        User Manual
+                    </h2>
+                    <p className="text-muted-foreground">
+                        Access the complete user manual for detailed information about the system.
+                    </p>
+                </div>
+
+                <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <Phone size={20} />
+                        Contact Support
+                    </h2>
+                    <p className="text-muted-foreground">
+                        Need further assistance? Our support team is ready to help.
+                    </p>
+                    <Button className="mt-4" variant="outline">
+                        Contact Support
+                    </Button>
+                </div>
+            </div>
+
+            <div className="mt-8 p-4 bg-accent/10 rounded-lg border border-border">
+                <p className="text-sm text-center text-muted-foreground">
+                    SAMFMS version 1.0 | Last updated: June 2025 | <Button variant="link" className="p-0 h-auto">View release notes</Button>
+                </p>
             </div>
         </div>
     );
