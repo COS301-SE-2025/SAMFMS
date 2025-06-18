@@ -465,3 +465,378 @@ async def get_user_info(request: Request):
     except Exception as e:
         logger.error(f"Error getting user info: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.get("/users")
+async def list_users(request: Request):
+    """Get all users from Security service"""
+    try:
+        # Get the token from the request
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        try:
+            # First try /users endpoint (new path)
+            response = None
+            error_detail = None
+            
+            try:
+                # Forward the request to the Security service
+                response = requests.get(
+                    f"{SECURITY_URL}/users",
+                    headers={"Authorization": token},
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    return response.json()
+            except requests.RequestException:
+                logger.warning("Failed to connect to /users endpoint, trying /auth/users")
+                response = None
+            
+            # If first attempt failed, try the old endpoint path
+            if not response or response.status_code != 200:
+                try:
+                    alt_response = requests.get(
+                        f"{SECURITY_URL}/auth/users",
+                        headers={"Authorization": token},
+                        timeout=10
+                    )
+                    
+                    if alt_response.status_code == 200:
+                        return alt_response.json()
+                    else:
+                        try:
+                            error_detail = alt_response.json().get("detail", "Failed to fetch users")
+                        except:
+                            error_detail = "Failed to fetch users"
+                        
+                        # Log the error but continue to the fallback approach
+                        logger.warning(f"Failed to fetch users from /auth/users: {error_detail}")
+                except requests.RequestException as e:
+                    logger.warning(f"Failed to connect to /auth/users endpoint: {e}")
+            
+            # Try directly calling the user_routes endpoint as a last resort
+            try:
+                last_response = requests.get(
+                    f"{SECURITY_URL}/users/",  # Note the trailing slash
+                    headers={"Authorization": token},
+                    timeout=10
+                )
+                
+                if last_response.status_code == 200:
+                    return last_response.json()
+                else:
+                    try:
+                        error_detail = last_response.json().get("detail", "Failed to fetch users")
+                    except:
+                        error_detail = "Failed to fetch users"
+                    
+                    # Only raise an exception if all attempts have failed
+                    raise HTTPException(
+                        status_code=last_response.status_code, 
+                        detail=error_detail
+                    )
+            except requests.RequestException as e:
+                # All attempts failed - raise the exception
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Security service unavailable: {str(e)}"
+                )
+            
+        except requests.JSONDecodeError as e:
+            logger.error(f"Invalid JSON response from Security service: {e}")
+            raise HTTPException(
+                status_code=502,
+                detail=f"Invalid response from Security service: {str(e)}"
+            )
+        
+    except HTTPException:
+        raise
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        
+        # Return empty list instead of failing - the UI should handle this gracefully
+        logger.info("Returning empty users list due to connection error")
+        return []
+        
+    except Exception as e:
+        logger.error(f"Error fetching users: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/invite-user")
+async def invite_user(request: Request):
+    """Invite a new user"""
+    try:
+        # Get the token from the request
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        # Get request body
+        body = await request.json()
+        
+        # Forward the request to the Security service
+        response = requests.post(
+            f"{SECURITY_URL}/admin/invite-user",
+            headers={"Authorization": token},
+            json=body,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Failed to invite user")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error inviting user: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/update-permissions")
+async def update_permissions(request: Request):
+    """Update user permissions"""
+    try:
+        # Get the token from the request
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        # Get request body
+        body = await request.json()
+        
+        # Extract user_id and role from the request
+        user_id = body.get("user_id")
+        role = body.get("role")
+        
+        if not user_id or not role:
+            raise HTTPException(
+                status_code=400, 
+                detail="Missing required fields: user_id and role must be provided"
+            )
+        
+        # Create the permissions request body
+        permissions_data = {
+            "role": role,
+            "custom_permissions": body.get("custom_permissions", [])
+        }
+        
+        # Forward the request to the Security service
+        response = requests.put(
+            f"{SECURITY_URL}/users/{user_id}/permissions",
+            headers={"Authorization": token},
+            json=permissions_data,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Failed to update user permissions")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error updating permissions: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/roles")
+async def get_roles(request: Request):
+    """Get all available roles from Security service"""
+    try:
+        # Get the token from the request
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        try:
+            # Forward the request to the Security service
+            response = requests.get(
+                f"{SECURITY_URL}/roles",
+                headers={"Authorization": token},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 404:
+                # If the security service returns 404, try the auth/roles endpoint path
+                alt_response = requests.get(
+                    f"{SECURITY_URL}/auth/roles",
+                    headers={"Authorization": token},
+                    timeout=10
+                )
+                
+                if alt_response.status_code == 200:
+                    return alt_response.json()
+                else:
+                    try:
+                        detail = alt_response.json().get("detail", "Failed to fetch roles")
+                    except:
+                        detail = "Failed to fetch roles"
+                    raise HTTPException(status_code=alt_response.status_code, detail=detail)
+            else:
+                try:
+                    detail = response.json().get("detail", "Failed to fetch roles")
+                except:
+                    detail = "Failed to fetch roles"
+                raise HTTPException(status_code=response.status_code, detail=detail)
+                
+        except requests.JSONDecodeError:
+            logger.error("Invalid JSON response from Security service")
+            raise HTTPException(
+                status_code=502,
+                detail="Invalid response from Security service"
+            )
+        
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error fetching roles: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/invitations")
+async def get_pending_invitations(request: Request):
+    """Get pending invitations"""
+    try:
+        # Get the token from the request
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        # Forward the request to the Security service
+        response = requests.get(
+            f"{SECURITY_URL}/admin/pending-invitations",
+            headers={"Authorization": token},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Failed to fetch invitations")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error fetching invitations: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/resend-invitation")
+async def resend_invitation(request: Request):
+    """Resend invitation OTP"""
+    try:
+        # Get the token from the request
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        # Get request body
+        body = await request.json()
+        
+        # Forward the request to the Security service
+        response = requests.post(
+            f"{SECURITY_URL}/admin/resend-invitation",
+            headers={"Authorization": token},
+            json=body,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Failed to resend invitation")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error resending invitation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/verify-otp")
+async def verify_otp(request: Request):
+    """Verify OTP for invitation (public endpoint)"""
+    try:
+        # Get request body
+        body = await request.json()
+        
+        # Forward the request to the Security service
+        response = requests.post(
+            f"{SECURITY_URL}/admin/verify-otp",
+            json=body,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Failed to verify OTP")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error verifying OTP: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/complete-registration")
+async def complete_registration(request: Request):
+    """Complete user registration after OTP verification (public endpoint)"""
+    try:
+        # Get request body
+        body = await request.json()
+        
+        # Forward the request to the Security service
+        response = requests.post(
+            f"{SECURITY_URL}/admin/complete-registration",
+            json=body,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            detail = response.json().get("detail", "Failed to complete registration")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error completing registration: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

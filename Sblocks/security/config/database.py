@@ -8,6 +8,11 @@ logger = logging.getLogger(__name__)
 client = motor.motor_asyncio.AsyncIOMotorClient(settings.MONGODB_URL)
 db = client[settings.DATABASE_NAME]
 
+# Function to get database instance (for services)
+def get_database():
+    """Get the database instance"""
+    return db
+
 # Collections
 security_users_collection = db.security_users
 sessions_collection = db.sessions

@@ -27,6 +27,10 @@ import {
   clearUserExistenceCache,
   updateUserProfile,
   uploadProfilePicture,
+  clearUsersCache,
+  clearRolesCache,
+  clearAllAuthCache,
+  fetchWithTimeout,
 } from './api/auth';
 
 // Re-export the auth functions for backward compatibility
@@ -58,6 +62,9 @@ export {
   updateUserProfile,
   uploadProfilePicture,
   clearUserExistenceCache,
+  clearUsersCache,
+  clearRolesCache,
+  clearAllAuthCache,
 };
 
 // Driver API endpoints - Now served by Management Service
@@ -385,6 +392,51 @@ export const searchVehicles = async query => {
   }
 
   return response.json();
+};
+
+// Invitation management functions
+export const sendInvitation = async invitationData => {
+  const response = await authFetch('/auth/invite-user', {
+    method: 'POST',
+    body: JSON.stringify(invitationData),
+  });
+  return response;
+};
+
+export const getPendingInvitations = async () => {
+  const response = await authFetch('/auth/invitations');
+  return response;
+};
+
+export const resendInvitation = async email => {
+  const response = await authFetch('/auth/resend-invitation', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+  return response;
+};
+
+// Public endpoints for user activation (no auth required)
+export const verifyInvitationOTP = async (email, otp) => {
+  const response = await fetchWithTimeout(`${API_URL}/auth/verify-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, otp }),
+  });
+  return response;
+};
+
+export const completeUserRegistration = async (email, otp, username, password) => {
+  const response = await fetchWithTimeout(`${API_URL}/auth/complete-registration`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, otp, username, password }),
+  });
+  return response;
 };
 
 // RBAC and Admin Functions have been moved to ./api/auth.js

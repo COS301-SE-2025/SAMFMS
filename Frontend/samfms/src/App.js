@@ -12,6 +12,7 @@ import AuthErrorBoundary from './components/AuthErrorBoundary';
 // Import pages
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import UserActivation from './components/UserActivation';
 import Dashboard from './pages/Dashboard';
 import Account from './pages/Account';
 import Settings from './pages/Settings';
@@ -43,6 +44,14 @@ function App() {
               element={
                 <AuthErrorBoundary>
                   <Signup />
+                </AuthErrorBoundary>
+              }
+            />
+            <Route
+              path="/activate"
+              element={
+                <AuthErrorBoundary>
+                  <UserActivation />
                 </AuthErrorBoundary>
               }
             />
