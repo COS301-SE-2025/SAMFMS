@@ -118,22 +118,14 @@ const Landing = () => {
                             <p className="text-xl text-muted-foreground mb-8">
                                 Streamline your fleet operations, optimize vehicle maintenance, and track your assets with our comprehensive management system.
                             </p>
-                            <div className="flex flex-wrap gap-4">
+                            <div>
                                 <Button
                                     size="lg"
                                     onClick={handleGetStarted}
                                     className="bg-primary hover:bg-primary/90 text-white px-8 py-6 h-auto text-lg font-medium flex items-center gap-2 transform transition-all duration-300 hover:scale-105"
                                 >
-                                    Get Started
+                                    {hasExistingUsers ? 'Login to Account' : 'Create First Account'}
                                     <ChevronRight size={20} />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="lg"
-                                    className="px-8 py-6 h-auto text-lg font-medium"
-                                    onClick={() => navigate('/help')}
-                                >
-                                    Learn More
                                 </Button>
                             </div>
                         </div>
@@ -219,7 +211,7 @@ const Landing = () => {
                             onClick={handleGetStarted}
                             className="bg-primary hover:bg-primary/90 px-8 h-14 text-lg font-medium"
                         >
-                            {hasExistingUsers ? 'Login Now' : 'Create Account'}
+                            {hasExistingUsers ? 'Login Now' : 'Get Started'}
                         </Button>
                     </div>
                 </div>
