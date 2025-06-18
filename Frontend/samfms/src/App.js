@@ -22,7 +22,7 @@ import Drivers from './pages/Drivers';
 import Tracking from './pages/Tracking';
 import Trips from './pages/Trips';
 import Maintenance from './pages/Maintenance';
-import UserManagement from './components/UserManagement';
+import UserManagement from './pages/UserManagement';
 
 function App() {
   return (

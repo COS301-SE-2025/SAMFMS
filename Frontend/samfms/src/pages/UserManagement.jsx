@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button } from './ui/button';
-import { useAuth, ROLES } from './RBACUtils';
+import { Button } from '../components/ui/button.jsx';
+import { useAuth, ROLES } from '../components/RBACUtils.jsx';
 import {
   listUsers,
   updateUserPermissions,
@@ -10,13 +10,13 @@ import {
   getPendingInvitations,
   resendInvitation,
   createUserManually,
-  getDrivers,
+  getUserInfo,
 } from '../backend/API.js';
 import { Navigate } from 'react-router-dom';
-import { useNotification } from '../contexts/NotificationContext';
-import UserTable from './UserTable';
-import InviteUserModal from './InviteUserModal';
-import ManualCreateUserModal from './ManualCreateUserModal';
+import UserTable from '../components/UserTable.jsx';
+import InviteUserModal from '../components/InviteUserModal.jsx';
+import ManualCreateUserModal from '../components/ManualCreateUserModal.jsx';
+import { useNotification } from '../contexts/NotificationContext.jsx';
 
 const UserManagement = () => {
   const { hasPermission, hasRole } = useAuth();
@@ -26,22 +26,51 @@ const UserManagement = () => {
   const [driverUsers, setDriverUsers] = useState([]);
   const [invitedUsers, setInvitedUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Search and sort states
+  const [adminSearch, setAdminSearch] = useState('');
+  const [managerSearch, setManagerSearch] = useState('');
+  const [driverSearch, setDriverSearch] = useState('');
+  const [adminSort, setAdminSort] = useState({ field: 'full_name', direction: 'asc' });
+  const [managerSort, setManagerSort] = useState({ field: 'full_name', direction: 'asc' });
+  const [driverSort, setDriverSort] = useState({ field: 'full_name', direction: 'asc' });
 
   // Modal states
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showManualCreateModal, setShowManualCreateModal] = useState(false);
+  const [createUserRole, setCreateUserRole] = useState('driver'); // Track which role to create
 
   const hasMounted = useRef(false);
-
   const loadUsers = React.useCallback(async () => {
     try {
       setLoading(true);
       const usersData = await listUsers();
+      const currentUserInfo = await getUserInfo();
+      setCurrentUser(currentUserInfo);
 
-      // Filter users by role
-      const admins = usersData.filter(user => user.role === ROLES.ADMIN);
-      const managers = usersData.filter(user => user.role === ROLES.FLEET_MANAGER);
-      const drivers = usersData.filter(user => user.role === ROLES.DRIVER);
+      // Filter users by role and add current user indicator
+      const admins = usersData
+        .filter(user => user.role === ROLES.ADMIN)
+        .map(user => ({
+          ...user,
+          isCurrentUser:
+            user.id === currentUserInfo?.user_id || user.email === currentUserInfo?.email,
+        }));
+      const managers = usersData
+        .filter(user => user.role === ROLES.FLEET_MANAGER)
+        .map(user => ({
+          ...user,
+          isCurrentUser:
+            user.id === currentUserInfo?.user_id || user.email === currentUserInfo?.email,
+        }));
+      const drivers = usersData
+        .filter(user => user.role === ROLES.DRIVER)
+        .map(user => ({
+          ...user,
+          isCurrentUser:
+            user.id === currentUserInfo?.user_id || user.email === currentUserInfo?.email,
+        }));
 
       setAdminUsers(admins);
       setManagerUsers(managers);
@@ -59,36 +88,9 @@ const UserManagement = () => {
       setInvitedUsers(invitationsData.invitations || []);
     } catch (err) {
       console.error('Failed to load invited users:', err);
-      // Don't show error for invited users - it's optional data
+      // Don't set error for invited users - it's optional data
     }
   }, []);
-
-  const loadDriversFromAPI = React.useCallback(async () => {
-    try {
-      // Load drivers from the drivers API if user has permission
-      if (hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) {
-        const driversData = await getDrivers({ limit: 100 });
-        // Transform driver data to match user table format
-        const transformedDrivers = driversData.map(driver => ({
-          id: driver.id || driver._id,
-          full_name: driver.user_info?.full_name || driver.name || 'Unknown',
-          email: driver.user_info?.email || driver.email || 'N/A',
-          phoneNo: driver.user_info?.phoneNo || driver.phone || 'N/A',
-          phone: driver.user_info?.phoneNo || driver.phone || 'N/A',
-          role: 'driver',
-          employee_id: driver.employee_id,
-          license_number: driver.license_number,
-          department: driver.department,
-          status: driver.status,
-        }));
-        setDriverUsers(transformedDrivers);
-      }
-    } catch (err) {
-      console.error('Failed to load drivers from API:', err);
-      // Fallback to drivers from user list if API fails
-    }
-  }, [hasRole]);
-
   useEffect(() => {
     // Check authentication status first
     if (!isAuthenticated()) {
@@ -105,7 +107,6 @@ const UserManagement = () => {
     // Load data
     loadUsers();
     loadInvitedUsers();
-    loadDriversFromAPI();
 
     // Load roles cache
     const fetchRoles = async () => {
@@ -115,9 +116,8 @@ const UserManagement = () => {
         console.error('Failed to load roles:', err);
       }
     };
-
     fetchRoles();
-  }, [loadUsers, loadInvitedUsers, loadDriversFromAPI, showNotification]);
+  }, [loadUsers, loadInvitedUsers, showNotification]);
 
   // Fleet managers should be redirected to the drivers page
   if (hasRole(ROLES.FLEET_MANAGER)) {
@@ -133,8 +133,7 @@ const UserManagement = () => {
         </div>
       </div>
     );
-  }
-
+  } // Handler functions for modals
   const handleInviteSubmit = async formData => {
     try {
       setLoading(true);
@@ -190,7 +189,6 @@ const UserManagement = () => {
       setLoading(false);
     }
   };
-
   const handleRoleChange = async (userId, newRole) => {
     try {
       setLoading(true);
@@ -230,101 +228,67 @@ const UserManagement = () => {
     }
   };
 
-  const handleCancelInvitation = async (invitationId, userName) => {
-    const userConfirmed = window.confirm(
-      `Are you sure you want to cancel the invitation for ${userName}?`
-    );
-
-    if (!userConfirmed) return;
-
-    try {
-      setLoading(true);
-      // Note: You may need to implement a cancel invitation API
-      showNotification(`Invitation for ${userName} has been cancelled.`, 'success');
-      loadInvitedUsers();
-    } catch (err) {
-      showNotification(`Failed to cancel invitation: ${err.message}`, 'error');
-    } finally {
-      setLoading(false);
-    }
+  // Handle opening manual create modal with specific role
+  const handleOpenCreateModal = role => {
+    setCreateUserRole(role);
+    setShowManualCreateModal(true);
   };
 
-  // Define actions for different user types
-  const adminActions = [
-    {
-      label: 'Remove Admin',
-      variant: 'destructive',
-      onClick: user => handleRemoveUser(user.id, user.full_name),
-      disabled: () => loading,
-    },
-  ];
+  // Search and sort utility functions
+  const filterAndSortUsers = (users, searchTerm, sortConfig) => {
+    let filtered = users;
 
-  const managerActions = [
-    {
-      label: 'Promote to Admin',
-      variant: 'outline',
-      onClick: user => handleRoleChange(user.id, 'admin'),
-      disabled: () => loading,
-    },
-    {
-      label: 'Remove',
-      variant: 'destructive',
-      onClick: user => handleRemoveUser(user.id, user.full_name),
-      disabled: () => loading,
-    },
-  ];
+    // Apply search filter
+    if (searchTerm) {
+      filtered = users.filter(
+        user =>
+          user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.phoneNo?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
 
-  const driverActions = [
-    {
-      label: 'View Details',
-      variant: 'outline',
-      onClick: user => {
-        // Navigate to drivers page or open driver details
-        window.location.href = '/drivers';
-      },
-      disabled: () => false,
-    },
-  ];
+    // Apply sort
+    filtered.sort((a, b) => {
+      const aValue = a[sortConfig.field] || '';
+      const bValue = b[sortConfig.field] || '';
 
-  const invitationActions = invitation => [
-    ...(!invitation.is_expired && invitation.can_resend
-      ? [
-          {
-            label: 'Resend OTP',
-            variant: 'outline',
-            onClick: () => handleResendInvitation(invitation.email),
-            disabled: () => loading,
-          },
-        ]
-      : []),
-    {
-      label: 'Cancel',
-      variant: 'destructive',
-      onClick: () => handleCancelInvitation(invitation.id, invitation.full_name),
-      disabled: () => loading,
-    },
-  ];
+      if (sortConfig.direction === 'asc') {
+        return aValue.toString().localeCompare(bValue.toString());
+      } else {
+        return bValue.toString().localeCompare(aValue.toString());
+      }
+    });
+
+    return filtered;
+  };
+
+  const handleSort = (field, currentSort, setSortFunction) => {
+    const newDirection =
+      currentSort.field === field && currentSort.direction === 'asc' ? 'desc' : 'asc';
+    setSortFunction({ field, direction: newDirection });
+  };
+
+  // Get filtered and sorted users
+  const filteredAdmins = filterAndSortUsers(adminUsers, adminSearch, adminSort);
+  const filteredManagers = filterAndSortUsers(managerUsers, managerSearch, managerSort);
+  const filteredDrivers = filterAndSortUsers(driverUsers, driverSearch, driverSort);
+
+  // Handle role change with current user protection
+  const canChangeRole = user => {
+    return !user.isCurrentUser;
+  };
 
   return (
     <div className="container mx-auto py-8">
       <header className="mb-8">
         <h1 className="text-4xl font-bold">User Management</h1>
-      </header>
-
-      {/* User Actions Section */}
+      </header>{' '}
+      {/* Action Buttons */}
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-semibold">User Management Actions</h2>
           <div className="space-x-2">
-            {hasRole(ROLES.ADMIN) && (
-              <Button
-                onClick={() => setShowManualCreateModal(true)}
-                className="bg-green-600 hover:bg-green-700 text-white"
-                disabled={loading}
-              >
-                Manually Add User
-              </Button>
-            )}
             <Button
               onClick={() => setShowInviteModal(true)}
               className="bg-primary hover:bg-primary/90"
@@ -334,48 +298,94 @@ const UserManagement = () => {
             </Button>
           </div>
         </div>
-      </div>
-
-      {/* Admin Users Table - Only visible to Admins */}
+      </div>{' '}
+      {/* Admin Users Table */}
       {hasRole(ROLES.ADMIN) && (
         <UserTable
           title="Administrators"
-          users={adminUsers}
+          users={filteredAdmins}
           loading={loading && !adminUsers.length}
-          showActions={true}
-          showRole={false}
           emptyMessage="No administrators found"
-          actions={adminActions}
+          actions={[
+            {
+              label: 'Remove Admin',
+              variant: 'destructive',
+              onClick: user => handleRemoveUser(user.id, user.full_name),
+              disabled: () => loading,
+            },
+          ]}
+          search={adminSearch}
+          setSearch={setAdminSearch}
+          sort={adminSort}
+          onSortChange={field => handleSort(field, adminSort, setAdminSort)}
+          showAddButton={true}
+          onAddUser={() => handleOpenCreateModal('admin')}
         />
       )}
-
-      {/* Fleet Managers Table - Visible to Admins only */}
+      {/* Fleet Managers Table */}
       {hasRole(ROLES.ADMIN) && (
         <UserTable
           title="Fleet Managers"
-          users={managerUsers}
+          users={filteredManagers}
           loading={loading && !managerUsers.length}
-          showActions={true}
-          showRole={false}
           emptyMessage="No fleet managers found"
-          actions={managerActions}
+          actions={[
+            {
+              label: 'Promote to Admin',
+              variant: 'outline',
+              onClick: user => handleRoleChange(user.id, 'admin'),
+              disabled: () => loading,
+              visible: user => canChangeRole(user),
+            },
+            {
+              label: 'Remove',
+              variant: 'destructive',
+              onClick: user => handleRemoveUser(user.id, user.full_name),
+              disabled: () => loading,
+            },
+          ]}
+          search={managerSearch}
+          setSearch={setManagerSearch}
+          sort={managerSort}
+          onSortChange={field => handleSort(field, managerSort, setManagerSort)}
+          showAddButton={true}
+          onAddUser={() => handleOpenCreateModal('fleet_manager')}
         />
       )}
-
       {/* Drivers Table */}
-      {(hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) && (
-        <UserTable
-          title="Drivers"
-          users={driverUsers}
-          loading={loading && !driverUsers.length}
-          showActions={true}
-          showRole={false}
-          emptyMessage="No drivers found"
-          actions={driverActions}
-        />
-      )}
-
-      {/* Invited Users Table */}
+      <UserTable
+        title="Drivers"
+        users={filteredDrivers}
+        loading={loading && !driverUsers.length}
+        emptyMessage="No drivers found"
+        showActions={hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)}
+        actions={[
+          ...(hasRole(ROLES.ADMIN)
+            ? [
+                {
+                  label: 'Promote to Manager',
+                  variant: 'outline',
+                  onClick: user => handleRoleChange(user.id, 'fleet_manager'),
+                  disabled: () => loading,
+                  visible: user => canChangeRole(user),
+                },
+              ]
+            : []),
+          {
+            label: 'Remove',
+            variant: 'destructive',
+            onClick: user => handleRemoveUser(user.id, user.full_name),
+            disabled: () => loading,
+          },
+        ]}
+        search={driverSearch}
+        setSearch={setDriverSearch}
+        sort={driverSort}
+        onSortChange={field => handleSort(field, driverSort, setDriverSort)}
+        showAddButton={hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)}
+        onAddUser={() => handleOpenCreateModal('driver')}
+      />
+      {/* Pending Invitations Table */}
       {(hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) && invitedUsers.length > 0 && (
         <div className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">Pending Invitations</h2>
@@ -424,17 +434,24 @@ const UserManagement = () => {
                       {new Date(invitation.expires_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                      {invitationActions(invitation).map((action, index) => (
+                      {!invitation.is_expired && invitation.can_resend && (
                         <Button
-                          key={index}
-                          variant={action.variant}
+                          variant="outline"
                           size="sm"
-                          onClick={action.onClick}
-                          disabled={action.disabled()}
+                          onClick={() => handleResendInvitation(invitation.email)}
+                          disabled={loading}
                         >
-                          {action.label}
+                          Resend OTP
                         </Button>
-                      ))}
+                      )}
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleRemoveUser(invitation.id, invitation.full_name)}
+                        disabled={loading}
+                      >
+                        Cancel
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -443,20 +460,19 @@ const UserManagement = () => {
           </div>
         </div>
       )}
-
       {/* Modals */}
       <InviteUserModal
         isOpen={showInviteModal}
         onClose={() => setShowInviteModal(false)}
         onSubmit={handleInviteSubmit}
         loading={loading}
-      />
-
+      />{' '}
       <ManualCreateUserModal
         isOpen={showManualCreateModal}
         onClose={() => setShowManualCreateModal(false)}
         onSubmit={handleManualCreateSubmit}
         loading={loading}
+        preselectedRole={createUserRole}
       />
     </div>
   );
