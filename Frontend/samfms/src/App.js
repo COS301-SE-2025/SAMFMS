@@ -31,6 +31,9 @@ function App() {
       <ThemeProvider>
         <Router>
           <Routes>
+            {/* Public landing page as default route */}
+            <Route path="/" element={<Landing />} />
+
             {/* Public routes - wrapped in AuthErrorBoundary for auth-related errors */}
             <Route
               path="/login"
@@ -58,7 +61,7 @@ function App() {
               }
             >
               <Route path="/" element={<Layout />}>
-                <Route index element={<Navigate to="/dashboard" replace />} />
+                {/* <Route index element={<Navigate to="/dashboard" replace />} /> */}
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/vehicles" element={<Vehicles />} />
                 <Route path="/drivers" element={<Drivers />} />
