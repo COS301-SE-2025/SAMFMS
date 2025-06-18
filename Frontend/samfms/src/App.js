@@ -22,6 +22,7 @@ import Tracking from './pages/Tracking';
 import Trips from './pages/Trips';
 import Maintenance from './pages/Maintenance';
 import Help from './pages/Help';
+import Landing from './pages/Landing';
 import UserManagement from './components/UserManagement';
 
 function App() {
