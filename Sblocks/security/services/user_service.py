@@ -19,6 +19,9 @@ class UserService:
             for user in users:
                 user.pop("password_hash", None)
                 user.pop("_id", None)
+                # Add 'id' field to match the UserResponse model
+                if "user_id" in user and "id" not in user:
+                    user["id"] = user["user_id"]
             return users
         except Exception as e:
             logger.error(f"Failed to get all users: {e}")
@@ -32,6 +35,9 @@ class UserService:
             if user:
                 user.pop("password_hash", None)
                 user.pop("_id", None)
+                # Add 'id' field to match the UserResponse model
+                if "user_id" in user and "id" not in user:
+                    user["id"] = user["user_id"]
             return user
         except Exception as e:
             logger.error(f"Failed to get user by ID: {e}")

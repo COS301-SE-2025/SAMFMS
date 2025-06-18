@@ -132,3 +132,39 @@ async def verify_token(current_user: dict = Depends(get_current_user_secure)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"
         )
+
+
+@router.get("/roles")
+async def get_roles():
+    """Get available roles and their permissions"""
+    try:
+        # Get roles from a predefined configuration
+        # This could be fetched from a database in a real implementation
+        roles = [
+            {
+                "id": "admin",
+                "name": "Administrator",
+                "description": "Full system access",
+                "permissions": ["users:manage", "vehicles:manage", "trips:manage", "system:manage", "reports:view"]
+            },
+            {
+                "id": "fleet_manager",
+                "name": "Fleet Manager",
+                "description": "Manage fleet operations",
+                "permissions": ["vehicles:manage", "drivers:manage", "trips:manage", "reports:view"]
+            },
+            {
+                "id": "driver",
+                "name": "Driver",
+                "description": "Driver access only",
+                "permissions": ["trips:view", "profile:manage"]
+            }
+        ]
+        
+        return {"roles": roles}
+    except Exception as e:
+        logger.error(f"Error getting roles: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get roles"
+        )

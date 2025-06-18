@@ -236,6 +236,9 @@ export const authFetch = async (url, options = {}) => {
     throw new Error('No authentication token found');
   }
 
+  // Construct full URL if relative path is provided
+  const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+
   const headers = {
     ...options.headers,
     Authorization: `Bearer ${token}`,
@@ -243,7 +246,7 @@ export const authFetch = async (url, options = {}) => {
 
   try {
     // First attempt with current token
-    const response = await fetchWithTimeout(url, { ...options, headers }, 8000);
+    const response = await fetchWithTimeout(fullUrl, { ...options, headers }, 8000);
 
     // If unauthorized, try to refresh token and retry
     if (response.status === 401) {
@@ -257,7 +260,7 @@ export const authFetch = async (url, options = {}) => {
           Authorization: `Bearer ${token}`,
         };
 
-        return fetchWithTimeout(url, { ...options, headers: newHeaders }, 8000);
+        return fetchWithTimeout(fullUrl, { ...options, headers: newHeaders }, 8000);
       } catch (refreshError) {
         console.error('Auth refresh failed:', refreshError);
         // If refresh fails, redirect to login
@@ -632,25 +635,37 @@ export const inviteUser = async userData => {
   return response.json();
 };
 
+// Cache for users data
+let usersCache = null;
+let usersCacheTimestamp = null;
+const USERS_CACHE_TTL = 2 * 60 * 1000; // 2 minutes cache (shorter than roles since users data changes more frequently)
+
 export const listUsers = async () => {
-  const token = getToken();
-  if (!token) {
-    throw new Error('No authentication token found');
+  // Return cached data if available and not expired
+  const now = Date.now();
+  if (usersCache && usersCacheTimestamp && now - usersCacheTimestamp < USERS_CACHE_TTL) {
+    return Promise.resolve(usersCache);
   }
 
-  const response = await fetch(AUTH_API.users, {
+  // Use authFetch to automatically handle token and refresh if needed
+  const response = await authFetch(AUTH_API.users, {
     method: 'GET',
     headers: {
-      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
     },
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
+    const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
     throw new Error(errorData.detail || 'Failed to fetch users');
   }
 
-  return response.json();
+  // Cache the result
+  const data = await response.json();
+  usersCache = data;
+  usersCacheTimestamp = now;
+
+  return data;
 };
 
 export const updateUserPermissions = async userData => {
@@ -676,8 +691,20 @@ export const updateUserPermissions = async userData => {
   return response.json();
 };
 
+// Cache for roles data
+let rolesCache = null;
+let rolesCacheTimestamp = null;
+const ROLES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
+
 export const getRoles = async () => {
-  const response = await fetch(AUTH_API.getRoles, {
+  // Return cached data if available and not expired
+  const now = Date.now();
+  if (rolesCache && rolesCacheTimestamp && now - rolesCacheTimestamp < ROLES_CACHE_TTL) {
+    return Promise.resolve(rolesCache);
+  }
+
+  // Use authFetch to automatically handle token and refresh if needed
+  const response = await authFetch(AUTH_API.getRoles, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -685,11 +712,18 @@ export const getRoles = async () => {
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || 'Failed to fetch roles');
+    const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(
+      `Internal server error: ${response.status}: ${errorData.detail || 'Not authenticated'}`
+    );
   }
 
-  return response.json();
+  // Cache the result
+  const data = await response.json();
+  rolesCache = data;
+  rolesCacheTimestamp = now;
+
+  return data;
 };
 
 export const verifyPermission = async permission => {
@@ -789,18 +823,25 @@ export const fetchWithTimeout = async (url, options = {}, timeout = 5000) => {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
 
+  // Only log in development mode to reduce noise
+  const isDevMode = process.env.NODE_ENV === 'development';
+
   try {
     // Log the request in development
-    console.log(`Fetching ${url}...`);
+    if (isDevMode && !url.includes('/roles') && !url.includes('/users')) {
+      // Skip logging for roles and users endpoints
+      console.log(`Fetching ${url}...`);
+    }
 
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
     });
-    clearTimeout(id);
-
-    // Log response status
-    console.log(`${url} responded with status: ${response.status}`);
+    clearTimeout(id); // Log response status
+    if (isDevMode && !url.includes('/roles') && !url.includes('/users')) {
+      // Skip logging for roles and users endpoints
+      console.log(`${url} responded with status: ${response.status}`);
+    }
 
     return response;
   } catch (error) {
@@ -954,4 +995,20 @@ export const checkUserExistence = async (forceRefresh = false) => {
     userExistenceCacheExpiry = now + CACHE_TTL;
     return true;
   }
+};
+
+// Cache clearing functions
+export const clearUsersCache = () => {
+  usersCache = null;
+  usersCacheTimestamp = null;
+};
+
+export const clearRolesCache = () => {
+  rolesCache = null;
+  rolesCacheTimestamp = null;
+};
+
+export const clearAllAuthCache = () => {
+  clearUsersCache();
+  clearRolesCache();
 };

@@ -148,12 +148,16 @@ services:
     command: mongod --quiet --logpath /dev/null
 
   mcore:
-    build: ./Core
+    build:
+      context: .
+      dockerfile: ./Core/Dockerfile
     command: sh /app/start.sh
+    privileged: true
+    user: '0:0' # Run as root to access docker socket
     ports:
       - '8000:8000'
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:rw
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -246,6 +250,12 @@ services:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-default-secret-key-change-in-production}
+      # Email configuration for invitations
+      - SMTP_SERVER=${SMTP_SERVER:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - FROM_EMAIL=${FROM_EMAIL}
   management_service:
     build: ./Sblocks/management
     command: sh /app/start.sh

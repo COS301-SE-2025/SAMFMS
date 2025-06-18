@@ -24,15 +24,30 @@ class SignupRequest(BaseModel):
 
 
 class InviteUserRequest(BaseModel):
-    """Admin/Fleet Manager can add users with specific roles"""
+    """Admin/Fleet Manager can invite users - updated for OTP flow"""
     full_name: str
     email: EmailStr
-    password: str  # Password for the new user
     role: str  # Required - either "admin", "fleet_manager" or "driver"
     phoneNo: Optional[str] = None
-    details: Dict = {}
-    preferences: Dict = {}
-    custom_permissions: Optional[List[str]] = None  # Admin can grant custom permissions
+
+
+class VerifyOTPRequest(BaseModel):
+    """Request to verify OTP and complete user registration"""
+    email: EmailStr
+    otp: str
+
+
+class CompleteRegistrationRequest(BaseModel):
+    """Complete user registration after OTP verification"""
+    email: EmailStr
+    otp: str
+    username: str
+    password: str
+
+
+class ResendOTPRequest(BaseModel):
+    """Request to resend OTP"""
+    email: EmailStr
 
 
 class LoginRequest(BaseModel):
