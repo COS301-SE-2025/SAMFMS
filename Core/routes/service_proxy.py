@@ -27,8 +27,7 @@ async def get_vehicles(
         user_context = await core_auth_service.authorize_request(
             credentials.credentials, "/api/vehicles", "GET"
         )
-        
-        # Route to management service
+          # Route to management service
         response = await request_router.route_request(
             endpoint="/api/vehicles",
             method="GET",
@@ -36,7 +35,10 @@ async def get_vehicles(
             user_context=user_context
         )
         
-        return response
+        # Standardize field names for frontend compatibility
+        standardized_response = standardize_vehicle_response(response)
+        
+        return standardized_response
         
     except HTTPException:
         raise
@@ -439,3 +441,208 @@ async def create_maintenance_record(
     except Exception as e:
         logger.error(f"Error in create_maintenance_record: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+# Driver Management Routes
+@router.get("/vehicles/drivers")
+async def get_drivers(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get all drivers via Management service"""
+    try:
+        # Authorize request
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials, "/api/vehicles/drivers", "GET"
+        )
+        
+        # Route to management service
+        response = await request_router.route_request(
+            endpoint="/api/drivers",
+            method="GET",
+            data=dict(request.query_params),
+            user_context=user_context
+        )
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_drivers: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/vehicles/drivers")
+async def create_driver(
+    driver_data: Dict[str, Any],
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Create a new driver via Management service"""
+    try:
+        # Authorize request
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials, "/api/vehicles/drivers", "POST"
+        )
+        
+        # Route to management service
+        response = await request_router.route_request(
+            endpoint="/api/drivers",
+            method="POST",
+            data=driver_data,
+            user_context=user_context
+        )
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in create_driver: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/vehicles/drivers/{driver_id}")
+async def get_driver(
+    driver_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get specific driver via Management service"""
+    try:
+        # Authorize request
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials, "/api/vehicles/drivers", "GET"
+        )
+        
+        # Route to management service
+        response = await request_router.route_request(
+            endpoint=f"/api/drivers/{driver_id}",
+            method="GET",
+            data={"driver_id": driver_id},
+            user_context=user_context
+        )
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_driver: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.put("/vehicles/drivers/{driver_id}")
+async def update_driver(
+    driver_id: str,
+    driver_data: Dict[str, Any],
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Update driver via Management service"""
+    try:
+        # Authorize request
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials, "/api/vehicles/drivers", "PUT"
+        )
+        
+        # Route to management service
+        response = await request_router.route_request(
+            endpoint=f"/api/drivers/{driver_id}",
+            method="PUT",
+            data=driver_data,
+            user_context=user_context
+        )
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in update_driver: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.delete("/vehicles/drivers/{driver_id}")
+async def delete_driver(
+    driver_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Delete driver via Management service"""
+    try:
+        # Authorize request
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials, "/api/vehicles/drivers", "DELETE"
+        )
+        
+        # Route to management service
+        response = await request_router.route_request(
+            endpoint=f"/api/drivers/{driver_id}",
+            method="DELETE",
+            data={"driver_id": driver_id},
+            user_context=user_context
+        )
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in delete_driver: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/debug/routing/{endpoint:path}")
+async def debug_routing(endpoint: str):
+    """Debug endpoint to test routing configuration"""
+    try:
+        service = request_router.get_service_for_endpoint(f"/{endpoint}")
+        return {
+            "endpoint": f"/{endpoint}",
+            "service": service,
+            "routing_map": request_router.routing_map
+        }
+    except Exception as e:
+        return {
+            "endpoint": f"/{endpoint}",
+            "error": str(e),
+            "routing_map": request_router.routing_map
+        }
+
+def standardize_vehicle_response(response_data):
+    """Standardize vehicle response field names for frontend compatibility"""
+    if isinstance(response_data, dict):
+        if "vehicles" in response_data:
+            # Handle list of vehicles
+            response_data["vehicles"] = [standardize_single_vehicle(v) for v in response_data["vehicles"]]
+        else:
+            # Handle single vehicle
+            response_data = standardize_single_vehicle(response_data)
+    
+    return response_data
+
+def standardize_single_vehicle(vehicle):
+    """Standardize single vehicle field names"""
+    if not isinstance(vehicle, dict):
+        return vehicle
+        
+    # Field mapping from backend to frontend expected names
+    field_mappings = {
+        "license_plate": "licensePlate",
+        "fuel_type": "fuelType", 
+        "driver_name": "driver",
+        "driver_id": "driverId",
+        "last_service": "lastService",
+        "next_service": "nextService",
+        "insurance_expiry": "insuranceExpiry",
+        "acquisition_date": "acquisitionDate",
+        "fuel_efficiency": "fuelEfficiency",
+        "last_driver": "lastDriver",
+        "maintenance_costs": "maintenanceCosts"
+    }
+    
+    # Apply field mappings
+    standardized = vehicle.copy()
+    for backend_field, frontend_field in field_mappings.items():
+        if backend_field in standardized:
+            standardized[frontend_field] = standardized.pop(backend_field)
+    
+    # Ensure status is properly capitalized
+    if "status" in standardized:
+        status = standardized["status"]
+        if isinstance(status, str):
+            standardized["status"] = status.capitalize()
+    
+    return standardized

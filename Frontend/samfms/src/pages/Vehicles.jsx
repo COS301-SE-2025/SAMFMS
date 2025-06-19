@@ -86,7 +86,23 @@ const Vehicles = () => {
         setVehicles(transformedVehicles);
       } catch (err) {
         console.error('Error loading vehicles:', err);
-        setError(err.message || 'Failed to load vehicles');
+
+        // Enhanced error handling with different error types
+        let errorMessage = 'Failed to load vehicles';
+
+        if (err.status === 401) {
+          errorMessage = 'Session expired. Please log in again.';
+        } else if (err.status === 403) {
+          errorMessage = 'You do not have permission to view vehicles.';
+        } else if (err.status === 500) {
+          errorMessage = 'Server error. Please try again later.';
+        } else if (err.message.includes('fetch')) {
+          errorMessage = 'Network error. Please check your connection.';
+        } else {
+          errorMessage = err.message || 'Failed to load vehicles';
+        }
+
+        setError(errorMessage);
         setVehicles([]);
       } finally {
         setLoading(false);
@@ -119,7 +135,21 @@ const Vehicles = () => {
       setCurrentPage(1); // Reset to first page
     } catch (err) {
       console.error('Error searching vehicles:', err);
-      setError(err.message || 'Failed to search vehicles');
+
+      // Enhanced error handling for search
+      let errorMessage = 'Failed to search vehicles';
+
+      if (err.status === 401) {
+        errorMessage = 'Session expired. Please log in again.';
+      } else if (err.status === 403) {
+        errorMessage = 'You do not have permission to search vehicles.';
+      } else if (err.message.includes('Network')) {
+        errorMessage = 'Network error during search. Please try again.';
+      } else {
+        errorMessage = err.message || 'Failed to search vehicles';
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

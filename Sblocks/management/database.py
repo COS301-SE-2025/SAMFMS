@@ -4,8 +4,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://host.docker.internal:27017")
-DATABASE_NAME = "management_db"
+MONGODB_URL = os.getenv("DATABASE_URL", "mongodb://host.docker.internal:27017/management_db")
+# Extract database name from URL if it's included, otherwise use default
+if "/" in MONGODB_URL and MONGODB_URL.endswith("/management_db"):
+    DATABASE_NAME = "management_db"
+else:
+    DATABASE_NAME = "management_db"
 
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
 db = client[DATABASE_NAME]

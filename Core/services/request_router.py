@@ -7,6 +7,7 @@ import asyncio
 import uuid
 import time
 import fnmatch
+import json
 from typing import Dict, Any, Optional
 from datetime import datetime
 import logging
@@ -26,24 +27,28 @@ class RequestRouter:
     def __init__(self):
         self.response_manager = ResponseCorrelationManager()
         self.routing_map = {
+            "/api/vehicles": "management",
             "/api/vehicles/*": "management",
+            "/api/drivers": "management",
+            "/api/drivers/*": "management", 
+            "/api/vehicle-assignments": "management",
             "/api/vehicle-assignments/*": "management",
+            "/api/vehicle-usage": "management",
             "/api/vehicle-usage/*": "management",
             "/api/gps/*": "gps",
             "/api/tracking/*": "gps", 
             "/api/trips/*": "trip_planning",
             "/api/trip-planning/*": "trip_planning",
             "/api/maintenance/*": "maintenance",
-            "/api/vehicle-maintenance/*": "maintenance"        }
+            "/api/vehicle-maintenance/*": "maintenance"
+        }
     
     async def initialize(self):
         """Initialize routing infrastructure"""
         try:
             # Create request/response exchanges
             await create_exchange("service_requests", aio_pika.ExchangeType.DIRECT)
-            await create_exchange("service_responses", aio_pika.ExchangeType.DIRECT)
-            
-            # Start response consumer
+            await create_exchange("service_responses", aio_pika.ExchangeType.DIRECT)            # Start response consumer
             asyncio.create_task(self.response_manager.consume_responses())
             
             logger.info("Request router initialized successfully")
@@ -53,9 +58,22 @@ class RequestRouter:
     
     def get_service_for_endpoint(self, endpoint: str) -> str:
         """Determine target service based on endpoint pattern"""
+        logger.debug(f"Looking for service for endpoint: {endpoint}")
+        logger.debug(f"Available routing patterns: {list(self.routing_map.keys())}")
+        
+        # First try exact matches
+        if endpoint in self.routing_map:
+            service = self.routing_map[endpoint]
+            logger.debug(f"Found exact match: {endpoint} -> {service}")
+            return service
+        
+        # Then try pattern matching
         for pattern, service in self.routing_map.items():
             if fnmatch.fnmatch(endpoint, pattern):
+                logger.debug(f"Found pattern match: {endpoint} matches {pattern} -> {service}")
                 return service
+        
+        logger.error(f"No service found for endpoint: {endpoint}")        
         raise ValueError(f"No service found for endpoint: {endpoint}")
     
     async def route_request(self, endpoint: str, method: str, data: Dict[Any, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
@@ -105,8 +123,19 @@ class RequestRouter:
                     correlation_id, service, f"{method} {endpoint}", duration, "success"
                 )
                 
-                # Complete trace
-                request_tracer.complete_trace(correlation_id, "success")
+                # Enhanced logging with performance metrics
+                elapsed_time = time.time() - start_time
+                logger.info(f"Request {correlation_id} completed successfully in {elapsed_time:.3f}s")
+                
+                # Record metrics for monitoring
+                self._record_request_metrics(service, method, endpoint, elapsed_time, "success")
+                
+                # Add trace completion
+                request_tracer.complete_trace(correlation_id, {
+                    "status": "success",
+                    "duration_ms": elapsed_time * 1000,
+                    "response_size": len(str(response)) if response else 0
+                })
                 
                 return response
                 
@@ -158,6 +187,26 @@ class RequestRouter:
         except Exception as e:
             logger.error(f"Error sending request to {service}: {e}")
             raise
+
+    def _record_request_metrics(self, service: str, method: str, endpoint: str, duration: float, status: str):
+        """Record request metrics for monitoring and analytics"""
+        try:
+            metrics_data = {
+                "timestamp": datetime.utcnow().isoformat(),
+                "service": service,
+                "method": method,
+                "endpoint": endpoint,
+                "duration_seconds": duration,
+                "status": status
+            }
+            
+            # Log metrics (in production, this could be sent to a metrics service)
+            logger.info(f"METRICS: {json.dumps(metrics_data)}")
+            
+            # Could be extended to send to monitoring systems like Prometheus, DataDog, etc.
+            
+        except Exception as e:
+            logger.warning(f"Failed to record metrics: {e}")
 
 class ResponseCorrelationManager:
     """Manages correlation between requests and responses"""

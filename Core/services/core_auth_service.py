@@ -91,8 +91,7 @@ class CoreAuthService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Insufficient permissions for this operation"
                 )
-            
-            # Create user context for service calls
+              # Create user context for service calls
             user_context = {
                 "user_id": user_info.get("user_id"),
                 "role": user_info.get("role"),
@@ -111,12 +110,12 @@ class CoreAuthService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Authorization service error"
             )
-    
+
     async def verify_token_with_security(self, token: str) -> Dict[str, Any]:
         """Verify JWT token with Security block via direct HTTP call"""
         try:
             response = await self.http_client.post(
-                f"{self.security_url}/auth/verify",
+                f"{self.security_url}/auth/verify-token",
                 headers={"Authorization": f"Bearer {token}"},
                 json={"token": token}
             )

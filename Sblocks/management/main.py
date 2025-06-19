@@ -37,6 +37,9 @@ app.include_router(vehicle_routes, prefix="/api/v1/vehicles", tags=["vehicles"])
 # Initialize Redis connection
 redis_client = redis.Redis(host='redis', port=6379, decode_responses=True)
 
+# Initialize global message queue service
+mq_service = None
+
 # Initialize RabbitMQ connection
 def get_rabbitmq_connection():
     try:
@@ -51,48 +54,127 @@ def get_rabbitmq_connection():
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Management Service starting up...")
+    """Enhanced startup event with comprehensive error handling and logging"""
+    logger.info("=== Management Service Starting Up ===")
     
     # Test database connection and create indexes
-    try:
+    try:        
+        logger.info("🔗 Testing database connection...")
         db_connected = await test_database_connection()
         if db_connected:
+            logger.info("✅ Database connection successful")
             await create_indexes()
-            logger.info("Database connection and indexes created successfully")
+            logger.info("✅ Database indexes created successfully")
             #health_metrics["database_connected"] = True
         else:
-            logger.error("Database connection failed")
+            logger.error("❌ Database connection failed")
             #health_metrics["database_connected"] = False
     except Exception as e:
-        logger.error(f"Database initialization failed: {e}")
+        logger.error(f"❌ Database initialization failed: {e}")
+        logger.exception("Database initialization exception traceback:")
         #health_metrics["database_connected"] = False
     
     # Test Redis connection
     try:
+        logger.info("🔗 Testing Redis connection...")
         redis_client.ping()
-        logger.info("Redis connection successful")
+        logger.info("✅ Redis connection successful")
         #health_metrics["redis_connected"] = True
     except Exception as e:
-        logger.error(f"Redis connection failed: {e}")        #health_metrics["redis_connected"] = False
+        logger.error(f"❌ Redis connection failed: {e}")
+        #health_metrics["redis_connected"] = False
     
     # Test RabbitMQ connection and setup message queue
+    global mq_service
     try:
-        await MessageQueueService.setup_message_queue()
-        logger.info("RabbitMQ setup successful")
-        #health_metrics["rabbitmq_connected"] = True
+        logger.info("🔗 Setting up RabbitMQ connection...")
+        mq_service = MessageQueueService()
+        connection_success = mq_service.connect()
+        if connection_success:
+            logger.info("✅ RabbitMQ connection established successfully")
+            logger.info("✅ Message queue service is ready for publishing events")
+            #health_metrics["rabbitmq_connected"] = True
+        else:
+            logger.error("❌ RabbitMQ connection failed - service will continue without messaging")
+            #health_metrics["rabbitmq_connected"] = False
     except Exception as e:
-        logger.error(f"RabbitMQ setup failed: {e}")
+        logger.error(f"❌ RabbitMQ setup failed: {e}")
+        logger.exception("Full RabbitMQ setup exception traceback:")
         #health_metrics["rabbitmq_connected"] = False
-    
-    # Initialize service request handler
+      # Initialize service request handler
     try:
+        logger.info("🔗 Initializing service request handler...")
         await service_request_handler.initialize()
-        logger.info("Service request handler initialized")
+        logger.info("✅ Service request handler initialized")
     except Exception as e:
-        logger.error(f"Service request handler initialization failed: {e}")
+        logger.error(f"❌ Service request handler initialization failed: {e}")
+        logger.exception("Service request handler exception traceback:")
+
+    # Send startup notification via message queue
+    try:
+        logger.info("📤 Sending startup notification...")
+        if mq_service:
+            startup_success = mq_service.publish_service_event(
+                event_type="startup",
+                service_name="management",
+                message_data={
+                    "version": "1.0.0",
+                    "port": 8000,
+                    "endpoints": [
+                        "/api/v1/vehicles",
+                        "/api/v1/vehicle-assignments", 
+                        "/api/v1/vehicle-usage"
+                    ],
+                    "status": "ready"
+                }
+            )
+            if startup_success:
+                logger.info("✅ Management service startup notification sent to message queue")
+            else:
+                logger.warning("⚠️ Failed to send startup notification - continuing without messaging")
+        else:
+            logger.warning("⚠️ No message queue service available for startup notification")
+    except Exception as e:
+        logger.error(f"❌ Failed to send startup notification: {e}")
+        logger.warning("Management service will continue without startup messaging")
 
     #health_metrics["startup_time"] = datetime.now(timezone.utc).isoformat()
-    logger.info("Management Service startup completed")
+    logger.info("🎉 === Management Service Startup Completed ===")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Send shutdown notification when service stops"""
+    logger.info("Management Service shutting down...")
+    
+    try:
+        if mq_service:
+            shutdown_success = mq_service.publish_service_event(
+                event_type="shutdown",
+                service_name="management",
+                message_data={
+                    "version": "1.0.0",
+                    "status": "shutting_down",
+                    "shutdown_reason": "normal"
+                }
+            )
+            if shutdown_success:
+                logger.info("Management service shutdown notification sent to message queue")
+            else:
+                logger.warning("Failed to send shutdown notification")
+        else:
+            logger.warning("No message queue service available for shutdown notification")
+    except Exception as e:
+        logger.error(f"Failed to send shutdown notification: {e}")
+    
+    # Close message queue connection
+    try:
+        if mq_service:
+            mq_service.close()
+            logger.info("Message queue connection closed")
+    except Exception as e:
+        logger.error(f"Error closing message queue connection: {e}")
+    
+    logger.info("Management Service shutdown completed")
 
 @app.get("/")
 def read_root():
@@ -132,6 +214,87 @@ async def health_check():
     }
     
     return health_status
+
+@app.get("/debug/queues")
+async def debug_queues():
+    """Debug endpoint to check queue consumption status"""
+    try:
+        return {
+            "message": "Management service debug info",
+            "service_request_handler": "initialized" if hasattr(service_request_handler, 'endpoint_handlers') else "not_initialized",
+            "available_endpoints": list(service_request_handler.endpoint_handlers.keys()) if hasattr(service_request_handler, 'endpoint_handlers') else [],
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+@app.get("/debug/test-vehicle-handler")
+async def test_vehicle_handler():
+    """Test the vehicle handler directly"""
+    try:
+        # Test the get vehicles method directly
+        test_user_context = {
+            "user_id": "test-user",
+            "role": "admin",
+            "permissions": ["*"]
+        }
+        
+        result = await service_request_handler._get_vehicles(
+            "/api/vehicles", 
+            {"limit": "10"}, 
+            test_user_context
+        )
+        
+        return {
+            "success": True,
+            "result": result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+@app.get("/debug/test-message-queue")
+async def test_message_queue():
+    """Test the message queue connectivity"""
+    try:
+        if not mq_service:
+            return {
+                "success": False,
+                "error": "Message queue service not initialized",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        
+        # Test publishing a test message
+        test_success = mq_service.publish_service_event(
+            event_type="test",
+            service_name="management",
+            message_data={
+                "test_message": "Message queue connectivity test",
+                "test_timestamp": datetime.utcnow().isoformat()
+            }
+        )
+        
+        return {
+            "success": test_success,
+            "message": "Test message published successfully" if test_success else "Failed to publish test message",
+            "mq_service_available": mq_service is not None,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
 
 if __name__ == "__main__":
     import uvicorn

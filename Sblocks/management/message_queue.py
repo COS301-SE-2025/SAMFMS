@@ -3,6 +3,7 @@ import json
 import logging
 from typing import Dict, Any
 from models import VehicleCreatedMessage, VehicleUpdatedMessage, VehicleDeletedMessage, VehicleSpecs
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -14,11 +15,9 @@ class MessageQueueService:
         self.password = password
         self.connection = None
         self.channel = None
-        self._connection_pool = []
-        self._max_pool_size = 5
         
     def _get_connection(self):
-        """Get or create a connection with pooling for better efficiency"""
+        """Get or create a connection with optimized settings"""
         try:
             # Try to reuse existing connection if available
             if self.connection and not self.connection.is_closed:
@@ -198,6 +197,48 @@ class MessageQueueService:
             logger.error(f"Failed to publish vehicle status change event: {e}")
             # Reset connection on error
             self.connection = None
+
+    def publish_service_event(self, event_type: str, service_name: str, message_data: Dict[str, Any] = None):
+        """Publish service events (startup, shutdown, etc.)"""
+        try:
+            if not self._get_connection():
+                logger.error("No RabbitMQ connection available for publishing service event")
+                return False
+                
+            # Declare service events exchange if it doesn't exist
+            self.channel.exchange_declare(
+                exchange='service_events', 
+                exchange_type='topic',
+                durable=True
+            )
+            
+            event_data = {
+                "service": service_name,
+                "event_type": event_type,
+                "timestamp": datetime.utcnow().isoformat(),
+                "data": message_data or {}
+            }
+            
+            message = json.dumps(event_data)
+            routing_key = f"service.{service_name}.{event_type}"
+            
+            self.channel.basic_publish(
+                exchange='service_events',
+                routing_key=routing_key,
+                body=message,
+                properties=pika.BasicProperties(
+                    delivery_mode=2,
+                    content_type='application/json'
+                )
+            )
+            logger.info(f"Published service event: {event_type} for service: {service_name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to publish service event {event_type} for {service_name}: {e}")
+            # Reset connection on error
+            self.connection = None
+            return False
     
     def close(self):
         """Close RabbitMQ connection"""
