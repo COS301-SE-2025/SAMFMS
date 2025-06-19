@@ -119,13 +119,21 @@ async def get_user_count():
 
 
 @router.post("/verify-token")
-async def verify_token(current_user: dict = Depends(get_current_user_secure)):
-    """Verify a JWT token and return user information (used by other services)"""
+async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+
     try:
-        # Return user information without sensitive data
-        user_info = {k: v for k, v in current_user.items() 
-                    if k not in ["password_hash", "token", "_id"]}
-        return user_info
+        token = credentials.credentials
+
+        user = await get_current_user_secure(token)
+
+        return {
+            k: v
+            for k, v in user.items()
+            if k not in {"password_hash", "token", "_id"}
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Token verification error: {e}")
         raise HTTPException(
