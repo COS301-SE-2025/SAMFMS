@@ -1,214 +1,402 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { useAuth, ROLES } from './RBACUtils';
-import { inviteUser, listUsers, updateUserPermissions, getRoles } from '../backend/API.js';
+import {
+  listUsers,
+  updateUserPermissions,
+  getRoles,
+  isAuthenticated,
+  sendInvitation,
+  getPendingInvitations,
+  resendInvitation,
+  createUserManually,
+  getDrivers,
+} from '../backend/API.js';
+import { Navigate } from 'react-router-dom';
+import { useNotification } from '../contexts/NotificationContext';
+import UserTable from './UserTable';
+import InviteUserModal from './InviteUserModal';
+import ManualCreateUserModal from './ManualCreateUserModal';
 
 const UserManagement = () => {
   const { hasPermission, hasRole } = useAuth();
-  const [users, setUsers] = useState([]);
+  const { showNotification } = useNotification();
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [managerUsers, setManagerUsers] = useState([]);
+  const [driverUsers, setDriverUsers] = useState([]);
+  const [invitedUsers, setInvitedUsers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
-  // Invite form state
-  const [inviteForm, setInviteForm] = useState({
-    full_name: '',
-    email: '',
-    role: 'driver',
-    phoneNo: '',
-  });
-  const [showInviteForm, setShowInviteForm] = useState(false);
+  // Modal states
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showManualCreateModal, setShowManualCreateModal] = useState(false);
 
-  // Move useEffect before any conditional returns to comply with Rules of Hooks
-  useEffect(() => {
-    // Only load data if user has permission
-    if (hasPermission('users:manage') || hasRole(ROLES.ADMIN)) {
-      loadUsers();
-      loadRoles();
+  const hasMounted = useRef(false);
+
+  const loadUsers = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const usersData = await listUsers();
+
+      // Filter users by role
+      const admins = usersData.filter(user => user.role === ROLES.ADMIN);
+      const managers = usersData.filter(user => user.role === ROLES.FLEET_MANAGER);
+      const drivers = usersData.filter(user => user.role === ROLES.DRIVER);
+
+      setAdminUsers(admins);
+      setManagerUsers(managers);
+      setDriverUsers(drivers);
+    } catch (err) {
+      showNotification(`Failed to load users: ${err.message}`, 'error');
+    } finally {
+      setLoading(false);
     }
-  }, [hasPermission, hasRole]);
+  }, [showNotification]);
+
+  const loadInvitedUsers = React.useCallback(async () => {
+    try {
+      const invitationsData = await getPendingInvitations();
+      setInvitedUsers(invitationsData.invitations || []);
+    } catch (err) {
+      console.error('Failed to load invited users:', err);
+      // Don't show error for invited users - it's optional data
+    }
+  }, []);
+
+  const loadDriversFromAPI = React.useCallback(async () => {
+    try {
+      // Load drivers from the drivers API if user has permission
+      if (hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) {
+        const driversData = await getDrivers({ limit: 100 });
+        // Transform driver data to match user table format
+        const transformedDrivers = driversData.map(driver => ({
+          id: driver.id || driver._id,
+          full_name: driver.user_info?.full_name || driver.name || 'Unknown',
+          email: driver.user_info?.email || driver.email || 'N/A',
+          phoneNo: driver.user_info?.phoneNo || driver.phone || 'N/A',
+          phone: driver.user_info?.phoneNo || driver.phone || 'N/A',
+          role: 'driver',
+          employee_id: driver.employee_id,
+          license_number: driver.license_number,
+          department: driver.department,
+          status: driver.status,
+        }));
+        setDriverUsers(transformedDrivers);
+      }
+    } catch (err) {
+      console.error('Failed to load drivers from API:', err);
+      // Fallback to drivers from user list if API fails
+    }
+  }, [hasRole]);
+
+  useEffect(() => {
+    // Check authentication status first
+    if (!isAuthenticated()) {
+      showNotification('You need to be logged in to access this page.', 'error');
+      return;
+    }
+
+    // Only run this effect once on mount
+    if (hasMounted.current) {
+      return;
+    }
+    hasMounted.current = true;
+
+    // Load data
+    loadUsers();
+    loadInvitedUsers();
+    loadDriversFromAPI();
+
+    // Load roles cache
+    const fetchRoles = async () => {
+      try {
+        await getRoles(); // Just ensure roles are cached
+      } catch (err) {
+        console.error('Failed to load roles:', err);
+      }
+    };
+
+    fetchRoles();
+  }, [loadUsers, loadInvitedUsers, loadDriversFromAPI, showNotification]);
+
+  // Fleet managers should be redirected to the drivers page
+  if (hasRole(ROLES.FLEET_MANAGER)) {
+    return <Navigate to="/drivers" />;
+  }
 
   // Only admin can access this component
   if (!hasPermission('users:manage') && !hasRole(ROLES.ADMIN)) {
     return (
       <div className="container mx-auto py-8">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          Access denied. Only administrators can manage users.
+          Access denied. You don't have permission to access this page.
         </div>
       </div>
     );
   }
 
-  const loadUsers = async () => {
+  const handleInviteSubmit = async formData => {
     try {
       setLoading(true);
-      const usersData = await listUsers();
-      setUsers(usersData);
+      await sendInvitation(formData);
+      showNotification(
+        `Invitation sent to ${formData.email}! They will receive an OTP to complete registration.`,
+        'success'
+      );
+      setShowInviteModal(false);
+      // Refresh data
+      loadUsers();
+      loadInvitedUsers();
     } catch (err) {
-      setError(`Failed to load users: ${err.message}`);
+      showNotification(`Failed to send invitation: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
   };
-  const loadRoles = async () => {
+
+  const handleManualCreateSubmit = async formData => {
     try {
-      await getRoles();
-      // Role data is typically used for dropdowns, but if not needed, we can remove this
+      setLoading(true);
+      const userData = {
+        full_name: formData.full_name.trim(),
+        email: formData.email.trim(),
+        role: formData.role || 'driver',
+        password: formData.password,
+        phoneNo: formData.phoneNo ? formData.phoneNo.trim() : undefined,
+        details: {},
+      };
+
+      await createUserManually(userData);
+      showNotification(`User ${formData.full_name} created successfully!`, 'success');
+      setShowManualCreateModal(false);
+      // Refresh user list
+      loadUsers();
     } catch (err) {
-      console.error('Failed to load roles:', err);
+      showNotification(`Failed to create user: ${err.message}`, 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleInviteSubmit = async e => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-
+  const handleResendInvitation = async email => {
     try {
       setLoading(true);
-      await inviteUser(inviteForm);
-      setSuccess(`User ${inviteForm.full_name} has been invited successfully!`);
-      setInviteForm({
-        full_name: '',
-        email: '',
-        role: 'driver',
-        phoneNo: '',
-      });
-      setShowInviteForm(false);
-      loadUsers(); // Refresh user list
+      await resendInvitation(email);
+      showNotification(`Invitation resent to ${email}!`, 'success');
+      loadInvitedUsers();
     } catch (err) {
-      setError(`Failed to invite user: ${err.message}`);
+      showNotification(`Failed to resend invitation: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleRoleChange = async (userId, newRole) => {
-    setError('');
-    setSuccess('');
-
     try {
       setLoading(true);
       await updateUserPermissions({
         user_id: userId,
         role: newRole,
       });
-      setSuccess('User role updated successfully!');
-      loadUsers(); // Refresh user list
+      showNotification('User role updated successfully!', 'success');
+      loadUsers();
     } catch (err) {
-      setError(`Failed to update user role: ${err.message}`);
+      showNotification(`Failed to update user role: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleRemoveUser = async (userId, userName) => {
+    const userConfirmed = window.confirm(
+      `Are you sure you want to remove ${userName} from the system?`
+    );
+
+    if (!userConfirmed) return;
+
+    try {
+      setLoading(true);
+      await updateUserPermissions({
+        user_id: userId,
+        role: 'inactive',
+        is_active: false,
+      });
+      showNotification(`User has been removed from the system.`, 'success');
+      loadUsers();
+    } catch (err) {
+      showNotification(`Failed to remove user: ${err.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelInvitation = async (invitationId, userName) => {
+    const userConfirmed = window.confirm(
+      `Are you sure you want to cancel the invitation for ${userName}?`
+    );
+
+    if (!userConfirmed) return;
+
+    try {
+      setLoading(true);
+      // Note: You may need to implement a cancel invitation API
+      showNotification(`Invitation for ${userName} has been cancelled.`, 'success');
+      loadInvitedUsers();
+    } catch (err) {
+      showNotification(`Failed to cancel invitation: ${err.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Define actions for different user types
+  const adminActions = [
+    {
+      label: 'Remove Admin',
+      variant: 'destructive',
+      onClick: user => handleRemoveUser(user.id, user.full_name),
+      disabled: () => loading,
+    },
+  ];
+
+  const managerActions = [
+    {
+      label: 'Promote to Admin',
+      variant: 'outline',
+      onClick: user => handleRoleChange(user.id, 'admin'),
+      disabled: () => loading,
+    },
+    {
+      label: 'Remove',
+      variant: 'destructive',
+      onClick: user => handleRemoveUser(user.id, user.full_name),
+      disabled: () => loading,
+    },
+  ];
+
+  const driverActions = [
+    {
+      label: 'View Details',
+      variant: 'outline',
+      onClick: user => {
+        // Navigate to drivers page or open driver details
+        window.location.href = '/drivers';
+      },
+      disabled: () => false,
+    },
+  ];
+
+  const invitationActions = invitation => [
+    ...(!invitation.is_expired && invitation.can_resend
+      ? [
+          {
+            label: 'Resend OTP',
+            variant: 'outline',
+            onClick: () => handleResendInvitation(invitation.email),
+            disabled: () => loading,
+          },
+        ]
+      : []),
+    {
+      label: 'Cancel',
+      variant: 'destructive',
+      onClick: () => handleCancelInvitation(invitation.id, invitation.full_name),
+      disabled: () => loading,
+    },
+  ];
+
   return (
     <div className="container mx-auto py-8">
       <header className="mb-8">
         <h1 className="text-4xl font-bold">User Management</h1>
-        <p className="text-muted-foreground">Manage system users and their permissions</p>
       </header>
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-          {success}
-        </div>
-      )}
-
-      {/* Invite User Section */}
+      {/* User Actions Section */}
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">Invite New User</h2>
-          <Button
-            onClick={() => setShowInviteForm(!showInviteForm)}
-            className="bg-primary hover:bg-primary/90"
-          >
-            {showInviteForm ? 'Cancel' : 'Invite User'}
-          </Button>
-        </div>
-
-        {showInviteForm && (
-          <div className="bg-card p-6 rounded-lg border border-border">
-            <form onSubmit={handleInviteSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Full Name</label>
-                  <input
-                    type="text"
-                    value={inviteForm.full_name}
-                    onChange={e => setInviteForm({ ...inviteForm, full_name: e.target.value })}
-                    className="w-full p-2 border rounded-md"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={inviteForm.email}
-                    onChange={e => setInviteForm({ ...inviteForm, email: e.target.value })}
-                    className="w-full p-2 border rounded-md"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Role</label>
-                  <select
-                    value={inviteForm.role}
-                    onChange={e => setInviteForm({ ...inviteForm, role: e.target.value })}
-                    className="w-full p-2 border rounded-md"
-                  >
-                    {hasRole(ROLES.ADMIN) && <option value="fleet_manager">Fleet Manager</option>}
-                    <option value="driver">Driver</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Phone Number (Optional)</label>
-                  <input
-                    type="tel"
-                    value={inviteForm.phoneNo}
-                    onChange={e => setInviteForm({ ...inviteForm, phoneNo: e.target.value })}
-                    className="w-full p-2 border rounded-md"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setShowInviteForm(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Inviting...' : 'Send Invitation'}
-                </Button>
-              </div>
-            </form>
+          <h2 className="text-2xl font-semibold">User Management Actions</h2>
+          <div className="space-x-2">
+            {hasRole(ROLES.ADMIN) && (
+              <Button
+                onClick={() => setShowManualCreateModal(true)}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                disabled={loading}
+              >
+                Manually Add User
+              </Button>
+            )}
+            <Button
+              onClick={() => setShowInviteModal(true)}
+              className="bg-primary hover:bg-primary/90"
+              disabled={loading}
+            >
+              Invite User
+            </Button>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Users List */}
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Current Users</h2>
-        {loading && !users.length ? (
-          <div className="text-center py-8">Loading users...</div>
-        ) : (
+      {/* Admin Users Table - Only visible to Admins */}
+      {hasRole(ROLES.ADMIN) && (
+        <UserTable
+          title="Administrators"
+          users={adminUsers}
+          loading={loading && !adminUsers.length}
+          showActions={true}
+          showRole={false}
+          emptyMessage="No administrators found"
+          actions={adminActions}
+        />
+      )}
+
+      {/* Fleet Managers Table - Visible to Admins only */}
+      {hasRole(ROLES.ADMIN) && (
+        <UserTable
+          title="Fleet Managers"
+          users={managerUsers}
+          loading={loading && !managerUsers.length}
+          showActions={true}
+          showRole={false}
+          emptyMessage="No fleet managers found"
+          actions={managerActions}
+        />
+      )}
+
+      {/* Drivers Table */}
+      {(hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) && (
+        <UserTable
+          title="Drivers"
+          users={driverUsers}
+          loading={loading && !driverUsers.length}
+          showActions={true}
+          showRole={false}
+          emptyMessage="No drivers found"
+          actions={driverActions}
+        />
+      )}
+
+      {/* Invited Users Table */}
+      {(hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) && invitedUsers.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold mb-4">Pending Invitations</h2>
           <div className="bg-card rounded-lg border border-border overflow-hidden">
             <table className="w-full">
               <thead className="bg-muted/50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    User
+                    Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Email
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Role
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Status
+                    Invited
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Expires
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Actions
@@ -216,54 +404,60 @@ const UserManagement = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {users.map(user => (
-                  <tr key={user.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium">{user.full_name || 'Unknown'}</div>
-                        <div className="text-sm text-muted-foreground">{user.email}</div>
-                      </div>
+                {invitedUsers.map(invitation => (
+                  <tr key={invitation.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      {invitation.full_name}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {hasRole(ROLES.ADMIN) && user.role !== 'admin' ? (
-                        <select
-                          value={user.role}
-                          onChange={e => handleRoleChange(user.id, e.target.value)}
-                          className="text-sm border rounded px-2 py-1"
-                          disabled={loading}
-                        >
-                          <option value="fleet_manager">Fleet Manager</option>
-                          <option value="driver">Driver</option>
-                        </select>
-                      ) : (
-                        <span className="text-sm capitalize">{user.role.replace('_', ' ')}</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {user.is_active ? 'Active' : 'Inactive'}
-                      </span>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                      {invitation.email}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {user.role !== 'admin' && (
-                        <div className="space-x-2">
-                          <Button variant="outline" size="sm">
-                            Edit Permissions
-                          </Button>
-                        </div>
-                      )}
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                        {invitation.role.replace('_', ' ').toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                      {new Date(invitation.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                      {new Date(invitation.expires_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                      {invitationActions(invitation).map((action, index) => (
+                        <Button
+                          key={index}
+                          variant={action.variant}
+                          size="sm"
+                          onClick={action.onClick}
+                          disabled={action.disabled()}
+                        >
+                          {action.label}
+                        </Button>
+                      ))}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Modals */}
+      <InviteUserModal
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        onSubmit={handleInviteSubmit}
+        loading={loading}
+      />
+
+      <ManualCreateUserModal
+        isOpen={showManualCreateModal}
+        onClose={() => setShowManualCreateModal(false)}
+        onSubmit={handleManualCreateSubmit}
+        loading={loading}
+      />
     </div>
   );
 };

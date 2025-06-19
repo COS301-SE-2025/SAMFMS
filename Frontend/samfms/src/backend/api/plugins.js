@@ -247,3 +247,32 @@ export const syncPluginStatus = async () => {
     throw error;
   }
 };
+
+/**
+ * Debug Docker access (admin only)
+ */
+export const debugDockerAccess = async () => {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetchWithTimeout(`${API_URL}/api/plugins/debug/docker`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get Docker debug info: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error getting Docker debug info:', error);
+    throw error;
+  }
+};

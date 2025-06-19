@@ -12,7 +12,9 @@ export const ThemeProvider = ({ children }) => {
   // Initialize theme from localStorage or default to light
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') || 'light';
+      // Check localStorage first, then default to light
+      const savedTheme = localStorage.getItem('theme');
+      return savedTheme || 'light';
     }
     return 'light';
   });
@@ -20,13 +22,36 @@ export const ThemeProvider = ({ children }) => {
   // Toggle between light and dark themes
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
-  };
-
-  // Apply theme to document and save to localStorage
+  }; // Apply theme to document and save to localStorage
   useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
-    root.classList.add(theme);
+
+    let appliedTheme = theme;
+
+    // Handle auto theme
+    if (theme === 'auto') {
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      appliedTheme = systemPrefersDark ? 'dark' : 'light';
+
+      // Listen for system theme changes
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = e => {
+        const newTheme = e.matches ? 'dark' : 'light';
+        root.classList.remove('light', 'dark');
+        root.classList.add(newTheme);
+      };
+
+      mediaQuery.addEventListener('change', handleChange);
+
+      // Cleanup listener
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+
+    // Apply the theme class
+    root.classList.add(appliedTheme);
+
+    // Save to localStorage
     localStorage.setItem('theme', theme);
   }, [theme]);
 

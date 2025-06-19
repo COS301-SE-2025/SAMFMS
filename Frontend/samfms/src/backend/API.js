@@ -15,6 +15,7 @@ import {
   deleteAccount,
   updatePreferences,
   inviteUser,
+  createUserManually, // Import the new function
   listUsers,
   updateUserPermissions,
   getRoles,
@@ -27,6 +28,10 @@ import {
   clearUserExistenceCache,
   updateUserProfile,
   uploadProfilePicture,
+  clearUsersCache,
+  clearRolesCache,
+  clearAllAuthCache,
+  fetchWithTimeout,
 } from './api/auth';
 
 // Re-export the auth functions for backward compatibility
@@ -46,6 +51,7 @@ export {
   deleteAccount,
   updatePreferences,
   inviteUser,
+  createUserManually, // Export the new function
   listUsers,
   updateUserPermissions,
   getRoles,
@@ -58,6 +64,9 @@ export {
   updateUserProfile,
   uploadProfilePicture,
   clearUserExistenceCache,
+  clearUsersCache,
+  clearRolesCache,
+  clearAllAuthCache,
 };
 
 // Driver API endpoints - Now served by Management Service
@@ -385,6 +394,70 @@ export const searchVehicles = async query => {
   }
 
   return response.json();
+};
+
+// Invitation management functions
+export const sendInvitation = async invitationData => {
+  const response = await authFetch('/auth/invite-user', {
+    method: 'POST',
+    body: JSON.stringify(invitationData),
+  });
+  return response;
+};
+
+export const getPendingInvitations = async () => {
+  const response = await authFetch('/auth/invitations');
+  return response;
+};
+
+export const resendInvitation = async email => {
+  const response = await authFetch('/auth/resend-invitation', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+  return response;
+};
+
+export const cancelInvitation = async email => {
+  const response = await authFetch(`/admin/cancel-invitation?email=${encodeURIComponent(email)}`, {
+    method: 'DELETE',
+  });
+  return response;
+};
+
+// Public endpoints for user activation (no auth required)
+export const verifyInvitationOTP = async (email, otp) => {
+  const response = await fetchWithTimeout(`${API_URL}/auth/verify-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, otp }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to verify OTP');
+  }
+
+  return await response.json();
+};
+
+export const completeUserRegistration = async (email, otp, username, password) => {
+  const response = await fetchWithTimeout(`${API_URL}/auth/complete-registration`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, otp, username, password }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to complete registration');
+  }
+
+  return await response.json();
 };
 
 // RBAC and Admin Functions have been moved to ./api/auth.js

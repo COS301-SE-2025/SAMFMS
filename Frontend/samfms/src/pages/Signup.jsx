@@ -349,8 +349,9 @@ const Signup = () => {
 
       {/* Right section - Light blue */}
       <div className="w-full md:w-1/2 bg-primary-200 flex justify-center items-center p-4 md:p-8">
+        {' '}
         <div
-          className="w-full max-w-md bg-foreground p-8 rounded-lg border border-primary-300 animate-slideIn transform hover:scale-[1.01] transition-all duration-300"
+          className="w-full max-w-md bg-white p-8 rounded-lg border border-primary-300 animate-slideIn transform hover:scale-[1.01] transition-all duration-300"
           style={{
             boxShadow: '0 20px 50px rgba(8,85,177,0.4)',
             transform: 'perspective(1000px) rotateX(0deg)',
@@ -522,7 +523,7 @@ const Signup = () => {
                 <div className="w-full border-t border-gray-300"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-foreground text-primary-700">Or</span>
+                <span className="px-2 bg-white text-primary-700">Or</span>
               </div>
             </div>
             <Button

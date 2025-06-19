@@ -9,6 +9,7 @@ import {
   getPluginStatus,
   testCoreService,
   syncPluginStatus,
+  debugDockerAccess,
 } from '../backend/api/plugins';
 import { useAuth, ROLES } from '../components/RBACUtils';
 

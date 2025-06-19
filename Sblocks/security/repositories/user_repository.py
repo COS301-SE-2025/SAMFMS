@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 class UserRepository:
     """Repository for user data operations"""
-    
     @staticmethod
     async def create_user(user_data: Dict[str, Any]) -> str:
         """Create a new user and return user_id"""
@@ -44,11 +43,21 @@ class UserRepository:
     async def update_user(user_id: str, updates: Dict[str, Any]) -> bool:
         """Update user data"""
         try:
+            logger.info(f"UserRepository.update_user called with user_id: {user_id}")
+            logger.info(f"Updates to apply: {updates}")
+            
             result = await security_users_collection.update_one(
                 {"user_id": user_id},
                 {"$set": updates}
             )
-            return result.modified_count > 0
+            
+            logger.info(f"Update result - matched_count: {result.matched_count}, modified_count: {result.modified_count}")
+            
+            if result.matched_count == 0:
+                logger.warning(f"No user found with user_id: {user_id}")
+                return False
+                  # Return True if user was found, even if no changes were made (data was identical)
+            return result.matched_count > 0
         except Exception as e:
             logger.error(f"Failed to update user: {e}")
             raise

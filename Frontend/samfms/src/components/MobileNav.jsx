@@ -1,19 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
-import {
-  Menu,
-  X,
-  Home,
-  Settings,
-  User,
-  Package2,
-  Car,
-  Users,
-  Map,
-  Navigation,
-  Wrench,
-} from 'lucide-react';
+import { Menu, X, Home, User, Package2, Car, Users, Map, Navigation, Wrench } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
 
@@ -29,7 +17,6 @@ const MobileNav = () => {
     { path: '/trips', label: 'Trips', icon: <Navigation size={20} /> },
     { path: '/maintenance', label: 'Maintenance', icon: <Wrench size={20} /> },
     { path: '/plugins', label: 'Plugins', icon: <Package2 size={20} /> },
-    { path: '/settings', label: 'Settings', icon: <Settings size={20} /> },
     { path: '/account', label: 'Account', icon: <User size={20} /> },
   ];
 

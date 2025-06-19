@@ -35,8 +35,6 @@ class UserProfile(BaseModel):
         "animations": "true",
         "email_alerts": "true",
         "push_notifications": "true",
-        "timezone": "UTC-5 (Eastern Time)",
-        "date_format": "DD/MM/YYYY",
         "two_factor": "false",
         "activity_log": "true",
         "session_timeout": "30 minutes"
@@ -58,13 +56,10 @@ class UserProfile(BaseModel):
                 "role": "admin",
                 "phoneNo": "123-456-7890",
                 "details": {"ID": "12345678"},
-                "preferences": {
-                    "theme": "dark",
+                "preferences": {                    "theme": "dark",
                     "animations": "true",
                     "email_alerts": "true",
                     "push_notifications": "false",
-                    "timezone": "UTC-1 (Eastern Time)",
-                    "date_format": "DD/MM/YYYY",
                     "two_factor": "false",
                     "activity_log": "true",
                     "session_timeout": "30 minutes"

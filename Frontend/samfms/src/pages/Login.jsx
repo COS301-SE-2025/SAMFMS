@@ -215,12 +215,11 @@ const Login = () => {
             className="h-64 mx-auto mb-6 animate-fadeIn transition-all duration-300 drop-shadow-xl transform hover:rotate-3 hover:brightness-110"
           />
         </div>
-      </div>
-
+      </div>{' '}
       {/* Right section - Light blue */}
       <div className="w-full md:w-1/2 bg-primary-200 flex justify-center items-center p-4 md:p-8">
         <div
-          className="w-full max-w-md bg-foreground p-8 rounded-lg border border-primary-300 animate-slideIn transform hover:scale-[1.01] transition-all duration-300"
+          className="w-full max-w-md bg-white p-8 rounded-lg border border-primary-300 animate-slideIn transform hover:scale-[1.01] transition-all duration-300"
           style={{
             boxShadow: '0 20px 50px rgba(8,85,177,0.4)',
             transform: 'perspective(1000px) rotateX(0deg)',
@@ -299,10 +298,20 @@ const Login = () => {
                     ? 'border-red-500'
                     : 'border-primary-200'
                 }`}
-              />
+              />{' '}
               {validationErrors.password && touched.password && (
                 <p className="text-red-500 text-xs mt-1">{validationErrors.password}</p>
               )}
+            </div>
+            {/* Forgot Password Link */}
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={() => console.log('Forgot password clicked')}
+                className="text-sm text-primary-700 hover:text-primary-800 hover:underline focus:outline-none focus:underline transition-colors duration-200"
+              >
+                Forgot your password?
+              </button>
             </div>
             <Button
               type="submit"
@@ -320,13 +329,13 @@ const Login = () => {
               }}
             >
               {loading ? 'Logging in...' : 'Login'}
-            </Button>
+            </Button>{' '}
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-foreground text-primary-700">Or</span>
+                <span className="px-2 bg-white text-primary-700">Or</span>
               </div>
             </div>
             <Button

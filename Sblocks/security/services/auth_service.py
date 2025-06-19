@@ -43,6 +43,19 @@ class AuthService:
             
             # Hash password
             hashed_password = get_password_hash(user_data["password"])
+              # Get default preferences if not provided
+            default_preferences = {
+                "theme": "light",
+                "animations": "true",
+                "email_alerts": "true",
+                "push_notifications": "true",
+                "two_factor": "false",
+                "activity_log": "true",
+                "session_timeout": "30 minutes"
+            }
+            preferences = user_data.get("preferences", {})
+            if not preferences:
+                preferences = default_preferences
             
             # Prepare user data for database
             db_user_data = {
@@ -87,7 +100,7 @@ class AuthService:
                 user_id=user_id,
                 role=role,
                 permissions=permissions,
-                preferences=user_data.get("preferences", {})
+                preferences=preferences
             )
         except Exception as e:
             logger.error(f"Signup error: {e}")
@@ -161,6 +174,19 @@ class AuthService:
                 "issued_at": datetime.utcnow().timestamp()
             }
             access_token = create_access_token(token_data)
+              # Get user preferences or use default preferences
+            preferences = security_user.get("preferences", {})
+            if not preferences:
+                # Get default preferences
+                preferences = {
+                    "theme": "light",
+                    "animations": "true",
+                    "email_alerts": "true",
+                    "push_notifications": "true",
+                    "two_factor": "false",
+                    "activity_log": "true",
+                    "session_timeout": "30 minutes"
+                }
             
             # Log successful login
             await AuditRepository.log_security_event(
@@ -175,7 +201,7 @@ class AuthService:
                 user_id=security_user["user_id"],
                 role=security_user["role"],
                 permissions=security_user["permissions"],
-                preferences=security_user.get("preferences", {})
+                preferences=preferences
             )
         except Exception as e:
             logger.error(f"Login error: {e}")

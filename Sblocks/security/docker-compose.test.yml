@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # Security service for testing
+  security-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    volumes:
+      - ./test-reports:/app/test-reports
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+      - ENVIRONMENT=test
+      - JWT_SECRET_KEY=test-secret-key-for-testing-only
+      - DATABASE_URL=mongodb://test-mongo:27017/test_security_db
+      - REDIS_URL=redis://test-redis:6379/0
+      - RABBITMQ_URL=amqp://test-rabbitmq:5672/
+    depends_on:
+      - test-mongo
+      - test-redis
+      - test-rabbitmq
+    networks:
+      - test-network
+    command: >
+      sh -c "
+        echo 'Waiting for dependencies...' &&
+        sleep 10 &&
+        echo 'Running tests...' &&
+        python -m pytest -v --tb=short 
+        --cov=. 
+        --cov-report=xml:/app/test-reports/coverage.xml 
+        --cov-report=html:/app/test-reports/htmlcov 
+        --cov-report=term-missing
+        --junitxml=/app/test-reports/junit.xml
+        tests/
+      "
+
+  # Test MongoDB
+  test-mongo:
+    image: mongo:5.0
+    environment:
+      MONGO_INITDB_DATABASE: test_security_db
+    ports:
+      - '27018:27017'
+    networks:
+      - test-network
+    tmpfs:
+      - /data/db
+
+  # Test Redis
+  test-redis:
+    image: redis:7-alpine
+    ports:
+      - '6380:6379'
+    networks:
+      - test-network
+    tmpfs:
+      - /data
+
+  # Test RabbitMQ
+  test-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: testuser
+      RABBITMQ_DEFAULT_PASS: testpass
+    ports:
+      - '5673:5672'
+      - '15673:15672'
+    networks:
+      - test-network
+    tmpfs:
+      - /var/lib/rabbitmq
+
+networks:
+  test-network:
+    driver: bridge
