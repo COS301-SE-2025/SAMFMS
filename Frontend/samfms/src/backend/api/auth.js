@@ -673,10 +673,14 @@ export const createUserManually = async userData => {
       password: userData.password,
       phoneNo: userData.phoneNo || null,
       details: userData.details || {},
-    };
-
-    // Log the request data for debugging
+    }; // Log the request data for debugging
     console.log('Creating user with data:', sanitizedData);
+    console.log('Sending request to:', AUTH_API.createUser);
+    console.log('Request headers:', {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    });
+    console.log('Request body:', JSON.stringify(sanitizedData));
 
     const response = await fetch(AUTH_API.createUser, {
       method: 'POST',
@@ -686,6 +690,9 @@ export const createUserManually = async userData => {
       },
       body: JSON.stringify(sanitizedData),
     });
+
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
 
     if (!response.ok) {
       const errorData = await response.json();

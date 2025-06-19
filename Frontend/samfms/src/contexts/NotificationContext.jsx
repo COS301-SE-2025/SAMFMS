@@ -60,10 +60,27 @@ export const NotificationProvider = ({ children }) => {
     },
     [addNotification]
   );
-
   const clearAll = useCallback(() => {
     setNotifications([]);
   }, []);
+
+  // Generic showNotification function that routes to specific type functions
+  const showNotification = useCallback(
+    (message, type = 'info', options = {}) => {
+      switch (type) {
+        case 'success':
+          return showSuccess(message, options);
+        case 'error':
+          return showError(message, options);
+        case 'warning':
+          return showWarning(message, options);
+        case 'info':
+        default:
+          return showInfo(message, options);
+      }
+    },
+    [showSuccess, showError, showWarning, showInfo]
+  );
 
   const value = {
     notifications,
@@ -73,6 +90,7 @@ export const NotificationProvider = ({ children }) => {
     showError,
     showWarning,
     showInfo,
+    showNotification,
     clearAll,
   };
 

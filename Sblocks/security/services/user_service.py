@@ -5,8 +5,6 @@ from models.api_models import CreateUserRequest
 from typing import Dict, Any, List, Optional
 import logging
 import uuid
-import hashlib
-import os
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -22,14 +20,20 @@ class UserService:
             # Remove sensitive data
             for user in users:
                 user.pop("password_hash", None)
-                user.pop("_id", None)
-                # Add 'id' field to match the UserResponse model
+                user.pop("_id", None)                # Add 'id' field to match the UserResponse model
                 if "user_id" in user and "id" not in user:
                     user["id"] = user["user_id"]
                 # Ensure preferences are included, using default if missing
                 if "preferences" not in user or not user["preferences"]:
-                    from models.database_models import UserProfile
-                    user["preferences"] = UserProfile().preferences
+                    user["preferences"] = {
+                        "theme": "light",
+                        "animations": "true",
+                        "email_alerts": "true",
+                        "push_notifications": "true",
+                        "two_factor": "false",
+                        "activity_log": "true",
+                        "session_timeout": "30 minutes"
+                    }
             return users
         except Exception as e:
             logger.error(f"Failed to get all users: {e}")
@@ -46,11 +50,17 @@ class UserService:
                 # Add 'id' field to match the UserResponse model
                 if "user_id" in user and "id" not in user:
                     user["id"] = user["user_id"]
-                
-                # Ensure preferences are included, using default if missing
+                  # Ensure preferences are included, using default if missing
                 if "preferences" not in user or not user["preferences"]:
-                    from models.database_models import UserProfile
-                    user["preferences"] = UserProfile().preferences
+                    user["preferences"] = {
+                        "theme": "light",
+                        "animations": "true",
+                        "email_alerts": "true",
+                        "push_notifications": "true",
+                        "two_factor": "false",
+                        "activity_log": "true",
+                        "session_timeout": "30 minutes"
+                    }
             return user
         except Exception as e:
             logger.error(f"Failed to get user by ID: {e}")
@@ -229,36 +239,34 @@ class UserService:
             # Check if user already exists
             existing_user = await UserRepository.find_by_email(user_data.email.lower())
             if existing_user:
-                raise ValueError("User with this email already exists")
-
-            # Generate unique user ID
+                raise ValueError("User with this email already exists")            # Generate unique user ID
             user_id = str(uuid.uuid4())
             
-            # Hash the password (with salt)
-            salt = os.urandom(32)  # 32 bytes of random salt
-            password_hash = hashlib.pbkdf2_hmac(
-                'sha256',
-                user_data.password.encode('utf-8'),
-                salt,
-                100000,  # 100,000 iterations
-                dklen=128
-            ).hex()
+            # Hash the password using the same method as regular signup
+            from utils.auth_utils import get_password_hash
+            password_hash = get_password_hash(user_data.password)
             
             # Create user in security database
             now = datetime.utcnow()
             security_user = SecurityUser(
                 user_id=user_id,
                 email=user_data.email.lower(),
-                password_hash=f"{salt.hex()}:{password_hash}",
+                password_hash=password_hash,
                 role=user_data.role,
                 is_active=True,
                 approved=True,
                 full_name=user_data.full_name
             )
-            
-            # Get default preferences from UserProfile model
-            from models.database_models import UserProfile
-            default_preferences = UserProfile().preferences
+              # Get default preferences directly instead of creating empty UserProfile
+            default_preferences = {
+                "theme": "light",
+                "animations": "true",
+                "email_alerts": "true",
+                "push_notifications": "true",
+                "two_factor": "false",
+                "activity_log": "true",
+                "session_timeout": "30 minutes"
+            }
             
             # Save to database
             await UserRepository.create_user(security_user.dict(exclude={"id"}))

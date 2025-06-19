@@ -296,10 +296,16 @@ class InvitationService:
                 while await users_collection.find_one({"username": username}):
                     username = f"{original_username}{counter}"
                     counter += 1
-            
-            # Get default preferences from UserProfile model
-            from models.database_models import UserProfile
-            default_preferences = UserProfile().preferences
+              # Get default preferences
+            default_preferences = {
+                "theme": "light",
+                "animations": "true",
+                "email_alerts": "true",
+                "push_notifications": "true",
+                "two_factor": "false",
+                "activity_log": "true",
+                "session_timeout": "30 minutes"
+            }
             
             # Create user account
             signup_data = {

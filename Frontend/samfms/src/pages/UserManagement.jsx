@@ -152,10 +152,23 @@ const UserManagement = () => {
       setLoading(false);
     }
   };
-
   const handleManualCreateSubmit = async formData => {
     try {
       setLoading(true);
+
+      // Debug: Log the received form data
+      console.log('Received form data:', formData);
+
+      // Validate that we have the required fields
+      if (!formData || !formData.full_name || !formData.email || !formData.password) {
+        console.error('Missing required form data:', formData);
+        showNotification(
+          'Missing required form data. Please fill in all required fields.',
+          'error'
+        );
+        return;
+      }
+
       const userData = {
         full_name: formData.full_name.trim(),
         email: formData.email.trim(),
@@ -165,12 +178,14 @@ const UserManagement = () => {
         details: {},
       };
 
+      console.log('Sending user data:', userData);
       await createUserManually(userData);
       showNotification(`User ${formData.full_name} created successfully!`, 'success');
       setShowManualCreateModal(false);
       // Refresh user list
       loadUsers();
     } catch (err) {
+      console.error('Error in handleManualCreateSubmit:', err);
       showNotification(`Failed to create user: ${err.message}`, 'error');
     } finally {
       setLoading(false);

@@ -52,24 +52,29 @@ const ManualCreateUserModal = ({
     }
     return true;
   };
-
   const handleSubmit = async e => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
-    await onSubmit(formData);
-    // Reset form after successful submission
-    setFormData({
-      full_name: '',
-      email: '',
-      role: preselectedRole,
-      password: '',
-      confirmPassword: '',
-      phoneNo: '',
-    });
-    setPasswordError('');
+
+    try {
+      await onSubmit(formData);
+      // Reset form after successful submission
+      setFormData({
+        full_name: '',
+        email: '',
+        role: preselectedRole,
+        password: '',
+        confirmPassword: '',
+        phoneNo: '',
+      });
+      setPasswordError('');
+    } catch (error) {
+      console.error('Error in form submission:', error);
+      // Don't reset form if there's an error
+    }
   };
 
   const handleClose = () => {
@@ -195,13 +200,11 @@ const ManualCreateUserModal = ({
               />
             </div>
           </div>
-
           {passwordError && (
             <div className="text-sm text-destructive bg-destructive/10 p-2 rounded border border-destructive/20">
               {passwordError}
             </div>
-          )}
-
+          )}{' '}
           <div className="flex justify-end space-x-3 pt-4">
             <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
               Cancel

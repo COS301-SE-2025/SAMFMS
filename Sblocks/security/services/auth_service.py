@@ -43,10 +43,16 @@ class AuthService:
             
             # Hash password
             hashed_password = get_password_hash(user_data["password"])
-            
-            # Get default preferences if not provided
-            from models.database_models import UserProfile
-            default_preferences = UserProfile().preferences
+              # Get default preferences if not provided
+            default_preferences = {
+                "theme": "light",
+                "animations": "true",
+                "email_alerts": "true",
+                "push_notifications": "true",
+                "two_factor": "false",
+                "activity_log": "true",
+                "session_timeout": "30 minutes"
+            }
             preferences = user_data.get("preferences", {})
             if not preferences:
                 preferences = default_preferences
@@ -168,13 +174,19 @@ class AuthService:
                 "issued_at": datetime.utcnow().timestamp()
             }
             access_token = create_access_token(token_data)
-            
-            # Get user preferences or use default preferences
+              # Get user preferences or use default preferences
             preferences = security_user.get("preferences", {})
             if not preferences:
-                # Get default preferences from UserProfile model
-                from models.database_models import UserProfile
-                preferences = UserProfile().preferences
+                # Get default preferences
+                preferences = {
+                    "theme": "light",
+                    "animations": "true",
+                    "email_alerts": "true",
+                    "push_notifications": "true",
+                    "two_factor": "false",
+                    "activity_log": "true",
+                    "session_timeout": "30 minutes"
+                }
             
             # Log successful login
             await AuditRepository.log_security_event(
