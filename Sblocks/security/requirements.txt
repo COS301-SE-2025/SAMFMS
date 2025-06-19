@@ -11,3 +11,12 @@ email-validator
 requests
 pydantic[email]
 psutil
+
+# Testing dependencies
+pytest
+pytest-asyncio
+pytest-mock
+pytest-cov
+httpx
+fakeredis
+mongomock

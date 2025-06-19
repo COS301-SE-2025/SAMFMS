@@ -42,6 +42,7 @@ export const AUTH_API = {
   deleteAccount: `${API_URL}/auth/account`,
   updatePreferences: `${API_URL}/auth/update-preferences`,
   inviteUser: `${API_URL}/auth/invite-user`,
+  createUser: `${API_URL}/auth/create-user`, // New endpoint for manual user creation
   updatePermissions: `${API_URL}/auth/update-permissions`,
   getRoles: `${API_URL}/auth/roles`,
   verifyPermission: `${API_URL}/auth/verify-permission`,
@@ -285,15 +286,12 @@ export const signup = async (full_name, email, password, confirmPassword, phoneN
 
   if (password !== confirmPassword) {
     throw new Error('Passwords do not match');
-  }
-  // Define default preferences
+  } // Define default preferences
   const defaultPreferences = {
     theme: 'light',
     animations: 'true',
     email_alerts: 'true',
     push_notifications: 'true',
-    timezone: 'UTC-5 (Eastern Time)',
-    date_format: 'MM/DD/YYYY',
     two_factor: 'false',
     activity_log: 'true',
     session_timeout: '30 minutes',
@@ -497,6 +495,9 @@ export const updatePreferences = async preferences => {
   }
 
   try {
+    console.log('Sending preferences update request:', preferences);
+    console.log('API URL:', AUTH_API.updatePreferences);
+
     const response = await fetchWithTimeout(
       AUTH_API.updatePreferences,
       {
@@ -510,15 +511,27 @@ export const updatePreferences = async preferences => {
       10000 // 10 second timeout
     );
 
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      console.error('Error response data:', errorData);
       throw new Error(errorData.detail || 'Failed to update preferences');
     }
 
-    // Update preferences cookie
-    setCookie('preferences', JSON.stringify(preferences), 30);
+    const result = await response.json();
+    console.log('Success response:', result);
 
-    return response.json();
+    // Only update cookie if backend operation was successful and returned preferences
+    if (result && result.preferences) {
+      setCookie('preferences', JSON.stringify(result.preferences), 30);
+    } else {
+      // Fallback: update cookie with sent preferences if no preferences returned
+      setCookie('preferences', JSON.stringify(preferences), 30);
+    }
+
+    return result;
   } catch (error) {
     console.error('Error updating preferences:', error);
     throw error;
@@ -633,6 +646,64 @@ export const inviteUser = async userData => {
   }
 
   return response.json();
+};
+
+/**
+ * Manually create a new user (Admin only)
+ * @param {Object} userData - The user data object
+ * @param {string} userData.full_name - Full name of the user
+ * @param {string} userData.email - Email address
+ * @param {string} userData.role - User role (admin, fleet_manager, driver)
+ * @param {string} userData.password - Initial password
+ * @param {string} [userData.phoneNo] - Phone number (optional)
+ * @returns {Promise<Object>} - Response with user creation status
+ */
+export const createUserManually = async userData => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  try {
+    // Ensure userData has all required fields and proper format
+    const sanitizedData = {
+      full_name: userData.full_name,
+      email: userData.email,
+      role: userData.role || 'driver',
+      password: userData.password,
+      phoneNo: userData.phoneNo || null,
+      details: userData.details || {},
+    }; // Log the request data for debugging
+    console.log('Creating user with data:', sanitizedData);
+    console.log('Sending request to:', AUTH_API.createUser);
+    console.log('Request headers:', {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    });
+    console.log('Request body:', JSON.stringify(sanitizedData));
+
+    const response = await fetch(AUTH_API.createUser, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(sanitizedData),
+    });
+
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to create user');
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error creating user:', error);
+    throw error;
+  }
 };
 
 // Cache for users data

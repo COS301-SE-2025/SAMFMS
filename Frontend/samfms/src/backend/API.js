@@ -15,6 +15,7 @@ import {
   deleteAccount,
   updatePreferences,
   inviteUser,
+  createUserManually, // Import the new function
   listUsers,
   updateUserPermissions,
   getRoles,
@@ -50,6 +51,7 @@ export {
   deleteAccount,
   updatePreferences,
   inviteUser,
+  createUserManually, // Export the new function
   listUsers,
   updateUserPermissions,
   getRoles,
@@ -416,6 +418,13 @@ export const resendInvitation = async email => {
   return response;
 };
 
+export const cancelInvitation = async email => {
+  const response = await authFetch(`/admin/cancel-invitation?email=${encodeURIComponent(email)}`, {
+    method: 'DELETE',
+  });
+  return response;
+};
+
 // Public endpoints for user activation (no auth required)
 export const verifyInvitationOTP = async (email, otp) => {
   const response = await fetchWithTimeout(`${API_URL}/auth/verify-otp`, {
@@ -425,7 +434,13 @@ export const verifyInvitationOTP = async (email, otp) => {
     },
     body: JSON.stringify({ email, otp }),
   });
-  return response;
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to verify OTP');
+  }
+
+  return await response.json();
 };
 
 export const completeUserRegistration = async (email, otp, username, password) => {
@@ -436,7 +451,13 @@ export const completeUserRegistration = async (email, otp, username, password) =
     },
     body: JSON.stringify({ email, otp, username, password }),
   });
-  return response;
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to complete registration');
+  }
+
+  return await response.json();
 };
 
 // RBAC and Admin Functions have been moved to ./api/auth.js
