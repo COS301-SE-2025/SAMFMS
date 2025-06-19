@@ -1,4 +1,15 @@
 {
+  "name": "samfms",
+  "version": "1.0.0",
+  "description": "Smart Autonomous Fleet Management System",
+  "scripts": {
+    "test": "run-tests.bat",
+    "test:security": "run-tests.bat --service security",
+    "test:core": "run-tests.bat --service core",
+    "test:unit": "run-tests.bat --unit",
+    "test:integration": "run-tests.bat --integration",
+    "test:coverage": "run-tests.bat --coverage"
+  },
   "devDependencies": {
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",

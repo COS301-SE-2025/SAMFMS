@@ -1,0 +1,32 @@
+# Use Python slim image for testing
+FROM python:3.9-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first (for better caching)
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the entire security service code
+COPY . .
+
+# Set environment variables for testing
+ENV PYTHONPATH=/app
+ENV ENVIRONMENT=test
+ENV JWT_SECRET_KEY=test-secret-key-for-testing-only
+ENV DATABASE_URL=mongodb://test-mongo:27017/test_security_db
+ENV REDIS_URL=redis://test-redis:6379/0
+
+# Create test reports directory
+RUN mkdir -p /app/test-reports
+
+# Default command runs tests
+CMD ["python", "-m", "pytest", "-v", "--tb=short", "--cov=.", "--cov-report=xml:/app/test-reports/coverage.xml", "--cov-report=html:/app/test-reports/htmlcov", "--junitxml=/app/test-reports/junit.xml"]
