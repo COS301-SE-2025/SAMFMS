@@ -253,3 +253,80 @@ async def sync_plugin_status(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error syncing plugin status: {str(e)}"
         )
+
+@router.get("/debug/docker")
+async def debug_docker_access(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Debug endpoint to test Docker access"""
+    try:
+        user_info = verify_token(credentials)
+        if user_info.get("role") != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can access debug endpoints"
+            )
+        
+        import os
+        import docker
+        
+        debug_info = {
+            "docker_socket_exists": os.path.exists("/var/run/docker.sock"),
+            "docker_socket_permissions": None,
+            "current_user": os.getuid() if hasattr(os, 'getuid') else 'unknown',
+            "current_groups": os.getgroups() if hasattr(os, 'getgroups') else 'unknown',
+            "docker_client_status": "unknown",
+            "docker_version": None,
+            "containers": [],
+            "error": None
+        }
+        
+        # Check socket permissions
+        if debug_info["docker_socket_exists"]:
+            try:
+                stat_info = os.stat("/var/run/docker.sock")
+                debug_info["docker_socket_permissions"] = {
+                    "mode": oct(stat_info.st_mode),
+                    "owner": stat_info.st_uid,
+                    "group": stat_info.st_gid
+                }
+            except Exception as e:
+                debug_info["socket_stat_error"] = str(e)
+        
+        # Test Docker client
+        try:
+            client = docker.from_env()
+            debug_info["docker_client_status"] = "initialized"
+            
+            # Test ping
+            client.ping()
+            debug_info["docker_client_status"] = "ping_successful"
+            
+            # Get version
+            version_info = client.version()
+            debug_info["docker_version"] = version_info.get('Version', 'unknown')
+            
+            # List containers
+            containers = client.containers.list(all=True, limit=5)
+            debug_info["containers"] = [
+                {
+                    "name": c.name,
+                    "status": c.status,
+                    "image": c.image.tags[0] if c.image.tags else "unknown"
+                } for c in containers
+            ]
+            
+        except Exception as e:
+            debug_info["error"] = str(e)
+            debug_info["docker_client_status"] = "failed"
+        
+        return debug_info
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in Docker debug: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Debug error: {str(e)}"
+        )
