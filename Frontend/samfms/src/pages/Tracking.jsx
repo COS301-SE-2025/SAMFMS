@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import VehicleStatistics from '../components/trips/VehicleStatistics';
 import VehicleList from '../components/trips/VehicleList';
 import TrackingMap from '../components/tracking/TrackingMap';

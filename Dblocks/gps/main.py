@@ -2,6 +2,11 @@ from fastapi import FastAPI
 import redis
 import pika
 import logging
+import asyncio
+
+from rabbitmq.consumer import consume_messages
+from rabbitmq.admin import create_exchange
+from rabbitmq.producer import publish_message
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +44,9 @@ async def startup_event():
     if connection:
         logger.info("RabbitMQ connection successful")
         connection.close()
+    
+    # # Start the RabbitMQ consumer for db
+    asyncio.create_task(consume_messages("db_requests"))
 
 @app.get("/")
 def read_root():
@@ -47,6 +55,19 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "service": "gps_data"}
+
+
+# message queue code
+def get_latest_gps(vehicle_id):
+    # Replace with real DB logic
+    return {"vehicle_id": vehicle_id, "lat": -25.0, "lon": 28.0, "timestamp": 1234567890}
+
+def handle_db_request(message):
+    logger.info("Message received: " + message)
+    vehicle_id = message["vehicle_id"]
+    reply_to = message["reply_to"]
+    gps_data = get_latest_gps(vehicle_id)
+    publish_message(reply_to, gps_data)
 
 if __name__ == "__main__":
     import uvicorn

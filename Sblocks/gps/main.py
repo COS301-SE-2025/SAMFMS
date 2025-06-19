@@ -4,13 +4,19 @@ Enhanced with structured logging, health monitoring, and performance metrics.
 """
 
 import os
-from fastapi import FastAPI
+import asyncio
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from logging_config import setup_logging, get_logger
 from connections import ConnectionManager
 from middleware import get_logging_middleware, get_security_middleware
 from health_metrics import get_health_status, get_metrics
+
+# message queue imports
+from rabbitmq.consumer import consume_messages
+from rabbitmq.admin import create_exchange
+from rabbitmq.producer import publish_message
 
 SERVICE_NAME = "gps-service"
 SERVICE_VERSION = "1.0.0"
@@ -69,9 +75,8 @@ async def startup_event():
     
     logger.info("GPS Service startup completed")
 
-    from rabbitmq.consumer import consume_messages
-    from rabbitmq.admin import create_exchange
-    from rabbitmq.producer import publish_message
+    # Start the RabbitMQ consumer
+    asyncio.create_task(consume_messages("gps_requests"))
 
     
 
@@ -181,6 +186,14 @@ def update_location(location_data: dict):
         )
         raise
 
+# Herrie code: For Message queue between GPS SBlock and Core
+def handle_gps_request(message):
+    logger.info("Received message: {message}")
+    vehicle_id = message["vehicle_id"]
+    reply_to = message["reply_to"]
+    # Forward request to DBlock for DB lookup
+    publish_message("db_requests", {"vehicle_id": vehicle_id, "reply_to": reply_to})
+##########
 
 if __name__ == "__main__":
     import uvicorn

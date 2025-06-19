@@ -39,19 +39,20 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to initialize plugin manager: {e}")
 
     consumer_task = asyncio.create_task(consume_messages("service_status"))
+    # herrie consumer for core
+    consumer_task_core = asyncio.create_task(consume_messages("core_responses"))
     await create_exchange("general", aio_pika.ExchangeType.FANOUT)
     await publish_message("general", aio_pika.ExchangeType.FANOUT, {"message": "Core service started"})
 
-    logger.info("Started consuming messages from service_status queue")
-    
+    logger.info("Started consuming messages from service_status and core_responses queues")
     logger.info("Core service startup completed")
     
     yield
-    
 
     logger.info("Core service shutting down...")
-    if not consumer_task.done():
-        consumer_task.cancel()
+    for task in [consumer_task, consumer_task_core]:
+        if not task.done():
+            task.cancel()
     logger.info("Core service shutdown completed")
 
 app = FastAPI(
@@ -89,7 +90,25 @@ app.include_router(plugins_router, prefix="/api")
 async def health_check():
     return {"status": "healthy"}
 
+# send request to GPS SBlock with rabbitmq
+@app.post("/gps/request_location")
+async def request_gps_location(vehicle_id: str):
+    # "general", aio_pika.ExchangeType.FANOUT, {"message": "Core service started"}
+    await publish_message(
+        "gps_requests",
+        aio_pika.ExchangeType.DIRECT,
+        {"message": "Message to GPS SBlock test"},
+        routing_key="gps_requests"
+    )
+    return {"status": "Request sent to GPS service"}
+
+def handle_core_response(message):
+    logger.info("Message received: " + message)
+    print("Received GPS data:", message)
+    # Here you could store the result, notify the UI, etc.
+
 if __name__ == "__main__":
+    consume_messages("core_responses", handle_core_response)
     logger.info("🚀 Starting Core service...")
     uvicorn.run(
         app, 
@@ -97,3 +116,5 @@ if __name__ == "__main__":
         port=8000,
         log_config=None  # Use our custom logging configuration
     )
+
+
