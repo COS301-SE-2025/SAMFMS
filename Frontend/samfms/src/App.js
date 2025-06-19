@@ -35,11 +35,10 @@ function App() {
             <Routes>
               {/* Public landing page as default route */}
               <Route path="/" element={<Landing />} />
-              
+
               {/* Public routes - wrapped in AuthErrorBoundary for auth-related errors */}
               <Route
-                path="/login"
-                element={
+                path="/login" element={
                   <AuthErrorBoundary>
                     <Login />
                   </AuthErrorBoundary>
@@ -62,31 +61,33 @@ function App() {
                 }
               />
               {/* Protected routes inside Layout - all wrapped in AuthErrorBoundary */}
-              <Route
+              {/* <Route
                 element={
                   <AuthErrorBoundary>
                     <ProtectedRoute />
                   </AuthErrorBoundary>
                 }
-              >
-                <Route path="/" element={<Layout />}>
-                  <Route index element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/vehicles" element={<Vehicles />} />{' '}
-                  <Route path="/drivers" element={<Drivers />} />
-                  <Route path="/tracking" element={<Tracking />} />
-                  <Route path="/trips" element={<Trips />} />
-                  <Route path="/maintenance" element={<Maintenance />} />
-                  <Route path="/account" element={<Account />} />
-                  <Route
-                    path="/settings"
-                    element={<Navigate to="/account?tab=preferences" replace />}
-                  />
-                  <Route path="/plugins" element={<Plugins />} />
-                  <Route path="/users" element={<UserManagement />} />
-                  <Route path="/help" element={<Help />} />
-                </Route>
-              </Route>{' '}
+              > */}
+              <Route element={<Layout />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/vehicles" element={<Vehicles />} />{' '}
+                <Route path="/drivers" element={<Drivers />} />
+                <Route path="/tracking" element={<Tracking />} />
+                <Route path="/trips" element={<Trips />} />
+                <Route path="/maintenance" element={<Maintenance />} />
+                <Route path="/account" element={<Account />} />
+                <Route
+                  path="/settings"
+                  element={<Navigate to="/account?tab=preferences" replace />}
+                />
+                <Route path="/plugins" element={<Plugins />} />
+                <Route path="/users" element={<UserManagement />} />
+                <Route path="/help" element={<Help />} />
+              </Route>
+              {/* </Route> */}
+
+              {/* Catch-all route */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Router>
         </NotificationProvider>
