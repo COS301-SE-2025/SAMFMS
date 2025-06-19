@@ -1,7 +1,7 @@
 """
 Plugin management routes for SAMFMS Core service
 """
-
+from .auth_utils import get_current_user_secure
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from typing import List, Dict, Dict
@@ -42,24 +42,18 @@ async def get_all_plugins(
         )
 
 @router.get("/available", response_model=List[PluginInfo])
-async def get_available_plugins(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    """Get plugins available to current user based on their role"""
-    try:
-        user_info = verify_token(credentials)
-        user_role = user_info.get("role")
-        
-        all_plugins = await plugin_manager.get_all_plugins()
-        
-        # Filter plugins based on user role and active status
-        available_plugins = [
-            plugin for plugin in all_plugins
-            if plugin_manager.user_has_plugin_access(user_role, plugin)
-            and plugin.status == "active"
-        ]
-        
-        return available_plugins
+async def get_available_plugins(current_user: dict = Depends(get_current_user_secure)):
+    # you now have a fully verified user dict
+    user_role = current_user["role"]
+
+    all_plugins = await plugin_manager.get_all_plugins()
+    available_plugins = [
+        plugin
+        for plugin in all_plugins
+        if plugin_manager.user_has_plugin_access(user_role, plugin)
+           and plugin.status == "active"
+    ]
+    return available_plugins
         
     except HTTPException:
         raise
