@@ -2,11 +2,15 @@ import aio_pika
 import asyncio
 import json
 import logging
+import aiohttp
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +31,8 @@ async def wait_for_rabbitmq(max_retries: int = 30, delay: int = 2):
                 logger.error("Failed to connect to RabbitMQ after all retries")
                 raise
 
+
+
 async def create_exchange(exchange_name: str, exchange_type: aio_pika.ExchangeType):
     try:
         connection = await aio_pika.connect_robust(RABBITMQ_URL)
@@ -39,6 +45,8 @@ async def create_exchange(exchange_name: str, exchange_type: aio_pika.ExchangeTy
         raise
     finally:
         await connection.close()
+
+
 
 async def broadcast_topics():
     logger.info("Waiting for RabbitMQ...")
@@ -70,3 +78,56 @@ async def broadcast_topics():
         except Exception as e:
             logger.error(f"Error in broadcast_topics: {str(e)}")
             await asyncio.sleep(10)
+
+
+
+async def remove_sblock(SblockIP: str, username: str):
+    logger.info("Waiting for RabbitMQ...")
+    await wait_for_rabbitmq()
+    logger.info("Connected to RabbitMQ")
+
+    API_URL = RABBITMQ_URL + f"/api/permissions/%2F/{username}"
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            payload = {
+                "configure": "",
+                "write": "",
+                "read": ""
+            }
+            async with session.put(API_URL, json=payload, auth=aiohttp.BasicAuth("guest", "guest")) as response:
+                if response.status == 200:
+                    logger.info(f"Successfully restricted access for user '{username}'")
+                else:
+                    logger.error(f"Failed to restrict access for user '{username}'. Status: {response.status}")
+                    logger.error(f"Response: {await response.text()}")
+        except Exception as e:
+            logger.error(f"Error while restricting access for user '{username}': {str(e)}")
+
+
+
+
+async def add_sblock(SblockIP: str, username: str):
+    logger.info("Waiting for RabbitMQ...")
+    await wait_for_rabbitmq()
+    logger.info("Connected to RabbitMQ")
+
+    API_URL = RABBITMQ_URL + f"/api/permissions/%2F/{username}"
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            payload = {
+                "configure": ".*",
+                "write": ".*",
+                "read": ".*"
+            }
+            async with session.put(API_URL, json=payload, auth=aiohttp.BasicAuth("guest", "guest")) as response:
+                if response.status == 200:
+                    logger.info(f"Successfully restored access for user '{username}'")
+                else:
+                    logger.error(f"Failed to restore access for user '{username}'. Status: {response.status}")
+                    logger.error(f"Response: {await response.text()}")
+        except Exception as e:
+            logger.error(f"Error while restoring access for user '{username}': {str(e)}")
+
+    
