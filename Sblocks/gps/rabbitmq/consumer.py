@@ -28,7 +28,27 @@ async def wait_for_rabbitmq(max_retries: int = 30, delay: int = 2):
                 raise
     return False
 
-async def consume_messages(queue_name: str):
+# Same as consume_message function in Core, just changed the name to differentiate between Fan Out and Direct Messages
+async def consume_messages_FanOut(queue_name: str):
+    await wait_for_rabbitmq()
+    
+    try:
+        connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
+        channel = await connection.channel()
+        queue = await channel.declare_queue(queue_name, durable=True)
+        
+        await queue.consume(handle_message)
+        logger.info(f"Started consuming messages from queue: {queue_name}")
+        
+        try:
+            await asyncio.Future()
+        finally:
+            await connection.close()
+    except Exception as e:
+        logger.error(f"Error in consume_messages: {str(e)}")
+        raise
+
+async def consume_messages_Direct(queue_name: str, handler):
     await wait_for_rabbitmq()
     
     try:
@@ -40,8 +60,8 @@ async def consume_messages(queue_name: str):
         queue = await channel.declare_queue(queue_name, durable=True)
         # Bind the queue and exchange with the routing key
         await queue.bind(exchange, routing_key=queue_name)
-        
-        await queue.consume(handle_message)
+        # Pass the message to the handler
+        await queue.consume(handler)
         logger.info(f"Started consuming messages from queue: {queue_name}")
         
         try:

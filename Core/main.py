@@ -90,6 +90,8 @@ app.include_router(plugins_router, prefix="/api")
 async def health_check():
     return {"status": "healthy"}
 
+# Herrie code for message queues
+################################################################################
 # send request to GPS SBlock with rabbitmq
 @app.post("/gps/request_location")
 async def request_gps_location(vehicle_id: str):
@@ -106,6 +108,8 @@ def handle_core_response(message):
     logger.info("Message received: " + message)
     print("Received GPS data:", message)
     # Here you could store the result, notify the UI, etc.
+
+################################################################################
 
 if __name__ == "__main__":
     consume_messages("core_responses", handle_core_response)

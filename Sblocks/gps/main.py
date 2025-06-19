@@ -5,6 +5,8 @@ Enhanced with structured logging, health monitoring, and performance metrics.
 
 import os
 import asyncio
+import aio_pika
+import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -14,7 +16,7 @@ from middleware import get_logging_middleware, get_security_middleware
 from health_metrics import get_health_status, get_metrics
 
 # message queue imports
-from rabbitmq.consumer import consume_messages
+from rabbitmq.consumer import consume_messages_Direct,consume_messages_FanOut
 from rabbitmq.admin import create_exchange
 from rabbitmq.producer import publish_message
 
@@ -76,7 +78,7 @@ async def startup_event():
     logger.info("GPS Service startup completed")
 
     # Start the RabbitMQ consumer
-    asyncio.create_task(consume_messages("gps_requests"))
+    asyncio.create_task(consume_messages_Direct("gps_requests_Direct",handle_gps_request))
 
     
 
@@ -187,12 +189,24 @@ def update_location(location_data: dict):
         raise
 
 # Herrie code: For Message queue between GPS SBlock and Core
-def handle_gps_request(message):
-    logger.info("Received message: {message}")
-    vehicle_id = message["vehicle_id"]
-    reply_to = message["reply_to"]
-    # Forward request to DBlock for DB lookup
-    publish_message("db_requests", {"vehicle_id": vehicle_id, "reply_to": reply_to})
+# Function to handle the direct messages sent to the gps_requests queue
+async def handle_gps_request(message: aio_pika.IncomingMessage):
+    async with message.process():
+        data = json.loads(message.body.decode())
+        logger.info(f"Received message: {data}")
+        #vehicle_id = data.get("vehicle_id")
+        #reply_to = data.get("reply_to")
+        # Forward request to DBlock for DB lookup
+        await request_gps_location(data)
+
+async def request_gps_location(message: dict):
+    await publish_message(
+        "gps_db_requests",
+        aio_pika.ExchangeType.DIRECT,
+        {"message": f"Message From GPS SBlock to GPS DBlock test : {message}"},
+        routing_key="gps_db_requests"
+    )
+    return {"status": "Request sent to GPS DB service"}
 ##########
 
 if __name__ == "__main__":

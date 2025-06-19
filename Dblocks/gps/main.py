@@ -3,8 +3,10 @@ import redis
 import pika
 import logging
 import asyncio
+import json
+import aio_pika
 
-from rabbitmq.consumer import consume_messages
+from rabbitmq.consumer import consume_messages_Direct, consume_messages_FanOut
 from rabbitmq.admin import create_exchange
 from rabbitmq.producer import publish_message
 
@@ -46,7 +48,7 @@ async def startup_event():
         connection.close()
     
     # # Start the RabbitMQ consumer for db
-    asyncio.create_task(consume_messages("db_requests"))
+    asyncio.create_task(consume_messages_Direct("gps_db_requests",handle_direct_request))
 
 @app.get("/")
 def read_root():
@@ -57,17 +59,14 @@ def health_check():
     return {"status": "healthy", "service": "gps_data"}
 
 
-# message queue code
-def get_latest_gps(vehicle_id):
-    # Replace with real DB logic
-    return {"vehicle_id": vehicle_id, "lat": -25.0, "lon": 28.0, "timestamp": 1234567890}
-
-def handle_db_request(message):
-    logger.info("Message received: " + message)
-    vehicle_id = message["vehicle_id"]
-    reply_to = message["reply_to"]
-    gps_data = get_latest_gps(vehicle_id)
-    publish_message(reply_to, gps_data)
+#############################################################
+# Herrie code for message queue
+async def handle_direct_request(message: aio_pika.IncomingMessage):
+    async with message.process():
+        data = json.loads(message.body.decode())
+        logger.info(f"Received message: {data}")
+#############################################################
+    
 
 if __name__ == "__main__":
     import uvicorn
