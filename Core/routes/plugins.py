@@ -10,7 +10,7 @@ import logging
 from models.plugin_models import PluginInfo, PluginUpdateRequest, PluginStatusResponse
 from services.plugin_service import plugin_manager
 from auth_service import verify_token, get_current_user_from_token
-from rabbitmq.admin import add_sblock, remove_sblock
+from rabbitmq.admin import addSblock, removeSblock
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plugins", tags=["Plugin Management"])
@@ -333,10 +333,18 @@ async def debug_docker_access(
         )
 
 
-@router.get("/sblock/add/{sblock_ip}/{username}", tags=["SBlock"])
-async def add_sblock_route(sblock_ip: str, username: str):
+@router.get("/sblock/add/{username}", tags=["SBlock"])
+async def add_sblock(username: str):
     try:
-        await add_sblock(sblock_ip, username)
+        credentials: HTTPAuthorizationCredentials = Depends(security)
+        user_info = verify_token(credentials)
+        if user_info.get("role") != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can view plugins"
+            )
+        
+        await addSblock(username)
         return {"status": "success", "message": f"SBlock {username} added"}
     except Exception as e:
         logger.error(f"Error adding SBlock: {str(e)}")
@@ -344,11 +352,22 @@ async def add_sblock_route(sblock_ip: str, username: str):
     
 
     
-@router.get("/sblock/remove/{sblock_ip}/{username}", tags=["SBlock"])
-async def remove_sblock_route(sblock_ip: str, username: str):
+@router.get("/sblock/remove/{username}", tags=["SBlock"])
+async def remove_sblock(username: str):
     try:
-        await remove_sblock(sblock_ip, username)
+        credentials: HTTPAuthorizationCredentials = Depends(security)
+        user_info = verify_token(credentials)
+        if user_info.get("role") != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can view plugins"
+            )
+        
+        await removeSblock(username)
         return {"status": "success", "message": f"SBlock {username} removed"}
+    
+
     except Exception as e:
         logger.error(f"Error removing SBlock: {str(e)}")
         return {"status": "error", "message": str(e)}
+    

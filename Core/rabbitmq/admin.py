@@ -81,7 +81,7 @@ async def broadcast_topics():
 
 
 
-async def remove_sblock(SblockIP: str, username: str):
+async def removeSblock(username: str):
     logger.info("Waiting for RabbitMQ...")
     await wait_for_rabbitmq()
     logger.info("Connected to RabbitMQ")
@@ -106,8 +106,7 @@ async def remove_sblock(SblockIP: str, username: str):
 
 
 
-
-async def add_sblock(SblockIP: str, username: str):
+async def addSblock(username: str):
     logger.info("Waiting for RabbitMQ...")
     await wait_for_rabbitmq()
     logger.info("Connected to RabbitMQ")
@@ -129,5 +128,3 @@ async def add_sblock(SblockIP: str, username: str):
                     logger.error(f"Response: {await response.text()}")
         except Exception as e:
             logger.error(f"Error while restoring access for user '{username}': {str(e)}")
-
-    
