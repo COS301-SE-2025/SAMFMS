@@ -1,19 +1,46 @@
 # 🚀 Firewall Five
 
 ## Project Information
-**Firewall Five - SAMFMS - Modular Fleet Management System**  
+
+**Firewall Five - SAMFMS - Modular Fleet Management System**
 
 ---
 
-## 📚 Documentation  
-| Resource | Link |
-|----------|------|
-| 📄 SRS Document | [Requirements](srs-link) |
-| 📊 Project Board | [Project Board](link-to-project-board)
+## 🧪 Testing
+
+The project includes a comprehensive test suite for all services. You can run tests from the root directory:
+
+```cmd
+# Run all tests
+npm test
+# or
+run-tests.bat
+
+# Run tests for specific services
+npm run test:security
+npm run test:core
+
+# Run specific test types
+npm run test:unit
+npm run test:integration
+npm run test:coverage
+```
+
+For detailed testing information, see [TESTING.md](TESTING.md).
 
 ---
 
-## 👥 Meet the Team 
+## 📚 Documentation
+
+| Resource         | Link                                   |
+| ---------------- | -------------------------------------- |
+| 📄 SRS Document  | [Requirements](srs-link)               |
+| 📊 Project Board | [Project Board](link-to-project-board) |
+
+---
+
+## 👥 Meet the Team
+
 Here’s our awesome team behind **Firewall Five**:
 
 <table>
@@ -43,19 +70,26 @@ Here’s our awesome team behind **Firewall Five**:
 ---
 
 ## Repository Information
+
 ### Git Structure
-- **Mono Repo**: Our code for all of our projects or features is kept within a single repository. This keeps all our features centralised and improves the ability for integration amoungst the subsystems.  
+
+- **Mono Repo**: Our code for all of our projects or features is kept within a single repository. This keeps all our features centralised and improves the ability for integration amoungst the subsystems.
 - **Branching Strategy**: [Branching strategy](https://github.com/COS301-SE-2025/SAMFMS/blob/docs/docs/Branching_Strategy.pdf)
 
 ### Git Management
+
 - **Linting** : Usage of linting to complete our CI/CD pipeline and maintain the quality of our code. This reduced the number of bugs and kept our coding standards up to date. Can be seen in the following file: [Linting](linting link)
 
 ### Issue Tracking
+
 - Managed via [GitHub Issues](https://github.com/COS301-SE-2025/SAMFMS/issues).
 
 ---
+
 ## 🛠️ Project Features
+
 ### 💻 **Technologies Used**:
+
 [![Leaflet](https://img.shields.io/badge/Leaflet-199900?style=for-the-badge&logo=leaflet&logoColor=white)](https://leafletjs.com/)
 [![RabbitMQ](https://img.shields.io/badge/RabbitMQ-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=white)](https://www.rabbitmq.com/)
 [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
@@ -65,17 +99,17 @@ Here’s our awesome team behind **Firewall Five**:
 [![MongoDB](https://img.shields.io/badge/MongoDB-4DB33D?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 
+**Key Components**:
 
+1. **🔧 MCORE**
 
-**Key Components**:  
+- Manages the Fleet Management System
+- Allows adding and removing vehicles and users
+- Facilitates communication between SBlocks and sends information to the UI
 
-  1. **🔧 MCORE**  
-   - Manages the Fleet Management System
-   - Allows adding and removing vehicles and users
-   - Facilitates communication between SBlocks and sends information to the UI
+2. **🌐 SBlocks**
 
-2. **🌐 SBlocks**  
    - Perform most analytical tasks and add functionality to the system as plugins
 
-3. **🖼️ UI**  
+3. **🖼️ UI**
    - Web-based interface for visual fleet management

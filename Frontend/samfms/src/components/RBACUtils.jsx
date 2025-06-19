@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { hasPermission, hasRole, hasAnyRole, getCurrentUser } from '../backend/API.js';
 
 // HOC for permission-based rendering
@@ -59,15 +59,19 @@ export const AnyRoleGuard = ({ roles, children, fallback = null }) => {
 export const useAuth = () => {
   const user = getCurrentUser();
 
-  return {
-    user,
-    hasPermission: permission => hasPermission(permission),
-    hasRole: role => hasRole(role),
-    hasAnyRole: roles => hasAnyRole(roles),
-    isAdmin: () => hasRole('admin'),
-    isFleetManager: () => hasRole('fleet_manager'),
-    isDriver: () => hasRole('driver'),
-  };
+  // Memoize the auth functions to prevent unnecessary re-renders
+  return useMemo(
+    () => ({
+      user,
+      hasPermission: permission => hasPermission(permission),
+      hasRole: role => hasRole(role),
+      hasAnyRole: roles => hasAnyRole(roles),
+      isAdmin: () => hasRole('admin'),
+      isFleetManager: () => hasRole('fleet_manager'),
+      isDriver: () => hasRole('driver'),
+    }),
+    [user]
+  ); // Only recreate when user changes
 };
 
 // Constants for common permission checks
