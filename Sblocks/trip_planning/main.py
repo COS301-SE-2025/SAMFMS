@@ -1,10 +1,24 @@
 from fastapi import FastAPI
+from service_request_handler import trip_planning_request_handler
 
 app = FastAPI()
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize Trip Planning service on startup"""
+    try:
+        await trip_planning_request_handler.initialize()
+        print("Trip Planning service request handler initialized")
+    except Exception as e:
+        print(f"Trip Planning service request handler initialization failed: {e}")
 
 @app.get("/")
 def read_root():
     return {"message": "Hello from Trip Planning Service"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "service": "trip_planning"}
 
 if __name__ == "__main__":
     import uvicorn

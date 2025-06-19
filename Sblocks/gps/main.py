@@ -1,6 +1,6 @@
 """
 GPS Service - SAMFMS Microservice
-Enhanced with structured logging, health monitoring, and performance metrics.
+Enhanced with structured logging, health monitoring, performance metrics, and RabbitMQ request handling.
 """
 
 import os
@@ -11,6 +11,7 @@ from logging_config import setup_logging, get_logger
 from connections import ConnectionManager
 from middleware import get_logging_middleware, get_security_middleware
 from health_metrics import get_health_status, get_metrics
+from service_request_handler import gps_request_handler
 
 SERVICE_NAME = "gps-service"
 SERVICE_VERSION = "1.0.0"
@@ -50,8 +51,7 @@ async def startup_event():
             "version": SERVICE_VERSION,
             "environment": ENVIRONMENT,
             "service": SERVICE_NAME
-        }
-    )
+        }    )
     
     # Test connections during startup
     redis_conn = ConnectionManager.get_redis_connection()
@@ -66,6 +66,13 @@ async def startup_event():
         rabbitmq_conn.close()  # Close test connection
     else:
         logger.error("Failed to establish RabbitMQ connection")
+    
+    # Initialize GPS service request handler
+    try:
+        await gps_request_handler.initialize()
+        logger.info("GPS service request handler initialized")
+    except Exception as e:
+        logger.error(f"GPS service request handler initialization failed: {e}")
     
     logger.info("GPS Service startup completed")
 

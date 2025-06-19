@@ -6,25 +6,24 @@ import { setCookie, getCookie, eraseCookie } from '../../lib/cookies';
 export const getApiHostname = () => {
   // Check if we're running inside Docker (based on environment variable that can be set in docker-compose)
   const inDocker = process.env.REACT_APP_DOCKER === 'true';
-
   // For development environments or when not specified, use the current host
   if (!inDocker) {
     // When running in a browser, always use the current hostname
     if (typeof window !== 'undefined') {
       const host = window.location.hostname;
-      return `${host}:8000`;
+      return `${host}:8080`;
     }
-    return 'localhost:8000';
+    return 'localhost:8080';
   }
 
   // In production browser environment, use the current hostname rather than Docker service name
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
-    return `${host}:8000`;
+    return `${host}:8080`;
   }
 
   // For Docker environments (server-side)
-  return 'core_service:8000';
+  return 'core_service:8080';
 };
 
 const hostname = getApiHostname(); // Core service port

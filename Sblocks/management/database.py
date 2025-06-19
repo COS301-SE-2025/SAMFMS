@@ -17,6 +17,11 @@ fleet_analytics_collection = db.fleet_analytics
 drivers_collection = db.drivers
 
 
+def get_mongodb():
+    """Get the MongoDB database instance"""
+    return db
+
+
 def get_driver_collection():
     """Get the driver collection for driver management"""
     return drivers_collection

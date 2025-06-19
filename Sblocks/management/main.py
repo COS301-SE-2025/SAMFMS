@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from database import test_database_connection, create_indexes
 from routes import router as vehicle_routes
 from message_queue import MessageQueueService
+from service_request_handler import service_request_handler
 #from logging_config import setup_logging
 #from health_metrics import health_metrics
 
@@ -72,8 +73,7 @@ async def startup_event():
         logger.info("Redis connection successful")
         #health_metrics["redis_connected"] = True
     except Exception as e:
-        logger.error(f"Redis connection failed: {e}")
-        #health_metrics["redis_connected"] = False
+        logger.error(f"Redis connection failed: {e}")        #health_metrics["redis_connected"] = False
     
     # Test RabbitMQ connection and setup message queue
     try:
@@ -84,6 +84,13 @@ async def startup_event():
         logger.error(f"RabbitMQ setup failed: {e}")
         #health_metrics["rabbitmq_connected"] = False
     
+    # Initialize service request handler
+    try:
+        await service_request_handler.initialize()
+        logger.info("Service request handler initialized")
+    except Exception as e:
+        logger.error(f"Service request handler initialization failed: {e}")
+
     #health_metrics["startup_time"] = datetime.now(timezone.utc).isoformat()
     logger.info("Management Service startup completed")
 
