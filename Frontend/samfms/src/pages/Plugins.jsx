@@ -10,6 +10,8 @@ import {
   testCoreService,
   syncPluginStatus,
   debugDockerAccess,
+  removeSblock,
+  addSblock,
 } from '../backend/api/plugins';
 import { useAuth, ROLES } from '../components/RBACUtils';
 
@@ -133,8 +135,10 @@ const Plugins = () => {
 
       let result;
       if (plugin.status === 'ACTIVE') {
+        removeSblock(pluginId.label);
         result = await stopPlugin(pluginId);
       } else {
+        addSblock(pluginId.label);
         result = await startPlugin(pluginId);
       }
 
