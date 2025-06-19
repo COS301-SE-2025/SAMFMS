@@ -10,6 +10,7 @@ import logging
 from models.plugin_models import PluginInfo, PluginUpdateRequest, PluginStatusResponse
 from services.plugin_service import plugin_manager
 from auth_service import verify_token, get_current_user_from_token
+from rabbitmq.admin import add_sblock, remove_sblock
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plugins", tags=["Plugin Management"])
@@ -330,3 +331,24 @@ async def debug_docker_access(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Debug error: {str(e)}"
         )
+
+
+@router.get("/sblock/add/{sblock_ip}/{username}", tags=["SBlock"])
+async def add_sblock_route(sblock_ip: str, username: str):
+    try:
+        await add_sblock(sblock_ip, username)
+        return {"status": "success", "message": f"SBlock {username} added"}
+    except Exception as e:
+        logger.error(f"Error adding SBlock: {str(e)}")
+        return {"status": "error", "message": str(e)}
+    
+
+    
+@router.get("/sblock/remove/{sblock_ip}/{username}", tags=["SBlock"])
+async def remove_sblock_route(sblock_ip: str, username: str):
+    try:
+        await remove_sblock(sblock_ip, username)
+        return {"status": "success", "message": f"SBlock {username} removed"}
+    except Exception as e:
+        logger.error(f"Error removing SBlock: {str(e)}")
+        return {"status": "error", "message": str(e)}
