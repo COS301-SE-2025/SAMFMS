@@ -23,6 +23,7 @@ import Tracking from './pages/Tracking';
 import Trips from './pages/Trips';
 import Maintenance from './pages/Maintenance';
 import Help from './pages/Help';
+import Landing from './pages/Landing';
 import UserManagement from './components/UserManagement';
 
 function App() {
@@ -32,6 +33,9 @@ function App() {
         <NotificationProvider>
           <Router>
             <Routes>
+              {/* Public landing page as default route */}
+              <Route path="/" element={<Landing />} />
+              
               {/* Public routes - wrapped in AuthErrorBoundary for auth-related errors */}
               <Route
                 path="/login"
