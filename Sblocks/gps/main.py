@@ -78,7 +78,8 @@ async def startup_event():
     logger.info("GPS Service startup completed")
 
     # Start the RabbitMQ consumer
-    asyncio.create_task(consume_messages_Direct("gps_requests_Direct",handle_gps_request))
+    asyncio.create_task(consume_messages_Direct("gps_requests_Direct","gps_requests_Direct",handle_gps_request))
+    asyncio.create_task(consume_messages_Direct("gps_responses_Direct","gps_responses_Direct" ,handle_DBlock_responses))
 
     
 
@@ -199,6 +200,13 @@ async def handle_gps_request(message: aio_pika.IncomingMessage):
         # Forward request to DBlock for DB lookup
         await request_gps_location(data)
 
+# function to for responses from DBlock
+async def handle_DBlock_responses(message: aio_pika.IncomingMessage):
+    async with message.process():
+        data = json.loads(message.body.decode())
+        logger.info(f"Received message from DBlock: {data}")
+
+# function to forward messages to dblock
 async def request_gps_location(message: dict):
     await publish_message(
         "gps_db_requests",

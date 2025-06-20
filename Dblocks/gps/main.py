@@ -61,10 +61,22 @@ def health_check():
 
 #############################################################
 # Herrie code for message queue
+# FUnction to handle requests from the GPS SBlock
 async def handle_direct_request(message: aio_pika.IncomingMessage):
     async with message.process():
         data = json.loads(message.body.decode())
         logger.info(f"Received message: {data}")
+        await respond_GPSBlock("Here is the DBLock response")
+
+# Function to respond to request from GPS SBlock
+async def respond_GPSBlock(message: str):
+    logger.info("Entered the respond_GPSBlock function")
+    await publish_message(
+        "gps_responses_Direct",
+        aio_pika.ExchangeType.DIRECT,
+        {"message": f"Message From GPS DBlock to GPS SBlock test : {message}"},
+        routing_key="gps_responses_Direct"
+    )
 #############################################################
     
 

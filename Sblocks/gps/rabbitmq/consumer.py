@@ -48,14 +48,14 @@ async def consume_messages_FanOut(queue_name: str):
         logger.error(f"Error in consume_messages: {str(e)}")
         raise
 
-async def consume_messages_Direct(queue_name: str, handler):
+async def consume_messages_Direct(queue_name: str,exchange_name: str, handler):
     await wait_for_rabbitmq()
     
     try:
         connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
         channel = await connection.channel()
         # Declare the exchange
-        exchange = await channel.declare_exchange("gps_requests_Direct",aio_pika.ExchangeType.DIRECT)
+        exchange = await channel.declare_exchange(exchange_name,aio_pika.ExchangeType.DIRECT)
         # Declare the queue
         queue = await channel.declare_queue(queue_name, durable=True)
         # Bind the queue and exchange with the routing key
