@@ -1,6 +1,7 @@
 import pika
 import json
 import logging
+import os
 from typing import Dict, Any
 from models import VehicleCreatedMessage, VehicleUpdatedMessage, VehicleDeletedMessage, VehicleSpecs
 from datetime import datetime
@@ -9,13 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 class MessageQueueService:
-    def __init__(self, host='rabbitmq', username='guest', password='guest'):
-        self.host = host
-        self.username = username
-        self.password = password
+    def __init__(self, rabbitmq_url=None):
+        self.rabbitmq_url = rabbitmq_url or os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq/")
         self.connection = None
         self.channel = None
-        
     def _get_connection(self):
         """Get or create a connection with optimized settings"""
         try:
@@ -23,26 +21,23 @@ class MessageQueueService:
             if self.connection and not self.connection.is_closed:
                 return self.connection
             
-            # Create new connection with optimized settings
-            credentials = pika.PlainCredentials(self.username, self.password)
-            connection_params = pika.ConnectionParameters(
-                host=self.host,
-                credentials=credentials,
-                heartbeat=600,  # Longer heartbeat for publishers
-                blocked_connection_timeout=300,
-                connection_attempts=3,
-                retry_delay=2,
-                socket_timeout=10,
-                frame_max=131072,
-                channel_max=50  # Reduced for publisher
-            )
+            # Create new connection with optimized settings using URL
+            connection_params = pika.URLParameters(self.rabbitmq_url)
+            connection_params.heartbeat = 600  # Longer heartbeat for publishers
+            connection_params.blocked_connection_timeout = 300
+            connection_params.connection_attempts = 3
+            connection_params.retry_delay = 2
+            connection_params.socket_timeout = 10
+            connection_params.frame_max = 131072
+            connection_params.channel_max = 50  # Reduced for publisher
+            
             self.connection = pika.BlockingConnection(connection_params)
             self.channel = self.connection.channel()
             
             # Set up exchanges and queues
             self._setup_exchanges_and_queues()
             
-            logger.info("Created new optimized RabbitMQ connection")
+            logger.info(f"Created new optimized RabbitMQ connection to {self.rabbitmq_url}")
             return self.connection
             
         except Exception as e:
