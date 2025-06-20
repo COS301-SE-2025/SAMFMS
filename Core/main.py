@@ -97,10 +97,10 @@ async def health_check():
 async def request_gps_location(vehicle_id: str):
     # "general", aio_pika.ExchangeType.FANOUT, {"message": "Core service started"}
     await publish_message(
-        "gps_requests",
+        "gps_requests_Direct",
         aio_pika.ExchangeType.DIRECT,
         {"message": "Message to GPS SBlock test"},
-        routing_key="gps_requests"
+        routing_key="gps_requests_Direct"
     )
     return {"status": "Request sent to GPS service"}
 
