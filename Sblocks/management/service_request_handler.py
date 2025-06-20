@@ -452,7 +452,7 @@ class ServiceRequestHandler:
         except Exception as e:
             logger.error(f"Error getting vehicle assignments: {e}")
             raise
-      async def _create_vehicle_assignment(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_vehicle_assignment(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle POST /api/vehicle-assignments"""
         try:
             # Validate permissions
