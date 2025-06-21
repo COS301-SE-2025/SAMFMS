@@ -26,7 +26,7 @@ COPY Core/ .
 
 FROM base AS test
 RUN pip install --no-cache-dir pytest pytest-xdist
-CMD ["pytest", "--disable-warnings", "--tb=no"]
+CMD ["pytest", "--disable-warnings"]
 
 FROM base AS runtime
 
