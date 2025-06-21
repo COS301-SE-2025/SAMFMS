@@ -2,11 +2,13 @@ import aio_pika
 import asyncio
 import json
 import logging
+from typing import Callable, Dict, Any
 from . import admin
 
 logger = logging.getLogger(__name__)
 
 async def handle_message(message: aio_pika.IncomingMessage):
+    """Default message handler"""
     async with message.process():
         data = json.loads(message.body.decode())
         
@@ -52,4 +54,32 @@ async def consume_messages(queue_name: str):
             await connection.close()
     except Exception as e:
         logger.error(f"Error in consume_messages: {str(e)}")
+        raise
+
+async def consume_messages_with_handler(queue_name: str, message_handler: Callable[[Dict[str, Any]], None]):
+    """Enhanced message consumer with custom handler"""
+    await wait_for_rabbitmq()
+    
+    async def handle_with_custom_handler(message: aio_pika.IncomingMessage):
+        async with message.process():
+            try:
+                data = json.loads(message.body.decode())
+                await message_handler(data)
+            except Exception as e:
+                logger.error(f"Error in custom message handler: {e}")
+    
+    try:
+        connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
+        channel = await connection.channel()
+        queue = await channel.declare_queue(queue_name, durable=True)
+        
+        await queue.consume(handle_with_custom_handler)
+        logger.info(f"Started consuming messages from queue {queue_name} with custom handler")
+        
+        try:
+            await asyncio.Future()
+        finally:
+            await connection.close()
+    except Exception as e:
+        logger.error(f"Error in consume_messages_with_handler: {str(e)}")
         raise

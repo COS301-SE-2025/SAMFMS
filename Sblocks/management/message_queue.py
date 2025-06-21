@@ -1,49 +1,43 @@
 import pika
 import json
 import logging
+import os
 from typing import Dict, Any
 from models import VehicleCreatedMessage, VehicleUpdatedMessage, VehicleDeletedMessage, VehicleSpecs
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 
 class MessageQueueService:
-    def __init__(self, host='rabbitmq', username='guest', password='guest'):
-        self.host = host
-        self.username = username
-        self.password = password
+    def __init__(self, rabbitmq_url=None):
+        self.rabbitmq_url = rabbitmq_url or os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq/")
         self.connection = None
         self.channel = None
-        self._connection_pool = []
-        self._max_pool_size = 5
-        
     def _get_connection(self):
-        """Get or create a connection with pooling for better efficiency"""
+        """Get or create a connection with optimized settings"""
         try:
             # Try to reuse existing connection if available
             if self.connection and not self.connection.is_closed:
                 return self.connection
             
-            # Create new connection with optimized settings
-            credentials = pika.PlainCredentials(self.username, self.password)
-            connection_params = pika.ConnectionParameters(
-                host=self.host,
-                credentials=credentials,
-                heartbeat=600,  # Longer heartbeat for publishers
-                blocked_connection_timeout=300,
-                connection_attempts=3,
-                retry_delay=2,
-                socket_timeout=10,
-                frame_max=131072,
-                channel_max=50  # Reduced for publisher
-            )
+            # Create new connection with optimized settings using URL
+            connection_params = pika.URLParameters(self.rabbitmq_url)
+            connection_params.heartbeat = 600  # Longer heartbeat for publishers
+            connection_params.blocked_connection_timeout = 300
+            connection_params.connection_attempts = 3
+            connection_params.retry_delay = 2
+            connection_params.socket_timeout = 10
+            connection_params.frame_max = 131072
+            connection_params.channel_max = 50  # Reduced for publisher
+            
             self.connection = pika.BlockingConnection(connection_params)
             self.channel = self.connection.channel()
             
             # Set up exchanges and queues
             self._setup_exchanges_and_queues()
             
-            logger.info("Created new optimized RabbitMQ connection")
+            logger.info(f"Created new optimized RabbitMQ connection to {self.rabbitmq_url}")
             return self.connection
             
         except Exception as e:
@@ -198,6 +192,48 @@ class MessageQueueService:
             logger.error(f"Failed to publish vehicle status change event: {e}")
             # Reset connection on error
             self.connection = None
+
+    def publish_service_event(self, event_type: str, service_name: str, message_data: Dict[str, Any] = None):
+        """Publish service events (startup, shutdown, etc.)"""
+        try:
+            if not self._get_connection():
+                logger.error("No RabbitMQ connection available for publishing service event")
+                return False
+                
+            # Declare service events exchange if it doesn't exist
+            self.channel.exchange_declare(
+                exchange='service_events', 
+                exchange_type='topic',
+                durable=True
+            )
+            
+            event_data = {
+                "service": service_name,
+                "event_type": event_type,
+                "timestamp": datetime.utcnow().isoformat(),
+                "data": message_data or {}
+            }
+            
+            message = json.dumps(event_data)
+            routing_key = f"service.{service_name}.{event_type}"
+            
+            self.channel.basic_publish(
+                exchange='service_events',
+                routing_key=routing_key,
+                body=message,
+                properties=pika.BasicProperties(
+                    delivery_mode=2,
+                    content_type='application/json'
+                )
+            )
+            logger.info(f"Published service event: {event_type} for service: {service_name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to publish service event {event_type} for {service_name}: {e}")
+            # Reset connection on error
+            self.connection = None
+            return False
     
     def close(self):
         """Close RabbitMQ connection"""

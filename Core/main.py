@@ -9,13 +9,13 @@ from contextlib import asynccontextmanager
 from database import db
 from logging_config import setup_logging, get_logger
 
-
 setup_logging()
 logger = get_logger(__name__)
 
 from rabbitmq.consumer import consume_messages
 from rabbitmq.admin import create_exchange
 from rabbitmq.producer import publish_message
+from services.request_router import request_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,8 +27,7 @@ async def lifespan(app: FastAPI):
         await client.admin.command('ping')
         logger.info("Successfully connected to MongoDB")
         client.close()
-    except Exception as e:
-        logger.error(f"Failed to connect to MongoDB: {e}")
+    except Exception as e:        logger.error(f"Failed to connect to MongoDB: {e}")
     
     # Initialize plugin manager
     try:
@@ -44,7 +43,15 @@ async def lifespan(app: FastAPI):
     await create_exchange("general", aio_pika.ExchangeType.FANOUT)
     await publish_message("general", aio_pika.ExchangeType.FANOUT, {"message": "Core service started"})
 
-    logger.info("Started consuming messages from service_status and core_responses queues")
+    # Initialize request router
+    try:
+        await request_router.initialize()
+        logger.info("Request router initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize request router: {e}")
+
+    logger.info("Started consuming messages from service_status queue")
+    
     logger.info("Core service startup completed")
     
     yield
@@ -80,9 +87,11 @@ app.add_middleware(
 # Import and include routers
 from routes.auth import router as auth_router
 from routes.plugins import router as plugins_router
+from routes.service_proxy import router as service_proxy_router
 
 app.include_router(auth_router)
 app.include_router(plugins_router, prefix="/api")
+app.include_router(service_proxy_router)
 
 
 # Add a route for health checks (needed by Security middleware)

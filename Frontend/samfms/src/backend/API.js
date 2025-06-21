@@ -69,24 +69,24 @@ export {
   clearAllAuthCache,
 };
 
-// Driver API endpoints - Now served by Management Service
+// Driver API endpoints - Now served by Core Service
 export const DRIVER_API = {
-  drivers: `http://localhost:8007/api/v1/vehicles/drivers`,
-  createDriver: `http://localhost:8007/api/v1/vehicles/drivers`,
-  getDriver: id => `http://localhost:8007/api/v1/vehicles/drivers/${id}`,
-  updateDriver: id => `http://localhost:8007/api/v1/vehicles/drivers/${id}`,
-  deleteDriver: id => `http://localhost:8007/api/v1/vehicles/drivers/${id}`,
-  searchDrivers: query => `http://localhost:8007/api/v1/vehicles/drivers/search/${query}`,
+  drivers: `${API_URL}/api/vehicles/drivers`,
+  createDriver: `${API_URL}/api/vehicles/drivers`,
+  getDriver: id => `${API_URL}/api/vehicles/drivers/${id}`,
+  updateDriver: id => `${API_URL}/api/vehicles/drivers/${id}`,
+  deleteDriver: id => `${API_URL}/api/vehicles/drivers/${id}`,
+  searchDrivers: query => `${API_URL}/api/vehicles/drivers/search/${query}`,
 };
 
 // Vehicle API endpoints
 export const VEHICLE_API = {
-  vehicles: `${API_URL}/vehicles`,
-  createVehicle: `${API_URL}/vehicles`,
-  getVehicle: id => `${API_URL}/vehicles/${id}`,
-  updateVehicle: id => `${API_URL}/vehicles/${id}`,
-  deleteVehicle: id => `${API_URL}/vehicles/${id}`,
-  searchVehicles: query => `${API_URL}/vehicles/search/${query}`,
+  vehicles: `${API_URL}/api/vehicles`,
+  createVehicle: `${API_URL}/api/vehicles`,
+  getVehicle: id => `${API_URL}/api/vehicles/${id}`,
+  updateVehicle: id => `${API_URL}/api/vehicles/${id}`,
+  deleteVehicle: id => `${API_URL}/api/vehicles/${id}`,
+  searchVehicles: query => `${API_URL}/api/vehicles/search/${query}`,
 };
 
 // Driver API functions
@@ -248,57 +248,59 @@ export const searchDrivers = async query => {
 
 // Vehicle API functions
 export const createVehicle = async vehicleData => {
-  const token = getToken();
-  if (!token) {
-    throw new Error('No authentication token found');
-  }
+  return await apiCallWithTokenRefresh(async () => {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
 
-  const response = await fetch(VEHICLE_API.createVehicle, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(vehicleData),
+    const response = await fetch(VEHICLE_API.createVehicle, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(vehicleData),
+    });
+
+    if (!response.ok) {
+      throw await handleErrorResponse(response);
+    }
+
+    return response.json();
   });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || 'Failed to create vehicle');
-  }
-
-  return response.json();
 };
 
 export const getVehicles = async (params = {}) => {
-  const token = getToken();
-  if (!token) {
-    throw new Error('No authentication token found');
-  }
+  return await apiCallWithTokenRefresh(async () => {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
 
-  const queryParams = new URLSearchParams();
-  if (params.skip) queryParams.append('skip', params.skip);
-  if (params.limit) queryParams.append('limit', params.limit);
-  if (params.status_filter) queryParams.append('status_filter', params.status_filter);
-  if (params.make_filter) queryParams.append('make_filter', params.make_filter);
+    const queryParams = new URLSearchParams();
+    if (params.skip) queryParams.append('skip', params.skip);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.status_filter) queryParams.append('status_filter', params.status_filter);
+    if (params.make_filter) queryParams.append('make_filter', params.make_filter);
 
-  const url = `${VEHICLE_API.vehicles}${
-    queryParams.toString() ? '?' + queryParams.toString() : ''
-  }`;
+    const url = `${VEHICLE_API.vehicles}${
+      queryParams.toString() ? '?' + queryParams.toString() : ''
+    }`;
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw await handleErrorResponse(response);
+    }
+
+    return response.json();
   });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || 'Failed to fetch vehicles');
-  }
-
-  return response.json();
 };
 
 export const getVehicle = async vehicleId => {
@@ -458,6 +460,66 @@ export const completeUserRegistration = async (email, otp, username, password) =
   }
 
   return await response.json();
+};
+
+// Enhanced API call wrapper with automatic token refresh
+const apiCallWithTokenRefresh = async (apiCall, maxRetries = 1) => {
+  let retries = 0;
+
+  while (retries <= maxRetries) {
+    try {
+      return await apiCall();
+    } catch (error) {
+      // Check if error is due to token expiration
+      if (
+        error.message.includes('401') ||
+        error.message.includes('Unauthorized') ||
+        error.message.includes('Token expired') ||
+        error.message.includes('Invalid token')
+      ) {
+        if (retries < maxRetries) {
+          try {
+            // Attempt to refresh token
+            await refreshAuthToken();
+            retries++;
+            continue; // Retry the API call
+          } catch (refreshError) {
+            // Token refresh failed, redirect to login
+            console.error('Token refresh failed:', refreshError);
+            logout();
+            throw new Error('Session expired. Please log in again.');
+          }
+        }
+      }
+
+      // Re-throw the original error if not token-related or retries exceeded
+      throw error;
+    }
+  }
+};
+
+// Enhanced error response handler
+const handleErrorResponse = async response => {
+  const contentType = response.headers.get('content-type');
+  let errorData = {};
+
+  try {
+    if (contentType && contentType.includes('application/json')) {
+      errorData = await response.json();
+    } else {
+      errorData = { message: (await response.text()) || 'Unknown error occurred' };
+    }
+  } catch (parseError) {
+    errorData = { message: 'Failed to parse error response' };
+  }
+
+  // Standardized error structure
+  const error = new Error(errorData.detail || errorData.message || 'Request failed');
+  error.status = response.status;
+  error.statusText = response.statusText;
+  error.errorData = errorData;
+
+  return error;
 };
 
 // RBAC and Admin Functions have been moved to ./api/auth.js

@@ -1,18 +1,30 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { cn } from '../lib/utils';
-import { useTheme } from '../contexts/ThemeContext';
-import { Home, User, Package2, Car, Users, Map, Navigation, Wrench, UserPlus } from 'lucide-react';
-import { useAuth, PERMISSIONS, ROLES } from './RBACUtils';
+import React, {useState} from 'react';
+import {Link, useLocation} from 'react-router-dom';
+import {cn} from '../lib/utils';
+import {useTheme} from '../contexts/ThemeContext';
+import {
+  Home,
+  Settings,
+  User,
+  Package2,
+  Car,
+  Users,
+  Map,
+  Navigation,
+  Wrench,
+  UserPlus,
+  HelpCircle
+} from 'lucide-react';
+import {useAuth, PERMISSIONS, ROLES} from './RBACUtils';
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { theme } = useTheme();
-  const { hasPermission, hasAnyRole } = useAuth();
+  const {theme} = useTheme();
+  const {hasPermission, hasAnyRole} = useAuth();
   // Define navigation items with permission requirements
   const allNavItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: <Home size={20} />, permission: null }, // Always visible
+    {path: '/dashboard', label: 'Dashboard', icon: <Home size={20} />, permission: null}, // Always visible
     {
       path: '/vehicles',
       label: 'Vehicles',
@@ -49,8 +61,10 @@ const Sidebar = () => {
       icon: <UserPlus size={20} />,
       roles: [ROLES.ADMIN],
     }, // Admin only
-    { path: '/plugins', label: 'Plugins', icon: <Package2 size={20} />, roles: [ROLES.ADMIN] }, // Admin only
-    { path: '/account', label: 'Account', icon: <User size={20} />, permission: null }, // Always visible
+    {path: '/plugins', label: 'Plugins', icon: <Package2 size={20} />, roles: [ROLES.ADMIN]}, // Admin only
+    {path: '/settings', label: 'Settings', icon: <Settings size={20} />, permission: null}, // Always visible
+    {path: '/account', label: 'Account', icon: <User size={20} />, permission: null}, // Always visible
+    {path: '/help', label: 'Help', icon: <HelpCircle size={20} />, permission: null}, // Always visible to all users
   ];
 
   // Filter navigation items based on user permissions

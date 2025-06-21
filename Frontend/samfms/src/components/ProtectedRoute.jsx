@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { isAuthenticated, checkUserExistence, clearUserExistenceCache } from '../backend/API.js';
+import React, {useEffect, useState, useRef} from 'react';
+import {Navigate, Outlet} from 'react-router-dom';
+import {isAuthenticated, checkUserExistence, clearUserExistenceCache} from '../backend/API.js';
 
 const ProtectedRoute = () => {
   const [loading, setLoading] = useState(true);
