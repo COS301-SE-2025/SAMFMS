@@ -10,6 +10,9 @@ from rabbitmq.consumer import consume_messages_Direct, consume_messages_FanOut
 from rabbitmq.admin import create_exchange
 from rabbitmq.producer import publish_message
 
+#DBLock functions
+from database import get_gps_location_by_device_id
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -71,8 +74,12 @@ async def handle_direct_request(message: aio_pika.IncomingMessage):
         data_type = data.get("type")
         parameters = data.get("parameters")
 
-        #if operation == "retrieve":
-            
+        if operation == "retrieve":
+            device_id = parameters.get("device_id")
+            location = await get_gps_location_by_device_id(device_id)
+            logger.info(f"Location from DB: {location}")
+        elif operation == "ADD":
+            device_id = parameters.get("device_id")
 
 
         #await respond_GPSBlock("Here is the DBLock response")

@@ -3,3 +3,4 @@ uvicorn[standard]
 redis
 pika
 aio_pika
+motor

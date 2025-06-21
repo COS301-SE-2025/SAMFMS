@@ -7,6 +7,7 @@ import os
 import asyncio
 import aio_pika
 import json
+import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -20,6 +21,7 @@ from service_request_handler import gps_request_handler
 from rabbitmq.consumer import consume_messages_Direct,consume_messages_FanOut
 from rabbitmq.admin import create_exchange
 from rabbitmq.producer import publish_message
+
 
 SERVICE_NAME = "gps-service"
 SERVICE_VERSION = "1.0.0"
@@ -195,6 +197,19 @@ def update_location(location_data: dict):
             }
         )
         raise
+
+# Traccar function to create a new simulation
+async def create_new_simulation(device_id, lat, lon, speed):
+    payload = {
+        "device_id": device_id,
+        "start_latitude": lat,
+        "start_longitude": lon,
+        "speed": speed
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post("http://simulator_manager:8000/simulate_vehicle", json=payload)
+        return response.json()
 
 # Herrie code: For Message queue between GPS SBlock and Core
 # Function to handle the direct messages sent to the gps_requests queue

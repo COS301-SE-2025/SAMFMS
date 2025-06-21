@@ -351,6 +351,15 @@ services:
       - ./traccar-data:/opt/traccar/data
     environment:
       - TZ=UTC
+  
+  simulator_manager:
+    build: ./Sblocks/gps/simulator_manager
+    ports:
+      - "8008:8000"
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - traccar
 
 volumes:
   mongodb_core_data:

@@ -5,3 +5,5 @@ redis
 pika
 psutil
 aio_pika
+docker
+httpx
