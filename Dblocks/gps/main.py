@@ -66,7 +66,16 @@ async def handle_direct_request(message: aio_pika.IncomingMessage):
     async with message.process():
         data = json.loads(message.body.decode())
         logger.info(f"Received message: {data}")
-        await respond_GPSBlock("Here is the DBLock response")
+
+        operation = data.get("operation")
+        data_type = data.get("type")
+        parameters = data.get("parameters")
+
+        #if operation == "retrieve":
+            
+
+
+        #await respond_GPSBlock("Here is the DBLock response")
 
 # Function to respond to request from GPS SBlock
 async def respond_GPSBlock(message: str):

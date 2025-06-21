@@ -195,10 +195,15 @@ async def handle_gps_request(message: aio_pika.IncomingMessage):
     async with message.process():
         data = json.loads(message.body.decode())
         logger.info(f"Received message: {data}")
-        #vehicle_id = data.get("vehicle_id")
-        #reply_to = data.get("reply_to")
-        # Forward request to DBlock for DB lookup
-        await request_gps_location(data)
+
+        operation = data.get("operation")
+        data_type = data.get("type")
+
+        # if it is retrieve then forward it to DBlock
+        if operation == "retrieve":
+            await request_gps_location(data)
+        else:
+            logger.warning(f"Unsupported operation: {operation} for message: {data}")
 
 # function to for responses from DBlock
 async def handle_DBlock_responses(message: aio_pika.IncomingMessage):

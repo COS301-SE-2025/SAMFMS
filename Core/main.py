@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI,Body
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import uvicorn
@@ -94,15 +94,74 @@ async def health_check():
 ################################################################################
 # send request to GPS SBlock with rabbitmq
 @app.post("/gps/request_location")
-async def request_gps_location(vehicle_id: str):
-    # "general", aio_pika.ExchangeType.FANOUT, {"message": "Core service started"}
+async def request_gps_location(parameter: dict = Body(...)):
     await publish_message(
         "gps_requests_Direct",
         aio_pika.ExchangeType.DIRECT,
-        {"message": "Message to GPS SBlock test"},
+        {
+            "operation": "retrieve",
+            "type": "location",
+            "parameters": parameter
+        },
         routing_key="gps_requests_Direct"
     )
-    return {"status": "Request sent to GPS service"}
+    return {"status": "Location request sent to GPS service"}
+
+@app.post("/gps/request_speed")
+async def request_gps_speed(vehicle_id: str):
+    await publish_message(
+        "gps_requests_Direct",
+        aio_pika.ExchangeType.DIRECT,
+        {
+            "operation": "retrieve",
+            "type": "speed",
+            "vehicle_id": vehicle_id
+        },
+        routing_key="gps_requests_Direct"
+    )
+    return {"status": "Speed request sent to GPS service"}
+
+@app.post("/gps/request_direction")
+async def request_gps_direction(vehicle_id: str):
+    await publish_message(
+        "gps_requests_Direct",
+        aio_pika.ExchangeType.DIRECT,
+        {
+            "operation": "retrieve",
+            "type": "direction",
+            "vehicle_id": vehicle_id
+        },
+        routing_key="gps_requests_Direct"
+    )
+    return {"status": "Direction request sent to GPS service"}
+
+@app.post("/gps/request_fuel_level")
+async def request_gps_fuel_level(vehicle_id: str):
+    await publish_message(
+        "gps_requests_Direct",
+        aio_pika.ExchangeType.DIRECT,
+        {
+            "operation": "retrieve",
+            "type": "fuel_level",
+            "vehicle_id": vehicle_id
+        },
+        routing_key="gps_requests_Direct"
+    )
+    return {"status": "Fuel level request sent to GPS service"}
+
+@app.post("/gps/request_last_update")
+async def request_gps_last_update(vehicle_id: str):
+    await publish_message(
+        "gps_requests_Direct",
+        aio_pika.ExchangeType.DIRECT,
+        {
+            "operation": "retrieve",
+            "type": "last_update",
+            "vehicle_id": vehicle_id
+        },
+        routing_key="gps_requests_Direct"
+    )
+    return {"status": "Last update request sent to GPS service"}
 
 def handle_core_response(message):
     logger.info("Message received: " + message)

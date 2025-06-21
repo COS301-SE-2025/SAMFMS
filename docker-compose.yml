@@ -341,6 +341,17 @@ services:
       - mcore
     restart: no
 
+  traccar:
+    image: traccar/traccar:latest
+    ports:
+      - "8082:8082" 
+      - "5001-5039:5001-5039"
+      - "5041-5149:5041-5149"
+    volumes:
+      - ./traccar-data:/opt/traccar/data
+    environment:
+      - TZ=UTC
+
 volumes:
   mongodb_core_data:
   mongodb_gps_data:
@@ -352,3 +363,4 @@ volumes:
   mongodb_management_data:
   redis_data:
   rabbitmq_data:
+  traccar_data:
