@@ -243,7 +243,6 @@ class ResponseCorrelationManager:
         if not correlation_id:
             logger.warning("Received response without correlation_id")
             return
-        
         future = self.response_futures.get(correlation_id)
         if future and not future.done():
             future.set_result(response)
@@ -254,10 +253,45 @@ class ResponseCorrelationManager:
     async def consume_responses(self):
         """Consume responses from service response queue"""
         try:
-            from rabbitmq.consumer import consume_messages_with_handler
-            await consume_messages_with_handler("core.responses", self.handle_response)
+            import aio_pika
+            from rabbitmq import admin
+            
+            logger.info("Setting up response consumption...")
+            connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
+            channel = await connection.channel()
+            
+            # Declare the service_responses exchange
+            exchange = await channel.declare_exchange("service_responses", aio_pika.ExchangeType.DIRECT, durable=True)
+            logger.info("Service responses exchange declared")
+            
+            # Declare and bind core.responses queue
+            queue = await channel.declare_queue("core.responses", durable=True)
+            await queue.bind(exchange, routing_key="core.responses")
+            logger.info("Core responses queue bound to service_responses exchange")
+            
+            # Set up message handler
+            async def handle_response_message(message: aio_pika.IncomingMessage):
+                async with message.process():
+                    try:
+                        response_data = json.loads(message.body.decode())
+                        await self.handle_response(response_data)
+                        logger.debug(f"Processed response: {response_data.get('correlation_id')}")
+                    except Exception as e:
+                        logger.error(f"Error processing response message: {e}")
+            
+            # Start consuming
+            await queue.consume(handle_response_message)
+            logger.info("Core service started consuming responses from service_responses exchange")
+            
+            # Keep the connection alive
+            try:
+                await asyncio.Future()
+            finally:
+                await connection.close()
+                
         except Exception as e:
             logger.error(f"Error consuming responses: {e}")
+            raise
 
 
 # Global instance

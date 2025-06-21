@@ -80,9 +80,10 @@ const Vehicles = () => {
         if (filters.make) {
           params.make_filter = filters.make;
         }
-
         const response = await getVehicles(params);
-        const transformedVehicles = response.map(transformVehicleData);
+        // Extract the vehicles array from the response object
+        const vehiclesArray = response.vehicles || [];
+        const transformedVehicles = vehiclesArray.map(transformVehicleData);
         setVehicles(transformedVehicles);
       } catch (err) {
         console.error('Error loading vehicles:', err);

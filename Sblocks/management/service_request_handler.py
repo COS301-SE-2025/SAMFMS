@@ -18,6 +18,14 @@ from routes import router as management_router
 from database import get_mongodb
 from message_queue import mq_service
 
+def json_serializer(obj):
+    """JSON serializer for objects not serializable by default json code"""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
 logger = logging.getLogger(__name__)
 
 def get_rabbitmq_url():
@@ -228,11 +236,10 @@ class ServiceRequestHandler:
             
             # Declare response exchange as durable (must match core's declaration)
             exchange = await channel.declare_exchange("service_responses", aio_pika.ExchangeType.DIRECT, durable=True)
-            
-            # Send response to core.responses queue
+              # Send response to core.responses queue
             await exchange.publish(
                 aio_pika.Message(
-                    body=json.dumps(response).encode(),
+                    body=json.dumps(response, default=json_serializer).encode(),
                     content_type="application/json"
                 ),
                 routing_key="core.responses"
@@ -316,23 +323,33 @@ class ServiceRequestHandler:
                 raise ValueError("Insufficient permissions to create vehicle")
             
             from database import vehicle_management_collection
+            import uuid
             
-            # Add metadata
+            # Add metadata and generate vehicle_id
             vehicle_data = data.copy()
+            vehicle_data["vehicle_id"] = str(uuid.uuid4())  # Generate unique vehicle_id
             vehicle_data["created_by"] = user_context.get("user_id")
-            vehicle_data["created_at"] = datetime.utcnow()
+            vehicle_data["created_at"] = datetime.utcnow().isoformat()  # Convert to string for JSON serialization
             vehicle_data["status"] = "available"
             
             # Insert vehicle
             result = await vehicle_management_collection.insert_one(vehicle_data)
             vehicle_data["_id"] = str(result.inserted_id)
             
-            # Publish vehicle created event
-            mq_service.publish_vehicle_created({
-                "vehicle_id": str(result.inserted_id),
-                "vehicle_data": vehicle_data,
-                "created_by": user_context.get("user_id")
-            })
+            # Publish vehicle created event (using JSON-serializable data)
+            try:
+                if hasattr(self, 'mq_service') and self.mq_service:
+                    self.mq_service.publish_service_event(
+                        event_type="vehicle_created",
+                        service_name="management",
+                        message_data={
+                            "vehicle_id": vehicle_data["vehicle_id"],
+                            "created_by": user_context.get("user_id"),
+                            "timestamp": vehicle_data["created_at"]
+                        }
+                    )
+            except Exception as mq_error:
+                logger.warning(f"Failed to publish vehicle created event: {mq_error}")
             
             return vehicle_data
         except Exception as e:
