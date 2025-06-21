@@ -17,12 +17,6 @@ export const getApiHostname = () => {
     return 'localhost:8000';
   }
 
-  // In production browser environment, use the current hostname rather than Docker service name
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    return `${host}:8000`;
-  }
-
   // For Docker environments (server-side)
   return 'core_service:8000';
 };

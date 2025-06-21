@@ -31,8 +31,20 @@ async def create_exchange(exchange_name: str, exchange_type: aio_pika.ExchangeTy
     try:
         connection = await aio_pika.connect_robust(RABBITMQ_URL)
         channel = await connection.channel()
-        exchange = await channel.declare_exchange(exchange_name, exchange_type)
-        logger.info(f"Exchange '{exchange_name}' created with type '{exchange_type}'")
+        
+        # Try to declare as durable first
+        try:
+            exchange = await channel.declare_exchange(exchange_name, exchange_type, durable=True)
+            logger.info(f"Exchange '{exchange_name}' created with type '{exchange_type}' (durable=True)")
+        except Exception as e:
+            if "inequivalent arg" in str(e) and "durable" in str(e):
+                # Exchange exists with different durability, declare with passive=True to use existing
+                logger.warning(f"Exchange '{exchange_name}' exists with different durability, using existing exchange")
+                exchange = await channel.declare_exchange(exchange_name, exchange_type, passive=True)
+                logger.info(f"Using existing exchange '{exchange_name}' with type '{exchange_type}'")
+            else:
+                raise
+        
         return exchange
     except Exception as e:
         logger.error(f"Failed to create exchange '{exchange_name}': {str(e)}")
