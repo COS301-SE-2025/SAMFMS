@@ -39,6 +39,7 @@ const DriverList = ({
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
+              {' '}
               <th className="w-[36px] px-4 py-3">
                 <input
                   type="checkbox"
@@ -46,7 +47,7 @@ const DriverList = ({
                   onChange={handleSelectAll}
                   className="rounded border-gray-300"
                 />
-              </th>{' '}
+              </th>
               <SortableHeader
                 field="employeeId"
                 label="Employee ID"
@@ -93,12 +94,12 @@ const DriverList = ({
             </tr>
           </thead>
           <tbody>
+            {' '}
             {drivers.map(driver => (
               <tr
                 key={driver.id}
                 className="border-t border-border hover:bg-accent/10 cursor-pointer"
               >
-                {' '}
                 <td className="px-4 py-3">
                   <input
                     type="checkbox"
@@ -106,7 +107,7 @@ const DriverList = ({
                     onChange={() => handleSelectDriver(driver.employeeId)}
                     className="rounded border-gray-300"
                   />
-                </td>{' '}
+                </td>
                 <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
                   {driver.employeeId}
                 </td>
@@ -121,10 +122,10 @@ const DriverList = ({
                 </td>
                 <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
                   {driver.licenseExpiry}
-                </td>
+                </td>{' '}
                 <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
                   <StatusBadge status={driver.status} type={getStatusColor(driver.status)} />
-                </td>{' '}
+                </td>
                 <td className="px-4 py-3 space-x-2">
                   <button
                     className="text-primary hover:text-primary/80 inline-flex items-center gap-1"
@@ -135,7 +136,7 @@ const DriverList = ({
                   >
                     <Eye size={16} />
                     View
-                  </button>{' '}
+                  </button>
                   <button
                     className="text-primary hover:text-primary/80 inline-flex items-center gap-1"
                     onClick={e => {
@@ -145,7 +146,7 @@ const DriverList = ({
                   >
                     <Edit size={16} />
                     Edit
-                  </button>{' '}
+                  </button>
                   <button
                     className="text-destructive hover:text-destructive/80 inline-flex items-center gap-1"
                     onClick={e => {

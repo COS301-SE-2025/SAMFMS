@@ -4,3 +4,4 @@ motor
 redis
 pika
 psutil
+aio_pika

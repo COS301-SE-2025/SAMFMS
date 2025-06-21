@@ -14,8 +14,9 @@ class SessionMonitor {
     this.warningThresholds = {
       sessionDuration: 4 * 60 * 60 * 1000, // 4 hours
       inactivityPeriod: 30 * 60 * 1000, // 30 minutes
-      suspiciousActivity: 100, // actions per 5 minutes
+      suspiciousActivity: 500, // actions per 5 minutes (increased from 100)
     };
+    this.lastActivityWarning = 0; // Track when we last warned about high activity
   }
 
   /**
@@ -169,11 +170,18 @@ class SessionMonitor {
    * Check for suspicious activity patterns
    */
   checkSuspiciousActivity() {
-    // Note: Time-based activity analysis could be implemented here if needed
+    const now = Date.now();
 
-    // This is a simplified check - in a real app you'd want more sophisticated analysis
-    if (this.sessionData.actions > this.warningThresholds.suspiciousActivity) {
+    // Only warn about high activity every 5 minutes to avoid spam
+    const timeSinceLastWarning = now - this.lastActivityWarning;
+    const fiveMinutes = 5 * 60 * 1000;
+
+    if (
+      this.sessionData.actions > this.warningThresholds.suspiciousActivity &&
+      timeSinceLastWarning > fiveMinutes
+    ) {
       this.addWarning('high_activity', `${this.sessionData.actions} actions in current session`);
+      this.lastActivityWarning = now;
     }
   }
 
@@ -205,7 +213,6 @@ class SessionMonitor {
       this.addWarning('token_invalid', 'Failed to decode authentication token');
     }
   }
-
   /**
    * Add a warning to the session data
    */
@@ -217,6 +224,13 @@ class SessionMonitor {
     };
 
     this.sessionData.warnings.push(warning);
+
+    // Only log high activity warnings in development mode to reduce console spam
+    if (type === 'high_activity' && process.env.NODE_ENV === 'production') {
+      // Don't log high activity warnings in production
+      return;
+    }
+
     console.warn(`Session warning [${type}]:`, message);
 
     // Limit warnings array size
