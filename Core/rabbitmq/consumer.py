@@ -83,3 +83,27 @@ async def consume_messages_with_handler(queue_name: str, message_handler: Callab
     except Exception as e:
         logger.error(f"Error in consume_messages_with_handler: {str(e)}")
         raise
+
+async def consume_single_message(queue_name: str, message_handler: Callable):
+    """Consume a single message from the queue and call the handler, then stop."""
+    from . import admin
+    await wait_for_rabbitmq()
+    connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
+    channel = await connection.channel()
+    queue = await channel.declare_queue(queue_name, durable=True)
+
+    # Use an event to stop after one message
+    stop_event = asyncio.Event()
+
+    async def on_message(message: aio_pika.IncomingMessage):
+        async with message.process():
+            try:
+                await message_handler(message)
+            except Exception as e:
+                logger.error(f"Error in single message handler: {e}")
+            finally:
+                stop_event.set()  # Signal to stop after one message
+
+    await queue.consume(on_message)
+    await stop_event.wait()
+    await connection.close()

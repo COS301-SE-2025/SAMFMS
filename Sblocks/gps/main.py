@@ -224,6 +224,51 @@ async def create_new_simulation(device_id, lat, lon, speed):
 
 # Herrie code: For Message queue between GPS SBlock and Core
 # Function to handle the direct messages sent to the gps_requests queue
+TRACCAR_API_URL = os.getenv("TRACCAR_API_URL", "http://traccar:8082/api")
+TRACCAR_ADMIN_USER = os.getenv("TRACCAR_ADMIN_USER", "admin")
+TRACCAR_ADMIN_PASS = os.getenv("TRACCAR_ADMIN_PASS", "admin")
+
+async def fetch_and_respond_live_locations(request_data):
+    correlation_id = request_data.get("correlation_id")
+    # 1. Fetch live vehicle/device data from Traccar
+    try:
+        response = requests.get(
+            f"{TRACCAR_API_URL}/devices",
+            auth=(TRACCAR_ADMIN_USER, TRACCAR_ADMIN_PASS)
+        )
+        response.raise_for_status()
+        devices = response.json()
+        # You can filter/transform devices as needed for your frontend
+        vehicles = [
+            {
+                "id": d["id"],
+                "name": d.get("name"),
+                "status": d.get("status", "unknown"),
+                "lat": d.get("lastPosition", {}).get("latitude"),
+                "lon": d.get("lastPosition", {}).get("longitude"),
+                "speed": d.get("lastPosition", {}).get("speed"),
+                "category": d.get("category"),
+                "disabled": d.get("disabled"),
+                "deviceTime": d.get("lastPosition", {}).get("deviceTime"),
+            }
+            for d in devices
+        ]
+    except Exception as e:
+        vehicles = []
+        print(f"Error fetching Traccar devices: {e}")
+
+    # 2. Send response back to Core via RabbitMQ
+    response_payload = {
+        "correlation_id": correlation_id,
+        "vehicles": vehicles
+    }
+    await publish_message(
+        "core_responses",
+        aio_pika.ExchangeType.DIRECT,
+        response_payload,
+        routing_key="core_responses"
+    )
+
 async def handle_gps_request(message: aio_pika.IncomingMessage):
     async with message.process():
         data = json.loads(message.body.decode())
@@ -235,6 +280,8 @@ async def handle_gps_request(message: aio_pika.IncomingMessage):
         # if it is retrieve then forward it to DBlock
         if operation == "retrieve":
             await request_gps_location(data)
+        elif operation == "retrieve_live_locations":
+            await fetch_and_respond_live_locations(data)
         else:
             logger.warning(f"Unsupported operation: {operation} for message: {data}")
 
@@ -456,3 +503,4 @@ if __name__ == "__main__":
         port=8000,
         log_config=None  # Use our custom logging configuration
     )
+

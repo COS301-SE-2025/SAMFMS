@@ -24,7 +24,7 @@ async def publish_message(
         connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
         channel = await connection.channel()
 
-        exchange = await channel.declare_exchange(exchange_name, exchange_type)
+        exchange = await channel.declare_exchange(exchange_name, exchange_type,  durable=True)
 
         await exchange.publish(
             aio_pika.Message(body=json.dumps(message).encode()),

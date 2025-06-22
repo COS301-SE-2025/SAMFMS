@@ -55,7 +55,7 @@ async def consume_messages_Direct(queue_name: str,exchange_name: str, handler):
         connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
         channel = await connection.channel()
         # Declare the exchange
-        exchange = await channel.declare_exchange(exchange_name,aio_pika.ExchangeType.DIRECT)
+        exchange = await channel.declare_exchange(exchange_name,aio_pika.ExchangeType.DIRECT, durable=True)
         # Declare the queue
         queue = await channel.declare_queue(queue_name, durable=True)
         # Bind the queue and exchange with the routing key

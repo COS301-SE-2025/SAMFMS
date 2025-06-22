@@ -1,10 +1,14 @@
-from fastapi import FastAPI,Body
+from fastapi import FastAPI,Body,WebSocket
+from fastapi.websockets import WebSocketDisconnect
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import uvicorn
 import asyncio
 import aio_pika
+import uuid
 from contextlib import asynccontextmanager
+
 
 from database import db
 from logging_config import setup_logging, get_logger
@@ -98,6 +102,71 @@ app.include_router(service_proxy_router)
 @app.get("/health", tags=["Health"])
 async def health_check():
     return {"status": "healthy"}
+
+# Herre code for websocket between Frontend and Core to retrieve live locations of vehicles
+@app.websocket("/ws/vehicles")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            try:
+                vehicles = await get_live_vehicle_data()
+                await websocket.send_json({"vehicles": vehicles})
+            except WebSocketDisconnect:
+                logger.info("WebSocket disconnected")
+                break
+            except Exception as e:
+                logger.error(f"Error in WebSocket loop: {e}")
+                try:
+                    await websocket.send_json({"error": str(e)})
+                except Exception:
+                    logger.error("Failed to send error message to WebSocket (likely closed).")
+                    break
+            await asyncio.sleep(1)
+    except Exception as e:
+        logger.error(f"WebSocket endpoint error: {e}")
+
+# This function will send messages on the message queue to show that it wants the live locations from gps
+async def get_live_vehicle_data():
+    correlation_id = str(uuid.uuid4())
+    loop = asyncio.get_event_loop()
+    future = loop.create_future()
+
+    # This handler will be called when a message is received on the reply queue
+    async def on_response(message):
+        body = message.body.decode()
+        # Parse and check correlation_id
+        import json
+        data = json.loads(body)
+        if data.get("correlation_id") == correlation_id:
+            future.set_result(data["vehicles"])  # or whatever your GPS SBlock returns
+
+    # Start consuming the reply queue
+    from rabbitmq.consumer import consume_single_message
+    asyncio.create_task(consume_single_message("core_responses", on_response))
+
+    # Publish the request with the correlation_id
+    await publish_message(
+        "gps_requests_Direct",
+        aio_pika.ExchangeType.DIRECT,
+        {
+            "operation": "retrieve_live_locations",
+            "type": "location",
+            "correlation_id": correlation_id
+        },
+        routing_key="gps_requests_Direct"
+    )
+
+    # Wait for the response (with timeout)
+    try:
+        vehicles = await asyncio.wait_for(future, timeout=5)
+        logger.info("Vehicle live location data received: {vehicles}")
+        return vehicles
+    except asyncio.TimeoutError:
+        return {"error": "Timeout waiting for GPS SBlock response"}
+
+
+#######################################################
 
 # Herrie code for message queues
 ################################################################################
