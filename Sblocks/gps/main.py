@@ -8,6 +8,13 @@ import asyncio
 import aio_pika
 import json
 import httpx
+# import for vehicle simulation
+import time
+import requests
+import openrouteservice
+import threading
+from pydantic import BaseModel
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -242,7 +249,60 @@ async def request_gps_location(message: dict):
         routing_key="gps_db_requests"
     )
     return {"status": "Request sent to GPS DB service"}
-##########
+#############################################################################
+
+# Herrie code for GPS vehicle simulation
+TRACCAR_HOST = "http://traccar:5055"
+ORS_API_KEY = "5b3ce3597851110001cf6248967d5deccac54ac1bca4d679e41d602d"
+DELAY = 2
+
+def simulate_vehicle_route(device_id, traccar_host, ors_api_key, start, end, delay=2):
+    client = openrouteservice.Client(key=ors_api_key)
+    route = client.directions(
+        coordinates=[start, end],
+        profile='driving-car',
+        format='geojson'
+    )
+    coordinates = route['features'][0]['geometry']['coordinates']
+
+    print(f"Simulating vehicle '{device_id}' on a real route...")
+    print(f"Total points in route: {len(coordinates)}")
+
+    for point in coordinates:
+        lon, lat = point
+        response = requests.get(traccar_host, params={
+            "id": device_id,
+            "lat": lat,
+            "lon": lon,
+            "speed": 50
+        })
+        print(f"[{response.status_code}] Sent point: ({lat:.6f}, {lon:.6f})")
+        time.sleep(delay)
+
+    print("Route complete.")
+
+class SimulationRequest(BaseModel):
+    device_id: str
+    start_lat: float
+    start_lon: float
+    end_lat: float
+    end_lon: float
+
+@app.post("/simulate_vehicle")
+def api_simulate_vehicle(req: SimulationRequest):
+    ors_api_key = os.getenv("ORS_API_KEY", ORS_API_KEY)
+    traccar_host = os.getenv("TRACCAR_HOST", TRACCAR_HOST)
+    delay = int(os.getenv("SIM_DELAY", DELAY))
+
+    # Run simulation in a background thread so it doesn't block the API
+    threading.Thread(
+        target=simulate_vehicle_route,
+        args=(req.device_id, traccar_host, ors_api_key, [req.start_lon, req.start_lat], [req.end_lon, req.end_lat], delay),
+        daemon=True
+    ).start()
+
+    return {"status": "started", "device_id": req.device_id}
+#############################################################################
 
 if __name__ == "__main__":
     import uvicorn

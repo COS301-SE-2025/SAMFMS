@@ -7,3 +7,5 @@ psutil
 aio_pika
 docker
 httpx
+openrouteservice
+requests
