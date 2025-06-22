@@ -3,6 +3,9 @@ GPS Service - SAMFMS Microservice
 Enhanced with structured logging, health monitoring, performance metrics, and RabbitMQ request handling.
 """
 
+# Somewhere the will have to be like a default start location// probably the companies building
+# Traccar account will be created for the admin, admin details should be passed to GPS SBlock
+
 import os
 import asyncio
 import aio_pika
@@ -14,8 +17,9 @@ import requests
 import openrouteservice
 import threading
 from pydantic import BaseModel
+from requests.auth import HTTPBasicAuth
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 
 from logging_config import setup_logging, get_logger
@@ -302,8 +306,147 @@ def api_simulate_vehicle(req: SimulationRequest):
     ).start()
 
     return {"status": "started", "device_id": req.device_id}
-#############################################################################
 
+def add_traccar_device(name, unique_id):
+    url = f"http://traccar:8082/api/devices"
+    payload = {
+        "name": name,
+        "uniqueId": unique_id
+    }
+
+    response = requests.post(
+        url,
+        json = payload,
+        auth = HTTPBasicAuth("herrie732@gmail.com","Eirreh732") # will have to create a traccar account for fleetmanager    
+    )
+    if response.status_code == 200:
+        print(f"Device '{name}' added successfully.")
+        return response.json()
+    else:
+        print(f"Failed to add device: {response.text}")
+        return None
+
+class CreateDeviceRequest(BaseModel):
+    name: str
+    unique_id: str
+
+@app.post("/create_device")
+def create_device(req: CreateDeviceRequest):
+    result = add_traccar_device(req.name, req.unique_id)
+    if result:
+        return {"status": "created", "device": result}
+    else:
+        return {"status": "error", "message": "Failed to create device"}
+# User creation does not work yet!
+class CreateUserRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+def add_traccar_user(name,email, password):
+    url = "http://traccar:8082/api/users"
+    payload = {
+        "name": name,
+        "email": email,
+        "password": password
+    }
+    # By default, Traccar requires admin authentication to create users
+    # Replace with your admin credentials or use environment variables for security
+    admin_user = os.getenv("TRACCAR_ADMIN_USER", "admin")
+    admin_pass = os.getenv("TRACCAR_ADMIN_PASS", "admin")
+    response = requests.post(
+        url,
+        json=payload,
+        auth=HTTPBasicAuth(admin_user, admin_pass)
+    )
+    logger.info(f"Traccar user creation response: {response.status_code} {response.text}")
+    if response.status_code in (200, 201):
+        print(f"User '{email}' created successfully.")
+        return response.json()
+    else:
+        print(f"Failed to create user: {response.text}")        
+        return None
+
+@app.post("/create_traccar_user")
+def create_traccar_user(req: CreateUserRequest):
+    result = add_traccar_user(req.name, req.email, req.password)
+    if result:
+        return {"status": "created", "user": result}
+    else:
+        return {"status": "error", "message": "Failed to create user"}
+    
+# Code for adding geofences
+
+class PolylineGeofenceRequest(BaseModel):
+    name: str
+    coordinates: list  # List of [lon, lat] pairs
+    description: str = ""
+
+class CircleGeofenceRequest(BaseModel):
+    name: str
+    center_lat: float
+    center_lon: float
+    radius: float  # in meters
+    description: str = ""
+
+def add_polyline_geofence(name, coordinates, description=""):
+    url = "http://traccar:8082/api/geofences"
+    payload = {
+        "name": name,
+        "description": description,
+        "area": "POLYGON((" + ", ".join([f"{lon} {lat}" for lon, lat in coordinates] + [f"{coordinates[0][0]} {coordinates[0][1]}"]) + "))"
+    }
+    #admin_user = os.getenv("TRACCAR_ADMIN_USER", "admin")
+    #admin_pass = os.getenv("TRACCAR_ADMIN_PASS", "admin")
+    response = requests.post(
+        url,
+        json=payload,
+        auth=HTTPBasicAuth("herrie732@gmail.com","Eirreh732")
+    )
+    logger.info(f"Traccar polyline geofence response: {response.status_code} {response.text}")
+    if response.status_code in (200, 201):
+        return response.json()
+    else:
+        return None
+
+def add_circle_geofence(name, center_lat, center_lon, radius, description=""):
+    url = "http://traccar:8082/api/geofences"
+    payload = {
+        "name": name,
+        "description": description,
+        "area": f"CIRCLE({center_lon} {center_lat},{radius})"
+    }
+    #admin_user = os.getenv("TRACCAR_ADMIN_USER", "admin")
+    #admin_pass = os.getenv("TRACCAR_ADMIN_PASS", "admin")
+    response = requests.post(
+        url,
+        json=payload,
+        auth=HTTPBasicAuth("herrie732@gmail.com","Eirreh732")
+    )
+    logger.info(f"Traccar circle geofence response: {response.status_code} {response.text}")
+    if response.status_code in (200, 201):
+        return response.json()
+    else:
+        return None
+
+@app.post("/geofence/polyline")
+def create_polyline_geofence(req: PolylineGeofenceRequest):
+    result = add_polyline_geofence(req.name, req.coordinates, req.description)
+    if result:
+        return {"status": "created", "geofence": result}
+    else:
+        return {"status": "error", "message": "Failed to create polyline geofence"}
+
+@app.post("/geofence/circle")
+def create_circle_geofence(req: CircleGeofenceRequest):
+    result = add_circle_geofence(req.name, req.center_lat, req.center_lon, req.radius, req.description)
+    if result:
+        return {"status": "created", "geofence": result}
+    else:
+        return {"status": "error", "message": "Failed to create circle geofence"}
+
+#############################################################################
+    
 if __name__ == "__main__":
     import uvicorn
     logger.info("Starting GPS Service in standalone mode")
