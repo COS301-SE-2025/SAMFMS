@@ -62,7 +62,6 @@ const Sidebar = () => {
       roles: [ROLES.ADMIN],
     }, // Admin only
     {path: '/plugins', label: 'Plugins', icon: <Package2 size={20} />, roles: [ROLES.ADMIN]}, // Admin only
-    {path: '/settings', label: 'Settings', icon: <Settings size={20} />, permission: null}, // Always visible
     {path: '/account', label: 'Account', icon: <User size={20} />, permission: null}, // Always visible
     {path: '/help', label: 'Help', icon: <HelpCircle size={20} />, permission: null}, // Always visible to all users
   ];

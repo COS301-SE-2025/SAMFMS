@@ -76,10 +76,6 @@ function App() {
                 <Route path="/trips" element={<Trips />} />
                 <Route path="/maintenance" element={<Maintenance />} />
                 <Route path="/account" element={<Account />} />
-                <Route
-                  path="/settings"
-                  element={<Navigate to="/account?tab=preferences" replace />}
-                />
                 <Route path="/plugins" element={<Plugins />} />
                 <Route path="/users" element={<UserManagement />} />
                 <Route path="/help" element={<Help />} />
