@@ -6,18 +6,21 @@ import GeofenceManager from '../components/tracking/GeofenceManager';
 import LocationHistory from '../components/tracking/LocationHistory';
 
 const Tracking = () => {
-  // Sample mock data for vehicles with location
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
 
   useEffect(() => {
     // Connect to your Core backend WebSocket endpoint
-    const ws = new WebSocket('ws://localhost:8000/ws/vehicles'); // Adjust URL/port as needed
+    const ws = new WebSocket('ws://localhost:8000/ws/vehicles');
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log("Received vehicles from Core:", data.vehicles);
-      setVehicles(data.vehicles); // Expecting { vehicles: [...] }
+      if (data.vehicles) {
+        setVehicles(data.vehicles);
+      } else {
+        setVehicles([]);
+        console.warn("No vehicles data received:", data);
+      }
     };
 
     ws.onerror = (err) => {

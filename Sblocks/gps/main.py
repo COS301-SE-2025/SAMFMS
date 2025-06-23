@@ -19,7 +19,7 @@ import threading
 from pydantic import BaseModel
 from requests.auth import HTTPBasicAuth
 
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from logging_config import setup_logging, get_logger
@@ -225,8 +225,8 @@ async def create_new_simulation(device_id, lat, lon, speed):
 # Herrie code: For Message queue between GPS SBlock and Core
 # Function to handle the direct messages sent to the gps_requests queue
 TRACCAR_API_URL = os.getenv("TRACCAR_API_URL", "http://traccar:8082/api")
-TRACCAR_ADMIN_USER = os.getenv("TRACCAR_ADMIN_USER", "admin")
-TRACCAR_ADMIN_PASS = os.getenv("TRACCAR_ADMIN_PASS", "admin")
+TRACCAR_ADMIN_USER = os.getenv("TRACCAR_ADMIN_USER", "herrie732@gmail.com")
+TRACCAR_ADMIN_PASS = os.getenv("TRACCAR_ADMIN_PASS", "Eirreh732")
 
 async def fetch_and_respond_live_locations(request_data):
     correlation_id = request_data.get("correlation_id")
@@ -244,12 +244,14 @@ async def fetch_and_respond_live_locations(request_data):
                 "id": d["id"],
                 "name": d.get("name"),
                 "status": d.get("status", "unknown"),
-                "lat": d.get("lastPosition", {}).get("latitude"),
-                "lon": d.get("lastPosition", {}).get("longitude"),
-                "speed": d.get("lastPosition", {}).get("speed"),
-                "category": d.get("category"),
-                "disabled": d.get("disabled"),
-                "deviceTime": d.get("lastPosition", {}).get("deviceTime"),
+                "latitude": d.get("latitude"),
+                "longitude": d.get("longitude"),
+                "altitude": d.get("altitude"),
+                "speed": d.get("speed"),
+                "geofenceIds" : d.get("geofenceIds"),
+                "distance": d.get("distance"),
+                "totalDistance": d.get("totalDistance"),
+                "motion": d.get("motion"),
             }
             for d in devices
         ]
@@ -494,6 +496,47 @@ def create_circle_geofence(req: CircleGeofenceRequest):
 
 #############################################################################
     
+@app.post("/test/fetch_live_locations")
+async def test_fetch_live_locations(request: Request):
+    """
+    Test endpoint to fetch live locations from Traccar and return the result directly.
+    """
+    request_data = await request.json()
+    # Patch fetch_and_respond_live_locations to return vehicles directly for testing
+    correlation_id = request_data.get("correlation_id", "test-correlation-id")
+    try:
+        # Call the function and capture the vehicles
+        vehicles = []
+        try:
+            response = requests.get(
+                f"{TRACCAR_API_URL}/devices",
+                auth=(TRACCAR_ADMIN_USER, TRACCAR_ADMIN_PASS)
+            )
+            response.raise_for_status()
+            devices = response.json()
+            vehicles = [
+                {
+                    "id": d["id"],
+                    "name": d.get("name"),
+                    "status": d.get("status", "unknown"),
+                    "latitude": d.get("latitude"),
+                    "longitude": d.get("longitude"),
+                    "altitude": d.get("altitude"),
+                    "speed": d.get("speed"),
+                    "geofenceIds" : d.get("geofenceIds"),
+                    "distance": d.get("distance"),
+                    "totalDistance": d.get("totalDistance"),
+                    "motion": d.get("motion"),
+                }
+                for d in devices
+            ]
+        except Exception as e:
+            vehicles = []
+            return {"vehicles": vehicles, "error": str(e), "correlation_id": correlation_id}
+        return {"vehicles": vehicles, "correlation_id": correlation_id}
+    except Exception as e:
+        return {"vehicles": [], "error": str(e), "correlation_id": correlation_id}
+
 if __name__ == "__main__":
     import uvicorn
     logger.info("Starting GPS Service in standalone mode")

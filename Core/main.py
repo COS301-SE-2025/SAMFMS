@@ -7,6 +7,7 @@ import uvicorn
 import asyncio
 import aio_pika
 import uuid
+import json
 from contextlib import asynccontextmanager
 
 
@@ -16,7 +17,7 @@ from logging_config import setup_logging, get_logger
 setup_logging()
 logger = get_logger(__name__)
 
-from rabbitmq.consumer import consume_messages
+from rabbitmq.consumer import consume_messages,consume_single_message, consume_messages_Direct
 from rabbitmq.admin import create_exchange
 from rabbitmq.producer import publish_message
 from services.request_router import request_router
@@ -43,7 +44,7 @@ async def lifespan(app: FastAPI):
 
     consumer_task = asyncio.create_task(consume_messages("service_status"))
     # herrie consumer for core
-    consumer_task_core = asyncio.create_task(consume_messages("core_responses"))
+    asyncio.create_task(consume_messages_Direct("core_responses","core_responses", on_response))
     await create_exchange("general", aio_pika.ExchangeType.FANOUT)
     await publish_message("general", aio_pika.ExchangeType.FANOUT, {"message": "Core service started"})
 
@@ -61,7 +62,7 @@ async def lifespan(app: FastAPI):
     yield
 
     logger.info("Core service shutting down...")
-    for task in [consumer_task, consumer_task_core]:
+    for task in [consumer_task]:
         if not task.done():
             task.cancel()
     logger.info("Core service shutdown completed")
@@ -104,6 +105,20 @@ async def health_check():
     return {"status": "healthy"}
 
 # Herre code for websocket between Frontend and Core to retrieve live locations of vehicles
+pending_futures = {}
+
+# This function receives vehicle locations
+async def on_response(message):
+    logger.info(f"Message received from GPS: {message}")
+    body = message.body.decode()
+    data = json.loads(body)
+    logger.info(f"Data from message: {data}")
+    correlation_id = data.get("correlation_id")
+    if correlation_id in pending_futures:
+        pending_futures[correlation_id].set_result(data["vehicles"])
+        del pending_futures[correlation_id]
+
+
 @app.websocket("/ws/vehicles")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -111,6 +126,7 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             try:
                 vehicles = await get_live_vehicle_data()
+                logger.info(f"Sending to frontend: {vehicles}")
                 await websocket.send_json({"vehicles": vehicles})
             except WebSocketDisconnect:
                 logger.info("WebSocket disconnected")
@@ -126,24 +142,23 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.error(f"WebSocket endpoint error: {e}")
 
+# endpoint to test get_live_vehicle_data
+@app.get("/test/live_vehicles")
+async def test_live_vehicles():
+    """
+    Test endpoint to fetch live vehicle data using get_live_vehicle_data().
+    """
+    vehicles = await get_live_vehicle_data()
+    return {"vehicles": vehicles}
+
 # This function will send messages on the message queue to show that it wants the live locations from gps
 async def get_live_vehicle_data():
     correlation_id = str(uuid.uuid4())
     loop = asyncio.get_event_loop()
     future = loop.create_future()
 
-    # This handler will be called when a message is received on the reply queue
-    async def on_response(message):
-        body = message.body.decode()
-        # Parse and check correlation_id
-        import json
-        data = json.loads(body)
-        if data.get("correlation_id") == correlation_id:
-            future.set_result(data["vehicles"])  # or whatever your GPS SBlock returns
-
-    # Start consuming the reply queue
-    from rabbitmq.consumer import consume_single_message
-    asyncio.create_task(consume_single_message("core_responses", on_response))
+    # Store the future so on_response can access it
+    pending_futures[correlation_id] = future
 
     # Publish the request with the correlation_id
     await publish_message(
@@ -157,13 +172,15 @@ async def get_live_vehicle_data():
         routing_key="gps_requests_Direct"
     )
 
-    # Wait for the response (with timeout)
     try:
         vehicles = await asyncio.wait_for(future, timeout=5)
-        logger.info("Vehicle live location data received: {vehicles}")
+        logger.info(f"Vehicle live location data received: {vehicles}")
         return vehicles
     except asyncio.TimeoutError:
-        return {"error": "Timeout waiting for GPS SBlock response"}
+        logger.warning("Timeout waiting for GPS SBlock response")
+        # Clean up the future if it timed out
+        pending_futures.pop(correlation_id, None)
+        return []
 
 
 #######################################################
@@ -249,7 +266,6 @@ def handle_core_response(message):
 ################################################################################
 
 if __name__ == "__main__":
-    consume_messages("core_responses", handle_core_response)
     logger.info("🚀 Starting Core service...")
     uvicorn.run(
         app, 
