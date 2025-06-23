@@ -241,7 +241,7 @@ async def fetch_and_respond_live_locations(request_data):
         devices = responseDevices.json()
         # This will retrieve actual gps locations, speed ens.
         responsePositions = requests.get(
-             f"{TRACCAR_API_URL}/devices",
+            f"{TRACCAR_API_URL}/positions",
             auth=(TRACCAR_ADMIN_USER, TRACCAR_ADMIN_PASS)
         )
         responsePositions.raise_for_status()
@@ -258,6 +258,7 @@ async def fetch_and_respond_live_locations(request_data):
             }
             for d in devices
         ]
+        logger.info(f"Vehicles info: {vehicles} ")
 
         positions = [
             {
@@ -265,14 +266,15 @@ async def fetch_and_respond_live_locations(request_data):
                 "totalDistance": p.get("attributes", {}).get("totalDistance"),
                 "motion": p.get("attributes", {}).get("motion"),
                 "deviceId": p.get("deviceId"),
-                "latitude": p.get("lastPosition", {}).get("latitude"),
-                "longitude": p.get("lastPosition", {}).get("longitude"),
-                "altitude": p.get("lastPosition", {}).get("altitude"),
-                "speed": p.get("lastPosition", {}).get("speed"),
+                "latitude": p.get("latitude"),
+                "longitude": p.get("longitude"),
+                "altitude": p.get("altitude"),
+                "speed": p.get("speed"),
                 "geofenceIds": p.get("geofenceIds"),
             }
             for p in Positions
         ]
+        logger.info(f"Positions info: {positions}")
 
         # Merge vehicles and Positions by id/deviceId
         positions_lookup = {p["deviceId"]: p for p in positions}
@@ -281,6 +283,8 @@ async def fetch_and_respond_live_locations(request_data):
             pos = positions_lookup.get(v["id"], {})
             merged_vehicle = {**v, **pos} 
             merged_vehicles.append(merged_vehicle)
+        
+        logger.info(f"Merged devices and positions: {merged_vehicles}")
     except Exception as e:
         vehicles = []
         print(f"Error fetching Traccar devices: {e}")
