@@ -109,38 +109,63 @@ pending_futures = {}
 
 # This function receives vehicle locations
 async def on_response(message):
-    logger.info(f"Message received from GPS: {message}")
-    body = message.body.decode()
-    data = json.loads(body)
-    logger.info(f"Data from message: {data}")
-    correlation_id = data.get("correlation_id")
-    if correlation_id in pending_futures:
-        pending_futures[correlation_id].set_result(data["vehicles"])
-        del pending_futures[correlation_id]
+    try:
+        logger.info(f"Message received from GPS: {message}")
+        body = message.body.decode()
+        data = json.loads(body)
+        logger.info(f"Data from message: {data}")
+        
+        correlation_id = data.get("correlation_id")
+        if correlation_id and correlation_id in pending_futures:
+            future = pending_futures[correlation_id]
+            if not future.done():
+                vehicles = data.get("vehicles", [])
+                future.set_result(vehicles)
+            del pending_futures[correlation_id]
+        else:
+            logger.warning(f"No pending future found for correlation_id: {correlation_id}")
+            
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to decode JSON message: {e}")
+    except Exception as e:
+        logger.error(f"Error processing GPS response: {e}")
 
 
 @app.websocket("/ws/vehicles")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
+    logger.info("WebSocket connection established")
+    
     try:
         while True:
             try:
+                # Get live vehicle data
                 vehicles = await get_live_vehicle_data()
                 logger.info(f"Sending to frontend: {vehicles}")
+                
+                # Send data to frontend
                 await websocket.send_json({"vehicles": vehicles})
+                
+                # Wait before next update - this is your main update interval
+                await asyncio.sleep(2)
+                
             except WebSocketDisconnect:
-                logger.info("WebSocket disconnected")
+                logger.info("WebSocket disconnected by client")
                 break
             except Exception as e:
                 logger.error(f"Error in WebSocket loop: {e}")
                 try:
                     await websocket.send_json({"error": str(e)})
-                except Exception:
-                    logger.error("Failed to send error message to WebSocket (likely closed).")
+                except Exception as send_error:
+                    logger.error(f"Failed to send error message: {send_error}")
                     break
-            await asyncio.sleep(1)
+                # Wait a bit before retrying to avoid rapid error loops
+                await asyncio.sleep(1)
+                
     except Exception as e:
         logger.error(f"WebSocket endpoint error: {e}")
+    finally:
+        logger.info("WebSocket connection closed")
 
 # endpoint to test get_live_vehicle_data
 @app.get("/test/live_vehicles")
@@ -157,30 +182,36 @@ async def get_live_vehicle_data():
     loop = asyncio.get_event_loop()
     future = loop.create_future()
 
-    # Store the future so on_response can access it
     pending_futures[correlation_id] = future
 
-    # Publish the request with the correlation_id
-    await publish_message(
-        "gps_requests_Direct",
-        aio_pika.ExchangeType.DIRECT,
-        {
-            "operation": "retrieve_live_locations",
-            "type": "location",
-            "correlation_id": correlation_id
-        },
-        routing_key="gps_requests_Direct"
-    )
-
     try:
+        # Publish the request to GPS
+        await publish_message(
+            "gps_requests_Direct",
+            aio_pika.ExchangeType.DIRECT,
+            {
+                "operation": "retrieve_live_locations",
+                "type": "location",
+                "correlation_id": correlation_id
+            },
+            routing_key="gps_requests_Direct"
+        )
+
+        # Response from GPS will be stored here
         vehicles = await asyncio.wait_for(future, timeout=5)
         logger.info(f"Vehicle live location data received: {vehicles}")
         return vehicles
+        
     except asyncio.TimeoutError:
-        logger.warning("Timeout waiting for GPS SBlock response")
-        # Clean up the future if it timed out
+        logger.warning("Timeout waiting for GPS service response")
+        return [] 
+        
+    except Exception as e:
+        logger.error(f"Error getting live vehicle data: {e}")
+        return [] 
+        
+    finally:
         pending_futures.pop(correlation_id, None)
-        return []
 
 
 #######################################################

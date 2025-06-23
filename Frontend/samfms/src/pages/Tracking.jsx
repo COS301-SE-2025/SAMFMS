@@ -27,6 +27,10 @@ const Tracking = () => {
       console.error('WebSocket error:', err);
     };
 
+    ws.onclose = (event) => {
+      console.warn('WebSocket closed:', event);
+    };
+
     return () => ws.close();
   }, []);
 

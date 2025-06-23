@@ -232,37 +232,63 @@ async def fetch_and_respond_live_locations(request_data):
     correlation_id = request_data.get("correlation_id")
     # 1. Fetch live vehicle/device data from Traccar
     try:
-        response = requests.get(
+        # This will retrieve information like name, id, online/offline
+        responseDevices = requests.get(
             f"{TRACCAR_API_URL}/devices",
             auth=(TRACCAR_ADMIN_USER, TRACCAR_ADMIN_PASS)
         )
-        response.raise_for_status()
-        devices = response.json()
+        responseDevices.raise_for_status()
+        devices = responseDevices.json()
+        # This will retrieve actual gps locations, speed ens.
+        responsePositions = requests.get(
+             f"{TRACCAR_API_URL}/devices",
+            auth=(TRACCAR_ADMIN_USER, TRACCAR_ADMIN_PASS)
+        )
+        responsePositions.raise_for_status()
+        Positions = responsePositions.json()
         # You can filter/transform devices as needed for your frontend
         vehicles = [
             {
                 "id": d["id"],
                 "name": d.get("name"),
-                "status": d.get("status", "unknown"),
-                "latitude": d.get("latitude"),
-                "longitude": d.get("longitude"),
-                "altitude": d.get("altitude"),
-                "speed": d.get("speed"),
-                "geofenceIds" : d.get("geofenceIds"),
-                "distance": d.get("distance"),
-                "totalDistance": d.get("totalDistance"),
-                "motion": d.get("motion"),
+                "attributes": d.get("attributes"),
+                "lastUpdate": d.get("lastUpdate"),
+                "model": d.get("model"),
+                "category": d.get("category"),
             }
             for d in devices
         ]
+
+        positions = [
+            {
+                "distance": p.get("attributes", {}).get("distance"),
+                "totalDistance": p.get("attributes", {}).get("totalDistance"),
+                "motion": p.get("attributes", {}).get("motion"),
+                "deviceId": p.get("deviceId"),
+                "latitude": p.get("lastPosition", {}).get("latitude"),
+                "longitude": p.get("lastPosition", {}).get("longitude"),
+                "altitude": p.get("lastPosition", {}).get("altitude"),
+                "speed": p.get("lastPosition", {}).get("speed"),
+                "geofenceIds": p.get("geofenceIds"),
+            }
+            for p in Positions
+        ]
+
+        # Merge vehicles and Positions by id/deviceId
+        positions_lookup = {p["deviceId"]: p for p in positions}
+        merged_vehicles = []
+        for v in vehicles:
+            pos = positions_lookup.get(v["id"], {})
+            merged_vehicle = {**v, **pos} 
+            merged_vehicles.append(merged_vehicle)
     except Exception as e:
         vehicles = []
         print(f"Error fetching Traccar devices: {e}")
 
-    # 2. Send response back to Core via RabbitMQ
+    # Response via message queue back to core
     response_payload = {
         "correlation_id": correlation_id,
-        "vehicles": vehicles
+        "vehicles": merged_vehicles
     }
     await publish_message(
         "core_responses",
@@ -519,14 +545,14 @@ async def test_fetch_live_locations(request: Request):
                     "id": d["id"],
                     "name": d.get("name"),
                     "status": d.get("status", "unknown"),
-                    "latitude": d.get("latitude"),
-                    "longitude": d.get("longitude"),
-                    "altitude": d.get("altitude"),
-                    "speed": d.get("speed"),
+                    "latitude": d.get("lastPosition", {}).get("latitude"),
+                    "longitude": d.get("lastPosition", {}).get("longitude"),
+                    "altitude": d.get("lastPosition", {}).get("altitude"),
+                    "speed": d.get("lastPosition", {}).get("speed"),
                     "geofenceIds" : d.get("geofenceIds"),
-                    "distance": d.get("distance"),
-                    "totalDistance": d.get("totalDistance"),
-                    "motion": d.get("motion"),
+                    "distance": d.get("lastPosition", {}).get("distance"),
+                    "totalDistance": d.get("lastPosition", {}).get("totalDistance"),
+                    "motion": d.get("lastPosition", {}).get("motion"),
                 }
                 for d in devices
             ]
