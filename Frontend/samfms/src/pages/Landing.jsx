@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 const FeatureCard = ({icon, title, description}) => (
-    <div className="bg-card rounded-lg p-6 shadow-md border border-border hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+    <div className="bg-card rounded-lg p-6 shadow-md border border-border hover:shadow-lg transition-all duration-300 hover:-translate-y-1 pt-10 pb-10">
         <div className="flex items-center gap-3 mb-4">
             <div className="p-2 rounded-full bg-primary/10 text-primary">
                 {icon}
