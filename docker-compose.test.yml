@@ -1,13 +1,18 @@
 version: '3.9'
 
 services:
+  # MongoDB for testing
   mongo:
     image: mongo:7
     healthcheck:
       test: ['CMD-SHELL', "mongosh --eval 'db.runCommand({ ping: 1 })' || exit 1"]
       interval: 5s
       retries: 10
+    volumes:
+      - mongo-test-data:/data/db
+    restart: "no"
 
+  # RabbitMQ for testing
   rabbitmq:
     image: rabbitmq:3-management
     healthcheck:
@@ -15,6 +20,7 @@ services:
       interval: 5s
       retries: 10
       start_period: 20s
+    restart: "no"
 
   # Redis for testing
   redis:
@@ -23,11 +29,15 @@ services:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       retries: 10
+    volumes:
+      - redis-test-data:/data
+    restart: "no"
 
+  # Core backend for testing
   mcore:
     build:
-      context: ./Core
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Core/Dockerfile
       target: test
     environment:
       MONGO_URI: mongodb://mongo:27017
@@ -38,6 +48,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    restart: "no"
+    tty: true
 
   # Security service for testing
   security-test:
@@ -50,7 +62,7 @@ services:
     environment:
       - PYTHONPATH=/app
       - ENVIRONMENT=test
-      - JWT_SECRET_KEY=test-secret-key-for-testing-only
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-test-secret-key-for-testing-only}
       - DATABASE_URL=mongodb://mongo:27017/test_security_db
       - REDIS_URL=redis://redis:6379/0
       - RABBITMQ_URL=amqp://rabbitmq:5672/
@@ -65,12 +77,19 @@ services:
       sh -c "
         echo 'Waiting for dependencies...' &&
         sleep 10 &&
-        echo 'Running security tests...' &&
-        python -m pytest -v --tb=short 
-        --cov=. 
-        --cov-report=xml:/app/test-reports/coverage.xml 
-        --cov-report=html:/app/test-reports/htmlcov 
-        --cov-report=term-missing
-        --junitxml=/app/test-reports/junit.xml
-        tests/
+        echo 'Running security integration tests ONLY...' &&
+        python -m pytest -v --tb=short \
+        --cov=. \
+        --cov-report=xml:/app/test-reports/coverage.xml \
+        --cov-report=html:/app/test-reports/htmlcov \
+        --cov-report=term-missing \
+        --junitxml=/app/test-reports/junit.xml \
+        tests/integration
       "
+    restart: "no"
+    tty: true
+
+# Named volumes for test data (optional, for debugging)
+volumes:
+  mongo-test-data:
+  redis-test-data:
