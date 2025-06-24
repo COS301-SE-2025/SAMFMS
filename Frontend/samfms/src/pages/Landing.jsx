@@ -196,27 +196,6 @@ const Landing = () => {
                 </div>
             </div>
 
-            {/* CTA Section */}
-            <div className="container mx-auto px-4 py-20">
-                <div className="bg-card rounded-2xl p-8 md:p-12 border border-border shadow-lg">
-                    <div className="flex flex-col md:flex-row items-center justify-between">
-                        <div className="md:w-2/3 mb-8 md:mb-0">
-                            <h2 className="text-3xl font-bold mb-4">Ready to optimize your fleet operations?</h2>
-                            <p className="text-muted-foreground text-lg">
-                                Join thousands of fleet managers who have transformed their operations with SAMFMS.
-                            </p>
-                        </div>
-                        <Button
-                            size="lg"
-                            onClick={handleGetStarted}
-                            className="bg-primary hover:bg-primary/90 px-8 h-14 text-lg font-medium"
-                        >
-                            {hasExistingUsers ? 'Login Now' : 'Get Started'}
-                        </Button>
-                    </div>
-                </div>
-            </div>
-
             {/* Footer */}
             <footer className="bg-card border-t border-border">
                 <div className="container mx-auto px-4 py-8">
