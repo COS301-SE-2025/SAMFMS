@@ -13,7 +13,7 @@ setup_logging()
 logger = get_logger(__name__)
 
 from rabbitmq.consumer import consume_messages
-from rabbitmq.admin import create_exchange, add_sblock, remove_sblock
+from rabbitmq.admin import create_exchange, addSblock, removeSblock
 from rabbitmq.producer import publish_message
 from services.request_router import request_router
 
