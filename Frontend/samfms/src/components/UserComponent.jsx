@@ -36,7 +36,7 @@ const UserComponent = () => {
   // Handle logout
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/logout');
   };
 
   // Handlers for mouse events
