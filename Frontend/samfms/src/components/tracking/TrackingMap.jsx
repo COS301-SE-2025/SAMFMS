@@ -17,9 +17,9 @@ const MapController = ({ selectedVehicle, followMode, geofences }) => {
 
   useEffect(() => {
     // When a vehicle is selected and we're in follow mode, center the map on that vehicle
-    if (followMode && selectedVehicle?.location) {
+    if (followMode && selectedVehicle?.latitude && selectedVehicle?.longitude) {
       map.setView(
-        [selectedVehicle.location.latitude, selectedVehicle.location.longitude],
+        [selectedVehicle.latitude, selectedVehicle.longitude],
         followMode ? 15 : 13
       );
     }
@@ -59,7 +59,7 @@ const TrackingMap = ({ vehicles, selectedVehicle, geofences = [], paths = [], on
   }, []);
 
   // Default center of the map - San Francisco
-  const defaultCenter = [37.7749, -122.4194];
+  const defaultCenter = [-25.755, 28.233];
 
   // Toggle follow mode
   const toggleFollowMode = useCallback(() => {
@@ -174,11 +174,11 @@ const TrackingMap = ({ vehicles, selectedVehicle, geofences = [], paths = [], on
 
             {/* Vehicle markers */}
             {vehicles.map(vehicle => {
-              if (!vehicle.location?.latitude || !vehicle.location?.longitude) return null;
+              if (!vehicle?.latitude || !vehicle?.longitude) return null;
 
               let markerColor;
-              if (vehicle.status === 'active') markerColor = '#22c55e';
-              else if (vehicle.status === 'idle') markerColor = '#3b82f6';
+              if (vehicle.status === 'online') markerColor = '#22c55e';
+              else if (vehicle.status === 'offline') markerColor = '#3b82f6';
               else markerColor = '#ef4444';
 
               // Create a custom icon with the vehicle's heading
@@ -204,7 +204,7 @@ const TrackingMap = ({ vehicles, selectedVehicle, geofences = [], paths = [], on
                       z-index: 1;
                     ">
                       ${
-                        vehicle.status === 'active'
+                        vehicle.status === 'online'
                           ? `<div style="
                           width: 0; 
                           height: 0; 
@@ -268,22 +268,22 @@ const TrackingMap = ({ vehicles, selectedVehicle, geofences = [], paths = [], on
               return (
                 <Marker
                   key={vehicle.id}
-                  position={[vehicle.location.latitude, vehicle.location.longitude]}
+                  position={[vehicle.latitude, vehicle.longitude]}
                   icon={customIcon}
                 >
                   <Popup>
                     <div className="p-1">
                       <h3 className="font-medium">{vehicle.id}</h3>
                       <p>
-                        {vehicle.make} {vehicle.model}
+                        {vehicle.model}
                       </p>
                       <p>Driver: {vehicle.driver || 'Unassigned'}</p>
                       <p>Status: {vehicle.status}</p>
                       {vehicle.speed && <p>Speed: {vehicle.speed}</p>}
-                      {vehicle.direction && vehicle.direction !== 'Stopped' && (
+                      {/* {vehicle.direction && vehicle.direction !== 'Stopped' && (
                         <p>Direction: {vehicle.direction}</p>
-                      )}
-                      {vehicle.fuelLevel && <p>Fuel: {vehicle.fuelLevel}</p>}
+                      )} */}
+                      {/* {vehicle.fuelLevel && <p>Fuel: {vehicle.fuelLevel}</p>} */}
                       <p>Last update: {vehicle.lastUpdate}</p>
                     </div>
                   </Popup>

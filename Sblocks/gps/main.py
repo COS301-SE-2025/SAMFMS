@@ -255,6 +255,7 @@ async def fetch_and_respond_live_locations(request_data):
                 "lastUpdate": d.get("lastUpdate"),
                 "model": d.get("model"),
                 "category": d.get("category"),
+                "status": d.get("status"),
             }
             for d in devices
         ]

@@ -36,10 +36,10 @@ const Tracking = () => {
 
   // Calculate statistics
   const stats = {
-    activeVehicles: vehicles.filter(v => v.status === 'active').length,
-    idleVehicles: vehicles.filter(v => v.status === 'idle').length,
-    nonOperationalVehicles: vehicles.filter(v => ['maintenance', 'breakdown'].includes(v.status))
-      .length,
+    activeVehicles: vehicles.filter(v => v.status === 'online').length,
+    idleVehicles: vehicles.filter(v => v.status === 'offline').length,
+    // nonOperationalVehicles: vehicles.filter(v => ['maintenance', 'breakdown'].includes(v.status))
+    //   .length,
   };
 
   const handleSelectVehicle = vehicle => {
@@ -57,7 +57,7 @@ const Tracking = () => {
             {' '}
             <div className="p-4 bg-accent/10 rounded-md">
               <p className="text-sm text-muted-foreground">Total Distance Today</p>
-              <p className="text-2xl font-bold">462 km</p>
+              <p className="text-2xl font-bold">462 km</p> 
             </div>
             <div className="p-4 bg-accent/10 rounded-md">
               <p className="text-sm text-muted-foreground">Avg. Speed</p>
