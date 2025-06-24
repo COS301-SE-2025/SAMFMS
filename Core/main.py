@@ -19,12 +19,13 @@ logger = get_logger(__name__)
 
 from rabbitmq.consumer import consume_messages,consume_single_message, consume_messages_Direct
 from rabbitmq.admin import create_exchange
+
 from rabbitmq.producer import publish_message
 from services.request_router import request_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Handle application startup and shutdown events."""
+    
     logger.info("Core service starting up...")
     
     try:
@@ -34,7 +35,7 @@ async def lifespan(app: FastAPI):
         client.close()
     except Exception as e:        logger.error(f"Failed to connect to MongoDB: {e}")
     
-    # Initialize plugin manager
+    
     try:
         from services.plugin_service import plugin_manager
         await plugin_manager.initialize_plugins()
@@ -75,21 +76,21 @@ app = FastAPI(
 )
 
 origins = [
-    "http://localhost:3000",     # React development server
+    "http://localhost:3000",     
     "http://127.0.0.1:3000",
-    "http://localhost:5000",     # Production build if served differently
-    "*",                        # Optional: Allow all origins (less secure)
+    "http://localhost:5000",     
+    "*",                        
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],        # Allow all methods including OPTIONS
-    allow_headers=["*"],        # Allow all headers
+    allow_methods=["*"],        
+    allow_headers=["*"],        
 )
 
-# Import and include routers
+
 from routes.auth import router as auth_router
 from routes.plugins import router as plugins_router
 from routes.service_proxy import router as service_proxy_router
@@ -99,7 +100,7 @@ app.include_router(plugins_router, prefix="/api")
 app.include_router(service_proxy_router)
 
 
-# Add a route for health checks (needed by Security middleware)
+
 @app.get("/health", tags=["Health"])
 async def health_check():
     return {"status": "healthy"}
@@ -266,13 +267,14 @@ def handle_core_response(message):
 
 ################################################################################
 
+
 if __name__ == "__main__":
     logger.info("🚀 Starting Core service...")
     uvicorn.run(
         app, 
         host="0.0.0.0", 
         port=8000,
-        log_config=None  # Use our custom logging configuration
+        log_config=None  
     )
 
 
