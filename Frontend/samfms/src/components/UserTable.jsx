@@ -70,7 +70,7 @@ const UserTable = ({
       </div>
 
       {/* Search Bar */}
-      {setSearch && (
+      {
         <div className="mb-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -83,7 +83,7 @@ const UserTable = ({
             />
           </div>
         </div>
-      )}
+      }
 
       <div className="bg-card rounded-lg border border-border overflow-hidden">
         <table className="w-full">
