@@ -1,30 +1,61 @@
-import {API_URL, authFetch} from './API';
+import {
+    getApiHostname,
+    getToken,
+    authFetch
+} from './auth';
+
+const hostname = getApiHostname(); // Core service port
+export const API_URL = `http://${hostname}`;
 
 // Define your analytics endpoints
 const ANALYTICS_API = {
-    totalVehicles: `${API_URL}/api/analytics/total-vehicles`,
-    vehiclesInMaintenance: `${API_URL}/api/analytics/vehicles-in-maintenance`,
-    fleetUtilization: `${API_URL}/api/analytics/fleet-utilization`,
-    distanceCovered: (period = 'week') => `${API_URL}/api/analytics/distance-covered?period=${period}`,
+    totalVehicles: `${API_URL}/analytics/fleet`,
+    // vehiclesInMaintenance: `${API_URL}/analytics/vehicles-in-maintenance`,
+    // fleetUtilization: `${API_URL}/analytics/fleet-utilization`,
+    // distanceCovered: (period = 'week') => `${API_URL}/analytics/distance-covered?period=${period}`,
 };
 
-// Analytics functions using authFetch
 export const getTotalVehicles = async () => {
-    const response = await authFetch(ANALYTICS_API.totalVehicles);
-    return response.json();
-};
+    try {
+        const response = await authFetch(ANALYTICS_API.totalVehicles, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
 
-export const getVehiclesInMaintenance = async () => {
-    const response = await authFetch(ANALYTICS_API.vehiclesInMaintenance);
-    return response.json();
-};
+        if (!response.ok) {
+            throw new Error('Failed to fetch total vehicles');
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching total vehicles:', error);
+        throw error;
+    }
+}
 
-export const getFleetUtilization = async () => {
-    const response = await authFetch(ANALYTICS_API.fleetUtilization);
-    return response.json();
-};
+// export const getVehiclesInMaintenance = async () => {
+//     try {
+//         const response = await fetch(ANALYTICS_API.vehiclesInMaintenance);
+//         if (!response.ok) {
+//             throw new Error('Failed to fetch vehicles in maintenance');
+//         }
+//         return await response.json();
+//     } catch (error) {
+//         console.error('Error fetching vehicles in maintenance:', error);
+//         throw error;
+//     }
+// };
 
-export const getDistanceCovered = async (period = 'week') => {
-    const response = await authFetch(ANALYTICS_API.distanceCovered(period));
-    return response.json();
-};
+// export const getFleetUtilization = async () => {
+//     try {
+//         const response = await fetch(ANALYTICS_API.fleetUtilization);
+//         if (!response.ok) {
+//             throw new Error('Failed to fetch fleet utilization');
+//         }
+//         return await response.json();
+//     } catch (error) {
+//         console.error('Error fetching fleet utilization:', error);
+//         throw error;
+//     }
+// }
