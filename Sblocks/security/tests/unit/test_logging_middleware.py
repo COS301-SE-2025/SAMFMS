@@ -1,56 +1,69 @@
 import pytest
-from fastapi import Request
-from starlette.responses import Response
-from starlette.datastructures import Headers
-from ...middleware.logging_middleware import LoggingMiddleware
-from ...middleware.logging_middleware import logger
-from unittest.mock import patch
+from fastapi import FastAPI, Request
+from fastapi.testclient import TestClient
+from fastapi.exceptions import HTTPException
+import logging
 from datetime import datetime
+import uuid
+from ...middleware.logging_middleware import LoggingMiddleware
 
-@pytest.mark.asyncio
-async def test_logging_middleware_logs_request_and_response_with_logging():
-    mock_request = Request(scope={
-        "type": "http",
-        "method": "GET",
-        "path": "/test",
-        "headers": Headers({"user-agent": "test-agent"}).raw,
-        "client": ("127.0.0.1", 12345),
-    })
-    mock_response = Response(status_code=200)
+app = FastAPI()
 
-    async def mock_call_next(request):
-        return mock_response
+@app.get("/success")
+async def success_route(request: Request):
+    return {"message": "success"}
 
-    middleware = LoggingMiddleware(app=None)
+@app.get("/http-error")
+async def http_error_route():
+    raise HTTPException(status_code=500, detail="Internal Server Error")
 
-    with patch("security.middleware.logging_middleware.logger.info") as mock_logger_info:
-        response = await middleware.dispatch(mock_request, mock_call_next)
+@app.get("/unhandled-error")
+async def unhandled_error_route():
+    raise ValueError("Something went wrong")
 
-        # Assertions for headers
-        assert response.headers["X-Request-ID"] is not None
-        assert response.headers["X-Process-Time"] is not None
-        assert response.status_code == 200
+app.add_middleware(LoggingMiddleware)
 
-        # Assertions for logging
-        timestamp = datetime.utcnow().isoformat() + "Z"
-        mock_logger_info.assert_any_call(
-            "Incoming request",
-            extra={
-                "request_id": response.headers["X-Request-ID"],
-                "method": "GET",
-                "url": "http://testserver/test",
-                "ip_address": "127.0.0.1",
-                "user_agent": "test-agent",
-                "timestamp": timestamp,  # Ensure timestamp is logged
-            }
-        )
-        mock_logger_info.assert_any_call(
-            "Request completed",
-            extra={
-                "request_id": response.headers["X-Request-ID"],
-                "status_code": 200,
-                "process_time_ms": float(response.headers["X-Process-Time"]),
-                "ip_address": "127.0.0.1",
-                "timestamp": timestamp,  # Ensure timestamp is logged
-            }
-        )
+client = TestClient(app)
+
+def test_request_id_header(caplog):
+    caplog.set_level(logging.INFO)
+    response = client.get("/success")
+    assert "X-Request-ID" in response.headers
+    assert "X-Process-Time" in response.headers
+    assert uuid.UUID(response.headers["X-Request-ID"], version=4)
+
+def test_successful_request_logging(caplog):
+    caplog.set_level(logging.INFO)
+    response = client.get("/success")
+    
+    incoming_log = next(r for r in caplog.records if r.message == "Incoming request")
+    completed_log = next(r for r in caplog.records if r.message == "Request completed")
+
+    assert incoming_log.method == "GET"
+    assert "/success" in incoming_log.url
+    assert completed_log.status_code == 200
+    assert completed_log.process_time_ms >= 0
+
+
+def test_unhandled_error_logging(caplog):
+    caplog.set_level(logging.ERROR)
+    
+    with pytest.raises(ValueError):
+        client.get("/unhandled-error")
+    
+    error_log = caplog.records[0]
+    assert error_log.message == "Request failed"
+    assert "Something went wrong" in error_log.error
+    assert error_log.process_time_ms >= 0
+
+def test_log_structure(caplog):
+    caplog.set_level(logging.INFO)
+    client.get("/success")
+    
+    incoming_log = next(r for r in caplog.records if r.message == "Incoming request")
+    assert hasattr(incoming_log, "request_id")
+    assert hasattr(incoming_log, "ip_address")
+    assert hasattr(incoming_log, "user_agent")
+    assert hasattr(incoming_log, "timestamp")
+    
+    datetime.fromisoformat(incoming_log.timestamp.replace("Z", "+00:00"))
