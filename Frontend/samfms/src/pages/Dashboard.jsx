@@ -1,6 +1,7 @@
 import React from 'react';
 import {Button} from '../components/ui/button';
 
+
 // Mock data for the dashboard
 const mockData = {
   fleetOverview: {
@@ -67,9 +68,29 @@ const mockData = {
 };
 
 const Dashboard = () => {
+  const [totalVehicles, setTotalVehicles] = useState(null);
+  const [loadingVehicles, setLoadingVehicles] = useState(true);
+
+  useEffect(() => {
+    const fetchTotalVehicles = async () => {
+      try {
+        setLoadingVehicles(true);
+        const data = await getTotalVehicles();
+        // If your API returns { total: 42 }, adjust accordingly
+        setTotalVehicles(data.fleet_overview.total_vehicles ?? data);
+      } catch (error) {
+        setTotalVehicles('N/A');
+      } finally {
+        setLoadingVehicles(false);
+      }
+    };
+    fetchTotalVehicles();
+  }, []);
+
   return (
     <div className="relative container mx-auto py-8 space-y-8">
       {/* Background pattern */}
+
       <div
         className="absolute inset-0 z-0 opacity-10 pointer-events-none"
         style={{
@@ -82,6 +103,7 @@ const Dashboard = () => {
       />
       {/* Content */}
       <div className="relative z-10">
+
         {/* Header */}
         <header>
           <h1 className="text-4xl font-bold mb-2">Fleet Dashboard</h1>
@@ -93,6 +115,7 @@ const Dashboard = () => {
           <MetricCard
             title="Total Vehicles"
             value={mockData.fleetOverview.totalVehicles}
+
             subtitle="Fleet size"
             color="blue"
           />
@@ -120,6 +143,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Trips */}
           <div className="bg-card rounded-lg border border-border p-6">
+
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Recent Trips</h2>
               <Button variant="outline" size="sm">
@@ -135,6 +159,7 @@ const Dashboard = () => {
 
           {/* Maintenance Alerts */}
           <div className="bg-card rounded-lg border border-border p-6">
+
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Maintenance Alerts</h2>
               <Button variant="outline" size="sm">
