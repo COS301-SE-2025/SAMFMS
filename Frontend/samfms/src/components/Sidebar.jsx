@@ -4,7 +4,6 @@ import {cn} from '../lib/utils';
 import {useTheme} from '../contexts/ThemeContext';
 import {
   Home,
-  Settings,
   User,
   Package2,
   Car,
