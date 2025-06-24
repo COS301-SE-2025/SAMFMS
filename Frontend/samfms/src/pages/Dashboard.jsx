@@ -1,9 +1,6 @@
-import React, {useState, useEffect} from 'react';
+import React from 'react';
 import {Button} from '../components/ui/button';
 
-import {
-  getTotalVehicles,
-} from '../backend/API.js';
 
 // Mock data for the dashboard
 const mockData = {
@@ -91,8 +88,9 @@ const Dashboard = () => {
   }, []);
 
   return (
-    <div className="relative min-h-screen bg-background overflow-hidden">
-      {/* Background Pattern */}
+    <div className="relative container mx-auto py-8 space-y-8">
+      {/* Background pattern */}
+
       <div
         className="absolute inset-0 z-0 opacity-10 pointer-events-none"
         style={{
@@ -103,8 +101,9 @@ const Dashboard = () => {
         }}
         aria-hidden="true"
       />
-      {/* Main Content with solid background */}
-      <div className="relative z-10 container mx-auto py-8 space-y-8 rounded-xl shadow-lg">
+      {/* Content */}
+      <div className="relative z-10">
+
         {/* Header */}
         <header>
           <h1 className="text-4xl font-bold mb-2">Fleet Dashboard</h1>
@@ -115,7 +114,8 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Total Vehicles"
-            value={loadingVehicles ? '...' : totalVehicles}
+            value={mockData.fleetOverview.totalVehicles}
+
             subtitle="Fleet size"
             color="blue"
           />
@@ -142,7 +142,8 @@ const Dashboard = () => {
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Trips */}
-          <div className="bg-card rounded-lg border border-border p-6 py-10">
+          <div className="bg-card rounded-lg border border-border p-6">
+
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Recent Trips</h2>
               <Button variant="outline" size="sm">
@@ -157,7 +158,8 @@ const Dashboard = () => {
           </div>
 
           {/* Maintenance Alerts */}
-          <div className="bg-card rounded-lg border border-border p-6 py-10">
+          <div className="bg-card rounded-lg border border-border p-6">
+
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Maintenance Alerts</h2>
               <Button variant="outline" size="sm">

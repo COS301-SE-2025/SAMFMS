@@ -1,6 +1,6 @@
 import React from 'react';
-import { Button } from './ui/button';
-import { Plus, Search, ChevronUp, ChevronDown } from 'lucide-react';
+import {Button} from './ui/button';
+import {Plus, Search, ChevronUp, ChevronDown} from 'lucide-react';
 
 const UserTable = ({
   title,
@@ -12,7 +12,7 @@ const UserTable = ({
   actions = [],
   search = '',
   setSearch,
-  sort = { field: 'full_name', direction: 'asc' },
+  sort = {field: 'full_name', direction: 'asc'},
   onSortChange,
   onAddUser,
   showAddButton = false,
@@ -70,7 +70,7 @@ const UserTable = ({
       </div>
 
       {/* Search Bar */}
-      {setSearch && (
+      {
         <div className="mb-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -83,51 +83,47 @@ const UserTable = ({
             />
           </div>
         </div>
-      )}
+      }
 
       <div className="bg-card rounded-lg border border-border overflow-hidden">
         <table className="w-full">
           <thead className="bg-muted/50">
             <tr>
               <th
-                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
-                  onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                }`}
+                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
+                  }`}
                 onClick={() => handleHeaderClick('full_name')}
               >
                 Name {getSortIcon('full_name')}
               </th>
               <th
-                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
-                  onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                }`}
+                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
+                  }`}
                 onClick={() => handleHeaderClick('email')}
               >
                 Email {getSortIcon('email')}
               </th>
               <th
-                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
-                  onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                }`}
+                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
+                  }`}
                 onClick={() => handleHeaderClick('phoneNo')}
               >
                 Phone {getSortIcon('phoneNo')}
               </th>
               {showRole && (
                 <th
-                  className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
-                    onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                  }`}
+                  className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
+                    }`}
                   onClick={() => handleHeaderClick('role')}
                 >
                   Role {getSortIcon('role')}
                 </th>
               )}
-              {showActions && (
+              {/* {showActions && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Actions
                 </th>
-              )}
+              )} */}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -166,7 +162,7 @@ const UserTable = ({
                       </span>
                     </td>
                   )}
-                  {showActions && (
+                  {/* {showActions && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex space-x-2">
                         {actions.map((action, index) => {
@@ -188,7 +184,7 @@ const UserTable = ({
                         })}
                       </div>
                     </td>
-                  )}
+                  )} */}
                 </tr>
               ))
             )}
