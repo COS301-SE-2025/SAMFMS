@@ -83,3 +83,57 @@ async def consume_messages_with_handler(queue_name: str, message_handler: Callab
     except Exception as e:
         logger.error(f"Error in consume_messages_with_handler: {str(e)}")
         raise
+
+async def consume_messages_Direct(queue_name: str,exchange_name: str, handler):
+    await wait_for_rabbitmq()
+    
+    try:
+        connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
+        channel = await connection.channel()
+        # Declare the exchange
+        exchange = await channel.declare_exchange(exchange_name,aio_pika.ExchangeType.DIRECT, durable=True)
+        # Declare the queue
+        queue = await channel.declare_queue(queue_name, durable=True)
+        # Bind the queue and exchange with the routing key
+        await queue.bind(exchange, routing_key=queue_name)
+        # Pass the message to the handler
+        await queue.consume(handler)
+        logger.info(f"Started consuming messages from queue: {queue_name}")
+        
+        try:
+            await asyncio.Future()
+        finally:
+            await connection.close()
+    except Exception as e:
+        logger.error(f"Error in consume_messages: {str(e)}")
+        raise
+
+async def consume_single_message(queue_name: str,exchange_name: str, message_handler: Callable):
+    logger.info("Started single message consumption. Queue name: {queue_name}. Exchange name: {exchange_name}")
+    from . import admin
+    await wait_for_rabbitmq()
+    connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
+    channel = await connection.channel()
+
+    # declare exchange
+    exchange = await channel.declare_exchange(exchange_name,aio_pika.ExchangeType.DIRECT, durable=True)
+    queue = await channel.declare_queue(queue_name, durable=True)
+
+    #Bind queue and exchange
+    await queue.bind(exchange, routing_key=queue_name)
+
+    # Use an event to stop after one message
+    stop_event = asyncio.Event()
+
+    async def on_message(message: aio_pika.IncomingMessage):
+        async with message.process():
+            try:
+                await message_handler(message)
+            except Exception as e:
+                logger.error(f"Error in single message handler: {e}")
+            finally:
+                stop_event.set()  # Signal to stop after one message
+
+    await queue.consume(on_message)
+    await stop_event.wait()
+    await connection.close()
