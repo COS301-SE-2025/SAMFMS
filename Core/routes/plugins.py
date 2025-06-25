@@ -10,7 +10,7 @@ import logging
 from models.plugin_models import PluginInfo, PluginUpdateRequest, PluginStatusResponse
 from services.plugin_service import plugin_manager
 from auth_service import verify_token, get_current_user_from_token
-from rabbitmq.admin import addSblock, removeSblock
+from rabbitmq.admin import add_sblock, remove_sblock
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plugins", tags=["Plugin Management"])
@@ -344,7 +344,7 @@ async def add_sblock(username: str):
                 detail="Only administrators can view plugins"
             )
         
-        await addSblock(username)
+        await add_sblock(username)
         return {"status": "success", "message": f"SBlock {username} added"}
     except Exception as e:
         logger.error(f"Error adding SBlock: {str(e)}")
@@ -363,7 +363,7 @@ async def remove_sblock(username: str):
                 detail="Only administrators can view plugins"
             )
         
-        await removeSblock(username)
+        await remove_sblock(username)
         return {"status": "success", "message": f"SBlock {username} removed"}
     
 
