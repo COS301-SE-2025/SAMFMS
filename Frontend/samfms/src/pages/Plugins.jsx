@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '../components/ui/button';
+import React, {useState, useEffect} from 'react';
+import {Button} from '../components/ui/button';
 import {
   getPlugins,
   getAllPlugins,
@@ -11,12 +11,12 @@ import {
   syncPluginStatus,
   debugDockerAccess,
 } from '../backend/api/plugins';
-import { useAuth, ROLES } from '../components/RBACUtils';
+import {useAuth, ROLES} from '../components/RBACUtils';
 
 const userTypes = ['admin', 'fleet_manager', 'driver'];
 
 const Plugins = () => {
-  const { hasRole } = useAuth();
+  const {hasRole} = useAuth();
   const [plugins, setPlugins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -96,7 +96,7 @@ const Plugins = () => {
   // Handler for changing access for a plugin
   const handleAccessToggle = async (pluginId, role) => {
     try {
-      setActionLoading(prev => ({ ...prev, [pluginId]: true }));
+      setActionLoading(prev => ({...prev, [pluginId]: true}));
 
       const plugin = plugins.find(p => p.plugin_id === pluginId);
       if (!plugin) return;
@@ -109,13 +109,13 @@ const Plugins = () => {
 
       // Update local state
       setPlugins(prev =>
-        prev.map(p => (p.plugin_id === pluginId ? { ...p, allowed_roles: newRoles } : p))
+        prev.map(p => (p.plugin_id === pluginId ? {...p, allowed_roles: newRoles} : p))
       );
     } catch (err) {
       setError('Failed to update plugin access: ' + err.message);
       console.error('Error updating plugin access:', err);
     } finally {
-      setActionLoading(prev => ({ ...prev, [pluginId]: false }));
+      setActionLoading(prev => ({...prev, [pluginId]: false}));
     }
   };
   // Handler for toggling enabled/disabled
@@ -126,7 +126,7 @@ const Plugins = () => {
     }
 
     try {
-      setActionLoading(prev => ({ ...prev, [pluginId]: true }));
+      setActionLoading(prev => ({...prev, [pluginId]: true}));
 
       const plugin = plugins.find(p => p.plugin_id === pluginId);
       if (!plugin) return;
@@ -140,7 +140,7 @@ const Plugins = () => {
 
       // Update local state with the result
       setPlugins(prev =>
-        prev.map(p => (p.plugin_id === pluginId ? { ...p, status: result.status } : p))
+        prev.map(p => (p.plugin_id === pluginId ? {...p, status: result.status} : p))
       );
 
       // Refresh plugin status after a short delay
@@ -149,7 +149,7 @@ const Plugins = () => {
       setError('Failed to toggle plugin: ' + err.message);
       console.error('Error toggling plugin:', err);
     } finally {
-      setActionLoading(prev => ({ ...prev, [pluginId]: false }));
+      setActionLoading(prev => ({...prev, [pluginId]: false}));
     }
   };
 
@@ -160,7 +160,7 @@ const Plugins = () => {
       setPlugins(prev =>
         prev.map(p =>
           p.plugin_id === pluginId
-            ? { ...p, status: status.status, container_status: status.container_status }
+            ? {...p, status: status.status, container_status: status.container_status}
             : p
         )
       );
@@ -183,61 +183,74 @@ const Plugins = () => {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <header className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold">Plugins</h1>
-          <p className="text-muted-foreground">Manage system plugins and extensions</p>
-        </div>{' '}
-        <div className="flex space-x-2">
-          <Button onClick={refreshPlugins} variant="outline" disabled={refreshing}>
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </Button>
-          <Button onClick={syncPluginsStatus} variant="outline" disabled={refreshing}>
-            {refreshing ? 'Syncing...' : 'Sync Status'}
-          </Button>
-        </div>
-      </header>
+    <div className="relative container mx-auto py-8">
+      {/* Background pattern */}
+      <div
+        className="absolute inset-0 z-0 opacity-10 pointer-events-none"
+        style={{
+          backgroundImage: 'url("/logo/logo_icon_dark.svg")',
+          backgroundSize: '200px',
+          backgroundRepeat: 'repeat',
+          filter: 'blur(1px)',
+        }}
+        aria-hidden="true"
+      />
+      <div className="relative z-10">
+        <header className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold">Plugins</h1>
+            <p className="text-muted-foreground">Manage system plugins and extensions</p>
+          </div>{' '}
+          <div className="flex space-x-2">
+            <Button onClick={refreshPlugins} variant="outline" disabled={refreshing}>
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
+            <Button onClick={syncPluginsStatus} variant="outline" disabled={refreshing}>
+              {refreshing ? 'Syncing...' : 'Sync Status'}
+            </Button>
+          </div>
+        </header>
 
-      {error && (
-        <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
-          {error}
-        </div>
-      )}
+        {error && (
+          <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
+            {error}
+          </div>
+        )}
 
-      <div className="grid grid-cols-1 gap-6">
-        {plugins.map(plugin => (
-          <PluginItem
-            key={plugin.plugin_id}
-            plugin={plugin}
-            onAccessToggle={handleAccessToggle}
-            onEnabledToggle={handleEnabledToggle}
-            isLoading={actionLoading[plugin.plugin_id]}
-          />
-        ))}
+        <div className="grid grid-cols-1 gap-6">
+          {plugins.map(plugin => (
+            <PluginItem
+              key={plugin.plugin_id}
+              plugin={plugin}
+              onAccessToggle={handleAccessToggle}
+              onEnabledToggle={handleEnabledToggle}
+              isLoading={actionLoading[plugin.plugin_id]}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
 };
 
-const PluginItem = ({ plugin, onAccessToggle, onEnabledToggle, isLoading }) => {
+const PluginItem = ({plugin, onAccessToggle, onEnabledToggle, isLoading}) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Map status to display values
   const getStatusDisplay = status => {
     switch (status) {
       case 'ACTIVE':
-        return { text: 'Active', color: 'text-green-500' };
+        return {text: 'Active', color: 'text-green-500'};
       case 'INACTIVE':
-        return { text: 'Inactive', color: 'text-gray-500' };
+        return {text: 'Inactive', color: 'text-gray-500'};
       case 'STARTING':
-        return { text: 'Starting...', color: 'text-yellow-500' };
+        return {text: 'Starting...', color: 'text-yellow-500'};
       case 'STOPPING':
-        return { text: 'Stopping...', color: 'text-orange-500' };
+        return {text: 'Stopping...', color: 'text-orange-500'};
       case 'ERROR':
-        return { text: 'Error', color: 'text-red-500' };
+        return {text: 'Error', color: 'text-red-500'};
       default:
-        return { text: 'Unknown', color: 'text-gray-500' };
+        return {text: 'Unknown', color: 'text-gray-500'};
     }
   };
 
@@ -320,9 +333,8 @@ const PluginItem = ({ plugin, onAccessToggle, onEnabledToggle, isLoading }) => {
               type="button"
             >
               <span
-                className={`absolute left-1 top-1 w-4 h-4 rounded-full transition-all duration-200 ${
-                  isEnabled ? 'bg-primary translate-x-6' : 'bg-foreground'
-                }`}
+                className={`absolute left-1 top-1 w-4 h-4 rounded-full transition-all duration-200 ${isEnabled ? 'bg-primary translate-x-6' : 'bg-foreground'
+                  }`}
                 style={{
                   transform: isEnabled ? 'translateX(1.5rem)' : 'translateX(0)',
                 }}
