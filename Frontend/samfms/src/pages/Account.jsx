@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Button } from '../components/ui/button';
+import React, {useState, useEffect, useRef} from 'react';
+import {Button} from '../components/ui/button';
 import {
   getCurrentUser,
   getUserInfo,
@@ -13,10 +13,10 @@ import {
   PasswordRequirements,
 } from '../utils/passwordValidation';
 import PreferencesSection from '../components/PreferencesSection';
-import { useNotification } from '../contexts/NotificationContext';
+import {useNotification} from '../contexts/NotificationContext';
 
 // Modal component for change password
-const ChangePasswordModal = ({ isOpen, onClose, onSubmit, loading, error, success }) => {
+const ChangePasswordModal = ({isOpen, onClose, onSubmit, loading, error, success}) => {
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -24,7 +24,7 @@ const ChangePasswordModal = ({ isOpen, onClose, onSubmit, loading, error, succes
   });
 
   const handlePasswordChange = e => {
-    const { name, value } = e.target;
+    const {name, value} = e.target;
     setPasswordData(prev => ({
       ...prev,
       [name]: value,
@@ -155,11 +155,10 @@ const ChangePasswordModal = ({ isOpen, onClose, onSubmit, loading, error, succes
             />
             {passwordData.confirmPassword && passwordData.newPassword && (
               <p
-                className={`text-xs mt-1 ${
-                  passwordData.newPassword === passwordData.confirmPassword
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-destructive'
-                }`}
+                className={`text-xs mt-1 ${passwordData.newPassword === passwordData.confirmPassword
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-destructive'
+                  }`}
               >
                 {passwordData.newPassword === passwordData.confirmPassword
                   ? '✓ Passwords match'
@@ -183,7 +182,7 @@ const ChangePasswordModal = ({ isOpen, onClose, onSubmit, loading, error, succes
 };
 
 const Account = () => {
-  const { showSuccess, showError } = useNotification();
+  const {showSuccess, showError} = useNotification();
   const [userData, setUserData] = useState({
     full_name: '',
     email: '',
@@ -299,7 +298,7 @@ const Account = () => {
   };
 
   const handleInputChange = e => {
-    const { name, value } = e.target;
+    const {name, value} = e.target;
     setEditableData(prev => ({
       ...prev,
       [name]: value,
@@ -481,167 +480,181 @@ const Account = () => {
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold">Account</h1>
-      </header>
-      {loading && !isUploading ? (
-        <div className="flex justify-center items-center min-h-[300px]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
-      ) : error ? (
-        <div className="bg-red-50 text-red-800 p-4 rounded-lg mb-6">{error}</div>
-      ) : (
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {' '}
-            {/* Left Column - Profile Section */}
-            <div className="bg-card p-8 rounded-lg shadow-md border border-border h-fit">
-              {/* Profile Picture Section - Now at the top */}
-              <div className="flex flex-col items-center mb-8 pb-6 border-b border-border">
-                {/* Hidden file input for profile picture upload */}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  accept="image/png,image/jpeg,image/jpg"
-                  onChange={handleFileChange}
-                />
+    <div className="relative container mx-auto py-8">
+      {/* Background pattern */}
+      <div
+        className="absolute inset-0 z-0 opacity-10 pointer-events-none"
+        style={{
+          backgroundImage: 'url("/logo/logo_icon_dark.svg")',
+          backgroundSize: '200px',
+          backgroundRepeat: 'repeat',
+          filter: 'blur(1px)',
+        }}
+        aria-hidden="true"
+      />
+      <div className="relative z-10">
 
-                {/* Profile picture or initials */}
-                <div
-                  onClick={handleProfilePictureClick}
-                  className="w-32 h-32 rounded-full bg-primary/20 flex items-center justify-center mb-4 cursor-pointer relative overflow-hidden"
-                  title="Click to change profile picture"
-                >
-                  {isUploading && (
-                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-                    </div>
-                  )}
+        <header className="mb-8">
+          <h1 className="text-4xl font-bold">Account</h1>
+        </header>
+        {loading && !isUploading ? (
+          <div className="flex justify-center items-center min-h-[300px]">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 text-red-800 p-4 rounded-lg mb-6">{error}</div>
+        ) : (
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {' '}
+              {/* Left Column - Profile Section */}
+              <div className="bg-card p-8 rounded-lg shadow-md border border-border h-fit">
+                {/* Profile Picture Section - Now at the top */}
+                <div className="flex flex-col items-center mb-8 pb-6 border-b border-border">
+                  {/* Hidden file input for profile picture upload */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/png,image/jpeg,image/jpg"
+                    onChange={handleFileChange}
+                  />
 
-                  {profilePicture ? (
-                    <img
-                      src={profilePicture}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-4xl text-foreground">{initials || 'U'}</span>
-                  )}
+                  {/* Profile picture or initials */}
+                  <div
+                    onClick={handleProfilePictureClick}
+                    className="w-32 h-32 rounded-full bg-primary/20 flex items-center justify-center mb-4 cursor-pointer relative overflow-hidden"
+                    title="Click to change profile picture"
+                  >
+                    {isUploading && (
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                      </div>
+                    )}
+
+                    {profilePicture ? (
+                      <img
+                        src={profilePicture}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-4xl text-foreground">{initials || 'U'}</span>
+                    )}
+                  </div>
+                  <h2 className="text-xl font-semibold text-foreground">
+                    {userData.full_name || 'User'}
+                  </h2>
+                  <p className="text-muted-foreground">
+                    {userData.role
+                      ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1)
+                      : 'User'}
+                  </p>
                 </div>
-                <h2 className="text-xl font-semibold text-foreground">
-                  {userData.full_name || 'User'}
-                </h2>
-                <p className="text-muted-foreground">
-                  {userData.role
-                    ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1)
-                    : 'User'}
-                </p>
+                {/* Form Section - Now takes full width */}
+                <form className="space-y-6" onSubmit={handleSubmit}>
+                  {/* Personal Information Section */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 text-primary border-b border-border pb-2">
+                      Personal Information
+                    </h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1 text-foreground">
+                          Full Name
+                        </label>
+                        <input
+                          type="text"
+                          value={editableData.full_name || ''}
+                          onChange={e =>
+                            setEditableData({...editableData, full_name: e.target.value})
+                          }
+                          className="w-full p-2 border border-border rounded-md bg-background text-foreground focus:ring-primary focus:border-primary placeholder:text-muted-foreground"
+                          placeholder="Enter your full name"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-1 text-foreground">
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          value={userData.email || ''}
+                          readOnly
+                          className="w-full p-2 border border-border rounded-md bg-muted text-muted-foreground cursor-not-allowed"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-1 text-foreground">
+                          Phone
+                        </label>{' '}
+                        <input
+                          type="tel"
+                          name="phoneNo"
+                          value={editableData.phoneNo || ''}
+                          onChange={handleInputChange}
+                          className="w-full p-2 border border-border rounded-md bg-background text-foreground focus:ring-primary focus:border-primary placeholder:text-muted-foreground"
+                          placeholder="Enter your phone number"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Save Button for Personal Information - Only show if there are changes */}
+                    {hasPersonalInfoChanges() && (
+                      <div className="flex justify-end pt-4 border-t border-border mt-4">
+                        <Button type="submit" disabled={loading}>
+                          {loading ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Security Section */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 text-primary border-b border-border pb-2">
+                      Security
+                    </h3>
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border">
+                      <div>
+                        <p className="font-medium text-foreground">Password</p>
+                        <p className="text-sm text-muted-foreground">
+                          Last updated: {new Date().toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsPasswordModalOpen(true)}
+                      >
+                        Change Password
+                      </Button>{' '}
+                    </div>
+                  </div>
+                </form>
               </div>
-              {/* Form Section - Now takes full width */}
-              <form className="space-y-6" onSubmit={handleSubmit}>
-                {/* Personal Information Section */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 text-primary border-b border-border pb-2">
-                    Personal Information
-                  </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1 text-foreground">
-                        Full Name
-                      </label>
-                      <input
-                        type="text"
-                        value={editableData.full_name || ''}
-                        onChange={e =>
-                          setEditableData({ ...editableData, full_name: e.target.value })
-                        }
-                        className="w-full p-2 border border-border rounded-md bg-background text-foreground focus:ring-primary focus:border-primary placeholder:text-muted-foreground"
-                        placeholder="Enter your full name"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium mb-1 text-foreground">
-                        Email
-                      </label>
-                      <input
-                        type="email"
-                        value={userData.email || ''}
-                        readOnly
-                        className="w-full p-2 border border-border rounded-md bg-muted text-muted-foreground cursor-not-allowed"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium mb-1 text-foreground">
-                        Phone
-                      </label>{' '}
-                      <input
-                        type="tel"
-                        name="phoneNo"
-                        value={editableData.phoneNo || ''}
-                        onChange={handleInputChange}
-                        className="w-full p-2 border border-border rounded-md bg-background text-foreground focus:ring-primary focus:border-primary placeholder:text-muted-foreground"
-                        placeholder="Enter your phone number"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Save Button for Personal Information - Only show if there are changes */}
-                  {hasPersonalInfoChanges() && (
-                    <div className="flex justify-end pt-4 border-t border-border mt-4">
-                      <Button type="submit" disabled={loading}>
-                        {loading ? 'Saving...' : 'Save Changes'}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Security Section */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 text-primary border-b border-border pb-2">
-                    Security
-                  </h3>
-                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border">
-                    <div>
-                      <p className="font-medium text-foreground">Password</p>
-                      <p className="text-sm text-muted-foreground">
-                        Last updated: {new Date().toLocaleDateString()}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsPasswordModalOpen(true)}
-                    >
-                      Change Password
-                    </Button>{' '}
-                  </div>
-                </div>
-              </form>
-            </div>
-            {/* Right Column - Preferences Section */}
-            <div>
-              <PreferencesSection />
+              {/* Right Column - Preferences Section */}
+              <div>
+                <PreferencesSection />
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      {/* Change Password Modal */}
-      <ChangePasswordModal
-        isOpen={isPasswordModalOpen}
-        onClose={() => {
-          setIsPasswordModalOpen(false);
-          setPasswordError('');
-          setPasswordSuccess('');
-        }}
-        onSubmit={handlePasswordSubmit}
-        loading={passwordLoading}
-        error={passwordError}
-        success={passwordSuccess}
-      />
+        )}
+        {/* Change Password Modal */}
+        <ChangePasswordModal
+          isOpen={isPasswordModalOpen}
+          onClose={() => {
+            setIsPasswordModalOpen(false);
+            setPasswordError('');
+            setPasswordSuccess('');
+          }}
+          onSubmit={handlePasswordSubmit}
+          loading={passwordLoading}
+          error={passwordError}
+          success={passwordSuccess}
+        />
+      </div>
     </div>
   );
 };
