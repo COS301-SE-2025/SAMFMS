@@ -361,6 +361,7 @@ async def request_gps_location(message: dict):
 
 # Herrie code for GPS vehicle simulation
 TRACCAR_SIMULATION_HOST = os.getenv("TRACCAR_SIMULATION_HOST", "http://traccar:5055")
+
 ORS_API_KEY = "5b3ce3597851110001cf6248967d5deccac54ac1bca4d679e41d602d"
 DELAY = 2
 
@@ -399,7 +400,7 @@ class SimulationRequest(BaseModel):
 @app.post("/simulate_vehicle")
 def api_simulate_vehicle(req: SimulationRequest):
     ors_api_key = os.getenv("ORS_API_KEY", ORS_API_KEY)
-    traccar_host = os.getenv("TRACCAR_HOST", TRACCAR_HOST)
+    traccar_host = os.getenv("TRACCAR_HOST", TRACCAR_SIMULATION_HOST)
     delay = int(os.getenv("SIM_DELAY", DELAY))
 
     # Run simulation in a background thread so it doesn't block the API

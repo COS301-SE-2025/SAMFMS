@@ -9,6 +9,7 @@ from database import (
 )
 from bson import ObjectId
 from datetime import datetime, timedelta
+from fastapi.encoders import jsonable_encoder
 
 router = APIRouter()
 
@@ -17,7 +18,8 @@ async def fleet_utilization():
     """Percentage of vehicles actively used vs. total fleet."""
     total = await vehicle_management_collection.count_documents({})
     in_use = await vehicle_management_collection.count_documents({"status": {"$in": ["assigned", "in_use"]}})
-    return {"total": total, "in_use": in_use, "utilization_rate": (in_use/total if total else 0)}
+    utilization_rate = (in_use / total) if total else 0
+    return {"total": total, "in_use": in_use, "utilization_rate": utilization_rate}
 
 @router.get("/analytics/vehicle-usage")
 async def vehicle_usage():
@@ -33,7 +35,8 @@ async def vehicle_usage():
     stats = await vehicle_usage_logs_collection.aggregate(pipeline).to_list(length=1000)
     for s in stats:
         s["average_trip_length"] = s["total_distance"] / s["trip_count"] if s["trip_count"] else 0
-    return stats
+        s["_id"] = str(s["_id"])
+    return jsonable_encoder(stats)
 
 @router.get("/analytics/assignment-metrics")
 async def assignment_metrics():
@@ -41,7 +44,7 @@ async def assignment_metrics():
     active = await vehicle_assignments_collection.count_documents({"status": "active"})
     completed = await vehicle_assignments_collection.count_documents({"status": "completed"})
     pipeline = [
-        {"$match": {"end_date": {"$ne": None}}},
+        {"$match": {"end_date": {"$ne": None}, "start_date": {"$ne": None}}},
         {"$project": {"duration": {"$subtract": ["$end_date", "$start_date"]}}},
         {"$group": {"_id": None, "avg_duration": {"$avg": "$duration"}}}
     ]
@@ -53,11 +56,9 @@ async def assignment_metrics():
 async def maintenance_analytics():
     """Vehicles in maintenance, average duration, frequency."""
     in_maintenance = await vehicle_management_collection.count_documents({"status": "maintenance"})
-    # Frequency: count of assignments of type maintenance
     freq = await vehicle_assignments_collection.count_documents({"assignment_type": "maintenance"})
-    # Average duration of maintenance assignments
     pipeline = [
-        {"$match": {"assignment_type": "maintenance", "end_date": {"$ne": None}}},
+        {"$match": {"assignment_type": "maintenance", "end_date": {"$ne": None}, "start_date": {"$ne": None}}},
         {"$project": {"duration": {"$subtract": ["$end_date", "$start_date"]}}},
         {"$group": {"_id": None, "avg_duration": {"$avg": "$duration"}}}
     ]
@@ -78,21 +79,21 @@ async def driver_performance():
     stats = await vehicle_usage_logs_collection.aggregate(pipeline).to_list(length=1000)
     for s in stats:
         s["average_distance"] = s["total_distance"] / s["trip_count"] if s["trip_count"] else 0
-    # Incidents per driver (if incidents are logged in fleet_analytics_collection)
+        s["_id"] = str(s["_id"])
+    # Incidents per driver
     incident_pipeline = [
-        {"$match": {"action": "incident"}},
+        {"$match": {"action": "incident", "details.driver_id": {"$exists": True, "$ne": None}}},
         {"$group": {"_id": "$details.driver_id", "incident_count": {"$sum": 1}}}
     ]
     incidents = await fleet_analytics_collection.aggregate(incident_pipeline).to_list(length=1000)
-    incident_map = {i["_id"]: i["incident_count"] for i in incidents}
+    incident_map = {str(i["_id"]): i["incident_count"] for i in incidents}
     for s in stats:
         s["incident_count"] = incident_map.get(s["_id"], 0)
-    return stats
+    return jsonable_encoder(stats)
 
 @router.get("/analytics/costs")
 async def cost_analytics():
     """Total/average cost per vehicle (fuel, maintenance, insurance)."""
-    # Assuming cost fields exist in vehicle_management_collection
     pipeline = [
         {"$group": {
             "_id": "$vehicle_id",
@@ -102,7 +103,9 @@ async def cost_analytics():
         }}
     ]
     stats = await vehicle_management_collection.aggregate(pipeline).to_list(length=1000)
-    return stats
+    for s in stats:
+        s["_id"] = str(s["_id"])
+    return jsonable_encoder(stats)
 
 @router.get("/analytics/status-breakdown")
 async def status_breakdown():
@@ -111,17 +114,21 @@ async def status_breakdown():
         {"$group": {"_id": "$status", "count": {"$sum": 1}}}
     ]
     stats = await vehicle_management_collection.aggregate(pipeline).to_list(length=100)
-    return stats
+    for s in stats:
+        s["_id"] = str(s["_id"])
+    return jsonable_encoder(stats)
 
 @router.get("/analytics/incidents")
 async def incident_statistics():
     """Number and type of incidents or alerts reported."""
     pipeline = [
-        {"$match": {"action": "incident"}},
+        {"$match": {"action": "incident", "details.type": {"$exists": True, "$ne": None}}},
         {"$group": {"_id": "$details.type", "count": {"$sum": 1}}}
     ]
     stats = await fleet_analytics_collection.aggregate(pipeline).to_list(length=100)
-    return stats
+    for s in stats:
+        s["_id"] = str(s["_id"])
+    return jsonable_encoder(stats)
 
 @router.get("/analytics/department-location")
 async def department_location_analytics():
@@ -135,4 +142,6 @@ async def department_location_analytics():
         }}
     ]
     stats = await vehicle_management_collection.aggregate(pipeline).to_list(length=1000)
-    return stats
+    for s in stats:
+        s["_id"] = {k: str(v) if v is not None else None for k, v in s["_id"].items()}
+    return jsonable_encoder(stats)
