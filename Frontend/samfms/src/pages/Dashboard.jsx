@@ -1,9 +1,7 @@
 import React from 'react';
 import {Button} from '../components/ui/button';
 
-// import {
-//   getTotalVehicles,
-// } from '../backend/API.js';
+import {getDrivers} from '../backend/API'; // Adjust the import path as needed
 
 
 // Mock data for the dashboard
@@ -118,7 +116,8 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Total Vehicles"
-            value={mockData.fleetOverview.totalVehicles}
+            value={getDrivers().length}
+            // value={mockData.fleetOverview.totalVehicles}
             subtitle="Fleet size"
             color="blue"
           />

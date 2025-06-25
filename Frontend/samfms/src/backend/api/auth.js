@@ -22,8 +22,8 @@ export const getApiHostname = () => {
 };
 
 const hostname = getApiHostname(); // Core service port
-// export const API_URL = `http://${hostname}`
-export const API_URL = `http://192.168.10.26:8000`;
+export const API_URL = `http://${hostname}`
+// export const API_URL = `http://192.168.10.26:8000`;
 
 // Auth endpoints
 export const AUTH_API = {

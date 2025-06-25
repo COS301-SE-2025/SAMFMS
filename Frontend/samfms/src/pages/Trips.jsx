@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import VehicleStatistics from '../components/trips/VehicleStatistics';
 import MapDisplay from '../components/trips/MapDisplay';
 import VehicleList from '../components/trips/VehicleList';
@@ -43,7 +43,7 @@ const useLocationAutocomplete = () => {
       }
 
       const data = await response.json();
-      
+
       // Enhanced filtering and sorting
       const filteredResults = data
         .filter(item => {
@@ -62,7 +62,7 @@ const useLocationAutocomplete = () => {
     } catch (error) {
       console.error('Error fetching location suggestions:', error);
       setSuggestions([]);
-      
+
       // Fallback: Try a simpler query if the first one fails
       try {
         const simpleResponse = await fetch(
@@ -73,7 +73,7 @@ const useLocationAutocomplete = () => {
             }
           }
         );
-        
+
         if (simpleResponse.ok) {
           const fallbackData = await simpleResponse.json();
           setSuggestions(fallbackData);
@@ -86,14 +86,14 @@ const useLocationAutocomplete = () => {
     }
   };
 
-  return { suggestions, isLoading, searchLocation };
+  return {suggestions, isLoading, searchLocation};
 };
 
 // Location Autocomplete Component
-const LocationAutocomplete = ({ value, onChange, placeholder, className, required }) => {
+const LocationAutocomplete = ({value, onChange, placeholder, className, required}) => {
   const [inputValue, setInputValue] = useState(value || '');
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const { suggestions, isLoading, searchLocation } = useLocationAutocomplete();
+  const {suggestions, isLoading, searchLocation} = useLocationAutocomplete();
   const debounceRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -104,7 +104,7 @@ const LocationAutocomplete = ({ value, onChange, placeholder, className, require
   const handleInputChange = (e) => {
     const newValue = e.target.value;
     setInputValue(newValue);
-    
+
     // Clear previous debounce
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -153,7 +153,7 @@ const LocationAutocomplete = ({ value, onChange, placeholder, className, require
         className={className}
         required={required}
       />
-      
+
       {showSuggestions && (suggestions.length > 0 || isLoading) && (
         <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-60 overflow-y-auto">
           {isLoading ? (
@@ -183,7 +183,7 @@ const Trips = () => {
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  
+
   // Trip form state
   const [tripForm, setTripForm] = useState({
     vehicleId: '',
@@ -280,10 +280,10 @@ const Trips = () => {
 
   const handleSubmitTrip = async (e) => {
     e.preventDefault();
-    
+
     // Validate form
-    if (!tripForm.vehicleId || !tripForm.startLocation || 
-        !tripForm.endLocation || !tripForm.scheduledDate || !tripForm.scheduledTime) {
+    if (!tripForm.vehicleId || !tripForm.startLocation ||
+      !tripForm.endLocation || !tripForm.scheduledDate || !tripForm.scheduledTime) {
       alert('Please fill in all required fields');
       return;
     }
@@ -298,7 +298,7 @@ const Trips = () => {
       };
 
       console.log('Creating trip:', tripData);
-      
+
       // Replace with actual API call
       // const response = await fetch('/api/trips', {
       //   method: 'POST',
@@ -334,209 +334,211 @@ const Trips = () => {
 
         <h1 className="text-3xl font-bold mb-6">Trip Management</h1>
 
-      {/* Map and Vehicle List Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Map display takes 2/3 of the width on large screens */}
-        <div className="lg:col-span-2">
-          <MapDisplay vehicles={vehicles} selectedVehicle={selectedVehicle} />
-        </div>
-        {/* Vehicle list takes 1/3 of the width on large screens */}
-        <div className="lg:col-span-1">
-          <VehicleList vehicles={vehicles} onSelectVehicle={handleSelectVehicle} />
-        </div>
-
-      {/* Schedule Trip Button */}
-      <div className="mt-6 flex justify-end">
-        <button 
-          className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition"
-          onClick={handleScheduleTrip}
-        >
-          Schedule New Trip
-        </button>
-      </div>
-
-      {/* Schedule Trip Modal */}
-      {showScheduleModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Schedule New Trip</h2>
-                <button
-                  onClick={handleCloseModal}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmitTrip} className="space-y-4">
-                {/* Vehicle Selection */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Select Vehicle <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={tripForm.vehicleId}
-                    onChange={(e) => handleFormChange('vehicleId', e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                    required
-                  >
-                    <option value="">Choose a vehicle...</option>
-                    {availableVehicles.map(vehicle => (
-                      <option key={vehicle.id} value={vehicle.id}>
-                        {vehicle.name || `Vehicle ${vehicle.id}`} - {vehicle.id}
-                      </option>
-                    ))}
-                  </select>
-                  {availableVehicles.length === 0 && (
-                    <p className="text-sm text-red-500 mt-1">No available vehicles</p>
-                  )}
-                </div>
-
-                {/* Start Location */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Start Location <span className="text-red-500">*</span>
-                  </label>
-                  <LocationAutocomplete
-                    value={tripForm.startLocation}
-                    onChange={handleStartLocationChange}
-                    placeholder="Enter start location or address"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                    required
-                  />
-                </div>
-
-                {/* End Location */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    End Location <span className="text-red-500">*</span>
-                  </label>
-                  <LocationAutocomplete
-                    value={tripForm.endLocation}
-                    onChange={handleEndLocationChange}
-                    placeholder="Enter destination location or address"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                    required
-                  />
-                </div>
-
-                {/* Date and Time */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Scheduled Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={tripForm.scheduledDate}
-                      onChange={(e) => handleFormChange('scheduledDate', e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Scheduled Time <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="time"
-                      value={tripForm.scheduledTime}
-                      onChange={(e) => handleFormChange('scheduledTime', e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Notes (Optional)
-                  </label>
-                  <textarea
-                    value={tripForm.notes}
-                    onChange={(e) => handleFormChange('notes', e.target.value)}
-                    placeholder="Add any additional notes or instructions..."
-                    rows="3"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-
-                {/* Form Actions */}
-                <div className="flex justify-end space-x-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={handleCloseModal}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition"
-                    disabled={availableVehicles.length === 0}
-                  >
-                    Schedule Trip
-                  </button>
-                </div>
-              </form>
-            </div>
+        {/* Map and Vehicle List Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Map display takes 2/3 of the width on large screens */}
+          <div className="lg:col-span-2">
+            <MapDisplay vehicles={vehicles} selectedVehicle={selectedVehicle} />
           </div>
-        </div>
-      )}
+          {/* Vehicle list takes 1/3 of the width on large screens */}
+          <div className="lg:col-span-1">
+            <VehicleList vehicles={vehicles} onSelectVehicle={handleSelectVehicle} />
+          </div>
 
-      {/* Trip History Section */}
-      <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-4">Trip History</h2>
-        <div className="bg-card rounded-lg shadow-md p-6 border border-border">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4">Vehicle ID</th>
-                  <th className="text-left py-3 px-4">Name</th>
-                  <th className="text-left py-3 px-4">Status</th>
-                  <th className="text-left py-3 px-4">Last Update</th>
-                  <th className="text-left py-3 px-4">Speed</th>
-                  <th className="text-left py-3 px-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {vehicles.length > 0 ? (
-                  vehicles.map(vehicle => (
-                    <tr key={vehicle.id} className="border-b border-border hover:bg-accent/10">
-                      <td className="py-3 px-4">{vehicle.id}</td>
-                      <td className="py-3 px-4">{vehicle.name || 'Unknown'}</td>
-                      <td className="py-3 px-4">
-                        <span className={
-                          vehicle.status === 'online'
-                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 py-1 px-2 rounded-full text-xs"
-                            : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 py-1 px-2 rounded-full text-xs"
-                        }>
-                          {vehicle.status === 'online' ? 'Active' : 'Idle'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">{vehicle.lastUpdate ? new Date(vehicle.lastUpdate).toLocaleString() : 'Unknown'}</td>
-                      <td className="py-3 px-4">{vehicle.speed != null ? `${vehicle.speed} km/h` : 'N/A'}</td>
-                      <td className="py-3 px-4">
-                        <button className="text-primary hover:text-primary/80" onClick={() => handleSelectVehicle(vehicle)}>
-                          Details
-                        </button>
-                      </td>
+          {/* Schedule Trip Button */}
+          <div className="mt-6 flex justify-end">
+            <button
+              className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition"
+              onClick={handleScheduleTrip}
+            >
+              Schedule New Trip
+            </button>
+          </div>
+
+          {/* Schedule Trip Modal */}
+          {showScheduleModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold">Schedule New Trip</h2>
+                    <button
+                      onClick={handleCloseModal}
+                      className="text-gray-400 hover:text-gray-600 text-2xl"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleSubmitTrip} className="space-y-4">
+                    {/* Vehicle Selection */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Select Vehicle <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={tripForm.vehicleId}
+                        onChange={(e) => handleFormChange('vehicleId', e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                        required
+                      >
+                        <option value="">Choose a vehicle...</option>
+                        {availableVehicles.map(vehicle => (
+                          <option key={vehicle.id} value={vehicle.id}>
+                            {vehicle.name || `Vehicle ${vehicle.id}`} - {vehicle.id}
+                          </option>
+                        ))}
+                      </select>
+                      {availableVehicles.length === 0 && (
+                        <p className="text-sm text-red-500 mt-1">No available vehicles</p>
+                      )}
+                    </div>
+
+                    {/* Start Location */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Start Location <span className="text-red-500">*</span>
+                      </label>
+                      <LocationAutocomplete
+                        value={tripForm.startLocation}
+                        onChange={handleStartLocationChange}
+                        placeholder="Enter start location or address"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                        required
+                      />
+                    </div>
+
+                    {/* End Location */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        End Location <span className="text-red-500">*</span>
+                      </label>
+                      <LocationAutocomplete
+                        value={tripForm.endLocation}
+                        onChange={handleEndLocationChange}
+                        placeholder="Enter destination location or address"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                        required
+                      />
+                    </div>
+
+                    {/* Date and Time */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Scheduled Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={tripForm.scheduledDate}
+                          onChange={(e) => handleFormChange('scheduledDate', e.target.value)}
+                          min={new Date().toISOString().split('T')[0]}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Scheduled Time <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="time"
+                          value={tripForm.scheduledTime}
+                          onChange={(e) => handleFormChange('scheduledTime', e.target.value)}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Notes (Optional)
+                      </label>
+                      <textarea
+                        value={tripForm.notes}
+                        onChange={(e) => handleFormChange('notes', e.target.value)}
+                        placeholder="Add any additional notes or instructions..."
+                        rows="3"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+
+                    {/* Form Actions */}
+                    <div className="flex justify-end space-x-3 pt-4">
+                      <button
+                        type="button"
+                        onClick={handleCloseModal}
+                        className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition"
+                        disabled={availableVehicles.length === 0}
+                      >
+                        Schedule Trip
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Trip History Section */}
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold mb-4">Trip History</h2>
+            <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4">Vehicle ID</th>
+                      <th className="text-left py-3 px-4">Name</th>
+                      <th className="text-left py-3 px-4">Status</th>
+                      <th className="text-left py-3 px-4">Last Update</th>
+                      <th className="text-left py-3 px-4">Speed</th>
+                      <th className="text-left py-3 px-4">Actions</th>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="py-3 px-4 text-center text-muted-foreground">
-                      No vehicle data available
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {vehicles.length > 0 ? (
+                      vehicles.map(vehicle => (
+                        <tr key={vehicle.id} className="border-b border-border hover:bg-accent/10">
+                          <td className="py-3 px-4">{vehicle.id}</td>
+                          <td className="py-3 px-4">{vehicle.name || 'Unknown'}</td>
+                          <td className="py-3 px-4">
+                            <span className={
+                              vehicle.status === 'online'
+                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 py-1 px-2 rounded-full text-xs"
+                                : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 py-1 px-2 rounded-full text-xs"
+                            }>
+                              {vehicle.status === 'online' ? 'Active' : 'Idle'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">{vehicle.lastUpdate ? new Date(vehicle.lastUpdate).toLocaleString() : 'Unknown'}</td>
+                          <td className="py-3 px-4">{vehicle.speed != null ? `${vehicle.speed} km/h` : 'N/A'}</td>
+                          <td className="py-3 px-4">
+                            <button className="text-primary hover:text-primary/80" onClick={() => handleSelectVehicle(vehicle)}>
+                              Details
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="py-3 px-4 text-center text-muted-foreground">
+                          No vehicle data available
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>

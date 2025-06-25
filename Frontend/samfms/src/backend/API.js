@@ -75,10 +75,6 @@ export {
   clearUsersCache,
   clearRolesCache,
   clearAllAuthCache,
-  // getTotalVehicles,
-  // getVehiclesInMaintenance,
-  // getFleetUtilization,
-  // getDistanceCovered,
 };
 
 // Driver API endpoints - Now served by Core Service
@@ -93,8 +89,8 @@ export const DRIVER_API = {
 
 // Vehicle API endpoints
 export const VEHICLE_API = {
-  vehicles: `${API_URL}/api/vehicles`,
-  createVehicle: `${API_URL}/api/vehicles`,
+  vehicles: `${API_URL}/api/vehicles`, // has drivers variable and total variable
+  createVehicle: `${API_URL}/api/vehicles`, // post version of /vehicles
   getVehicle: id => `${API_URL}/api/vehicles/${id}`,
   updateVehicle: id => `${API_URL}/api/vehicles/${id}`,
   deleteVehicle: id => `${API_URL}/api/vehicles/${id}`,
