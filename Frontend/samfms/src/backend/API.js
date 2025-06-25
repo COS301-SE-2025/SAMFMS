@@ -122,6 +122,11 @@ export const VEHICLE_ASSIGNMENT_API = {
   deleteAssignment: id => `${API_URL}/vehicle-assignments/${id}`,
 };
 
+// Plugins API endpoints
+export const PLUGIN_API = {
+  plugins: `${API_URL}/service_presence`,
+};
+
 // Driver API functions
 export const createDriver = async driverData => {
   const token = getToken();
@@ -662,6 +667,28 @@ export const deleteVehicleAssignment = async assignmentId => {
   } catch (e) {
     return {success: true};
   }
+};
+
+// uses the services_presence endpoint in plugins
+export const getPlugins = async () => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(PLUGIN_API.plugins, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to fetch plugins');
+  }
+
+  return response.json();
 };
 
 // RBAC and Admin Functions have been moved to ./api/auth.js

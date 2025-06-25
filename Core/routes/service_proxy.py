@@ -591,6 +591,56 @@ async def delete_driver(
         logger.error(f"Error in delete_driver: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+# Analytics Endpoints (Proxy to Management Service)
+@router.get("/analytics/{path:path}")
+async def proxy_analytics_get(
+    path: str,
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Proxy GET analytics requests to Management service"""
+    try:
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials, f"/analytics/{path}", "GET"
+        )
+        response = await request_router.route_request(
+            endpoint=f"/analytics/{path}",
+            method="GET",
+            data=dict(request.query_params),
+            user_context=user_context
+        )
+        return response
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error proxying analytics GET /analytics/{path}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/analytics/{path:path}")
+async def proxy_analytics_post(
+    path: str,
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Proxy POST analytics requests to Management service"""
+    try:
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials, f"/analytics/{path}", "POST"
+        )
+        body = await request.json()
+        response = await request_router.route_request(
+            endpoint=f"/analytics/{path}",
+            method="POST",
+            data=body,
+            user_context=user_context
+        )
+        return response
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error proxying analytics POST /analytics/{path}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 @router.get("/debug/routing/{endpoint:path}")
 async def debug_routing(endpoint: str):
     """Debug endpoint to test routing configuration"""

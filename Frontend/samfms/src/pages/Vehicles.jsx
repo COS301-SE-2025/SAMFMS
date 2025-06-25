@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { PlusCircle } from 'lucide-react';
+import React, {useState, useEffect, useCallback} from 'react';
+import {PlusCircle} from 'lucide-react';
 import VehicleList from '../components/vehicles/VehicleList';
 import VehicleSearch from '../components/vehicles/VehicleSearch';
 import VehicleActions from '../components/vehicles/VehicleActions';
@@ -8,7 +8,7 @@ import DriverAssignmentModal from '../components/vehicles/DriverAssignmentModal'
 import DataVisualization from '../components/vehicles/DataVisualization';
 import AddVehicleModal from '../components/vehicles/AddVehicleModal';
 import EditVehicleModal from '../components/vehicles/EditVehicleModal';
-import { getVehicles, deleteVehicle, searchVehicles } from '../backend/API';
+import {getVehicles, deleteVehicle, searchVehicles} from '../backend/API';
 
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
@@ -46,7 +46,7 @@ const Vehicles = () => {
   const transformVehicleData = useCallback(backendVehicle => {
     // Add null safety check
     if (!backendVehicle) return null;
-    
+
     return {
       id: backendVehicle.id || backendVehicle._id || '',
       make: backendVehicle.make || 'Unknown',
@@ -58,9 +58,9 @@ const Vehicles = () => {
       fuelType: backendVehicle.fuel_type || backendVehicle.fuelType || 'N/A',
       mileage: backendVehicle.mileage?.toString() || backendVehicle.current_mileage?.toString() || '0',
       // Fix status mapping - handle both is_active boolean and status string
-      status: backendVehicle.status 
+      status: backendVehicle.status
         ? (backendVehicle.status.charAt(0).toUpperCase() + backendVehicle.status.slice(1))
-        : (backendVehicle.is_active !== undefined 
+        : (backendVehicle.is_active !== undefined
           ? (backendVehicle.is_active ? 'Active' : 'Inactive')
           : 'Active'),
       driver: backendVehicle.driver_name || backendVehicle.driver || 'Unassigned',
@@ -145,8 +145,8 @@ const Vehicles = () => {
         // If empty search, reload all vehicles
         const response = await getVehicles({
           limit: 100,
-          ...(filters.status && { status_filter: filters.status.toLowerCase() }),
-          ...(filters.make && { make_filter: filters.make }),
+          ...(filters.status && {status_filter: filters.status.toLowerCase()}),
+          ...(filters.make && {make_filter: filters.make}),
         });
         // Handle both array and object response formats
         const vehiclesArray = response.vehicles || response || [];
@@ -157,8 +157,15 @@ const Vehicles = () => {
         const results = await searchVehicles(searchQuery);
         // Handle both array and object response formats
         const vehiclesArray = results.vehicles || results || [];
-        const transformedResults = vehiclesArray.map(transformVehicleData);
-        setVehicles(transformedResults);
+        if (vehiclesArray) {
+          const transformedResults = vehiclesArray.map(transformVehicleData);
+          setVehicles(transformedResults);
+        }
+        else {
+          setVehicles([]); // Clear vehicles if no results found
+          setError('No vehicles found matching your search criteria.');
+          return; // Exit early if no results
+        }
       }
 
       setCurrentPage(1); // Reset to first page
@@ -267,7 +274,7 @@ const Vehicles = () => {
       console.error('Error processing updated vehicle:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getVehicles({ limit: 100 });
+        const response = await getVehicles({limit: 100});
         const transformedVehicles = response.map(transformVehicleData);
         setVehicles(transformedVehicles);
       } catch (refreshError) {
@@ -330,7 +337,7 @@ const Vehicles = () => {
         // Update selectAll state based on whether all current vehicles are selected
         setSelectAll(
           newSelected.length > 0 &&
-            currentVehicles.every(vehicle => newSelected.includes(vehicle.id))
+          currentVehicles.every(vehicle => newSelected.includes(vehicle.id))
         );
         return newSelected;
       } else {

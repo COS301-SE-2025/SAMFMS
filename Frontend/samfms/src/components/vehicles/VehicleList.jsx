@@ -105,7 +105,7 @@ const VehicleList = ({
                 className="border-b border-border hover:bg-accent/10 cursor-pointer"
                 onClick={() => openVehicleDetails(vehicle)}
               >
-                <td className="py-3 px-3" onClick={e => e.stopPropagation()}>
+                {/* <td className="py-3 px-3" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center">
                     <input
                       type="checkbox"
@@ -114,7 +114,7 @@ const VehicleList = ({
                       className="h-4 w-4 rounded border-border"
                     />
                   </div>{' '}
-                </td>
+                </td> */}
                 <td className="py-3 px-4">{vehicle.make}</td>
                 <td className="py-3 px-4">{vehicle.model}</td>
                 <td className="py-3 px-4">{vehicle.year}</td>

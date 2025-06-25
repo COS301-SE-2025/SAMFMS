@@ -411,12 +411,6 @@ services:
       - ./traccar-data:/opt/traccar/data
     environment:
       - TZ=UTC
-    healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8082 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
     networks:
       - samfms-network
 
