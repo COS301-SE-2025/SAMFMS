@@ -74,14 +74,14 @@ const LocationHistory = ({ vehicles, drivers }) => {
     activeTab === 'vehicles'
       ? vehicles.filter(
           v =>
-            v.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            v.make.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            v.model.toLowerCase().includes(searchTerm.toLowerCase())
+            String(v.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (v.make ? v.make.toLowerCase().includes(searchTerm.toLowerCase()) : false) ||
+            (v.model ? v.model.toLowerCase().includes(searchTerm.toLowerCase()) : false)
         )
       : drivers.filter(
           d =>
             d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            d.id.toLowerCase().includes(searchTerm.toLowerCase())
+            String(d.id).toLowerCase().includes(searchTerm.toLowerCase())
         );
 
   // Filter history data based on selected items and filter type
@@ -135,7 +135,7 @@ const LocationHistory = ({ vehicles, drivers }) => {
     } else if (selectedItems.length === 1) {
       const item = selectedItems[0];
       if (activeTab === 'vehicles') {
-        return `${item.make} ${item.model} (${item.id}) - History`;
+        return `${item.model} (${item.id}) - History`;
       } else {
         return `${item.name} (${item.id}) - History`;
       }
@@ -220,7 +220,7 @@ const LocationHistory = ({ vehicles, drivers }) => {
                     <div>
                       <p className="font-medium">{item.id}</p>
                       <p className="text-sm text-muted-foreground">
-                        {activeTab === 'vehicles' ? `${item.make} ${item.model}` : item.name}
+                        {activeTab === 'vehicles' ? `${item.model}` : item.name}
                       </p>
                     </div>
                   </div>
