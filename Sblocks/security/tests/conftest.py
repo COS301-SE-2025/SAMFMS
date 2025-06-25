@@ -1,40 +1,11 @@
-import sys
-import types
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Stub out repository modules so tests won't skip when they import them
-# Module-level imports in test files will now find these dummies in sys.modules
-for repo_name, coll_attr in [
-    ("repositories.session_repository", "sessions_collection"),
-    ("repositories.token_repository", "blacklisted_tokens_collection"),
-]:
-    if repo_name not in sys.modules:
-        dummy = types.ModuleType(repo_name)
-        setattr(dummy, coll_attr, None)
-        sys.modules[repo_name] = dummy
-
-import asyncio
 import os
 import sys
+import asyncio
+import importlib
 from unittest.mock import AsyncMock, MagicMock
 
-import mongomock
-import fakeredis
-import motor.motor_asyncio
 import pytest
-import importlib
-
-# Create dummy repository modules if they don't exist so tests won't be skipped.
-import sys, types
-if 'repositories.session_repository' not in sys.modules:
-    mod = types.ModuleType('repositories.session_repository')
-    # placeholder attribute to satisfy tests
-    mod.sessions_collection = None
-    sys.modules['repositories.session_repository'] = mod
-if 'repositories.token_repository' not in sys.modules:
-    mod2 = types.ModuleType('repositories.token_repository')
-    mod2.blacklisted_tokens_collection = None
-    sys.modules['repositories.token_repository'] = mod2
+import motor.motor_asyncio
 
 # Ensure the project root is on the import path so that "config" and other
 # first‑party packages resolve regardless of where pytest is invoked from.
@@ -53,41 +24,6 @@ def event_loop():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Fake external services (MongoDB, Redis, etc.)
-# ──────────────────────────────────────────────────────────────────────────────
-
-@pytest.fixture
-def mock_database():
-    """In‑memory MongoDB provided by *mongomock*."""
-    client = mongomock.MongoClient()
-    return client.test_security_db
-
-
-@pytest.fixture
-def mock_redis():
-    """In‑memory Redis stub using *fakeredis*."""
-    return fakeredis.FakeRedis()
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Application settings & sample objects
-# ──────────────────────────────────────────────────────────────────────────────
-
-@pytest.fixture
-def mock_settings():
-    """Minimal settings dict used by code that expects env config."""
-    return {
-        "JWT_SECRET_KEY": "test-secret-key-for-testing-only",
-        "ALGORITHM": "HS256",
-        "ACCESS_TOKEN_EXPIRE_MINUTES": 30,
-        "REFRESH_TOKEN_EXPIRE_DAYS": 7,
-        "DATABASE_URL": "mongodb://localhost:27017/test_security_db",
-        "REDIS_URL": "redis://localhost:6379/0",
-        "RABBITMQ_URL": "amqp://localhost:5672/",
-        "ENVIRONMENT": "test",
-    }
-
-
 # Sample domain objects used by multiple tests
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -151,7 +87,7 @@ def test_invitation_data():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Repository / service mocks
+# Repository / service mocks (for unit tests)
 # ──────────────────────────────────────────────────────────────────────────────
 
 @pytest.fixture
@@ -197,14 +133,8 @@ def mock_rabbitmq_producer():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# FastAPI / HTTP client helpers
+# Auth headers for API tests
 # ──────────────────────────────────────────────────────────────────────────────
-
-@pytest.fixture
-async def test_client():
-    """Placeholder until the FastAPI app object exists."""
-    return MagicMock()
-
 
 @pytest.fixture
 def auth_headers():

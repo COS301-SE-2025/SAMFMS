@@ -1,9 +1,3 @@
-import sys
-import asyncio
-
-if sys.platform.startswith("win"):
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
 import pytest
 import uuid
 from services.invitation_service import InvitationService
@@ -25,4 +19,3 @@ async def test_send_and_verify_invitation():
     result = await InvitationService.send_invitation(invite_req, invited_by_user_id="admin-id")
     assert "invitation_id" in result
     assert result["email"] == invite_req.email
-    # Optionally: add more checks for OTP, status, etc.
