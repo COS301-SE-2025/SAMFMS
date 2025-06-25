@@ -37,12 +37,18 @@ import {
 // import the functions from analytics.js
 import {
   getTotalVehicles,
-  // getVehiclesInMaintenance,
-  // getFleetUtilization,
-  // getDistanceCovered,
+  getFleetUtilization,
+  getVehicleUsage,
+  getAssignmentMetrics,
+  getMaintenanceAnalytics,
+  getDriverPerformance,
+  getCostAnalytics,
+  getStatusBreakdown,
+  getIncidentStatistics,
+  getDepartmentLocationAnalytics,
 } from './api/analytics';
 
-// Re-export the auth functions for backward compatibility
+// Re-export the auth and analytics functions for backward compatibility
 export {
   API_URL,
   API,
@@ -76,9 +82,15 @@ export {
   clearRolesCache,
   clearAllAuthCache,
   getTotalVehicles,
-  // getVehiclesInMaintenance,
-  // getFleetUtilization,
-  // getDistanceCovered,
+  getFleetUtilization,
+  getVehicleUsage,
+  getAssignmentMetrics,
+  getMaintenanceAnalytics,
+  getDriverPerformance,
+  getCostAnalytics,
+  getStatusBreakdown,
+  getIncidentStatistics,
+  getDepartmentLocationAnalytics,
 };
 
 // Driver API endpoints - Now served by Core Service
