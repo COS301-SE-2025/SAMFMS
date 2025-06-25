@@ -93,7 +93,7 @@ async def broadcast_topics():
 
 
 
-async def removeSblock(username: str):
+async def remove_sblock(username: str):
     logger.info("Waiting for RabbitMQ...")
     await wait_for_rabbitmq()
     logger.info("Connected to RabbitMQ")
@@ -118,7 +118,7 @@ async def removeSblock(username: str):
 
 
 
-async def addSblock(username: str):
+async def add_sblock(username: str):
     logger.info("Waiting for RabbitMQ...")
     await wait_for_rabbitmq()
     logger.info("Connected to RabbitMQ")

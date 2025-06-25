@@ -295,200 +295,218 @@ const UserManagement = () => {
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold">User Management</h1>
-      </header>{' '}
-      {/* Action Buttons */}
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">User Management Actions</h2>
-          <div className="space-x-2">
-            <Button
-              onClick={() => setShowInviteModal(true)}
-              className="bg-primary hover:bg-primary/90"
-              disabled={loading}
-            >
-              Invite User
-            </Button>
-          </div>
-        </div>
-      </div>{' '}
-      {/* Admin Users Table */}
-      {hasRole(ROLES.ADMIN) && (
-        <UserTable
-          title="Administrators"
-          users={filteredAdmins}
-          loading={loading && !adminUsers.length}
-          emptyMessage="No administrators found"
-          actions={[
-            {
-              label: 'Remove Admin',
-              variant: 'destructive',
-              onClick: user => handleRemoveUser(user.id, user.full_name),
-              disabled: () => loading,
-            },
-          ]}
-          search={adminSearch}
-          setSearch={setAdminSearch}
-          sort={adminSort}
-          onSortChange={field => handleSort(field, adminSort, setAdminSort)}
-          showAddButton={true}
-          onAddUser={() => handleOpenCreateModal('admin')}
-        />
-      )}
-      {/* Fleet Managers Table */}
-      {hasRole(ROLES.ADMIN) && (
-        <UserTable
-          title="Fleet Managers"
-          users={filteredManagers}
-          loading={loading && !managerUsers.length}
-          emptyMessage="No fleet managers found"
-          actions={[
-            {
-              label: 'Promote to Admin',
-              variant: 'outline',
-              onClick: user => handleRoleChange(user.id, 'admin'),
-              disabled: () => loading,
-              visible: user => canChangeRole(user),
-            },
-            {
-              label: 'Remove',
-              variant: 'destructive',
-              onClick: user => handleRemoveUser(user.id, user.full_name),
-              disabled: () => loading,
-            },
-          ]}
-          search={managerSearch}
-          setSearch={setManagerSearch}
-          sort={managerSort}
-          onSortChange={field => handleSort(field, managerSort, setManagerSort)}
-          showAddButton={true}
-          onAddUser={() => handleOpenCreateModal('fleet_manager')}
-        />
-      )}
-      {/* Drivers Table */}
-      <UserTable
-        title="Drivers"
-        users={filteredDrivers}
-        loading={loading && !driverUsers.length}
-        emptyMessage="No drivers found"
-        showActions={hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)}
-        actions={[
-          ...(hasRole(ROLES.ADMIN)
-            ? [
+    <div className="relative container mx-auto py-8">
+      {/* Background pattern */}
+      <div
+        className="absolute inset-0 z-0 opacity-10 pointer-events-none"
+        style={{
+          backgroundImage: 'url("/logo/logo_icon_dark.svg")',
+          backgroundSize: '200px',
+          backgroundRepeat: 'repeat',
+          filter: 'blur(1px)',
+        }}
+        aria-hidden="true"
+      />
+
+      <div className="relative overflow-hidden">
+
+        <div className="relative z-10">
+
+          <header className="mb-8">
+            <h1 className="text-4xl font-bold">User Management</h1>
+          </header>{' '}
+          {/* Action Buttons */}
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-semibold">User Management Actions</h2>
+              <div className="space-x-2">
+                <Button
+                  onClick={() => setShowInviteModal(true)}
+                  className="bg-primary hover:bg-primary/90"
+                  disabled={loading}
+                >
+                  Invite User
+                </Button>
+              </div>
+            </div>
+          </div>{' '}
+          {/* Admin Users Table */}
+          {hasRole(ROLES.ADMIN) && (
+            <UserTable
+              title="Administrators"
+              users={filteredAdmins}
+              loading={loading && !adminUsers.length}
+              emptyMessage="No administrators found"
+              actions={[
+                {
+                  label: 'Remove Admin',
+                  variant: 'destructive',
+                  onClick: user => handleRemoveUser(user.id, user.full_name),
+                  disabled: () => loading,
+                },
+              ]}
+              search={adminSearch}
+              setSearch={setAdminSearch}
+              sort={adminSort}
+              onSortChange={field => handleSort(field, adminSort, setAdminSort)}
+              showAddButton={true}
+              onAddUser={() => handleOpenCreateModal('admin')}
+            />
+          )}
+          {/* Fleet Managers Table */}
+          {hasRole(ROLES.ADMIN) && (
+            <UserTable
+              title="Fleet Managers"
+              users={filteredManagers}
+              loading={loading && !managerUsers.length}
+              emptyMessage="No fleet managers found"
+              actions={[
+                {
+                  label: 'Promote to Admin',
+                  variant: 'outline',
+                  onClick: user => handleRoleChange(user.id, 'admin'),
+                  disabled: () => loading,
+                  visible: user => canChangeRole(user),
+                },
+                {
+                  label: 'Remove',
+                  variant: 'destructive',
+                  onClick: user => handleRemoveUser(user.id, user.full_name),
+                  disabled: () => loading,
+                },
+              ]}
+              search={managerSearch}
+              setSearch={setManagerSearch}
+              sort={managerSort}
+              onSortChange={field => handleSort(field, managerSort, setManagerSort)}
+              showAddButton={true}
+              onAddUser={() => handleOpenCreateModal('fleet_manager')}
+            />
+          )}
+          {/* Drivers Table */}
+          <UserTable
+            title="Drivers"
+            users={filteredDrivers}
+            loading={loading && !driverUsers.length}
+            emptyMessage="No drivers found"
+            showActions={hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)}
+            actions={[
+              ...(hasRole(ROLES.ADMIN)
+                ? [
+                  {
+                    label: 'Promote to Manager',
+                    variant: 'outline',
+                    onClick: user => handleRoleChange(user.id, 'fleet_manager'),
+                    disabled: () => loading,
+                    visible: user => canChangeRole(user),
+                  },
+                ]
+                : []),
               {
-                label: 'Promote to Manager',
-                variant: 'outline',
-                onClick: user => handleRoleChange(user.id, 'fleet_manager'),
+                label: 'Remove',
+                variant: 'destructive',
+                onClick: user => handleRemoveUser(user.id, user.full_name),
                 disabled: () => loading,
-                visible: user => canChangeRole(user),
               },
-            ]
-            : []),
-          {
-            label: 'Remove',
-            variant: 'destructive',
-            onClick: user => handleRemoveUser(user.id, user.full_name),
-            disabled: () => loading,
-          },
-        ]}
-        search={driverSearch}
-        setSearch={setDriverSearch}
-        sort={driverSort}
-        onSortChange={field => handleSort(field, driverSort, setDriverSort)}
-        showAddButton={hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)}
-        onAddUser={() => handleOpenCreateModal('driver')}
-      />
-      {/* Pending Invitations Table */}
-      {(hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) && invitedUsers.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4">Pending Invitations</h2>
-          <div className="bg-card rounded-lg border border-border overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Role
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Invited
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Expires
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {invitedUsers.map(invitation => (
-                  <tr key={invitation.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {invitation.full_name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      {invitation.email}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {invitation.role.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      {new Date(invitation.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      {new Date(invitation.expires_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                      {!invitation.is_expired && invitation.can_resend && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleResendInvitation(invitation.email)}
-                          disabled={loading}
-                        >
-                          Resend OTP
-                        </Button>
-                      )}
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleRemoveUser(invitation.id, invitation.full_name)}
-                        disabled={loading}
-                      >
-                        Cancel
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+            ]}
+            search={driverSearch}
+            setSearch={setDriverSearch}
+            sort={driverSort}
+            onSortChange={field => handleSort(field, driverSort, setDriverSort)}
+            showAddButton={hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)}
+            onAddUser={() => handleOpenCreateModal('driver')}
+          />
+          {/* Pending Invitations Table */}
+          {(hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) && invitedUsers.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-2xl font-semibold mb-4">Pending Invitations</h2>
+              <div className="bg-card rounded-lg border border-border overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Role
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Invited
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Expires
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {invitedUsers.map(invitation => (
+                      <tr key={invitation.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          {invitation.full_name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                          {invitation.email}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {invitation.role.replace('_', ' ').toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                          {new Date(invitation.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                          {new Date(invitation.expires_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                          {!invitation.is_expired && invitation.can_resend && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleResendInvitation(invitation.email)}
+                              disabled={loading}
+                            >
+                              Resend OTP
+                            </Button>
+                          )}
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleRemoveUser(invitation.id, invitation.full_name)}
+                            disabled={loading}
+                          >
+                            Cancel
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {/* Modals */}
+          <InviteUserModal
+            isOpen={showInviteModal}
+            onClose={() => setShowInviteModal(false)}
+            onSubmit={handleInviteSubmit}
+            loading={loading}
+          />{' '}
+          <ManualCreateUserModal
+            isOpen={showManualCreateModal}
+            onClose={() => setShowManualCreateModal(false)}
+            onSubmit={handleManualCreateSubmit}
+            loading={loading}
+            preselectedRole={createUserRole}
+          />
         </div>
-      )}
-      {/* Modals */}
-      <InviteUserModal
-        isOpen={showInviteModal}
-        onClose={() => setShowInviteModal(false)}
-        onSubmit={handleInviteSubmit}
-        loading={loading}
-      />{' '}
-      <ManualCreateUserModal
-        isOpen={showManualCreateModal}
-        onClose={() => setShowManualCreateModal(false)}
-        onSubmit={handleManualCreateSubmit}
-        loading={loading}
-        preselectedRole={createUserRole}
-      />
+      </div>
     </div>
   );
 };

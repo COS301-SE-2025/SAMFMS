@@ -73,28 +73,28 @@ const Tracking = () => {
             </div>
           </div>
         </div>
-      </div>
-      {/* Vehicle Statistics */}
-      <VehicleStatistics stats={stats} />
-      {/* Map and Vehicle List Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {' '}
-        {/* Map display takes 2/3 of the width on large screens */}
-        <div className="lg:col-span-2">
-          <TrackingMap vehicles={vehicles} selectedVehicle={selectedVehicle} />
+        {/* Vehicle Statistics */}
+        <VehicleStatistics stats={stats} />
+        {/* Map and Vehicle List Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {' '}
+          {/* Map display takes 2/3 of the width on large screens */}
+          <div className="lg:col-span-2">
+            <TrackingMap vehicles={vehicles} selectedVehicle={selectedVehicle} />
+          </div>{' '}
+          {/* Vehicle list takes 1/3 of the width on large screens */}
+          <div className="lg:col-span-1">
+            <VehicleList vehicles={vehicles} onSelectVehicle={handleSelectVehicle} />
+          </div>
         </div>{' '}
-        {/* Vehicle list takes 1/3 of the width on large screens */}
-        <div className="lg:col-span-1">
-          <VehicleList vehicles={vehicles} onSelectVehicle={handleSelectVehicle} />
+        {/* Geofence Management Component */}
+        <div className="mt-8">
+          <GeofenceManager />
+        </div>{' '}
+        {/* Location History Component */}
+        <div className="mt-8 mb-8">
+          <LocationHistory vehicles={vehicles} />
         </div>
-      </div>{' '}
-      {/* Geofence Management Component */}
-      <div className="mt-8">
-        <GeofenceManager />
-      </div>{' '}
-      {/* Location History Component */}
-      <div className="mt-8 mb-8">
-        <LocationHistory vehicles={vehicles} />
       </div>
     </div>
   );

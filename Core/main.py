@@ -23,6 +23,7 @@ from rabbitmq.admin import create_exchange
 from rabbitmq.producer import publish_message
 from services.request_router import request_router
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     
@@ -94,10 +95,12 @@ app.add_middleware(
 from routes.auth import router as auth_router
 from routes.plugins import router as plugins_router
 from routes.service_proxy import router as service_proxy_router
+from routes.dashboard import router as dashboard_router
 
 app.include_router(auth_router)
 app.include_router(plugins_router, prefix="/api")
 app.include_router(service_proxy_router)
+app.include_router(dashboard_router)
 
 
 

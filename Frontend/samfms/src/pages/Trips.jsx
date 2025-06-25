@@ -318,11 +318,21 @@ const Trips = () => {
   const availableVehicles = vehicles.filter(v => v.status === 'online');
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Trip Management</h1>
+    <div className="relative container mx-auto px-4 py-8">
+      {/* Background pattern */}
+      <div
+        className="absolute inset-0 z-0 opacity-10 pointer-events-none"
+        style={{
+          backgroundImage: 'url("/logo/logo_icon_dark.svg")',
+          backgroundSize: '200px',
+          backgroundRepeat: 'repeat',
+          filter: 'blur(1px)',
+        }}
+        aria-hidden="true"
+      />
+      <div className="relative z-10">
 
-      {/* Vehicle Statistics */}
-      <VehicleStatistics stats={stats} />
+        <h1 className="text-3xl font-bold mb-6">Trip Management</h1>
 
       {/* Map and Vehicle List Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -334,7 +344,6 @@ const Trips = () => {
         <div className="lg:col-span-1">
           <VehicleList vehicles={vehicles} onSelectVehicle={handleSelectVehicle} />
         </div>
-      </div>
 
       {/* Schedule Trip Button */}
       <div className="mt-6 flex justify-end">

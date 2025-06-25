@@ -35,12 +35,12 @@ import {
 } from './api/auth';
 
 // import the functions from analytics.js
-import {
-  getTotalVehicles,
-  // getVehiclesInMaintenance,
-  // getFleetUtilization,
-  // getDistanceCovered,
-} from './api/analytics';
+// import {
+//   getTotalVehicles,
+//   // getVehiclesInMaintenance,
+//   // getFleetUtilization,
+//   // getDistanceCovered,
+// } from './api/analytics';
 
 // Re-export the auth functions for backward compatibility
 export {
@@ -75,7 +75,7 @@ export {
   clearUsersCache,
   clearRolesCache,
   clearAllAuthCache,
-  getTotalVehicles,
+  // getTotalVehicles,
   // getVehiclesInMaintenance,
   // getFleetUtilization,
   // getDistanceCovered,
