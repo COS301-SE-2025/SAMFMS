@@ -4,9 +4,13 @@ import uuid
 from services.auth_service import AuthService
 from services.user_service import UserService
 from services.invitation_service import InvitationService
-from models.api_models import InviteUserRequest, VerifyOTPRequest, CompleteRegistrationRequest
+from models.api_models import InviteUserRequest, VerifyOTPRequest, CompleteRegistrationRequest, CreateUserRequest
 
 pytestmark = pytest.mark.asyncio
+
+
+def _random_email(prefix="testuser"):
+    return f"{prefix}_{uuid.uuid4().hex[:8]}@example.com"
 
 
 async def test_signup_and_login_user_integration():
@@ -14,12 +18,12 @@ async def test_signup_and_login_user_integration():
     True integration test: requires Docker Compose test stack running (MongoDB, etc).
     Uses a unique email per run to avoid conflicts.
     """
-    unique_email = f"testuser_{uuid.uuid4().hex[:8]}@example.com"
+    unique_email = _random_email()
     user_data = {
         "full_name": "Integration Test User",
         "email": unique_email,
         "password": "TestPass123!",
-        "role": "driver"  # Changed from 'user' to 'driver' to match model
+        "role": "driver"
     }
 
     token_response = await AuthService.signup_user(user_data)
@@ -32,12 +36,11 @@ async def test_signup_and_login_user_integration():
 
 
 async def test_create_and_get_user():
-    from models.api_models import CreateUserRequest
     user_req = CreateUserRequest(
         full_name="Integration User",
-        email="integrationuser@example.com",
+        email=_random_email("integrationuser"),
         password="IntegrationPass123!",
-        role="driver"  # Changed from 'user' to 'driver' to match model
+        role="driver"
     )
     created = await UserService.create_user_manually(user_req, created_by_user_id="admin-id")
     assert created["user_id"]
@@ -47,16 +50,15 @@ async def test_create_and_get_user():
 
 async def test_send_and_verify_invitation():
     invite_req = InviteUserRequest(
-        email="invitee@example.com",
+        email=_random_email("invitee"),
         full_name="Invitee User",
-        role="driver",  # Changed from 'user' to 'driver' to match model
+        role="driver",
         phoneNo="1234567890"
     )
     # Send invitation
     result = await InvitationService.send_invitation(invite_req, invited_by_user_id="admin-id")
     assert "invitation_id" in result
-    # Simulate OTP retrieval (would need to fetch from DB in real test)
-    # Here, just check the invitation was created
     assert result["email"] == invite_req.email
+    # Optionally: add more checks for OTP, status, etc.
 
 
