@@ -30,7 +30,7 @@ const VehicleStatistics = ({ stats }) => {
         </div>
       </div>
 
-      <div className="bg-card rounded-lg shadow-sm p-4 border border-border flex items-center">
+      {/* <div className="bg-card rounded-lg shadow-sm p-4 border border-border flex items-center">
         <div className="rounded-full bg-red-100 dark:bg-red-900 p-3 mr-4">
           <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-300" />
         </div>
@@ -41,7 +41,7 @@ const VehicleStatistics = ({ stats }) => {
             <p className="text-sm text-muted-foreground ml-2">vehicles</p>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

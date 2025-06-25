@@ -24,7 +24,7 @@ async def publish_message(
         connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
         channel = await connection.channel()
 
-        exchange = await channel.declare_exchange(exchange_name, exchange_type,  durable=True)
+        exchange = await channel.declare_exchange(exchange_name, exchange_type, durable=True)
 
         await exchange.publish(
             aio_pika.Message(body=json.dumps(message).encode()),
@@ -34,6 +34,7 @@ async def publish_message(
         logger.info(f"Published message to {exchange_type} exchange '{exchange_name}': {message}")
     except Exception as e:
         logger.error(f"Failed to publish message to exchange '{exchange_name}': {str(e)}")
+
         raise
     finally:
         await connection.close()

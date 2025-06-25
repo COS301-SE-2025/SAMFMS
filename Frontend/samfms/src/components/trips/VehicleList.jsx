@@ -12,10 +12,8 @@ const VehicleList = ({ vehicles, onSelectVehicle }) => {
     .filter(vehicle => {
       // Apply search filter
       const matchesSearch =
-        vehicle.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        vehicle.make.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (vehicle.driver && vehicle.driver.toLowerCase().includes(searchTerm.toLowerCase()));
+        String(vehicle.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (vehicle.model ? vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) : false);
 
       // Apply status filter
       const matchesStatus = selectedStatus === 'all' || vehicle.status === selectedStatus;
@@ -25,11 +23,11 @@ const VehicleList = ({ vehicles, onSelectVehicle }) => {
     .sort((a, b) => {
       // Apply sorting
       if (sortBy === 'id') {
-        return a.id.localeCompare(b.id);
+        return a.id - b.id;
       } else if (sortBy === 'status') {
         return a.status.localeCompare(b.status);
-      } else if (sortBy === 'make') {
-        return a.make.localeCompare(b.make);
+      } else if (sortBy === 'model') {
+        return a.model.localeCompare(b.model);
       }
       return 0;
     });
@@ -41,14 +39,16 @@ const VehicleList = ({ vehicles, onSelectVehicle }) => {
 
   const getStatusIndicatorClass = status => {
     switch (status) {
-      case 'active':
+      case 'online':
         return 'bg-green-500';
-      case 'idle':
-        return 'bg-blue-500';
-      case 'maintenance':
+      case 'offline':
         return 'bg-amber-500';
-      case 'breakdown':
-        return 'bg-red-500';
+      // case 'idle':
+      //   return 'bg-blue-500';
+      // case 'maintenance':
+      //   return 'bg-amber-500';
+      // case 'breakdown':
+      //   return 'bg-red-500';
       default:
         return 'bg-gray-500';
     }
@@ -91,7 +91,7 @@ const VehicleList = ({ vehicles, onSelectVehicle }) => {
               className="text-sm flex items-center gap-1 text-primary"
               onClick={() => document.getElementById('sortDropdown').classList.toggle('hidden')}
             >
-              Sort by: {sortBy === 'id' ? 'Vehicle ID' : sortBy === 'status' ? 'Status' : 'Make'}
+              Sort by: {sortBy === 'id' ? 'Vehicle ID' : sortBy === 'status' ? 'Status' : 'Model'}
               <ChevronDown size={14} />
             </button>
 
@@ -122,13 +122,13 @@ const VehicleList = ({ vehicles, onSelectVehicle }) => {
                 </button>
                 <button
                   onClick={() => {
-                    setSortBy('make');
+                    setSortBy('model');
                     document.getElementById('sortDropdown').classList.add('hidden');
                   }}
                   className="flex items-center gap-2 px-3 py-1.5 text-sm w-full text-left hover:bg-accent rounded-sm"
                 >
-                  {sortBy === 'make' && <Check size={14} />}
-                  <span className={sortBy === 'make' ? '' : 'ml-5'}>Make</span>
+                  {sortBy === 'model' && <Check size={14} />}
+                  <span className={sortBy === 'model' ? '' : 'ml-5'}>Model</span>
                 </button>
               </div>
             </div>
@@ -150,9 +150,9 @@ const VehicleList = ({ vehicles, onSelectVehicle }) => {
                 All
               </button>
               <button
-                onClick={() => setSelectedStatus('active')}
+                onClick={() => setSelectedStatus('online')}
                 className={`px-2 py-1 text-xs rounded-full ${
-                  selectedStatus === 'active'
+                  selectedStatus === 'online'
                     ? 'bg-green-500 text-white'
                     : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
                 }`}
@@ -160,16 +160,16 @@ const VehicleList = ({ vehicles, onSelectVehicle }) => {
                 Active
               </button>
               <button
-                onClick={() => setSelectedStatus('idle')}
+                onClick={() => setSelectedStatus('offline')}
                 className={`px-2 py-1 text-xs rounded-full ${
-                  selectedStatus === 'idle'
+                  selectedStatus === 'offline'
                     ? 'bg-blue-500 text-white'
                     : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
                 }`}
               >
                 Idle
               </button>
-              <button
+              {/* <button
                 onClick={() => setSelectedStatus('maintenance')}
                 className={`px-2 py-1 text-xs rounded-full ${
                   selectedStatus === 'maintenance'
@@ -178,8 +178,8 @@ const VehicleList = ({ vehicles, onSelectVehicle }) => {
                 }`}
               >
                 Maintenance
-              </button>
-              <button
+              </button> */}
+              {/* <button
                 onClick={() => setSelectedStatus('breakdown')}
                 className={`px-2 py-1 text-xs rounded-full ${
                   selectedStatus === 'breakdown'
@@ -188,7 +188,7 @@ const VehicleList = ({ vehicles, onSelectVehicle }) => {
                 }`}
               >
                 Breakdown
-              </button>
+              </button> */}
             </div>
           </div>
         )}
@@ -213,7 +213,7 @@ const VehicleList = ({ vehicles, onSelectVehicle }) => {
                 </span>
               </div>
               <div className="text-sm mb-1">
-                {vehicle.make} {vehicle.model}
+                {vehicle.model}
               </div>
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{vehicle.driver || 'No driver assigned'}</span>
