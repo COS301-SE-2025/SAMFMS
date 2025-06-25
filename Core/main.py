@@ -13,13 +13,13 @@ setup_logging()
 logger = get_logger(__name__)
 
 from rabbitmq.consumer import consume_messages
-from rabbitmq.admin import create_exchange
+from rabbitmq.admin import create_exchange, add_sblock, remove_sblock
 from rabbitmq.producer import publish_message
 from services.request_router import request_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Handle application startup and shutdown events."""
+    
     logger.info("Core service starting up...")
     
     try:
@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
         client.close()
     except Exception as e:        logger.error(f"Failed to connect to MongoDB: {e}")
     
-    # Initialize plugin manager
+    
     try:
         from services.plugin_service import plugin_manager
         await plugin_manager.initialize_plugins()
@@ -68,21 +68,21 @@ app = FastAPI(
 )
 
 origins = [
-    "http://localhost:3000",     # React development server
+    "http://localhost:3000",     
     "http://127.0.0.1:3000",
-    "http://localhost:5000",     # Production build if served differently
-    "*",                        # Optional: Allow all origins (less secure)
+    "http://localhost:5000",     
+    "*",                        
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],        # Allow all methods including OPTIONS
-    allow_headers=["*"],        # Allow all headers
+    allow_methods=["*"],        
+    allow_headers=["*"],        
 )
 
-# Import and include routers
+
 from routes.auth import router as auth_router
 from routes.plugins import router as plugins_router
 from routes.service_proxy import router as service_proxy_router
@@ -92,10 +92,32 @@ app.include_router(plugins_router, prefix="/api")
 app.include_router(service_proxy_router)
 
 
-# Add a route for health checks (needed by Security middleware)
+
 @app.get("/health", tags=["Health"])
 async def health_check():
     return {"status": "healthy"}
+
+@app.get("/sblock/add/{sblock_ip}/{username}", tags=["SBlock"])
+async def add_sblock_route(sblock_ip: str, username: str):
+    try:
+        await add_sblock(sblock_ip, username)
+        return {"status": "success", "message": f"SBlock {username} added"}
+    except Exception as e:
+        logger.error(f"Error adding SBlock: {str(e)}")
+        return {"status": "error", "message": str(e)}
+    
+
+    
+@app.get("/sblock/remove/{sblock_ip}/{username}", tags=["SBlock"])
+async def remove_sblock_route(sblock_ip: str, username: str):
+    try:
+        await remove_sblock(sblock_ip, username)
+        return {"status": "success", "message": f"SBlock {username} removed"}
+    except Exception as e:
+        logger.error(f"Error removing SBlock: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
 
 if __name__ == "__main__":
     logger.info("🚀 Starting Core service...")
@@ -103,5 +125,5 @@ if __name__ == "__main__":
         app, 
         host="0.0.0.0", 
         port=8000,
-        log_config=None  # Use our custom logging configuration
+        log_config=None  
     )

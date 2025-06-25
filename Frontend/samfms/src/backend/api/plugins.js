@@ -276,3 +276,55 @@ export const debugDockerAccess = async () => {
     throw error;
   }
 };
+
+export const addSblock = async (username) => {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetchWithTimeout(`${API_URL}/api/sblock/add/${username}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to add SBlock: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error adding SBlock:', error);
+    throw error;
+  }
+};
+
+export const removeSblock = async (username) => {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetchWithTimeout(`${API_URL}/api/sblock/remove/${username}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to remove SBlock: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error removing SBlock:', error);
+    throw error;
+  }
+};
