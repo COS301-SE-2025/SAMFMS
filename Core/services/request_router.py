@@ -40,7 +40,8 @@ class RequestRouter:
             "/api/trips/*": "trip_planning",
             "/api/trip-planning/*": "trip_planning",
             "/api/maintenance/*": "maintenance",
-            "/api/vehicle-maintenance/*": "maintenance"
+            "/api/vehicle-maintenance/*": "maintenance",
+            "/api/analytics/*": "management"
         }
     
     async def initialize(self):
