@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { PlusCircle } from 'lucide-react';
+import React, {useState, useEffect, useCallback} from 'react';
+import {PlusCircle} from 'lucide-react';
 import VehicleList from '../components/vehicles/VehicleList';
 import VehicleSearch from '../components/vehicles/VehicleSearch';
 import VehicleActions from '../components/vehicles/VehicleActions';
@@ -8,7 +8,7 @@ import DriverAssignmentModal from '../components/vehicles/DriverAssignmentModal'
 import DataVisualization from '../components/vehicles/DataVisualization';
 import AddVehicleModal from '../components/vehicles/AddVehicleModal';
 import EditVehicleModal from '../components/vehicles/EditVehicleModal';
-import { getVehicles, deleteVehicle, searchVehicles } from '../backend/API';
+import {getVehicles, deleteVehicle, searchVehicles} from '../backend/API';
 
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
@@ -121,8 +121,8 @@ const Vehicles = () => {
         // If empty search, reload all vehicles
         const response = await getVehicles({
           limit: 100,
-          ...(filters.status && { status_filter: filters.status.toLowerCase() }),
-          ...(filters.make && { make_filter: filters.make }),
+          ...(filters.status && {status_filter: filters.status.toLowerCase()}),
+          ...(filters.make && {make_filter: filters.make}),
         });
         const transformedVehicles = response.map(transformVehicleData);
         setVehicles(transformedVehicles);
@@ -232,7 +232,7 @@ const Vehicles = () => {
       console.error('Error processing updated vehicle:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getVehicles({ limit: 100 });
+        const response = await getVehicles({limit: 100});
         const transformedVehicles = response.map(transformVehicleData);
         setVehicles(transformedVehicles);
       } catch (refreshError) {
@@ -295,7 +295,7 @@ const Vehicles = () => {
         // Update selectAll state based on whether all current vehicles are selected
         setSelectAll(
           newSelected.length > 0 &&
-            currentVehicles.every(vehicle => newSelected.includes(vehicle.id))
+          currentVehicles.every(vehicle => newSelected.includes(vehicle.id))
         );
         return newSelected;
       } else {
@@ -352,117 +352,130 @@ const Vehicles = () => {
     setCurrentPage(1); // Reset to first page
   };
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Fleet Vehicles</h1>
-      <div className="bg-card rounded-lg shadow-md p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">Manage Vehicles</h2>
-          <button
-            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
-            onClick={() => setShowAddVehicleModal(true)}
-          >
-            <PlusCircle size={18} />
-            <span>Add Vehicle</span>
-          </button>
-        </div>{' '}
-        {/* Error Message */}
-        {error && (
-          <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-md mb-6">
-            <p>{error}</p>
-          </div>
-        )}
-        {/* Search and filter bar */}{' '}
-        <VehicleSearch
-          filterOpen={filterOpen}
-          setFilterOpen={setFilterOpen}
-          onSearch={handleSearch}
-          onApplyFilters={handleApplyFilters}
-          onResetFilters={handleResetFilters}
-        />
-        {/* Vehicle actions buttons and bulk actions */}{' '}
-        <VehicleActions
-          selectedVehicles={selectedVehicles}
-          openAssignmentModal={openAssignmentModal}
-          exportSelectedVehicles={exportSelectedVehicles}
-          onDeleteSelected={() => {
-            if (
-              selectedVehicles.length > 0 &&
-              window.confirm(
-                `Are you sure you want to delete ${selectedVehicles.length} vehicle(s)?`
-              )
-            ) {
-              selectedVehicles.forEach(vehicleId => handleDeleteVehicle(vehicleId));
-            }
-          }}
-        />
-        {/* Loading State */}
-        {loading && vehicles.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading vehicles...</p>
-          </div>
-        ) : (
-          /* Vehicle list with pagination */
-          <VehicleList
-            vehicles={currentVehicles}
+    <div className="relative container mx-auto px-4 py-8">
+      {/* Background pattern */}
+      <div
+        className="absolute inset-0 z-0 opacity-10 pointer-events-none"
+        style={{
+          backgroundImage: 'url("/logo/logo_icon_dark.svg")',
+          backgroundSize: '200px',
+          backgroundRepeat: 'repeat',
+          filter: 'blur(1px)',
+        }}
+        aria-hidden="true"
+      />
+      <div className="relative z-10">
+        <h1 className="text-3xl font-bold mb-6">Fleet Vehicles</h1>
+        <div className="bg-card rounded-lg shadow-md p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold">Manage Vehicles</h2>
+            <button
+              className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
+              onClick={() => setShowAddVehicleModal(true)}
+            >
+              <PlusCircle size={18} />
+              <span>Add Vehicle</span>
+            </button>
+          </div>{' '}
+          {/* Error Message */}
+          {error && (
+            <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-md mb-6">
+              <p>{error}</p>
+            </div>
+          )}
+          {/* Search and filter bar */}{' '}
+          <VehicleSearch
+            filterOpen={filterOpen}
+            setFilterOpen={setFilterOpen}
+            onSearch={handleSearch}
+            onApplyFilters={handleApplyFilters}
+            onResetFilters={handleResetFilters}
+          />
+          {/* Vehicle actions buttons and bulk actions */}{' '}
+          <VehicleActions
             selectedVehicles={selectedVehicles}
-            handleSelectVehicle={handleSelectVehicle}
-            selectAll={selectAll}
-            handleSelectAll={handleSelectAll}
-            sortField={sortField}
-            sortDirection={sortDirection}
-            handleSort={handleSort}
-            openVehicleDetails={openVehicleDetails}
+            openAssignmentModal={openAssignmentModal}
+            exportSelectedVehicles={exportSelectedVehicles}
+            onDeleteSelected={() => {
+              if (
+                selectedVehicles.length > 0 &&
+                window.confirm(
+                  `Are you sure you want to delete ${selectedVehicles.length} vehicle(s)?`
+                )
+              ) {
+                selectedVehicles.forEach(vehicleId => handleDeleteVehicle(vehicleId));
+              }
+            }}
+          />
+          {/* Loading State */}
+          {loading && vehicles.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading vehicles...</p>
+            </div>
+          ) : (
+            /* Vehicle list with pagination */
+            <VehicleList
+              vehicles={currentVehicles}
+              selectedVehicles={selectedVehicles}
+              handleSelectVehicle={handleSelectVehicle}
+              selectAll={selectAll}
+              handleSelectAll={handleSelectAll}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              handleSort={handleSort}
+              openVehicleDetails={openVehicleDetails}
+              onEditVehicle={handleEditVehicle}
+              onDeleteVehicle={handleDeleteVehicle}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              itemsPerPage={itemsPerPage}
+              changeItemsPerPage={changeItemsPerPage}
+              goToNextPage={goToNextPage}
+              goToPrevPage={goToPrevPage}
+              totalVehicles={sortedVehicles.length}
+            />
+          )}
+        </div>
+        {/* Vehicle Details Modal */}
+        {vehicleDetailsOpen && currentVehicle && (
+          <VehicleDetailsModal
+            vehicle={currentVehicle}
+            closeVehicleDetails={closeVehicleDetails}
+            openAssignmentModal={openAssignmentModal}
             onEditVehicle={handleEditVehicle}
             onDeleteVehicle={handleDeleteVehicle}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            itemsPerPage={itemsPerPage}
-            changeItemsPerPage={changeItemsPerPage}
-            goToNextPage={goToNextPage}
-            goToPrevPage={goToPrevPage}
-            totalVehicles={sortedVehicles.length}
           />
         )}
+        {/* Driver Assignment Modal */}
+        {showAssignmentModal && (
+          <DriverAssignmentModal
+            closeAssignmentModal={closeAssignmentModal}
+            selectedVehicles={selectedVehicles}
+            handleSelectVehicle={handleSelectVehicle}
+            vehicles={vehicles}
+            currentVehicle={currentVehicle}
+          />
+        )}{' '}
+        {/* Add Vehicle Modal */}
+        {showAddVehicleModal && (
+          <AddVehicleModal
+            closeModal={() => setShowAddVehicleModal(false)}
+            vehicles={vehicles}
+            setVehicles={setVehicles}
+          />
+        )}
+        {/* Edit Vehicle Modal */}
+        {showEditVehicleModal && vehicleToEdit && (
+          <EditVehicleModal
+            vehicle={vehicleToEdit}
+            closeModal={closeEditVehicleModal}
+            onVehicleUpdated={handleVehicleUpdated}
+          />
+        )}
+        {/* Data visualization section */}
+        <DataVisualization />
       </div>
-      {/* Vehicle Details Modal */}
-      {vehicleDetailsOpen && currentVehicle && (
-        <VehicleDetailsModal
-          vehicle={currentVehicle}
-          closeVehicleDetails={closeVehicleDetails}
-          openAssignmentModal={openAssignmentModal}
-          onEditVehicle={handleEditVehicle}
-          onDeleteVehicle={handleDeleteVehicle}
-        />
-      )}
-      {/* Driver Assignment Modal */}
-      {showAssignmentModal && (
-        <DriverAssignmentModal
-          closeAssignmentModal={closeAssignmentModal}
-          selectedVehicles={selectedVehicles}
-          handleSelectVehicle={handleSelectVehicle}
-          vehicles={vehicles}
-          currentVehicle={currentVehicle}
-        />
-      )}{' '}
-      {/* Add Vehicle Modal */}
-      {showAddVehicleModal && (
-        <AddVehicleModal
-          closeModal={() => setShowAddVehicleModal(false)}
-          vehicles={vehicles}
-          setVehicles={setVehicles}
-        />
-      )}
-      {/* Edit Vehicle Modal */}
-      {showEditVehicleModal && vehicleToEdit && (
-        <EditVehicleModal
-          vehicle={vehicleToEdit}
-          closeModal={closeEditVehicleModal}
-          onVehicleUpdated={handleVehicleUpdated}
-        />
-      )}
-      {/* Data visualization section */}
-      <DataVisualization />
     </div>
   );
 };
