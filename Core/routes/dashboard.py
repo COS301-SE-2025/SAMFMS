@@ -3,8 +3,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from typing import List, Dict, Dict
 import logging
 
-from models.plugin_models import PluginInfo, PluginUpdateRequest, PluginStatusResponse
+#from models.plugin_models import PluginInfo, PluginUpdateRequest, PluginStatusResponse
 #from ..models.plugin_models import PluginInfo, PluginUpdateRequest, PluginStatusResponse
+from Core.models.plugin_models import PluginInfo, PluginUpdateRequest, PluginStatusResponse
 
 from services.plugin_service import plugin_manager
 from auth_service import verify_token, get_current_user_from_token

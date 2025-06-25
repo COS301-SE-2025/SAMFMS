@@ -92,7 +92,7 @@ from routes.dashboard import router as dashboard_router
 app.include_router(auth_router)
 app.include_router(plugins_router, prefix="/api")
 app.include_router(service_proxy_router)
-app.include_router(dashboard_router, prefix="/dashboard")
+app.include_router(dashboard_router)
 
 
 
