@@ -1,6 +1,10 @@
 import React from 'react';
 import {Button} from '../components/ui/button';
 
+// import {
+//   getTotalVehicles,
+// } from '../backend/API.js';
+
 
 // Mock data for the dashboard
 const mockData = {
@@ -68,24 +72,24 @@ const mockData = {
 };
 
 const Dashboard = () => {
-  const [totalVehicles, setTotalVehicles] = useState(null);
-  const [loadingVehicles, setLoadingVehicles] = useState(true);
+  // const [totalVehicles, setTotalVehicles] = useState(null);
+  // const [loadingVehicles, setLoadingVehicles] = useState(true);
 
-  useEffect(() => {
-    const fetchTotalVehicles = async () => {
-      try {
-        setLoadingVehicles(true);
-        const data = await getTotalVehicles();
-        // If your API returns { total: 42 }, adjust accordingly
-        setTotalVehicles(data.fleet_overview.total_vehicles ?? data);
-      } catch (error) {
-        setTotalVehicles('N/A');
-      } finally {
-        setLoadingVehicles(false);
-      }
-    };
-    fetchTotalVehicles();
-  }, []);
+  // useEffect(() => {
+  //   const fetchTotalVehicles = async () => {
+  //     try {
+  //       setLoadingVehicles(true);
+  //       const data = await getTotalVehicles();
+  //       // If your API returns { total: 42 }, adjust accordingly
+  //       setTotalVehicles(data.fleet_overview.total_vehicles ?? data);
+  //     } catch (error) {
+  //       setTotalVehicles('N/A');
+  //     } finally {
+  //       setLoadingVehicles(false);
+  //     }
+  //   };
+  //   fetchTotalVehicles();
+  // }, []);
 
   return (
     <div className="relative container mx-auto py-8 space-y-8">
@@ -115,7 +119,6 @@ const Dashboard = () => {
           <MetricCard
             title="Total Vehicles"
             value={mockData.fleetOverview.totalVehicles}
-
             subtitle="Fleet size"
             color="blue"
           />
