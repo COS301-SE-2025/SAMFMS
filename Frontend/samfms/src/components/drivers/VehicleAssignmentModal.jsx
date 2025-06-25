@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Search } from 'lucide-react';
+import { getVehicles } from '../../backend/API';
 
 const VehicleAssignmentModal = ({
   closeVehicleAssignmentModal,
@@ -8,34 +9,42 @@ const VehicleAssignmentModal = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [vehicles, setVehicles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Sample vehicles data (in a real app this would come from props or an API)
-  const vehicles = [
-    {
-      id: 'VEH-001',
-      make: 'Toyota',
-      model: 'Camry',
-      year: '2023',
-      licensePlate: 'ABC-1234',
-      status: 'Available',
-    },
-    {
-      id: 'VEH-002',
-      make: 'Ford',
-      model: 'Transit',
-      year: '2022',
-      licensePlate: 'XYZ-5678',
-      status: 'Available',
-    },
-    {
-      id: 'VEH-003',
-      make: 'Honda',
-      model: 'Civic',
-      year: '2021',
-      licensePlate: 'DEF-9012',
-      status: 'In Use',
-    },
-  ];
+  // Load vehicles from API
+  useEffect(() => {
+    const loadVehicles = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Get available vehicles (active status)
+        const response = await getVehicles({ 
+          status_filter: 'active',
+          limit: 100 
+        });
+        
+        // Handle both array and object response formats
+        const vehiclesArray = response.vehicles || response || [];
+        
+        // Filter to only show available vehicles (without drivers)
+        const availableVehicles = vehiclesArray.filter(vehicle => 
+          !vehicle.driver || vehicle.driver === 'Unassigned'
+        );
+        
+        setVehicles(availableVehicles);
+      } catch (err) {
+        console.error('Error loading vehicles:', err);
+        setError('Failed to load vehicles');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadVehicles();
+  }, []);
 
   const filteredVehicles = vehicles.filter(
     vehicle =>
@@ -45,17 +54,23 @@ const VehicleAssignmentModal = ({
       vehicle.licensePlate.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAssignVehicle = () => {
+  const handleAssignVehicle = async () => {
     if (!selectedVehicle) return;
 
-    // In a real app, this would make an API call
-    console.log(
-      `Assigned vehicle ${selectedVehicle.id} to driver ${
-        currentDriver ? currentDriver.id : 'multiple drivers'
-      }`
-    );
-
-    closeVehicleAssignmentModal();
+    try {
+      // TODO: Implement actual vehicle assignment API call
+      console.log(
+        `Assigned vehicle ${selectedVehicle.id} to driver ${
+          currentDriver ? currentDriver.id : 'multiple drivers'
+        }`
+      );
+      
+      // For now, just close the modal
+      closeVehicleAssignmentModal();
+    } catch (error) {
+      console.error('Error assigning vehicle:', error);
+      // TODO: Show error message to user
+    }
   };
 
   return (
@@ -96,7 +111,21 @@ const VehicleAssignmentModal = ({
             </div>
           </div>
 
-          <div className="border border-border rounded-md overflow-hidden mb-6">
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-3 bg-destructive/10 border border-destructive text-destructive rounded-md">
+              {error}
+            </div>
+          )}
+
+          {/* Loading State */}
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <span className="ml-2 text-muted-foreground">Loading vehicles...</span>
+            </div>
+          ) : (
+            <div className="border border-border rounded-md overflow-hidden mb-6">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
@@ -153,9 +182,10 @@ const VehicleAssignmentModal = ({
                 )}
               </tbody>
             </table>
-          </div>
+            </div>
+          )}
 
-          <div className="flex justify-end space-x-2">
+          <div className="flex justify-end space-x-2">>
             <button
               onClick={closeVehicleAssignmentModal}
               className="px-4 py-2 border border-input rounded-md hover:bg-accent hover:text-accent-foreground"

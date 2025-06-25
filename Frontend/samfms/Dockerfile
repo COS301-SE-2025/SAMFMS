@@ -7,8 +7,9 @@ WORKDIR /app
 # Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Install dependencies
+# Install dependencies including http-proxy-middleware for WebSocket proxy
 RUN npm install
+RUN npm install http-proxy-middleware --save-dev
 
 # Copy the rest of the app's source code
 COPY . .

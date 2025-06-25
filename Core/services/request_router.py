@@ -30,7 +30,7 @@ class RequestRouter:
             "/api/vehicles": "management",
             "/api/vehicles/*": "management",
             "/api/drivers": "management",
-            "/api/drivers/*": "management", 
+            "/api/drivers/*": "management",
             "/api/vehicle-assignments": "management",
             "/api/vehicle-assignments/*": "management",
             "/api/vehicle-usage": "management",
@@ -251,14 +251,21 @@ class ResponseCorrelationManager:
             logger.warning(f"No pending future found for correlation_id: {correlation_id}")
     
     async def consume_responses(self):
-        """Consume responses from service response queue"""
+        """Consume responses from service response queue with enhanced error handling"""
         try:
             import aio_pika
             from rabbitmq import admin
             
             logger.info("Setting up response consumption...")
-            connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
+            
+            # Use robust connection with reconnection logic
+            connection = await aio_pika.connect_robust(
+                admin.RABBITMQ_URL,
+                heartbeat=60,
+                blocked_connection_timeout=300,
+            )
             channel = await connection.channel()
+            await channel.set_qos(prefetch_count=10)
             
             # Declare the service_responses exchange
             exchange = await channel.declare_exchange("service_responses", aio_pika.ExchangeType.DIRECT, durable=True)
@@ -269,29 +276,45 @@ class ResponseCorrelationManager:
             await queue.bind(exchange, routing_key="core.responses")
             logger.info("Core responses queue bound to service_responses exchange")
             
-            # Set up message handler
+            # Set up message handler with retry logic
             async def handle_response_message(message: aio_pika.IncomingMessage):
-                async with message.process():
-                    try:
+                try:
+                    async with message.process(requeue=False):
                         response_data = json.loads(message.body.decode())
                         await self.handle_response(response_data)
                         logger.debug(f"Processed response: {response_data.get('correlation_id')}")
-                    except Exception as e:
-                        logger.error(f"Error processing response message: {e}")
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid JSON in response message: {e}")
+                except Exception as e:
+                    logger.error(f"Error processing response message: {e}")
+                    # Don't requeue to avoid infinite loops
             
             # Start consuming
-            await queue.consume(handle_response_message)
+            await queue.consume(handle_response_message, consumer_tag="core-response-consumer")
             logger.info("Core service started consuming responses from service_responses exchange")
             
-            # Keep the connection alive
+            # Keep the connection alive with proper exception handling
             try:
-                await asyncio.Future()
+                while True:
+                    await asyncio.sleep(1)
+            except asyncio.CancelledError:
+                logger.info("Response consumption cancelled")
+                raise
             finally:
-                await connection.close()
+                try:
+                    await connection.close()
+                except Exception as e:
+                    logger.warning(f"Error closing RabbitMQ connection: {e}")
                 
+        except asyncio.CancelledError:
+            logger.info("Response consumption task cancelled")
+            raise
         except Exception as e:
             logger.error(f"Error consuming responses: {e}")
-            raise
+            # Wait before retrying to avoid rapid retry loops
+            await asyncio.sleep(5)
+            logger.info("Retrying response consumption...")
+            await self.consume_responses()
 
 
 # Global instance

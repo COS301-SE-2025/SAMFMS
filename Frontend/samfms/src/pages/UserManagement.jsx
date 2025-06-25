@@ -284,7 +284,7 @@ const UserManagement = () => {
     setSortFunction({field, direction: newDirection});
   };
 
-  // Get filtered and sorted users
+  // Get filtered and sorted users (recalculate on every render)
   const filteredAdmins = filterAndSortUsers(adminUsers, adminSearch, adminSort);
   const filteredManagers = filterAndSortUsers(managerUsers, managerSearch, managerSort);
   const filteredDrivers = filterAndSortUsers(driverUsers, driverSearch, driverSort);
@@ -321,14 +321,8 @@ const UserManagement = () => {
           users={filteredAdmins}
           loading={loading && !adminUsers.length}
           emptyMessage="No administrators found"
-          actions={[
-            {
-              label: 'Remove Admin',
-              variant: 'destructive',
-              onClick: user => handleRemoveUser(user.id, user.full_name),
-              disabled: () => loading,
-            },
-          ]}
+          showActions={false}
+          actions={[]}
           search={adminSearch}
           setSearch={setAdminSearch}
           sort={adminSort}
@@ -344,21 +338,8 @@ const UserManagement = () => {
           users={filteredManagers}
           loading={loading && !managerUsers.length}
           emptyMessage="No fleet managers found"
-          actions={[
-            {
-              label: 'Promote to Admin',
-              variant: 'outline',
-              onClick: user => handleRoleChange(user.id, 'admin'),
-              disabled: () => loading,
-              visible: user => canChangeRole(user),
-            },
-            {
-              label: 'Remove',
-              variant: 'destructive',
-              onClick: user => handleRemoveUser(user.id, user.full_name),
-              disabled: () => loading,
-            },
-          ]}
+          showActions={false}
+          actions={[]}
           search={managerSearch}
           setSearch={setManagerSearch}
           sort={managerSort}
@@ -373,26 +354,8 @@ const UserManagement = () => {
         users={filteredDrivers}
         loading={loading && !driverUsers.length}
         emptyMessage="No drivers found"
-        showActions={hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)}
-        actions={[
-          ...(hasRole(ROLES.ADMIN)
-            ? [
-              {
-                label: 'Promote to Manager',
-                variant: 'outline',
-                onClick: user => handleRoleChange(user.id, 'fleet_manager'),
-                disabled: () => loading,
-                visible: user => canChangeRole(user),
-              },
-            ]
-            : []),
-          {
-            label: 'Remove',
-            variant: 'destructive',
-            onClick: user => handleRemoveUser(user.id, user.full_name),
-            disabled: () => loading,
-          },
-        ]}
+        showActions={false}
+        actions={[]}
         search={driverSearch}
         setSearch={setDriverSearch}
         sort={driverSort}

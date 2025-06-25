@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 import redis
 import pika
@@ -17,7 +18,10 @@ def get_rabbitmq_connection():
     try:
         connection = pika.BlockingConnection(
             pika.ConnectionParameters(host='rabbitmq', 
-                                    credentials=pika.PlainCredentials('guest', 'guest'))
+                                    credentials=pika.PlainCredentials(
+                                        os.getenv('RABBITMQ_USER', 'samfms_rabbit'),
+                                        os.getenv('RABBITMQ_PASSWORD', 'samfms_rabbit123')
+                                    ))
         )
         return connection
     except Exception as e:

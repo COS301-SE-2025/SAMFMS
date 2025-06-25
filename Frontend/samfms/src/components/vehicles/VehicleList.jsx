@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit2, Trash2 } from 'lucide-react';
+import {Edit2, Trash2} from 'lucide-react';
 import SortableHeader from './SortableHeader';
 import StatusBadge from './StatusBadge';
 import Pagination from './Pagination';
@@ -24,6 +24,13 @@ const VehicleList = ({
   goToPrevPage,
   totalVehicles,
 }) => {
+  if (!vehicles || vehicles.length === 0) {
+    return (
+      <div className="text-center py-12 text-muted-foreground text-lg">
+        No vehicles found. Add a vehicle to get started.
+      </div>
+    );
+  }
   return (
     <>
       <div className="overflow-x-auto">
@@ -31,7 +38,7 @@ const VehicleList = ({
           <thead>
             {' '}
             <tr className="border-b border-border">
-              <th className="text-left py-3 px-3 w-10">
+              {/* <th className="text-left py-3 px-3 w-10">
                 <div className="flex items-center">
                   <input
                     type="checkbox"
@@ -43,7 +50,7 @@ const VehicleList = ({
                     className="h-4 w-4 rounded border-border"
                   />
                 </div>
-              </th>{' '}
+              </th>{' '} */}
               <SortableHeader
                 field="make"
                 label="Make"
@@ -73,7 +80,7 @@ const VehicleList = ({
                 handleSort={handleSort}
               />
               <SortableHeader
-                field="fuel_type"
+                field="fuelType"
                 label="Fuel Type"
                 sortField={sortField}
                 sortDirection={sortDirection}
@@ -112,16 +119,16 @@ const VehicleList = ({
                 <td className="py-3 px-4">{vehicle.model}</td>
                 <td className="py-3 px-4">{vehicle.year}</td>
                 <td className="py-3 px-4 capitalize">{vehicle.color}</td>
-                <td className="py-3 px-4 capitalize">{vehicle.fuel_type || vehicle.fuelType}</td>
+                <td className="py-3 px-4 capitalize">{vehicle.fuelType}</td>
                 <td className="py-3 px-4">{vehicle.mileage} km</td>{' '}
                 <td className="py-3 px-4">
                   <div className="flex items-center">
                     <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium mr-2">
                       {vehicle.driver && vehicle.driver !== 'Unassigned'
                         ? vehicle.driver
-                            .split(' ')
-                            .map(n => n[0])
-                            .join('')
+                          .split(' ')
+                          .map(n => n[0])
+                          .join('')
                         : 'UA'}
                     </div>
                     {vehicle.driver || 'Unassigned'}

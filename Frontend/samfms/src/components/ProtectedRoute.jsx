@@ -1,5 +1,5 @@
 import React, {useEffect, useState, useRef} from 'react';
-import {Navigate, Outlet} from 'react-router-dom';
+import {Navigate, Outlet, useLocation} from 'react-router-dom';
 import {isAuthenticated, checkUserExistence, clearUserExistenceCache} from '../backend/API.js';
 
 const ProtectedRoute = () => {
@@ -8,6 +8,7 @@ const ProtectedRoute = () => {
   const [error, setError] = useState(false);
   const mountedRef = useRef(true);
   const checkingRef = useRef(false);
+  const location = useLocation();
 
   useEffect(() => {
     mountedRef.current = true;
@@ -72,7 +73,7 @@ const ProtectedRoute = () => {
       mountedRef.current = false;
       clearTimeout(timeoutId); // Cleanup timeout on unmount
     };
-  }, []); // Remove loading dependency to prevent infinite loops
+  }, [location.pathname, loading]); // Re-check authentication when route changes or loading state changes
 
   if (loading) {
     return (

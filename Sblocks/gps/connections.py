@@ -98,7 +98,7 @@ class ConnectionManager:
                 _rabbitmq_connection = pika.BlockingConnection(
                     pika.ConnectionParameters(
                         host='rabbitmq',
-                        credentials=pika.PlainCredentials('guest', 'guest'),
+                        credentials=pika.PlainCredentials('samfms_rabbit', 'RabbitPass2025!'),
                         connection_attempts=3,
                         retry_delay=2
                     )

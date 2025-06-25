@@ -151,15 +151,14 @@ const ManualCreateUserModal = ({
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                disabled={true}
-                className="w-full p-2 border border-border rounded-md bg-muted text-foreground focus:ring-primary focus:border-primary cursor-not-allowed"
+                className="w-full p-2 border border-border rounded-md bg-background text-foreground focus:ring-primary focus:border-primary"
               >
                 {hasRole(ROLES.ADMIN) && <option value="admin">Administrator</option>}
                 {hasRole(ROLES.ADMIN) && <option value="fleet_manager">Fleet Manager</option>}
                 <option value="driver">Driver</option>
               </select>
               <p className="text-xs text-muted-foreground mt-1">
-                Role is pre-selected based on the table you're adding to
+                Role is pre-selected based on the table you're adding to, but you can change it
               </p>
             </div>
             <div>

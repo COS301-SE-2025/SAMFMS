@@ -59,9 +59,12 @@ def main():
     
     logger.info("All dependencies are ready, starting FastAPI application...")
     
+    # Get port from environment variable
+    port = os.getenv("TRIP_PLANNING_SERVICE_PORT", "8000")
+    
     # Start the FastAPI application
     try:
-        cmd = ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+        cmd = ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", port]
         logger.info(f"Executing: {' '.join(cmd)}")
         subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as e:

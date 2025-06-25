@@ -6,6 +6,7 @@ Handles incoming requests from Core via RabbitMQ
 import asyncio
 import json
 import logging
+import os
 from typing import Dict, Any
 from datetime import datetime
 import aio_pika
@@ -38,7 +39,7 @@ class GPSServiceRequestHandler:
     
     async def _setup_request_consumption(self):
         """Set up RabbitMQ to consume requests from Core"""
-        connection = await aio_pika.connect_robust("amqp://guest:guest@rabbitmq/")
+        connection = await aio_pika.connect_robust(os.getenv("RABBITMQ_URL", "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/"))
         channel = await connection.channel()
         
         # Declare request queue
@@ -113,7 +114,7 @@ class GPSServiceRequestHandler:
     async def _send_response(self, response: Dict[str, Any]):
         """Send response back to Core via RabbitMQ"""
         try:
-            connection = await aio_pika.connect_robust("amqp://guest:guest@rabbitmq/")
+            connection = await aio_pika.connect_robust(os.getenv("RABBITMQ_URL", "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/"))
             channel = await connection.channel()
             
             exchange = await channel.declare_exchange("service_responses", aio_pika.ExchangeType.DIRECT)

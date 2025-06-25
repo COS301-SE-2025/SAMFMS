@@ -302,56 +302,38 @@ const Signup = () => {
   // Display loading state while checking for users
   if (checkingUsers) {
     return (
-      <div className="min-h-screen flex justify-center items-center bg-primary-100">
+      <div className="min-h-screen flex justify-center items-center bg-background">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-800 mx-auto mb-4"></div>
-          <p className="text-primary-800">Checking system status...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-primary">Checking system status...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row overflow-hidden">
-      {/* Left section - Medium blue with animated background */}
-      <div
-        className="hidden md:flex md:w-1/2 flex-col justify-center items-center p-8 text-white shadow-2xl relative z-10 overflow-hidden"
-        style={{
-          backgroundImage: 'linear-gradient(125deg, #010e54, #0855b1, #2A91CD, #010e54)',
-          backgroundSize: '400% 400%',
-          animation: 'wave 10s ease infinite',
-        }}
-      >
-        {/* Animated background elements */}
-        <div className="absolute inset-0 opacity-20">
-          <div
-            className="absolute top-[10%] left-[20%] h-64 w-64 rounded-full bg-primary-700 mix-blend-overlay animate-float"
-            style={{ animationDelay: '0s' }}
-          ></div>
-          <div
-            className="absolute bottom-[15%] right-[15%] h-48 w-48 rounded-full bg-primary-500 mix-blend-overlay animate-float"
-            style={{ animationDelay: '2s' }}
-          ></div>
-          <div
-            className="absolute top-[30%] right-[30%] h-32 w-32 rounded-full bg-primary-600 mix-blend-overlay animate-float"
-            style={{ animationDelay: '4s' }}
-          ></div>
-        </div>
-
-        <div className="max-w-md text-center relative z-10 transform hover:scale-105 transition-transform duration-500">
-          <img
-            src="/logo/logo_dark.svg"
-            alt="SAMFMS Logo"
-            className="h-64 mx-auto mb-6 animate-fadeIn transition-all duration-300 drop-shadow-xl transform hover:rotate-3 hover:brightness-110"
-          />
-        </div>
+    <div className="min-h-screen flex flex-col md:flex-row overflow-hidden bg-background">
+      {/* Left section - plain background */}
+      <div className="flex w-full md:w-1/2 flex-col justify-center items-center p-8 relative z-10 bg-background">
+        <img
+          src="/logo/logo_dark.svg"
+          alt="SAMFMS Logo"
+          className="h-32 mb-4 animate-fadeIn transition-all duration-300 drop-shadow-lg"
+        />
+        <p className="text-lg text-primary-700">Smart Fleet Management System</p>
       </div>
-
-      {/* Right section - Light blue */}
-      <div className="w-full md:w-1/2 bg-primary-200 flex justify-center items-center p-4 md:p-8">
-        {' '}
+      {/* Right section - SVG pattern background */}
+      <div className="w-full md:w-1/2 flex justify-center items-center p-4 md:p-8 relative">
         <div
-          className="w-full max-w-md bg-white p-8 rounded-lg border border-primary-300 animate-slideIn transform hover:scale-[1.01] transition-all duration-300"
+          className="absolute inset-0 z-0 opacity-10 pointer-events-none"
+          style={{
+            backgroundImage: 'url("/logo/logo_icon_dark.svg")',
+            backgroundSize: '200px',
+            backgroundRepeat: 'repeat',
+            filter: 'blur(1px)',
+          }}
+        />
+        <div className="relative z-10 w-full max-w-md bg-white p-8 rounded-lg border border-primary-300 animate-slideIn transform hover:scale-[1.01] transition-all duration-300"
           style={{
             boxShadow: '0 20px 50px rgba(8,85,177,0.4)',
             transform: 'perspective(1000px) rotateX(0deg)',

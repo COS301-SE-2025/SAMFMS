@@ -23,20 +23,27 @@ async def get_vehicles(
 ):
     """Get all vehicles via Management service"""
     try:
+        logger.info(f"Received get_vehicles request with params: {dict(request.query_params)}")
+        
         # Authorize request
         user_context = await core_auth_service.authorize_request(
             credentials.credentials, "/api/vehicles", "GET"
         )
-          # Route to management service
+        logger.info(f"Authorization successful for user: {user_context.get('user_id', 'unknown')}")
+        
+        # Route to management service
+        logger.info("Routing request to management service")
         response = await request_router.route_request(
             endpoint="/api/vehicles",
             method="GET",
             data=dict(request.query_params),
             user_context=user_context
         )
+        logger.info(f"Received response from management service: {type(response)}")
         
         # Standardize field names for frontend compatibility
         standardized_response = standardize_vehicle_response(response)
+        logger.info("Response standardized successfully")
         
         return standardized_response
         

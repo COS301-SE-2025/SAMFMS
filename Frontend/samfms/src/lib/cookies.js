@@ -7,8 +7,16 @@ export const setCookie = (name, value, days, options = {}) => {
     expires = '; expires=' + date.toUTCString();
   }
 
-  // Security flags
-  let securityFlags = '; path=/; Secure; SameSite=Strict';
+  // Security flags - adjust for HTTP development
+  let securityFlags = '; path=/';
+  
+  // Only use Secure flag for HTTPS
+  if (window.location.protocol === 'https:') {
+    securityFlags += '; Secure';
+  }
+  
+  // Use Lax instead of Strict for better compatibility
+  securityFlags += '; SameSite=Lax';
 
   // Note: HttpOnly cannot be set from JavaScript for security reasons
   // It should be set by the server when setting sensitive cookies

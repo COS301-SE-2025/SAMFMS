@@ -61,13 +61,13 @@ function App() {
                 }
               />
               {/* Protected routes inside Layout - all wrapped in AuthErrorBoundary */}
-              {/* <Route
+              <Route
                 element={
                   <AuthErrorBoundary>
                     <ProtectedRoute />
                   </AuthErrorBoundary>
                 }
-              > */}
+              >
               <Route element={<Layout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/vehicles" element={<Vehicles />} />{' '}
@@ -80,7 +80,7 @@ function App() {
                 <Route path="/users" element={<UserManagement />} />
                 <Route path="/help" element={<Help />} />
               </Route>
-              {/* </Route> */}
+              </Route>
 
               {/* Catch-all route */}
               <Route path="*" element={<Navigate to="/" replace />} />

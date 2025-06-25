@@ -4,7 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://host.docker.internal:27017")
+MONGODB_URL = os.getenv("DATABASE_URL", "mongodb://mongodb_users:27017")
 DATABASE_NAME = "users_db"
 
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)

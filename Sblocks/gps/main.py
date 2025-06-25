@@ -61,6 +61,21 @@ app.add_middleware(
 app.middleware("http")(get_security_middleware())
 app.middleware("http")(get_logging_middleware())
 
+async def test_traccar_connection():
+    """Test connection to Traccar server"""
+    try:
+        response = requests.get(
+            f"{TRACCAR_API_URL}/server",
+            auth=(TRACCAR_ADMIN_USER, TRACCAR_ADMIN_PASS),
+            timeout=10
+        )
+        response.raise_for_status()
+        logger.info("Traccar connection test successful")
+        return True
+    except Exception as e:
+        logger.error(f"Traccar connection test failed: {e}")
+        return False
+
 
 # Event handlers
 @app.on_event("startup")
@@ -74,12 +89,20 @@ async def startup_event():
             "service": SERVICE_NAME
         }    )
     
+    startup_delay = int(os.getenv("SERVICE_STARTUP_DELAY", "15"))
+    logger.info(f"Waiting {startup_delay} seconds for services to initialize...")
+    await asyncio.sleep(startup_delay)
+
+    traccar_ready = await test_traccar_connection()
+    if not traccar_ready:
+        logger.warning("Traccar connection failed during startup")
+
     # Test connections during startup
-    redis_conn = ConnectionManager.get_redis_connection()
-    if redis_conn:
-        logger.info("Redis connection established successfully")
-    else:
-        logger.error("Failed to establish Redis connection")
+#    redis_conn = ConnectionManager.get_redis_connection()
+#    if redis_conn:
+#        logger.info("Redis connection established successfully")
+#    else:
+#        logger.error("Failed to establish Redis connection")
     
     rabbitmq_conn = ConnectionManager.get_rabbitmq_connection()
     if rabbitmq_conn:
@@ -335,8 +358,9 @@ async def request_gps_location(message: dict):
     return {"status": "Request sent to GPS DB service"}
 #############################################################################
 
+
 # Herrie code for GPS vehicle simulation
-TRACCAR_HOST = "http://traccar:5055"
+TRACCAR_SIMULATION_HOST = os.getenv("TRACCAR_SIMULATION_HOST", "http://traccar:5055")
 ORS_API_KEY = "5b3ce3597851110001cf6248967d5deccac54ac1bca4d679e41d602d"
 DELAY = 2
 
@@ -437,7 +461,7 @@ def add_traccar_user(name,email, password):
     response = requests.post(
         url,
         json=payload,
-        auth=HTTPBasicAuth(admin_user, admin_pass)
+        auth=HTTPBasicAuth("herrie732@gmail.com", "Eirreh732")
     )
     logger.info(f"Traccar user creation response: {response.status_code} {response.text}")
     if response.status_code in (200, 201):
@@ -571,10 +595,11 @@ async def test_fetch_live_locations(request: Request):
 if __name__ == "__main__":
     import uvicorn
     logger.info("Starting GPS Service in standalone mode")
+    port = int(os.getenv("GPS_SERVICE_PORT", "8000"))
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=8000,
+        port=port,
         log_config=None  # Use our custom logging configuration
     )
 

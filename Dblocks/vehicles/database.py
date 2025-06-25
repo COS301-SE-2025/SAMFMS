@@ -8,7 +8,7 @@ from bson import ObjectId
 logger = logging.getLogger(__name__)
 
 # MongoDB configuration
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017/vehicles_db")
+MONGODB_URL = os.getenv("DATABASE_URL", "mongodb://mongodb_vehicles:27017/vehicles_db")
 DATABASE_NAME = MONGODB_URL.split("/")[-1]
 mongodb_client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
 mongodb_db = mongodb_client[DATABASE_NAME]

@@ -1,366 +1,431 @@
 services:
+  # Infrastructure Services
   rabbitmq:
     image: rabbitmq:3-management
     ports:
-      - '5672:5672'
-      - '15672:15672'
+      - '${RABBITMQ_PORT:-21000}:5672'
+      - '${RABBITMQ_MANAGEMENT_PORT:-21001}:15672'
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USERNAME:-samfms_rabbit}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-RabbitPass2025!}
+      - RABBITMQ_DEFAULT_VHOST=/
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
       test: ['CMD', 'rabbitmq-diagnostics', 'check_port_connectivity']
-      interval: 30s # Increased interval to reduce overhead
+      interval: 30s
       timeout: 10s
       retries: 5
       start_period: 30s
-    environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    restart: no
+    restart: unless-stopped
+    networks:
+      - samfms-network
+
   redis:
     image: redis:7-alpine
     ports:
-      - '6379:6379'
+      - '${REDIS_EXTERNAL_PORT:-21002}:6379'
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
-      interval: 30s # Reduced frequency
+      interval: 30s
       timeout: 5s
-      retries: 3 # Reduced retries
+      retries: 3
       start_period: 10s
-    restart: no
+    restart: unless-stopped
+    networks:
+      - samfms-network
 
-  # MongoDB instances for each service
-  mongodb_core:
-    image: mongo:7
+  # Single MongoDB instance with multiple databases
+  mongodb:
+    image: mongo:4.4
     ports:
-      - '27017:27017'
+      - '${MONGODB_PORT:-21003}:27017'
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USERNAME:-samfms_admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD:-SafeMongoPass2025!SecureDB@SAMFMS}
     volumes:
-      - mongodb_core_data:/data/db
+      - mongodb_data:/data/db
+      - ./scripts/init-mongodb.js:/docker-entrypoint-initdb.d/init-mongodb.js:ro
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 30s # Reduced frequency
+      test: ['CMD-SHELL', "mongo --eval 'db.runCommand({ ping: 1 })' --quiet || exit 1"]
+      interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
-    restart: no
-    command: mongod --quiet --logpath /dev/null
-  mongodb_gps:
-    image: mongo:7
-    ports:
-      - '27018:27017'
-    volumes:
-      - mongodb_gps_data:/data/db
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 30s # Reduced frequency
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    restart: no
-    command: mongod --quiet --logpath /dev/null
-  mongodb_trip_planning:
-    image: mongo:7
-    ports:
-      - '27019:27017'
-    volumes:
-      - mongodb_trip_planning_data:/data/db
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 30s # Reduced frequency
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    restart: no
-    command: mongod --quiet --logpath /dev/null
+    restart: unless-stopped
+    networks:
+      - samfms-network
 
-  mongodb_vehicle_maintenance:
-    image: mongo:7
-    ports:
-      - '27020:27017'
-    volumes:
-      - mongodb_vehicle_maintenance_data:/data/db
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 30s # Reduced frequency
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    restart: no
-    command: mongod --quiet --logpath /dev/null
-  mongodb_security:
-    image: mongo:7
-    ports:
-      - '27021:27017'
-    volumes:
-      - mongodb_security_data:/data/db
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 30s # Reduced frequency
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    restart: no
-    command: mongod --quiet --logpath /dev/null
-  mongodb_users:
-    image: mongo:7
-    ports:
-      - '27022:27017'
-    volumes:
-      - mongodb_users_data:/data/db
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 30s # Reduced frequency
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    restart: no
-    command: mongod --quiet --logpath /dev/null
-  mongodb_vehicles:
-    image: mongo:7
-    ports:
-      - '27023:27017'
-    volumes:
-      - mongodb_vehicles_data:/data/db
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 30s # Reduced frequency
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    restart: no
-    command: mongod --quiet --logpath /dev/null
-
-  mongodb_management:
-    image: mongo:7
-    ports:
-      - '27024:27017'
-    volumes:
-      - mongodb_management_data:/data/db
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 30s # Reduced frequency
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    restart: no
-    command: mongod --quiet --logpath /dev/null
-
-  mcore:
+  # Core Service
+  core:
     build:
       context: .
       dockerfile: ./Core/Dockerfile
-    command: sh /app/start.sh
-    privileged: true
-    user: '0:0' # Run as root to access docker socket
     ports:
-      - '8000:8000'
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:rw
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      mongodb_core:
-        condition: service_healthy
-      security_service:
-        condition: service_started
-    restart: no
+      - '${CORE_PORT:-21004}:8000'
     environment:
-      - MONGODB_URL=mongodb://mongodb_core:27017
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
-      - SECURITY_URL=http://security_service:8000
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-default-secret-key-change-in-production}
+      - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
+      - DATABASE_NAME=${DATABASE_CORE:-samfms_core}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
+      - SECURITY_URL=http://security:8000
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
       - ENVIRONMENT=${ENVIRONMENT:-production}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SERVICE_STARTUP_DELAY=${SERVICE_STARTUP_DELAY:-10}
+      - RABBITMQ_CONNECTION_RETRY_ATTEMPTS=${RABBITMQ_CONNECTION_RETRY_ATTEMPTS:-30}
+      - RABBITMQ_CONNECTION_RETRY_DELAY=${RABBITMQ_CONNECTION_RETRY_DELAY:-2}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      security:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - samfms-network
 
-  gps_service:
+  # Service Blocks
+  gps:
     build: ./Sblocks/gps
-    command: python /startup.py
     ports:
-      - '8001:8000'
+      - '${GPS_SERVICE_PORT:-21005}:8000'
+    environment:
+      - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
+      - DATABASE_NAME=${DATABASE_GPS:-samfms_gps}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - TRACCAR_API_URL=http://traccar:8082/api
+      - TRACCAR_SIMULATION_HOST=http://traccar:5055
+      - TRACCAR_ADMIN_USER=${TRACCAR_ADMIN_USER:-herrie732@gmail.com}
+      - TRACCAR_ADMIN_PASS=${TRACCAR_ADMIN_PASS:-Eirreh732}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SERVICE_STARTUP_DELAY=${SERVICE_STARTUP_DELAY:-15}
+      - RABBITMQ_CONNECTION_RETRY_ATTEMPTS=${RABBITMQ_CONNECTION_RETRY_ATTEMPTS:-30}
+      - RABBITMQ_CONNECTION_RETRY_DELAY=${RABBITMQ_CONNECTION_RETRY_DELAY:-2}
     depends_on:
+      mongodb:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       redis:
         condition: service_healthy
-      mongodb_gps:
-        condition: service_healthy
-    restart: no
-    environment:
-      - LOG_LEVEL=INFO
-      - ENVIRONMENT=production
-      - REDIS_HOST=redis
-      - RABBITMQ_HOST=rabbitmq
-      - MONGODB_URL=mongodb://mongodb_gps:27017
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - samfms-network
 
-  trip_planning_service:
+  trip_planning:
     build: ./Sblocks/trip_planning
-    command: python /startup.py
     ports:
-      - '8002:8000'
+      - '${TRIP_PLANNING_SERVICE_PORT:-21006}:8000'
+    environment:
+      - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
+      - DATABASE_NAME=${DATABASE_TRIP_PLANNING:-samfms_trip_planning}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SERVICE_STARTUP_DELAY=${SERVICE_STARTUP_DELAY:-10}
+      - RABBITMQ_CONNECTION_RETRY_ATTEMPTS=${RABBITMQ_CONNECTION_RETRY_ATTEMPTS:-30}
+      - RABBITMQ_CONNECTION_RETRY_DELAY=${RABBITMQ_CONNECTION_RETRY_DELAY:-2}
     depends_on:
+      mongodb:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      mongodb_trip_planning:
-        condition: service_healthy
-    restart: no
-    environment:
-      - MONGODB_URL=mongodb://mongodb_trip_planning:27017
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    restart: unless-stopped
+    networks:
+      - samfms-network
 
-  vehicle_maintenance_service:
-    build: ./Sblocks/vehicle_maintainence
-    command: python /startup.py
+  vehicle_maintenance:
+    build: ./Sblocks/vehicle_maintenance
     ports:
-      - '8004:8000'
+      - '${VEHICLE_MAINTENANCE_SERVICE_PORT:-21007}:8000'
+    environment:
+      - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
+      - DATABASE_NAME=${DATABASE_VEHICLE_MAINTENANCE:-samfms_vehicle_maintenance}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SERVICE_STARTUP_DELAY=${SERVICE_STARTUP_DELAY:-10}
+      - RABBITMQ_CONNECTION_RETRY_ATTEMPTS=${RABBITMQ_CONNECTION_RETRY_ATTEMPTS:-30}
+      - RABBITMQ_CONNECTION_RETRY_DELAY=${RABBITMQ_CONNECTION_RETRY_DELAY:-2}
     depends_on:
+      mongodb:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      mongodb_vehicle_maintenance:
-        condition: service_healthy
-    restart: no
-    environment:
-      - MONGODB_URL=mongodb://mongodb_vehicle_maintenance:27017
-  utilities_service:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    restart: unless-stopped
+    networks:
+      - samfms-network
+
+  utilities:
     build: ./Sblocks/utilities
-    command: sh /app/start.sh
     ports:
-      - '8006:8000'
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: no
-  security_service:
-    build: ./Sblocks/security
-    command: sh /app/start.sh
-    ports:
-      - '8007:8000'
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      mongodb_security:
-        condition: service_healthy
-    restart: no
+      - '${UTILITIES_SERVICE_PORT:-21008}:8000'
     environment:
-      - DATABASE_URL=mongodb://mongodb_security:27017/security_db
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-default-secret-key-change-in-production}
-      # Email configuration for invitations
-      - SMTP_SERVER=${SMTP_SERVER:-smtp.gmail.com}
-      - SMTP_PORT=${SMTP_PORT:-587}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      - rabbitmq
+      - redis
+    restart: unless-stopped
+    networks:
+      - samfms-network
+
+  security:
+    build: ./Sblocks/security
+    ports:
+      - '${SECURITY_SERVICE_PORT:-21009}:8000'
+    environment:
+      - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
+      - DATABASE_NAME=${DATABASE_SECURITY:-samfms_security}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      - LOGIN_ATTEMPT_LIMIT=${LOGIN_ATTEMPT_LIMIT:-5}
+      - SMTP_SERVER=${SMTP_SERVER}
+      - SMTP_PORT=${SMTP_PORT}
       - SMTP_USERNAME=${SMTP_USERNAME}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
       - FROM_EMAIL=${FROM_EMAIL}
-  management_service:
-    build: ./Sblocks/management
-    command: sh /app/start.sh
-    ports:
-      - '8010:8000'
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SERVICE_STARTUP_DELAY=${SERVICE_STARTUP_DELAY:-10}
+      - RABBITMQ_CONNECTION_RETRY_ATTEMPTS=${RABBITMQ_CONNECTION_RETRY_ATTEMPTS:-30}
+      - RABBITMQ_CONNECTION_RETRY_DELAY=${RABBITMQ_CONNECTION_RETRY_DELAY:-2}
     depends_on:
+      mongodb:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       redis:
         condition: service_healthy
-      mongodb_management:
-        condition: service_healthy
-    restart: no
-    environment:
-      - DATABASE_URL=mongodb://mongodb_management:27017/management_db
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
-      - REDIS_URL=redis://redis:6379
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    restart: unless-stopped
+    networks:
+      - samfms-network
 
-  micro_frontend_service:
-    build: ./Sblocks/micro_frontend
-    command: sh /app/start.sh
+  management:
+    build: ./Sblocks/management
     ports:
-      - '8009:8000'
+      - '${MANAGEMENT_SERVICE_PORT:-21010}:8000'
+    environment:
+      - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
+      - DATABASE_NAME=${DATABASE_MANAGEMENT:-samfms_management}
+      - DATABASE_VEHICLES=${DATABASE_VEHICLES:-samfms_vehicles}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SERVICE_STARTUP_DELAY=${SERVICE_STARTUP_DELAY:-10}
+      - RABBITMQ_CONNECTION_RETRY_ATTEMPTS=${RABBITMQ_CONNECTION_RETRY_ATTEMPTS:-30}
+      - RABBITMQ_CONNECTION_RETRY_DELAY=${RABBITMQ_CONNECTION_RETRY_DELAY:-2}
     depends_on:
+      mongodb:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: no
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - samfms-network
+
+  micro_frontend:
+    build: ./Sblocks/micro_frontend
+    ports:
+      - '${MICRO_FRONTEND_SERVICE_PORT:-21011}:8000'
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      - rabbitmq
+      - redis
+    restart: unless-stopped
+    networks:
+      - samfms-network
+
+  # Data Blocks
   users_dblock:
     build: ./Dblocks/users
-    command: sh /app/start.sh
     ports:
-      - '8013:8000'
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      mongodb_users:
-        condition: service_healthy
-    restart: no
+      - '${USERS_DBLOCK_PORT:-21012}:8000'
     environment:
-      - DATABASE_URL=mongodb://mongodb_users:27017/users_db
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
-      - REDIS_URL=redis://redis:6379
+      - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
+      - DATABASE_NAME=${DATABASE_USERS:-samfms_users}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - redis
+    restart: unless-stopped
+    networks:
+      - samfms-network
 
   vehicles_dblock:
     build: ./Dblocks/vehicles
-    command: sh /app/start.sh
     ports:
-      - '8011:8000'
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      mongodb_vehicles:
-        condition: service_healthy
-    restart: no
+      - '${VEHICLES_DBLOCK_PORT:-21013}:8000'
     environment:
-      - DATABASE_URL=mongodb://mongodb_vehicles:27017/vehicles_db
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq/
-      - REDIS_URL=redis://redis:6379
+      - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
+      - DATABASE_NAME=${DATABASE_VEHICLES:-samfms_vehicles}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - redis
+    restart: unless-stopped
+    networks:
+      - samfms-network
 
   gps_dblock:
     build: ./Dblocks/gps
-    command: sh /app/start.sh
     ports:
-      - '8012:8000'
+      - '${GPS_DBLOCK_PORT:-21014}:8000'
+    environment:
+      - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
+      - DATABASE_NAME=${DATABASE_GPS:-samfms_gps}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
-      rabbitmq:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: no
+      - mongodb
+      - rabbitmq
+      - redis
+    restart: unless-stopped
+    networks:
+      - samfms-network
 
+  # Frontend
   frontend:
     build: ./Frontend/samfms
     ports:
-      - '3000:3000'
+      - '${FRONTEND_PORT:-21015}:3000'
+    environment:
+      - REACT_APP_CORE_PORT=${CORE_PORT:-21004}
+      - REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL}
+      - REACT_APP_DOMAIN=${REACT_APP_DOMAIN}
+      - CHOKIDAR_USEPOLLING=${HOT_RELOAD:-false}
     depends_on:
-      - mcore
-    restart: no
+      - core
+    restart: unless-stopped
+    networks:
+      - samfms-network
+
+  # Nginx reverse proxy with SSL (production)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - '${NGINX_HTTP_PORT:-21016}:80'
+      - '${NGINX_HTTPS_PORT:-21017}:443'
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
+      - ./ssl-certs:/etc/ssl/certs:ro
+      - ./ssl-private:/etc/ssl/private:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    environment:
+      - NGINX_ENVSUBST_TEMPLATE_DIR=/etc/nginx/templates
+      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
+      - DOMAIN=${REACT_APP_DOMAIN:-capstone-samfms.dns.net.za}
+      - NGINX_HTTPS_PORT=${NGINX_HTTPS_PORT:-21017}
+    depends_on:
+      - frontend
+      - core
+    restart: unless-stopped
+    networks:
+      - samfms-network
+
+  # Certbot for Let's Encrypt SSL (production)
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    restart: unless-stopped
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done;'"
+    networks:
+      - samfms-network
 
   traccar:
     image: traccar/traccar:latest
     ports:
       - "8082:8082" 
+      - "5055:5055"
       - "5001-5039:5001-5039"
       - "5041-5149:5041-5149"
     volumes:
       - ./traccar-data:/opt/traccar/data
     environment:
       - TZ=UTC
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8082 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - samfms-network
+
 
 volumes:
-  mongodb_core_data:
-  mongodb_gps_data:
-  mongodb_trip_planning_data:
-  mongodb_vehicle_maintenance_data:
-  mongodb_security_data:
-  mongodb_users_data:
-  mongodb_vehicles_data:
-  mongodb_management_data:
+  mongodb_data:
   redis_data:
   rabbitmq_data:
-  traccar_data:
+
+networks:
+  samfms-network:
+    driver: bridge

@@ -12,6 +12,7 @@ from database import test_database_connection, create_indexes
 from routes import router as vehicle_routes
 from message_queue import MessageQueueService
 from service_request_handler import service_request_handler
+from analytics import router as analytics_router
 #from logging_config import setup_logging
 #from health_metrics import health_metrics
 
@@ -36,9 +37,14 @@ app.add_middleware(
 
 # Include routes
 app.include_router(vehicle_routes, prefix="/api/v1/vehicles", tags=["vehicles"])
+# Also include driver routes at the correct path for core service proxy
+app.include_router(vehicle_routes, prefix="/api", tags=["drivers"])
+app.include_router(analytics_router, prefix="/api/v1", tags=["analytics"])
 
 # Initialize Redis connection
-redis_client = redis.Redis(host='redis', port=6379, decode_responses=True)
+redis_host = os.getenv("REDIS_HOST", "redis")
+redis_port = int(os.getenv("REDIS_PORT", "6379"))
+redis_client = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
 
 # Initialize global message queue service
 mq_service = None
@@ -46,7 +52,7 @@ mq_service = None
 # Initialize RabbitMQ connection
 def get_rabbitmq_connection():
     try:
-        rabbitmq_url = os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq/")
+        rabbitmq_url = os.getenv("RABBITMQ_URL", "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/")
         connection = pika.BlockingConnection(pika.URLParameters(rabbitmq_url))
         return connection
     except Exception as e:
@@ -300,4 +306,5 @@ async def test_message_queue():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("MANAGEMENT_PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)

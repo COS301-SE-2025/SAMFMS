@@ -4,6 +4,7 @@ import redis
 import pika
 import logging
 import json
+import os
 from datetime import datetime, timezone
 
 from database import init_database, create_vehicle_activity_log, get_db, check_database_health
@@ -34,15 +35,23 @@ app.add_middleware(
 # Include routes
 app.include_router(vehicle_routes, prefix="/api/v1/vehicles", tags=["vehicles"])
 
-# Initialize Redis connection
-redis_client = redis.Redis(host='redis', port=6379, decode_responses=True)
+# Initialize Redis connection using environment variables
+redis_host = os.getenv("REDIS_HOST", "redis")
+redis_port = int(os.getenv("REDIS_PORT", "6379"))
+redis_client = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
 
-# Initialize RabbitMQ connection
+# Initialize RabbitMQ connection using environment variables
 def get_rabbitmq_connection():
     try:
+        rabbitmq_host = os.getenv("RABBITMQ_HOST", "rabbitmq")
+        rabbitmq_username = os.getenv("RABBITMQ_USERNAME", "guest")
+        rabbitmq_password = os.getenv("RABBITMQ_PASSWORD", "guest")
+        
         connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host='rabbitmq', 
-                                    credentials=pika.PlainCredentials('guest', 'guest'))
+            pika.ConnectionParameters(
+                host=rabbitmq_host, 
+                credentials=pika.PlainCredentials(rabbitmq_username, rabbitmq_password)
+            )
         )
         return connection
     except Exception as e:
@@ -146,4 +155,5 @@ def get_service_stats():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("VEHICLES_DBLOCK_PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)

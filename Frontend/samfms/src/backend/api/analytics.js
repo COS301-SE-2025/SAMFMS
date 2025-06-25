@@ -1,6 +1,5 @@
 import {
     getApiHostname,
-    getToken,
     authFetch
 } from './auth';
 

@@ -2,10 +2,11 @@ FROM python:3.9-slim AS base
 
 WORKDIR /app
 
-# Install only the essential tools first
+# Install essential tools and netcat for dependency checking
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    curl ca-certificates gnupg \
+    curl ca-certificates gnupg netcat-openbsd \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
@@ -30,6 +31,11 @@ CMD ["pytest", "--disable-warnings", "--tb=no"]
 
 FROM base AS runtime
 
+# Set environment variables for better compatibility
+ENV OPENBLAS_CORETYPE=generic
+ENV MKL_DEBUG_CPU_TYPE=5
+ENV PYTHONUNBUFFERED=1
+
 # Install MongoDB - combined into a single RUN command to reduce layers
 RUN curl -fsSL https://pgp.mongodb.com/server-7.0.asc | gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor && \
     echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" \
@@ -47,12 +53,14 @@ COPY Core/config/ /project/Core/config/
 # Create a directory for docker-compose file but make it optional
 RUN mkdir -p /project
 
+# Make start script executable
+RUN chmod +x /app/start.sh
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
 EXPOSE 8000 27017
 
-# Copy startup script with explicit line ending handling
-COPY Core/start.sh /start.sh
-# Convert Windows line endings (CRLF) to Unix (LF) and ensure script is executable
-RUN sed -i 's/\r$//' /start.sh && \
-    chmod +x /start.sh
-
-CMD ["/bin/sh", "/start.sh"]
+# Use the improved start script
+CMD ["/app/start.sh"]

@@ -1,0 +1,162 @@
+version: '3.8'
+
+# Development Docker Compose Configuration
+# This file is optimized for local development with minimal resource usage
+
+services:
+  # Infrastructure Services (minimal setup for development)
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq_dev_data:/var/lib/rabbitmq
+    networks:
+      - samfms-dev-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - samfms-dev-network
+
+  # Single MongoDB for all services in development
+  mongodb:
+    image: mongo:7
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodb_dev_data:/data/db
+    networks:
+      - samfms-dev-network
+
+  # Mail service for development (MailHog)
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - '1025:1025'  # SMTP port
+      - '8025:8025'  # Web UI port
+    networks:
+      - samfms-dev-network
+
+  # Core Service (development mode)
+  core:
+    build:
+      context: .
+      dockerfile: ./Core/Dockerfile
+      target: development
+    ports:
+      - '8000:8000'
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017
+      - DATABASE_NAME=samfms_dev_core
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET_KEY=dev-secret-key
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - HOT_RELOAD=true
+    volumes:
+      - ./Core:/app
+      - /app/node_modules
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - redis
+    networks:
+      - samfms-dev-network
+
+  # Security Service (development mode)
+  security:
+    build:
+      context: ./Sblocks/security
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - '8005:8000'
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017
+      - DATABASE_NAME=samfms_dev_security
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - REDIS_HOST=redis
+      - JWT_SECRET_KEY=dev-secret-key
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - SMTP_SERVER=mailhog
+      - SMTP_PORT=1025
+      - FROM_EMAIL=dev@samfms.local
+    volumes:
+      - ./Sblocks/security:/app
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - redis
+      - mailhog
+    networks:
+      - samfms-dev-network
+
+  # Management Service (development mode)
+  management:
+    build:
+      context: ./Sblocks/management
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - '8001:8000'
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017
+      - DATABASE_NAME=samfms_dev_management
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET_KEY=dev-secret-key
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./Sblocks/management:/app
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - redis
+    networks:
+      - samfms-dev-network
+
+  # Frontend (development mode with hot reload)
+  frontend:
+    build:
+      context: ./Frontend/samfms
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - '3000:3000'
+    environment:
+      - REACT_APP_API_BASE_URL=http://localhost:8000/api
+      - REACT_APP_DOMAIN=localhost
+      - CHOKIDAR_USEPOLLING=true
+      - FAST_REFRESH=true
+    volumes:
+      - ./Frontend/samfms:/app
+      - /app/node_modules
+    depends_on:
+      - core
+    networks:
+      - samfms-dev-network
+
+volumes:
+  mongodb_dev_data:
+  redis_dev_data:
+  rabbitmq_dev_data:
+
+networks:
+  samfms-dev-network:
+    driver: bridge

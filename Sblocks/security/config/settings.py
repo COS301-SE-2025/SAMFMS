@@ -5,8 +5,8 @@ class Settings:
     """Application settings and configuration"""
     
     # Database Configuration
-    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://host.docker.internal:27017")
-    DATABASE_NAME: str = "security_db"
+    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://mongodb_security:27017")
+    DATABASE_NAME: str = os.getenv("DATABASE_NAME", "security_db")
     
     # JWT Configuration
     JWT_SECRET_KEY: Optional[str] = os.getenv("JWT_SECRET_KEY")
@@ -28,6 +28,9 @@ class Settings:
     # Redis Configuration
     REDIS_HOST: str = os.getenv("REDIS_HOST", "redis")
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
+    
+    # Server Configuration
+    PORT: int = int(os.getenv("SECURITY_PORT", "8000"))
     
     # Role Configuration
     DEFAULT_FIRST_USER_ROLE: str = "admin"
