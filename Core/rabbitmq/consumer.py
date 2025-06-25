@@ -4,6 +4,7 @@ import json
 import logging
 from typing import Callable, Dict, Any
 from . import admin
+from ..database import db
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,10 @@ async def handle_message(message: aio_pika.IncomingMessage):
                 logger.info(f"Security Sblock is up and running - Message received at {data.get('timestamp')}")
             else:
                 logger.info(f"Message Received: {data}")
+        elif data.get('type') == 'service_presence':
+            db.get_collection("service_presence").insert_one({"service":data.get('service')})
+            
+
         else:
             logger.info(f"Message Received: {data}")
 

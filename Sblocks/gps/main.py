@@ -120,10 +120,12 @@ async def startup_event():
     
     logger.info("GPS Service startup completed")
 
+
     # Start the RabbitMQ consumer
     asyncio.create_task(consume_messages_Direct("gps_requests_Direct","gps_requests_Direct",handle_gps_request))
     asyncio.create_task(consume_messages_Direct("gps_responses_Direct","gps_responses_Direct" ,handle_DBlock_responses))
-
+    publish_message()
+    publish_message("service_presence", aio_pika.ExchangeType.FANOUT, {"type": "service_presence", "service":"gps"}, "")
     
 
 

@@ -76,10 +76,12 @@ async def lifespan(app: FastAPI):
         consumer_task = asyncio.create_task(consume_messages("service_status"))
         core_response_task = asyncio.create_task(consume_messages_Direct("core_responses","core_responses", on_response))
         consumer_tasks.extend([consumer_task, core_response_task])
+        asyncio.create_task(consume_messages("service_presence"))
         
         await create_exchange("general", aio_pika.ExchangeType.FANOUT)
         await publish_message("general", aio_pika.ExchangeType.FANOUT, {"message": "Core service started"})
         logger.info("Started consuming messages from service_status queue")
+        logger.info("Started consuming messages from service_presence queue")
     except Exception as e:
         logger.error(f"Failed to initialize RabbitMQ: {e}")
         # Continue startup - messaging will retry
@@ -660,6 +662,12 @@ async def debug_routes():
         "routes": routes_info,
         "api_routes": [r for r in routes_info if r["path"].startswith("/api")]
     }
+
+@app.get("/service_presence", tags=["plugins"])
+async def service_presence():
+    services = await db.get_collection("service_presence").find({}, {"service": 1, "_id": 0}).to_list(length=None)
+    service_names = [service["service_name"] for service in services]
+    return service_names
 
 if __name__ == "__main__":
     logger.info("🚀 Starting Core service...")
