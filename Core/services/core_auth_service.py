@@ -24,42 +24,45 @@ class CoreAuthService:
         self.permission_map = {
             # Vehicle management
             "/api/vehicles": {
-                "GET": ["vehicle.read", "fleet.read"],
-                "POST": ["vehicle.create", "fleet.manage"],
-                "PUT": ["vehicle.update", "fleet.manage"],
-                "DELETE": ["vehicle.delete", "fleet.manage"]
+                "GET":    ["vehicle.read",     "fleet.read"],
+                "POST":   ["vehicle.create",   "fleet.manage"],
+                "PUT":    ["vehicle.update",   "fleet.manage"],
+                "DELETE": ["vehicle.delete",   "fleet.manage"]
             },
             "/api/vehicle-assignments": {
-                "GET": ["assignment.read", "fleet.read"],
-                "POST": ["assignment.create", "fleet.manage"],
-                "PUT": ["assignment.update", "fleet.manage"],
-                "DELETE": ["assignment.delete", "fleet.manage"]
+                "GET":    ["assignment.read",  "fleet.read"],
+                "POST":   ["assignment.create","fleet.manage"],
+                "PUT":    ["assignment.update","fleet.manage"],
+                "DELETE": ["assignment.delete","fleet.manage"]
             },
             # GPS and tracking
             "/api/gps": {
-                "GET": ["tracking.read", "gps.read"],
-                "POST": ["tracking.create", "gps.manage"]
+                "GET":  ["tracking.read", "gps.read"],
+                "POST": ["tracking.create","gps.manage"]
             },
             "/api/tracking": {
-                "GET": ["tracking.read"],
+                "GET":  ["tracking.read"],
                 "POST": ["tracking.create"]
             },
             # Trip planning
             "/api/trips": {
-                "GET": ["trip.read", "planning.read"],
-                "POST": ["trip.create", "planning.create"],
-                "PUT": ["trip.update", "planning.update"],
-                "DELETE": ["trip.delete", "planning.manage"]
+                "GET":    ["trip.read",     "planning.read"],
+                "POST":   ["trip.create",   "planning.create"],
+                "PUT":    ["trip.update",   "planning.update"],
+                "DELETE": ["trip.delete",   "planning.manage"]
             },
             # Maintenance
             "/api/maintenance": {
-                "GET": ["maintenance.read"],
-                "POST": ["maintenance.create"],
-                "PUT": ["maintenance.update"],
+                "GET":    ["maintenance.read"],
+                "POST":   ["maintenance.create"],
+                "PUT":    ["maintenance.update"],
                 "DELETE": ["maintenance.delete"]
-            }
+            },
+
+            # Analytics
+            "/api/analytics/*":   { "GET": ["analytics.read"] },
         }
-        
+            
         # Role-based permissions
         self.role_permissions = {
             "admin": ["*"],  # Admin has all permissions
@@ -67,11 +70,12 @@ class CoreAuthService:
                 "vehicle.read", "vehicle.update", "fleet.read", "fleet.manage",
                 "assignment.read", "assignment.create", "assignment.update",
                 "tracking.read", "gps.read", "trip.read", "planning.read",
-                "maintenance.read", "maintenance.create", "maintenance.update"
+                "maintenance.read", "maintenance.create", "maintenance.update",
+                "analytics.read"
             ],
             "driver": [
                 "vehicle.read", "assignment.read", "tracking.read", "gps.read",
-                "trip.read", "maintenance.read"
+                "trip.read", "maintenance.read", "analytics.read"
             ],
             "maintenance_staff": [
                 "vehicle.read", "maintenance.read", "maintenance.create", 
