@@ -7,13 +7,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import motor.motor_asyncio
 
-# Ensure the project root is on the import path so that "config" and other
-# first‑party packages resolve regardless of where pytest is invoked from.
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Core asyncio/pytest configuration
-# ──────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -23,9 +20,7 @@ def event_loop():
     loop.close()
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Sample domain objects used by multiple tests
-# ──────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def test_user_data():
@@ -86,9 +81,7 @@ def test_invitation_data():
     }
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Repository / service mocks (for unit tests)
-# ──────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def mock_user_repository():
@@ -132,9 +125,7 @@ def mock_rabbitmq_producer():
     return producer
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Auth headers for API tests
-# ──────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def auth_headers():
@@ -146,9 +137,7 @@ def invalid_auth_headers():
     return {"Authorization": "Bearer invalid-token"}
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Fresh Motor client per test to avoid closed event-loop
-# ──────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture(autouse=True)
 def _fresh_motor_per_test(monkeypatch, event_loop):
@@ -158,11 +147,11 @@ def _fresh_motor_per_test(monkeypatch, event_loop):
     """
     from config import database as _db
 
-    # 1) fresh client + db tied to this test’s loop
+
     new_client = motor.motor_asyncio.AsyncIOMotorClient(_db.settings.MONGODB_URL)
     new_db = new_client[_db.settings.DATABASE_NAME]
 
-    # 2) patch the globals in config.database
+
     monkeypatch.setattr(_db, "client", new_client, raising=False)
     monkeypatch.setattr(_db, "db", new_db, raising=False)
     monkeypatch.setattr(
@@ -177,7 +166,7 @@ def _fresh_motor_per_test(monkeypatch, event_loop):
         raising=False,
     )
 
-    # 3) patch every repo that cached a collection at import
+
     for mod_name, attr, coll in [
         ("repositories.user_repository", "security_users_collection", "security_users"),
         ("repositories.audit_repository", "audit_logs_collection", "audit_logs"),
@@ -192,5 +181,5 @@ def _fresh_motor_per_test(monkeypatch, event_loop):
 
     yield
 
-    # 4) close sockets (while loop still alive)
+
     new_client.close()
