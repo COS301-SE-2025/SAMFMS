@@ -1,7 +1,7 @@
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
-from ...middleware.security_middleware import SecurityHeadersMiddleware, CORSMiddleware  # Update import path
+from middleware.security_middleware import SecurityHeadersMiddleware, CORSMiddleware  # Update import path
 
 # Test app setup
 app = FastAPI()

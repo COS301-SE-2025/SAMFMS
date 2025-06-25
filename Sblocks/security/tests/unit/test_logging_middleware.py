@@ -5,7 +5,7 @@ from fastapi.exceptions import HTTPException
 import logging
 from datetime import datetime
 import uuid
-from ...middleware.logging_middleware import LoggingMiddleware
+from middleware.logging_middleware import LoggingMiddleware
 
 app = FastAPI()
 
