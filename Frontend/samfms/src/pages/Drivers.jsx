@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { PlusCircle } from 'lucide-react';
+import React, {useState, useEffect, useCallback} from 'react';
+import {PlusCircle} from 'lucide-react';
 import DriverList from '../components/drivers/DriverList';
 import DriverSearch from '../components/drivers/DriverSearch';
 import DriverActions from '../components/drivers/DriverActions';
@@ -8,7 +8,7 @@ import VehicleAssignmentModal from '../components/drivers/VehicleAssignmentModal
 import AddDriverModal from '../components/drivers/AddDriverModal';
 import EditDriverModal from '../components/drivers/EditDriverModal';
 import DataVisualization from '../components/drivers/DataVisualization';
-import { getDrivers, deleteDriver, searchDrivers } from '../backend/API';
+import {getDrivers, deleteDriver, searchDrivers} from '../backend/API';
 
 const Drivers = () => {
   const [drivers, setDrivers] = useState([]);
@@ -118,7 +118,7 @@ const Drivers = () => {
           ...(filters.status && {
             status_filter: filters.status.toLowerCase().replace(/\s+/g, '_'),
           }),
-          ...(filters.department && { department_filter: filters.department }),
+          ...(filters.department && {department_filter: filters.department}),
         });
         const transformedDrivers = response.map(transformDriverData);
         setFilteredDrivers(transformedDrivers);
@@ -283,7 +283,7 @@ const Drivers = () => {
       console.error('Error processing new driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getDrivers({ limit: 100 });
+        const response = await getDrivers({limit: 100});
         const transformedDrivers = response.map(transformDriverData);
         setDrivers(transformedDrivers);
         setFilteredDrivers(transformedDrivers);
@@ -329,7 +329,7 @@ const Drivers = () => {
       console.error('Error processing updated driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getDrivers({ limit: 100 });
+        const response = await getDrivers({limit: 100});
         const transformedDrivers = response.map(transformDriverData);
         setDrivers(transformedDrivers);
         setFilteredDrivers(transformedDrivers);
@@ -362,116 +362,129 @@ const Drivers = () => {
     setCurrentPage(1); // Reset to first page
   };
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Fleet Drivers</h1>
-      {/* Error Message */}
-      {error && (
-        <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-md mb-6">
-          <p>{error}</p>
-        </div>
-      )}
-      <div className="bg-card rounded-lg shadow-md p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">
-            Manage Drivers
-            {loading && <span className="text-sm text-muted-foreground ml-2">(Loading...)</span>}
-          </h2>{' '}
-          <button
-            onClick={() => setShowAddDriverModal(true)}
-            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
-          >
-            <PlusCircle size={18} />
-            <span>Add Driver</span>
-          </button>
-        </div>
-        {/* Search and filter bar */}
-        <DriverSearch
-          filterOpen={filterOpen}
-          setFilterOpen={setFilterOpen}
-          onSearch={handleSearch}
-          onApplyFilters={handleApplyFilters}
-          onResetFilters={handleResetFilters}
-        />
-        {/* Driver actions */}{' '}
-        <DriverActions
-          selectedDrivers={selectedDrivers}
-          exportSelectedDrivers={exportSelectedDrivers}
-          onDeleteSelected={() => {
-            // Filter out any undefined employee IDs
-            const validEmployeeIds = selectedDrivers.filter(id => id);
-
-            if (
-              validEmployeeIds.length > 0 &&
-              window.confirm(
-                `Are you sure you want to delete ${validEmployeeIds.length} driver(s)?`
-              )
-            ) {
-              validEmployeeIds.forEach(employeeId => handleDeleteDriver(employeeId));
-            }
-          }}
-        />
-        {/* Loading State */}
-        {loading && drivers.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading drivers...</p>
+    <div className="relative container mx-auto px-4 py-8">
+      {/* Background pattern */}
+      <div
+        className="absolute inset-0 z-0 opacity-10 pointer-events-none"
+        style={{
+          backgroundImage: 'url("/logo/logo_icon_dark.svg")',
+          backgroundSize: '200px',
+          backgroundRepeat: 'repeat',
+          filter: 'blur(1px)',
+        }}
+        aria-hidden="true"
+      />
+      <div className="relative z-10">
+        <h1 className="text-3xl font-bold mb-6">Fleet Drivers</h1>
+        {/* Error Message */}
+        {error && (
+          <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-md mb-6">
+            <p>{error}</p>
           </div>
-        ) : (
-          /* Driver list with pagination */ <DriverList
-            drivers={currentDrivers}
+        )}
+        <div className="bg-card rounded-lg shadow-md p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold">
+              Manage Drivers
+              {loading && <span className="text-sm text-muted-foreground ml-2">(Loading...)</span>}
+            </h2>{' '}
+            <button
+              onClick={() => setShowAddDriverModal(true)}
+              className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
+            >
+              <PlusCircle size={18} />
+              <span>Add Driver</span>
+            </button>
+          </div>
+          {/* Search and filter bar */}
+          <DriverSearch
+            filterOpen={filterOpen}
+            setFilterOpen={setFilterOpen}
+            onSearch={handleSearch}
+            onApplyFilters={handleApplyFilters}
+            onResetFilters={handleResetFilters}
+          />
+          {/* Driver actions */}{' '}
+          <DriverActions
             selectedDrivers={selectedDrivers}
-            handleSelectDriver={handleSelectDriver}
-            selectAll={selectAll}
-            handleSelectAll={handleSelectAll}
-            sortField={sortField}
-            sortDirection={sortDirection}
-            handleSort={handleSort}
-            openDriverDetails={openDriverDetails}
-            onEditDriver={handleEditDriver}
-            onDeleteDriver={handleDeleteDriver}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            itemsPerPage={itemsPerPage}
-            changeItemsPerPage={changeItemsPerPage}
-            goToNextPage={goToNextPage}
-            goToPrevPage={goToPrevPage}
-            totalDrivers={sortedDrivers.length}
+            exportSelectedDrivers={exportSelectedDrivers}
+            onDeleteSelected={() => {
+              // Filter out any undefined employee IDs
+              const validEmployeeIds = selectedDrivers.filter(id => id);
+
+              if (
+                validEmployeeIds.length > 0 &&
+                window.confirm(
+                  `Are you sure you want to delete ${validEmployeeIds.length} driver(s)?`
+                )
+              ) {
+                validEmployeeIds.forEach(employeeId => handleDeleteDriver(employeeId));
+              }
+            }}
+          />
+          {/* Loading State */}
+          {loading && drivers.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading drivers...</p>
+            </div>
+          ) : (
+          /* Driver list with pagination */ <DriverList
+              drivers={currentDrivers}
+              selectedDrivers={selectedDrivers}
+              handleSelectDriver={handleSelectDriver}
+              selectAll={selectAll}
+              handleSelectAll={handleSelectAll}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              handleSort={handleSort}
+              openDriverDetails={openDriverDetails}
+              onEditDriver={handleEditDriver}
+              onDeleteDriver={handleDeleteDriver}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              itemsPerPage={itemsPerPage}
+              changeItemsPerPage={changeItemsPerPage}
+              goToNextPage={goToNextPage}
+              goToPrevPage={goToPrevPage}
+              totalDrivers={sortedDrivers.length}
+            />
+          )}
+        </div>
+        {/* Driver Details Modal */}
+        {driverDetailsOpen && currentDriver && (
+          <DriverDetailsModal
+            driver={currentDriver}
+            closeDriverDetails={closeDriverDetails}
+            openVehicleAssignmentModal={openVehicleAssignmentModal}
+          />
+        )}{' '}
+        {/* Vehicle Assignment Modal */}
+        {showVehicleAssignmentModal && (
+          <VehicleAssignmentModal
+            closeVehicleAssignmentModal={closeVehicleAssignmentModal}
+            selectedDrivers={selectedDrivers}
+            currentDriver={currentDriver}
+          />
+        )}{' '}
+        {/* Add Driver Modal */}
+        {showAddDriverModal && (
+          <AddDriverModal
+            closeModal={() => setShowAddDriverModal(false)}
+            onDriverAdded={handleDriverAdded}
           />
         )}
+        {/* Edit Driver Modal */}
+        {showEditDriverModal && driverToEdit && (
+          <EditDriverModal
+            driver={driverToEdit}
+            closeModal={closeEditDriverModal}
+            onDriverUpdated={handleDriverUpdated}
+          />
+        )}
+        {/* Data visualization section */}
+        <DataVisualization />
       </div>
-      {/* Driver Details Modal */}
-      {driverDetailsOpen && currentDriver && (
-        <DriverDetailsModal
-          driver={currentDriver}
-          closeDriverDetails={closeDriverDetails}
-          openVehicleAssignmentModal={openVehicleAssignmentModal}
-        />
-      )}{' '}
-      {/* Vehicle Assignment Modal */}
-      {showVehicleAssignmentModal && (
-        <VehicleAssignmentModal
-          closeVehicleAssignmentModal={closeVehicleAssignmentModal}
-          selectedDrivers={selectedDrivers}
-          currentDriver={currentDriver}
-        />
-      )}{' '}
-      {/* Add Driver Modal */}
-      {showAddDriverModal && (
-        <AddDriverModal
-          closeModal={() => setShowAddDriverModal(false)}
-          onDriverAdded={handleDriverAdded}
-        />
-      )}
-      {/* Edit Driver Modal */}
-      {showEditDriverModal && driverToEdit && (
-        <EditDriverModal
-          driver={driverToEdit}
-          closeModal={closeEditDriverModal}
-          onDriverUpdated={handleDriverUpdated}
-        />
-      )}
-      {/* Data visualization section */}
-      <DataVisualization />
     </div>
   );
 };
