@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Callable, Dict, Any
 from . import admin
-from ..database import db
+from database import db
 
 logger = logging.getLogger(__name__)
 
