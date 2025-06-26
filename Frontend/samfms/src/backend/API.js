@@ -158,10 +158,12 @@ export const getDrivers = async (params = {}) => {
   }
 
   const queryParams = new URLSearchParams();
-  if (params.skip) queryParams.append('skip', params.skip);
-  if (params.limit) queryParams.append('limit', params.limit);
-  if (params.status_filter) queryParams.append('status_filter', params.status_filter);
-  if (params.department_filter) queryParams.append('department_filter', params.department_filter);
+  if (params) {
+    if (params.skip) queryParams.append('skip', params.skip);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.status_filter) queryParams.append('status_filter', params.status_filter);
+    if (params.department_filter) queryParams.append('department_filter', params.department_filter);
+  }
 
   const url = `${DRIVER_API.drivers}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
 

@@ -145,7 +145,6 @@ app.add_middleware(
 
 from routes.auth import router as auth_router
 from routes.plugins import router as plugins_router
-from routes.gps import router as gps_router
 
 # Try to import service_proxy router with error handling
 try:
@@ -159,7 +158,6 @@ except Exception as e:
 
 app.include_router(auth_router)
 app.include_router(plugins_router, prefix="/api")
-app.include_router(gps_router,prefix="/api")
 
 # Only include service_proxy if it imported successfully
 if service_proxy_available and service_proxy_router:

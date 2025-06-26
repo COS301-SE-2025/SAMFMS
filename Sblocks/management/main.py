@@ -143,6 +143,8 @@ async def startup_event():
         
         #health_metrics["startup_time"] = datetime.now(timezone.utc).isoformat()
         logger.info("🎉 Management Service Startup Completed")
+
+        publish_message("service_presence", aio_pika.ExchangeType.FANOUT, {"type": "service_presence", "service":"management"}, "")
         
     except Exception as startup_error:
         logger.error(f"💥 CRITICAL ERROR DURING STARTUP: {startup_error}")

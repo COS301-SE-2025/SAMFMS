@@ -431,7 +431,7 @@ const Drivers = () => {
             </div>
           ) : (
             /* Driver list with pagination */ <DriverList
-              drivers={currentDrivers}
+              drivers={filteredDrivers}
               selectedDrivers={selectedDrivers}
               handleSelectDriver={handleSelectDriver}
               selectAll={selectAll}
