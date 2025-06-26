@@ -43,13 +43,16 @@ def main():
     
     print("All dependencies are ready. Starting GPS Service...")
     
+    # Get port from environment variable
+    port = os.getenv("GPS_SERVICE_PORT", "8000")
+    
     # Start the FastAPI application
     try:
         subprocess.run([
             "uvicorn", 
             "main:app", 
             "--host", "0.0.0.0", 
-            "--port", "8000"
+            "--port", port
         ], check=True)
     except subprocess.CalledProcessError as e:
         print(f"Failed to start GPS Service: {e}")

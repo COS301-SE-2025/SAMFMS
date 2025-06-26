@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import {Button} from './ui/button';
 import {Plus, Search, ChevronUp, ChevronDown} from 'lucide-react';
 
@@ -17,6 +17,12 @@ const UserTable = ({
   onAddUser,
   showAddButton = false,
 }) => {
+  const [filteredUsers, setFilteredUsers] = useState(users);
+
+  useEffect(() => {
+    setFilteredUsers(users);
+  }, [users]);
+
   if (loading && !users.length) {
     return (
       <div className="mb-8">
@@ -53,6 +59,20 @@ const UserTable = ({
     }
   };
 
+  const handleSearchChange = async query => {
+    if (!query.trim()) {
+      setFilteredUsers(users);
+      return;
+    }
+    const lowerQuery = query.toLowerCase();
+    setFilteredUsers(
+      users.filter(user =>
+        (user.full_name && user.full_name.toLowerCase().includes(lowerQuery)) ||
+        (user.email && user.email.toLowerCase().includes(lowerQuery))
+      )
+    );
+  };
+
   return (
     <div className="mb-8">
       <div className="flex justify-between items-center mb-4">
@@ -61,10 +81,11 @@ const UserTable = ({
           <Button
             onClick={onAddUser}
             size="sm"
-            className="h-8 w-8 rounded-full p-0"
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md transition-colors"
             title={`Add ${title.slice(0, -1)}`}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-5 w-5" />
+            <span>Add {title.slice(0, -1)}</span>
           </Button>
         )}
       </div>
@@ -78,7 +99,7 @@ const UserTable = ({
               type="text"
               placeholder={`Search ${title.toLowerCase()}...`}
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={handleSearchChange}
               className="w-full pl-10 pr-4 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
             />
           </div>
@@ -119,18 +140,16 @@ const UserTable = ({
                   Role {getSortIcon('role')}
                 </th>
               )}
-              {/* {showActions && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Actions
-                </th>
-              )} */}
+              {/* Removed actions column */}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {users.length === 0 ? (
               <tr>
                 <td
-                  colSpan={showActions && showRole ? '5' : showActions || showRole ? '4' : '3'}
+                  colSpan={
+                    (showRole ? 1 : 0) + 3 // Name, Email, Phone
+                  }
                   className="px-6 py-4 text-center text-muted-foreground"
                 >
                   {emptyMessage}
@@ -162,29 +181,7 @@ const UserTable = ({
                       </span>
                     </td>
                   )}
-                  {/* {showActions && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="flex space-x-2">
-                        {actions.map((action, index) => {
-                          // Check if action should be visible for this user
-                          const isVisible = action.visible ? action.visible(user) : true;
-                          if (!isVisible) return null;
-
-                          return (
-                            <Button
-                              key={index}
-                              variant={action.variant || 'outline'}
-                              size="sm"
-                              onClick={() => action.onClick(user)}
-                              disabled={action.disabled?.(user)}
-                            >
-                              {action.label}
-                            </Button>
-                          );
-                        })}
-                      </div>
-                    </td>
-                  )} */}
+                  {/* Removed actions cell */}
                 </tr>
               ))
             )}

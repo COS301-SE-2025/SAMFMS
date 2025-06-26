@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 def get_rabbitmq_url():
     """Get RabbitMQ URL from environment variable or default"""
-    return os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq/")
+    return os.getenv("RABBITMQ_URL", "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/")
 
 class ServiceRequestHandler:
     """Handles RabbitMQ request/response pattern for Management service"""
@@ -104,45 +104,80 @@ class ServiceRequestHandler:
         return await self.route_to_handler(endpoint, "DELETE", data, user_context)
         
     async def _setup_request_consumption(self):
-        """Set up RabbitMQ to consume requests from Core"""
-        try:
-            logger.info("Connecting to RabbitMQ for request consumption...")
-            # Using async RabbitMQ for better performance
-            rabbitmq_url = get_rabbitmq_url()
-            connection = await aio_pika.connect_robust(rabbitmq_url)
-            logger.info(f"Successfully connected to RabbitMQ at {rabbitmq_url} for request consumption")
-            
-            channel = await connection.channel()
-            logger.info("RabbitMQ channel created for request consumption")
-            
-            # Declare service requests exchange
-            exchange = await channel.declare_exchange("service_requests", aio_pika.ExchangeType.DIRECT, durable=True)
-            logger.info("Service requests exchange declared")
-            
-            # Declare request queue
-            request_queue = await channel.declare_queue("management.requests", durable=True)
-            logger.info("Management requests queue declared")
-            
-            # Bind queue to exchange with routing key "management.requests" to match Core routing
-            await request_queue.bind(exchange, routing_key="management.requests")
-            logger.info("Management requests queue bound to service_requests exchange")
-            
-            # Set QoS to process one message at a time
-            await channel.set_qos(prefetch_count=1)
-            
-            # Start consuming - this will run continuously
-            async with request_queue.iterator() as queue_iter:
+        """Enhanced request consumption with better error handling and reconnection logic"""
+        max_retries = 5
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                logger.info(f"Connecting to RabbitMQ for request consumption (attempt {retry_count + 1}/{max_retries})...")
+                # Using async RabbitMQ for better performance with robust connection
+                rabbitmq_url = get_rabbitmq_url()
+                connection = await aio_pika.connect_robust(
+                    rabbitmq_url,
+                    heartbeat=60,
+                    blocked_connection_timeout=300,
+                )
+                logger.info(f"Successfully connected to RabbitMQ at {rabbitmq_url} for request consumption")
+                
+                channel = await connection.channel()
+                await channel.set_qos(prefetch_count=10)  # Allow some parallel processing
+                logger.info("RabbitMQ channel created for request consumption")
+                
+                # Declare service requests exchange
+                exchange = await channel.declare_exchange("service_requests", aio_pika.ExchangeType.DIRECT, durable=True)
+                logger.info("Service requests exchange declared")
+                
+                # Declare request queue
+                request_queue = await channel.declare_queue("management.requests", durable=True)
+                logger.info("Management requests queue declared")
+                
+                # Bind queue to exchange with routing key "management.requests" to match Core routing
+                await request_queue.bind(exchange, routing_key="management.requests")
+                logger.info("Management requests queue bound to service_requests exchange")
+                
+                # Set up message handler with retry logic
+                async def handle_request_message(message: aio_pika.IncomingMessage):
+                    try:
+                        async with message.process(requeue=True):
+                            await self._handle_request_message(message)
+                    except Exception as e:
+                        logger.error(f"Failed to process message: {e}")
+                        # Message will be requeued due to requeue=True
+                
+                # Start consuming
+                await request_queue.consume(handle_request_message, consumer_tag="management-consumer")
                 logger.info("Started consuming management requests from service_requests exchange")
                 logger.info("Management service is now ready to handle requests from Core service")
                 
-                async for message in queue_iter:
-                    async with message.process():
-                        await self._handle_request_message(message)
-            
-        except Exception as e:
-            logger.error(f"Failed to setup RabbitMQ request consumption: {e}")
-            logger.exception("Full RabbitMQ setup exception traceback:")
-            raise
+                # Keep connection alive with proper exception handling
+                try:
+                    while True:
+                        await asyncio.sleep(1)
+                except asyncio.CancelledError:
+                    logger.info("Request consumption cancelled")
+                    raise
+                finally:
+                    try:
+                        await connection.close()
+                    except Exception as e:
+                        logger.warning(f"Error closing RabbitMQ connection: {e}")
+                        
+                # If we get here, consumption completed successfully
+                break
+                
+            except asyncio.CancelledError:
+                logger.info("Request consumption task cancelled")
+                raise
+            except Exception as e:
+                retry_count += 1
+                logger.error(f"Failed to setup RabbitMQ request consumption (attempt {retry_count}/{max_retries}): {e}")
+                if retry_count >= max_retries:
+                    logger.error("Max retries reached for RabbitMQ setup. Service will not be able to handle requests.")
+                    raise
+                else:
+                    logger.info(f"Retrying RabbitMQ setup in 5 seconds...")
+                    await asyncio.sleep(5)
     
     async def _handle_request_message(self, message: aio_pika.IncomingMessage):
         """Handle incoming request message from Core"""
@@ -248,22 +283,21 @@ class ServiceRequestHandler:
             await connection.close()
             logger.debug(f"Response sent for correlation_id: {response.get('correlation_id')}")
             
-        except Exception as e:            logger.error(f"Error sending response: {e}")
+        except Exception as e:
+            logger.error(f"Error sending response: {e}")
     
     # Vehicle handlers
     async def _get_vehicles(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle GET /api/vehicles"""
+        """Handle GET /api/vehicles and include analytics in the response."""
         try:
             # Check if this is a drivers request
             if endpoint.endswith('/drivers'):
                 return await self._get_drivers(endpoint, data, user_context)
-            
             # Extract vehicle ID if present (but not if it's a special endpoint like 'drivers')
             parts = endpoint.split('/')
             if len(parts) > 3 and parts[-1] not in ['drivers', 'search']:
                 vehicle_id = parts[-1]
                 return await self._get_single_vehicle(vehicle_id, user_context)
-            
             # Get all vehicles with filtering
             from database import vehicle_management_collection
             query = {}
@@ -279,7 +313,9 @@ class ServiceRequestHandler:
             for vehicle in vehicles:
                 vehicle["_id"] = str(vehicle["_id"])
             
-            return {"vehicles": vehicles, "count": len(vehicles)}
+            # --- Add analytics ---
+            analytics = await self._get_analytics()
+            return {"vehicles": vehicles, "count": len(vehicles), "analytics": analytics}
             
         except Exception as e:
             logger.error(f"Error getting vehicles: {e}")
@@ -318,9 +354,13 @@ class ServiceRequestHandler:
     async def _create_vehicle(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle POST /api/vehicles"""
         try:
-            # Validate permissions
-            if user_context.get("role") not in ["admin", "fleet_manager"]:
-                raise ValueError("Insufficient permissions to create vehicle")
+            # Validate permissions - allow bypass for nginx compatibility routes
+            if not user_context.get("bypass_auth", False):
+                user_role = user_context.get("role")
+                user_permissions = user_context.get("permissions", [])
+                # Allow if user is admin, fleet_manager, or has create:vehicles permission
+                if user_role not in ["admin", "fleet_manager"] and "create:vehicles" not in user_permissions:
+                    raise ValueError("Insufficient permissions to create vehicle")
             
             from database import vehicle_management_collection
             import uuid
@@ -328,7 +368,7 @@ class ServiceRequestHandler:
             # Add metadata and generate vehicle_id
             vehicle_data = data.copy()
             vehicle_data["vehicle_id"] = str(uuid.uuid4())  # Generate unique vehicle_id
-            vehicle_data["created_by"] = user_context.get("user_id")
+            vehicle_data["created_by"] = user_context.get("user_id", "system")
             vehicle_data["created_at"] = datetime.utcnow().isoformat()  # Convert to string for JSON serialization
             vehicle_data["status"] = "available"
             
@@ -344,7 +384,7 @@ class ServiceRequestHandler:
                         service_name="management",
                         message_data={
                             "vehicle_id": vehicle_data["vehicle_id"],
-                            "created_by": user_context.get("user_id"),
+                            "created_by": user_context.get("user_id", "system"),
                             "timestamp": vehicle_data["created_at"]
                         }
                     )
@@ -360,10 +400,13 @@ class ServiceRequestHandler:
         """Handle PUT /api/vehicles/{id}"""
         try:
             vehicle_id = endpoint.split('/')[-1]
-            
-            # Validate permissions
-            if user_context.get("role") not in ["admin", "fleet_manager"]:
-                raise ValueError("Insufficient permissions to update vehicle")
+            # Validate permissions - allow bypass for nginx compatibility routes
+            if not user_context.get("bypass_auth", False):
+                user_role = user_context.get("role")
+                user_permissions = user_context.get("permissions", [])
+                # Allow if user is admin, fleet_manager, or has edit:vehicles permission
+                if user_role not in ["admin", "fleet_manager"] and "edit:vehicles" not in user_permissions:
+                    raise ValueError("Insufficient permissions to update vehicle")
             
             from database import vehicle_management_collection
             
@@ -378,7 +421,7 @@ class ServiceRequestHandler:
             
             # Update vehicle
             update_data = data.copy()
-            update_data["updated_by"] = user_context.get("user_id")
+            update_data["updated_by"] = user_context.get("user_id", "system")
             update_data["updated_at"] = datetime.utcnow()
             
             result = await vehicle_management_collection.update_one(
@@ -394,11 +437,19 @@ class ServiceRequestHandler:
             updated_vehicle["_id"] = str(updated_vehicle["_id"])
             
             # Publish vehicle updated event
-            mq_service.publish_vehicle_updated({
-                "vehicle_id": vehicle_id,
-                "vehicle_data": updated_vehicle,
-                "updated_by": user_context.get("user_id")
-            })
+            try:
+                if hasattr(self, 'mq_service') and self.mq_service:
+                    self.mq_service.publish_service_event(
+                        event_type="vehicle_updated",
+                        service_name="management",
+                        message_data={
+                            "vehicle_id": vehicle_id,
+                            "updated_by": user_context.get("user_id", "system"),
+                            "timestamp": update_data["updated_at"].isoformat()
+                        }
+                    )
+            except Exception as mq_error:
+                logger.warning(f"Failed to publish vehicle updated event: {mq_error}")
             
             return updated_vehicle
         except Exception as e:
@@ -410,9 +461,15 @@ class ServiceRequestHandler:
         try:
             vehicle_id = endpoint.split('/')[-1]
             
-            # Validate permissions
-            if user_context.get("role") != "admin":
-                raise ValueError("Only administrators can delete vehicles")
+            # Validate permissions - allow bypass for nginx compatibility routes
+            if not user_context.get("bypass_auth", False):
+                # Check both role-based and permission-based access
+                user_role = user_context.get("role")
+                user_permissions = user_context.get("permissions", [])
+                
+                # Allow if user is admin OR has delete:vehicles permission
+                if user_role != "admin" and "delete:vehicles" not in user_permissions:
+                    raise ValueError("Insufficient permissions to delete vehicle")
             
             from database import vehicle_management_collection
             
@@ -437,10 +494,19 @@ class ServiceRequestHandler:
                 raise ValueError(f"Failed to delete vehicle {vehicle_id}")
             
             # Publish vehicle deleted event
-            mq_service.publish_vehicle_deleted({
-                "vehicle_id": vehicle_id,
-                "deleted_by": user_context.get("user_id")
-            })
+            try:
+                if hasattr(self, 'mq_service') and self.mq_service:
+                    self.mq_service.publish_service_event(
+                        event_type="vehicle_deleted",
+                        service_name="management",
+                        message_data={
+                            "vehicle_id": vehicle_id,
+                            "deleted_by": user_context.get("user_id", "system"),
+                            "timestamp": datetime.utcnow().isoformat()
+                        }
+                    )
+            except Exception as mq_error:
+                logger.warning(f"Failed to publish vehicle deleted event: {mq_error}")
             
             return {"message": f"Vehicle {vehicle_id} deleted successfully"}
             
@@ -656,7 +722,7 @@ class ServiceRequestHandler:
             raise
     
     async def _search_vehicles(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle GET /api/vehicles/search/{query}"""
+        """Handle GET /api/vehicles/search/{query} and include analytics in the response."""
         try:
             # Extract search query from endpoint
             query = endpoint.split('/')[-1] if '/' in endpoint else data.get("query", "")
@@ -689,60 +755,73 @@ class ServiceRequestHandler:
             for vehicle in vehicles:
                 vehicle["_id"] = str(vehicle["_id"])
             
-            return {"vehicles": vehicles, "count": len(vehicles), "query": query}
+            # --- Add analytics ---
+            analytics = await self._get_analytics()
+            return {"vehicles": vehicles, "count": len(vehicles), "query": query, "analytics": analytics}
             
         except Exception as e:
             logger.error(f"Error searching vehicles: {e}")
-            raise    # Driver handlers
-    async def _get_drivers(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle GET /api/drivers or /api/vehicles/drivers"""
+            raise
+
+    async def _get_analytics(self) -> dict:
+        """Helper to gather all analytics for vehicles endpoints."""
         try:
-            # Check if this is a request for a specific driver (has driver ID in path)
-            parts = endpoint.split('/')
-            if len(parts) > 3 and parts[-1] not in ['drivers'] and parts[-1] != '':
-                # This is a request for a specific driver
-                driver_id = parts[-1]
-                return await self._get_single_driver(driver_id, user_context)
-            
-            # Get all drivers
-            from database import get_mongodb
-            db = get_mongodb()  # No await - this returns the db instance directly
-            users_collection = db.users
-            
-            # Find users with driver role
-            query = {"role": "driver"}
-            
-            # Apply user-based filtering for security
+            from analytics import (
+                fleet_utilization, vehicle_usage, assignment_metrics, maintenance_analytics,
+                driver_performance, cost_analytics, status_breakdown, incident_statistics, department_location_analytics
+            )
+            analytics = {}
+            analytics["fleet_utilization"] = await fleet_utilization()
+            analytics["vehicle_usage"] = await vehicle_usage()
+            analytics["assignment_metrics"] = await assignment_metrics()
+            analytics["maintenance_analytics"] = await maintenance_analytics()
+            analytics["driver_performance"] = await driver_performance()
+            analytics["cost_analytics"] = await cost_analytics()
+            analytics["status_breakdown"] = await status_breakdown()
+            analytics["incident_statistics"] = await incident_statistics()
+            analytics["department_location_analytics"] = await department_location_analytics()
+            return analytics
+        except Exception as e:
+            logger.error(f"Error gathering analytics: {e}")
+            return {}
+    
+    async def _get_drivers(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle GET /api/drivers - Returns a list of drivers. Stub implementation."""
+        try:
+            from database import driver_management_collection
+            query = {}
+            # Apply user-based filtering if needed (e.g., only admins/fleet managers can see all drivers)
             if user_context.get("role") == "driver":
-                # Drivers can only see their own info
-                query["_id"] = user_context.get("user_id")
-            
-            drivers = await users_collection.find(query).to_list(100)
-            
-            # Convert ObjectId to string and remove sensitive info
+                query["_id"] = ObjectId(user_context.get("user_id"))
+            drivers = await driver_management_collection.find(query).to_list(100)
             for driver in drivers:
                 driver["_id"] = str(driver["_id"])
-                # Remove password and other sensitive fields
-                driver.pop("password", None)
-                driver.pop("password_hash", None)
-            
-            return {"drivers": drivers, "count": len(drivers)}            
+            return {"drivers": drivers, "count": len(drivers)}
         except Exception as e:
             logger.error(f"Error getting drivers: {e}")
             raise
     
-    async def _get_single_driver(self, driver_id: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Get a single driver by ID"""
+    async def _create_driver(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle POST /api/drivers - Create a new driver. Stub implementation."""
         try:
-            from database import get_mongodb
-            db = get_mongodb()
-            users_collection = db.users
-            
-            # Security check
-            if user_context.get("role") == "driver" and user_context.get("user_id") != driver_id:
-                raise ValueError("Drivers can only access their own information")
-            
-            # Convert string ID to ObjectId if needed
+            from database import driver_management_collection
+            import uuid
+            driver_data = data.copy()
+            driver_data["driver_id"] = str(uuid.uuid4())
+            driver_data["created_by"] = user_context.get("user_id", "system")
+            driver_data["created_at"] = datetime.utcnow()
+            result = await driver_management_collection.insert_one(driver_data)
+            driver_data["_id"] = str(result.inserted_id)
+            return driver_data
+        except Exception as e:
+            logger.error(f"Error creating driver: {e}")
+            raise
+
+    async def _update_driver(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle PUT /api/drivers/{id} - Update a driver. Stub implementation."""
+        try:
+            from database import driver_management_collection
+            driver_id = endpoint.split("/")[-1]
             try:
                 if isinstance(driver_id, str) and len(driver_id) == 24:
                     query_id = ObjectId(driver_id)
@@ -750,148 +829,59 @@ class ServiceRequestHandler:
                     query_id = driver_id
             except:
                 query_id = driver_id
-            
-            driver = await users_collection.find_one({"_id": query_id, "role": "driver"})
-            
-            if not driver:
-                raise ValueError(f"Driver not found: {driver_id}")
-            
-            # Convert ObjectId to string and remove sensitive info
-            driver["_id"] = str(driver["_id"])
-            driver.pop("password", None)
-            driver.pop("password_hash", None)
-            
-            return driver
-            
-        except Exception as e:
-            logger.error(f"Error getting driver {driver_id}: {e}")
-            raise
-
-    async def _create_driver(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle POST /api/drivers"""
-        try:
-            # Only admins and managers can create drivers
-            if user_context.get("role") not in ["admin", "manager"]:
-                raise ValueError("Insufficient permissions to create drivers")
-            
-            from database import get_mongodb
-            db = await get_mongodb()
-            users_collection = db.users
-            
-            # Ensure role is set to driver
-            data["role"] = "driver"
-            data["created_at"] = datetime.utcnow()
-            data["updated_at"] = datetime.utcnow()
-            
-            result = await users_collection.insert_one(data)
-            
-            return {"driver_id": str(result.inserted_id), "message": "Driver created successfully"}
-            
-        except Exception as e:
-            logger.error(f"Error creating driver: {e}")
-            raise
-
-    async def _update_driver(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle PUT /api/drivers"""
-        try:
-            # Extract driver ID
-            driver_id = endpoint.split('/')[-1]
-            
-            # Security check
-            if user_context.get("role") == "driver" and user_context.get("user_id") != driver_id:
-                raise ValueError("Drivers can only update their own information")
-            elif user_context.get("role") not in ["admin", "manager", "driver"]:
-                raise ValueError("Insufficient permissions to update drivers")
-            
-            from database import get_mongodb
-            db = await get_mongodb()
-            users_collection = db.users
-            
-            data["updated_at"] = datetime.utcnow()
-            
-            # Remove sensitive fields that shouldn't be updated
-            data.pop("_id", None)
-            data.pop("password", None)
-            data.pop("password_hash", None)
-            data.pop("role", None)  # Role changes should be handled separately
-            
-            result = await users_collection.update_one(
-                {"_id": ObjectId(driver_id), "role": "driver"},
-                {"$set": data}
-            )
-            
+            update_data = data.copy()
+            update_data["updated_by"] = user_context.get("user_id", "system")
+            update_data["updated_at"] = datetime.utcnow()
+            result = await driver_management_collection.update_one({"_id": query_id}, {"$set": update_data})
             if result.matched_count == 0:
-                raise ValueError(f"Driver not found: {driver_id}")
-            
-            return {"message": "Driver updated successfully"}
-            
+                raise ValueError(f"Driver {driver_id} not found")
+            updated_driver = await driver_management_collection.find_one({"_id": query_id})
+            updated_driver["_id"] = str(updated_driver["_id"])
+            return updated_driver
         except Exception as e:
             logger.error(f"Error updating driver: {e}")
             raise
 
     async def _delete_driver(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle DELETE /api/drivers"""
+        """Handle DELETE /api/drivers/{id} - Delete a driver. Stub implementation."""
         try:
-            # Only admins can delete drivers
-            if user_context.get("role") != "admin":
-                raise ValueError("Only administrators can delete drivers")
-              # Extract driver ID
-            driver_id = endpoint.split('/')[-1]
-            
-            from database import get_mongodb
-            db = await get_mongodb()
-            users_collection = db.users
-            
-            result = await users_collection.delete_one({"_id": ObjectId(driver_id), "role": "driver"})
-            
+            from database import driver_management_collection
+            driver_id = endpoint.split("/")[-1]
+            try:
+                if isinstance(driver_id, str) and len(driver_id) == 24:
+                    query_id = ObjectId(driver_id)
+                else:
+                    query_id = driver_id
+            except:
+                query_id = driver_id
+            result = await driver_management_collection.delete_one({"_id": query_id})
             if result.deleted_count == 0:
-                raise ValueError(f"Driver not found: {driver_id}")
-            
-            return {"message": "Driver deleted successfully"}
-            
+                raise ValueError(f"Driver {driver_id} not found")
+            return {"message": f"Driver {driver_id} deleted successfully"}
         except Exception as e:
             logger.error(f"Error deleting driver: {e}")
             raise
 
     async def _search_drivers(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle GET /api/drivers/search"""
+        """Handle GET /api/drivers/search/{query} - Search for drivers. Stub implementation."""
         try:
-            query = data.get("q", "").strip()
+            from database import driver_management_collection
+            query = endpoint.split("/")[-1] if "/" in endpoint else data.get("query", "")
             if not query:
-                return {"drivers": [], "count": 0, "message": "No search query provided"}
-            
-            from database import get_mongodb
-            db = await get_mongodb()
-            users_collection = db.users
-            
-            # Build search criteria
+                raise ValueError("Search query is required")
             search_criteria = {
-                "role": "driver",
                 "$or": [
                     {"name": {"$regex": query, "$options": "i"}},
-                    {"email": {"$regex": query, "$options": "i"}},
-                    {"username": {"$regex": query, "$options": "i"}}
+                    {"license_number": {"$regex": query, "$options": "i"}},
+                    {"department": {"$regex": query, "$options": "i"}}
                 ]
             }
-            
-            # Apply user-based filtering
-            if user_context.get("role") == "driver":
-                search_criteria["_id"] = user_context.get("user_id")
-            
-            drivers = await users_collection.find(search_criteria).to_list(50)
-            
-            # Convert ObjectId to string and remove sensitive info
+            drivers = await driver_management_collection.find(search_criteria).to_list(50)
             for driver in drivers:
                 driver["_id"] = str(driver["_id"])
-                driver.pop("password", None)
-                driver.pop("password_hash", None)
-            
             return {"drivers": drivers, "count": len(drivers), "query": query}
-            
         except Exception as e:
             logger.error(f"Error searching drivers: {e}")
             raise
-
-
 # Global instance
 service_request_handler = ServiceRequestHandler()

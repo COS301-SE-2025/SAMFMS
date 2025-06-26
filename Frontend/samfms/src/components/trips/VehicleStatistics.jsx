@@ -1,5 +1,5 @@
 import React from 'react';
-import { Car, Clock, AlertTriangle } from 'lucide-react';
+import { Car, Clock } from 'lucide-react';
 
 const VehicleStatistics = ({ stats }) => {
   return (

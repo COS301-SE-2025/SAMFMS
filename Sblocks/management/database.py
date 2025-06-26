@@ -4,21 +4,26 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-MONGODB_URL = os.getenv("DATABASE_URL", "mongodb://host.docker.internal:27017/management_db")
+MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017")
 # Extract database name from URL if it's included, otherwise use default
-if "/" in MONGODB_URL and MONGODB_URL.endswith("/management_db"):
-    DATABASE_NAME = "management_db"
-else:
-    DATABASE_NAME = "management_db"
+DATABASE_NAME = os.getenv("DATABASE_NAME", "samfms_management")
 
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
 db = client[DATABASE_NAME]
 
+# Management service collections
 vehicle_management_collection = db.vehicle_management
 vehicle_assignments_collection = db.vehicle_assignments
 vehicle_usage_logs_collection = db.vehicle_usage_logs
 fleet_analytics_collection = db.fleet_analytics
 drivers_collection = db.drivers
+
+# Vehicles Dblock database connection - Use main MongoDB instance
+VEHICLES_MONGODB_URL = os.getenv("VEHICLES_DATABASE_URL", MONGODB_URL)
+vehicles_client = motor.motor_asyncio.AsyncIOMotorClient(VEHICLES_MONGODB_URL)
+vehicles_db_name = os.getenv("DATABASE_VEHICLES", "samfms_vehicles") 
+vehicles_db = vehicles_client[vehicles_db_name]
+vehicles_collection = vehicles_db.vehicles
 
 
 def get_mongodb():
@@ -29,6 +34,11 @@ def get_mongodb():
 def get_driver_collection():
     """Get the driver collection for driver management"""
     return drivers_collection
+
+
+def get_vehicle_collection():
+    """Get the vehicle collection for vehicle management from Vehicles Dblock"""
+    return vehicles_collection
 
 
 async def test_database_connection():

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class MessageQueueService:
     def __init__(self, rabbitmq_url=None):
-        self.rabbitmq_url = rabbitmq_url or os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq/")
+        self.rabbitmq_url = rabbitmq_url or os.getenv("RABBITMQ_URL", "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/")
         self.connection = None
         self.channel = None
     def _get_connection(self):

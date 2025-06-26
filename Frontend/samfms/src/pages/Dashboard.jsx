@@ -1,5 +1,10 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import {Button} from '../components/ui/button';
+import {getTotalVehicles} from '../backend/api/analytics';
+
+import StatusBreakdownPieChart from '../components/analytics/StatusBreakdownPieChart';
+import {getStatusBreakdown} from '../backend/api/analytics';
+import {getVehicles} from '../backend/API';
 
 
 // Mock data for the dashboard
@@ -70,6 +75,7 @@ const mockData = {
 const Dashboard = () => {
   const [totalVehicles, setTotalVehicles] = useState(null);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
+  const [analytics, setAnalytics] = useState({});
 
   useEffect(() => {
     const fetchTotalVehicles = async () => {
@@ -78,19 +84,31 @@ const Dashboard = () => {
         const data = await getTotalVehicles();
         // If your API returns { total: 42 }, adjust accordingly
         setTotalVehicles(data.fleet_overview.total_vehicles ?? data);
+        setAnalytics(response.analytics || {});
       } catch (error) {
         setTotalVehicles('N/A');
       } finally {
         setLoadingVehicles(false);
       }
     };
+
+    const fetchStatusBreakdown = async () => {
+      try {
+        const response = await getVehicles();
+        setAnalytics(response.analytics || {});
+      } catch (error) {
+        console.error('Error fetching status breakdown:', error);
+      }
+    };
+
     fetchTotalVehicles();
+    fetchStatusBreakdown();
   }, []);
 
   return (
     <div className="relative container mx-auto py-8 space-y-8">
-      {/* Background pattern */}
 
+      {/* Background pattern */}
       <div
         className="absolute inset-0 z-0 opacity-10 pointer-events-none"
         style={{
@@ -114,8 +132,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Total Vehicles"
-            value={mockData.fleetOverview.totalVehicles}
-
+            value={loadingVehicles ? "Loading..." : (totalVehicles || mockData.fleetOverview.totalVehicles)}
             subtitle="Fleet size"
             color="blue"
           />
@@ -142,8 +159,7 @@ const Dashboard = () => {
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Trips */}
-          <div className="bg-card rounded-lg border border-border p-6">
-
+          <div className="bg-card rounded-lg border border-border p-6 pb-10 pt-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Recent Trips</h2>
               <Button variant="outline" size="sm">
@@ -158,8 +174,7 @@ const Dashboard = () => {
           </div>
 
           {/* Maintenance Alerts */}
-          <div className="bg-card rounded-lg border border-border p-6">
-
+          <div className="bg-card rounded-lg border border-border p-6 pb-10 pt-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Maintenance Alerts</h2>
               <Button variant="outline" size="sm">
@@ -172,6 +187,9 @@ const Dashboard = () => {
               ))}
             </div>
           </div>
+
+          {/* Vehicle Status Breakdown Pie Chart */}
+          <StatusBreakdownPieChart stats={analytics.status_breakdown} />
         </div>
 
         {/* Fuel Consumption */}

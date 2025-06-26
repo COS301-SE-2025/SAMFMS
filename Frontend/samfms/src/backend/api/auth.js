@@ -2,27 +2,46 @@
 import { setCookie, getCookie, eraseCookie } from '../../lib/cookies';
 
 // Determine the API hostname depending on environment
-// In Docker, the host should be the service name, not localhost
 export const getApiHostname = () => {
-  // Check if we're running inside Docker (based on environment variable that can be set in docker-compose)
-  const inDocker = process.env.REACT_APP_DOCKER === 'true';
-
-  // For development environments or when not specified, use the current host
-  if (!inDocker) {
-    // When running in a browser, always use the current hostname
-    if (typeof window !== 'undefined') {
-      const host = window.location.hostname;
-      return `${host}:8000`;
-    }
-    return 'localhost:8000';
+  // Use environment variable if available (set in docker-compose or .env)
+  const apiBaseUrl = process.env.REACT_APP_API_BASE_URL;
+  
+  if (apiBaseUrl) {
+    console.log('Using API_BASE_URL from environment:', apiBaseUrl);
+    return apiBaseUrl;
   }
 
-  // For Docker environments (server-side)
-  return 'core_service:8000';
+  // Fallback logic for development
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol;
+    const host = window.location.hostname;
+    
+    // For production/staging with HTTPS
+    if (protocol === 'https:') {
+      return `https://${host}/api`;
+    }
+    
+    // For local development
+    const CORE_SERVICE_PORT = process.env.REACT_APP_CORE_PORT || '21011';
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return `http://localhost:${CORE_SERVICE_PORT}`;
+    } else {
+      return `http://${host}:${CORE_SERVICE_PORT}`;
+    }
+  }
+
+  // Default fallback
+  return 'http://localhost:21011';
 };
 
-const hostname = getApiHostname(); // Core service port
-export const API_URL = `http://${hostname}`;
+const hostname = getApiHostname();
+export const API_URL = hostname;
+
+// Debug logging
+console.log('API Configuration:');
+console.log('- REACT_APP_API_BASE_URL:', process.env.REACT_APP_API_BASE_URL);
+console.log('- API_URL:', API_URL);
+console.log('- hostname:', hostname);
 
 // Auth endpoints
 export const AUTH_API = {
@@ -393,9 +412,12 @@ export const login = async (email, password) => {
       throw new Error(errorData.detail || 'Login failed');
     }
     const data = await response.json();
+    console.log('Login response data:', data);
 
     // Store tokens with consistent expiry times
     setCookie('token', data.access_token, 1 / 96); // 15 minutes to match backend
+    console.log('Token stored:', data.access_token ? 'Yes' : 'No');
+    console.log('Token cookie check:', getCookie('token') ? 'Found' : 'Not found');
 
     // Store refresh token if available
     if (data.refresh_token) {

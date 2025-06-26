@@ -1,3 +1,4 @@
+import os
 import pika
 import json
 import logging
@@ -18,7 +19,10 @@ class VehicleMessageConsumer:
     def setup_connection(self):
         """Setup RabbitMQ connection and channel with optimized settings"""
         try:
-            credentials = pika.PlainCredentials('guest', 'guest')
+            credentials = pika.PlainCredentials(
+                os.getenv('RABBITMQ_USER', 'samfms_rabbit'),
+                os.getenv('RABBITMQ_PASSWORD', 'samfms_rabbit123')
+            )
             parameters = pika.ConnectionParameters(
                 host='rabbitmq',
                 port=5672,
@@ -246,7 +250,10 @@ async def setup_message_consumer():
 def publish_maintenance_event(event_data: Dict[str, Any]):
     """Publish maintenance-related events"""
     try:
-        credentials = pika.PlainCredentials('guest', 'guest')
+        credentials = pika.PlainCredentials(
+            os.getenv('RABBITMQ_USER', 'samfms_rabbit'),
+            os.getenv('RABBITMQ_PASSWORD', 'samfms_rabbit123')
+        )
         parameters = pika.ConnectionParameters(
             host='rabbitmq',
             port=5672,

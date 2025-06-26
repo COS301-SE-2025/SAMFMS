@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Button } from './ui/button';
-import { useAuth, ROLES } from './RBACUtils';
+import React, {useState, useEffect, useRef} from 'react';
+import {Button} from './ui/button';
+import {useAuth, ROLES} from './RBACUtils';
 import {
   listUsers,
   updateUserPermissions,
@@ -12,15 +12,15 @@ import {
   createUserManually,
   getDrivers,
 } from '../backend/API.js';
-import { Navigate } from 'react-router-dom';
-import { useNotification } from '../contexts/NotificationContext';
+import {Navigate} from 'react-router-dom';
+import {useNotification} from '../contexts/NotificationContext';
 import UserTable from './UserTable';
 import InviteUserModal from './InviteUserModal';
 import ManualCreateUserModal from './ManualCreateUserModal';
 
 const UserManagement = () => {
-  const { hasPermission, hasRole } = useAuth();
-  const { showNotification } = useNotification();
+  const {hasPermission, hasRole} = useAuth();
+  const {showNotification} = useNotification();
   const [adminUsers, setAdminUsers] = useState([]);
   const [managerUsers, setManagerUsers] = useState([]);
   const [driverUsers, setDriverUsers] = useState([]);
@@ -67,7 +67,7 @@ const UserManagement = () => {
     try {
       // Load drivers from the drivers API if user has permission
       if (hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) {
-        const driversData = await getDrivers({ limit: 100 });
+        const driversData = await getDrivers({limit: 100});
         // Transform driver data to match user table format
         const transformedDrivers = driversData.map(driver => ({
           id: driver.id || driver._id,
@@ -104,7 +104,7 @@ const UserManagement = () => {
 
     // Load data
     loadUsers();
-    loadInvitedUsers();
+    // loadInvitedUsers();
     loadDriversFromAPI();
 
     // Load roles cache
@@ -289,13 +289,13 @@ const UserManagement = () => {
   const invitationActions = invitation => [
     ...(!invitation.is_expired && invitation.can_resend
       ? [
-          {
-            label: 'Resend OTP',
-            variant: 'outline',
-            onClick: () => handleResendInvitation(invitation.email),
-            disabled: () => loading,
-          },
-        ]
+        {
+          label: 'Resend OTP',
+          variant: 'outline',
+          onClick: () => handleResendInvitation(invitation.email),
+          disabled: () => loading,
+        },
+      ]
       : []),
     {
       label: 'Cancel',
@@ -325,13 +325,13 @@ const UserManagement = () => {
                 Manually Add User
               </Button>
             )}
-            <Button
+            {/* <Button
               onClick={() => setShowInviteModal(true)}
               className="bg-primary hover:bg-primary/90"
               disabled={loading}
             >
               Invite User
-            </Button>
+            </Button> */}
           </div>
         </div>
       </div>
@@ -445,12 +445,12 @@ const UserManagement = () => {
       )}
 
       {/* Modals */}
-      <InviteUserModal
+      {/* <InviteUserModal
         isOpen={showInviteModal}
         onClose={() => setShowInviteModal(false)}
         onSubmit={handleInviteSubmit}
         loading={loading}
-      />
+      /> */}
 
       <ManualCreateUserModal
         isOpen={showManualCreateModal}

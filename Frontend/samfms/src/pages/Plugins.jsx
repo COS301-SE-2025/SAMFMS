@@ -9,7 +9,6 @@ import {
   getPluginStatus,
   testCoreService,
   syncPluginStatus,
-  debugDockerAccess,
   removeSblock,
   addSblock,
 } from '../backend/api/plugins';

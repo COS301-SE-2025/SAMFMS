@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 import redis
+import os
 from routes import router as users_router
 from database import test_database_connection, create_indexes
 from message_queue import mq_consumer
@@ -28,7 +29,9 @@ async def lifespan(app: FastAPI):
     
     # Test Redis connection
     try:
-        redis_client = redis.Redis(host='redis', port=6379, decode_responses=True)
+        redis_host = os.getenv("REDIS_HOST", "redis")
+        redis_port = int(os.getenv("REDIS_PORT", "6379"))
+        redis_client = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
         redis_client.ping()
         logger.info("✅ Successfully connected to Redis")
     except Exception as e:
@@ -78,4 +81,5 @@ def read_root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("USERS_DBLOCK_PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)

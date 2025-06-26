@@ -81,3 +81,9 @@ docker-compose*.yml
 # Environment variables
 **/.env*
 **/*.env
+
+# SSL certificates and certbot (not needed in containers)
+certbot/
+ssl-certs/
+ssl-private/
+dhparam/

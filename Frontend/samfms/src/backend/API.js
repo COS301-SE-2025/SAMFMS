@@ -37,12 +37,18 @@ import {
 // import the functions from analytics.js
 import {
   getTotalVehicles,
-  // getVehiclesInMaintenance,
-  // getFleetUtilization,
-  // getDistanceCovered,
+  getFleetUtilization,
+  getVehicleUsage,
+  getAssignmentMetrics,
+  getMaintenanceAnalytics,
+  getDriverPerformance,
+  getCostAnalytics,
+  getStatusBreakdown,
+  getIncidentStatistics,
+  getDepartmentLocationAnalytics,
 } from './api/analytics';
 
-// Re-export the auth functions for backward compatibility
+// Re-export the auth and analytics functions for backward compatibility
 export {
   API_URL,
   API,
@@ -76,29 +82,49 @@ export {
   clearRolesCache,
   clearAllAuthCache,
   getTotalVehicles,
-  // getVehiclesInMaintenance,
-  // getFleetUtilization,
-  // getDistanceCovered,
+  getFleetUtilization,
+  getVehicleUsage,
+  getAssignmentMetrics,
+  getMaintenanceAnalytics,
+  getDriverPerformance,
+  getCostAnalytics,
+  getStatusBreakdown,
+  getIncidentStatistics,
+  getDepartmentLocationAnalytics,
 };
 
 // Driver API endpoints - Now served by Core Service
 export const DRIVER_API = {
-  drivers: `${API_URL}/api/vehicles/drivers`,
-  createDriver: `${API_URL}/api/vehicles/drivers`,
-  getDriver: id => `${API_URL}/api/vehicles/drivers/${id}`,
-  updateDriver: id => `${API_URL}/api/vehicles/drivers/${id}`,
-  deleteDriver: id => `${API_URL}/api/vehicles/drivers/${id}`,
-  searchDrivers: query => `${API_URL}/api/vehicles/drivers/search/${query}`,
+  drivers: `${API_URL}/vehicles/drivers`,
+  createDriver: `${API_URL}/vehicles/drivers`,
+  getDriver: id => `${API_URL}/vehicles/drivers/${id}`,
+  updateDriver: id => `${API_URL}/vehicles/drivers/${id}`,
+  deleteDriver: id => `${API_URL}/vehicles/drivers/${id}`,
+  searchDrivers: query => `${API_URL}/vehicles/drivers/search/${query}`,
 };
 
 // Vehicle API endpoints
 export const VEHICLE_API = {
-  vehicles: `${API_URL}/api/vehicles`,
-  createVehicle: `${API_URL}/api/vehicles`,
-  getVehicle: id => `${API_URL}/api/vehicles/${id}`,
-  updateVehicle: id => `${API_URL}/api/vehicles/${id}`,
-  deleteVehicle: id => `${API_URL}/api/vehicles/${id}`,
-  searchVehicles: query => `${API_URL}/api/vehicles/search/${query}`,
+  vehicles: `${API_URL}/vehicles`,
+  createVehicle: `${API_URL}/vehicles`,
+  getVehicle: id => `${API_URL}/vehicles/${id}`,
+  updateVehicle: id => `${API_URL}/vehicles/${id}`,
+  deleteVehicle: id => `${API_URL}/vehicles/${id}`,
+  searchVehicles: query => `${API_URL}/vehicles/search/${query}`,
+};
+
+// Vehicle Assignment API endpoints
+export const VEHICLE_ASSIGNMENT_API = {
+  assignments: `${API_URL}/vehicle-assignments`,
+  createAssignment: `${API_URL}/vehicle-assignments`,
+  getAssignment: id => `${API_URL}/vehicle-assignments/${id}`,
+  updateAssignment: id => `${API_URL}/vehicle-assignments/${id}`,
+  deleteAssignment: id => `${API_URL}/vehicle-assignments/${id}`,
+};
+
+// Plugins API endpoints
+export const PLUGIN_API = {
+  plugins: `${API_URL}/service_presence`,
 };
 
 // Driver API functions
@@ -402,11 +428,17 @@ export const searchVehicles = async query => {
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || 'Failed to search vehicles');
+    try {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to search vehicles');
+    } catch (e) {
+      throw new Error(`Failed to search vehicles: ${response.statusText}`);
+    }
   }
 
-  return response.json();
+  const result = await response.json();
+  // Return the vehicles array or the whole result if it's already an array
+  return result.vehicles || result || [];
 };
 
 // Invitation management functions
@@ -532,5 +564,133 @@ const handleErrorResponse = async response => {
 
   return error;
 };
+
+// Vehicle Assignment API functions
+export const getVehicleAssignments = async (params = {}) => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const queryParams = new URLSearchParams();
+  if (params.skip) queryParams.append('skip', params.skip);
+  if (params.limit) queryParams.append('limit', params.limit);
+  if (params.vehicle_id) queryParams.append('vehicle_id', params.vehicle_id);
+  if (params.driver_id) queryParams.append('driver_id', params.driver_id);
+
+  const url = `${VEHICLE_ASSIGNMENT_API.assignments}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw await handleErrorResponse(response);
+  }
+
+  return response.json();
+};
+
+export const createVehicleAssignment = async assignmentData => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(VEHICLE_ASSIGNMENT_API.createAssignment, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(assignmentData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to create vehicle assignment');
+  }
+
+  return response.json();
+};
+
+export const updateVehicleAssignment = async (assignmentId, updateData) => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(VEHICLE_ASSIGNMENT_API.updateAssignment(assignmentId), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(updateData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to update vehicle assignment');
+  }
+
+  return response.json();
+};
+
+export const deleteVehicleAssignment = async assignmentId => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(VEHICLE_ASSIGNMENT_API.deleteAssignment(assignmentId), {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    try {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to delete vehicle assignment');
+    } catch (e) {
+      throw new Error(`Failed to delete vehicle assignment: ${response.statusText}`);
+    }
+  }
+
+  try {
+    return await response.json();
+  } catch (e) {
+    return {success: true};
+  }
+};
+
+// uses the services_presence endpoint in plugins
+export const getPlugins = async () => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(PLUGIN_API.plugins, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to fetch plugins');
+  }
+
+  return response.json();
+};
+
+// GPS API functions
 
 // RBAC and Admin Functions have been moved to ./api/auth.js

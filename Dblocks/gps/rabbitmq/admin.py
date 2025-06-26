@@ -2,6 +2,7 @@ import aio_pika
 import asyncio
 import json
 import logging
+import os
 
 logging.basicConfig(
     level=logging.INFO,
@@ -10,7 +11,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-RABBITMQ_URL = "amqp://guest:guest@rabbitmq/"
+RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/")
 
 async def wait_for_rabbitmq(max_retries: int = 30, delay: int = 2):
     for attempt in range(max_retries):

@@ -30,7 +30,7 @@ class RequestRouter:
             "/api/vehicles": "management",
             "/api/vehicles/*": "management",
             "/api/drivers": "management",
-            "/api/drivers/*": "management", 
+            "/api/drivers/*": "management",
             "/api/vehicle-assignments": "management",
             "/api/vehicle-assignments/*": "management",
             "/api/vehicle-usage": "management",
@@ -40,60 +40,57 @@ class RequestRouter:
             "/api/trips/*": "trip_planning",
             "/api/trip-planning/*": "trip_planning",
             "/api/maintenance/*": "maintenance",
-            "/api/vehicle-maintenance/*": "maintenance"
+            "/api/vehicle-maintenance/*": "maintenance",
+            "/api/analytics/*": "management"
         }
-    
-    async def initialize(self):
-        """Initialize routing infrastructure"""
-        try:
-            # Create request/response exchanges
-            await create_exchange("service_requests", aio_pika.ExchangeType.DIRECT)
-            await create_exchange("service_responses", aio_pika.ExchangeType.DIRECT)            # Start response consumer
-            asyncio.create_task(self.response_manager.consume_responses())
-            
-            logger.info("Request router initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize request router: {e}")
-            raise
-    
+
+    def normalize_endpoint(self, endpoint: str) -> str:
+        """Normalize endpoints for routing consistency (e.g., analytics endpoints)"""
+        # If you want to rewrite /api/analytics/... to /api/v1/analytics/..., do it here
+        if endpoint.startswith("/api/analytics/"):
+            return endpoint.replace("/api/analytics/", "/api/v1/analytics/")
+        return endpoint
+
     def get_service_for_endpoint(self, endpoint: str) -> str:
         """Determine target service based on endpoint pattern"""
         logger.debug(f"Looking for service for endpoint: {endpoint}")
         logger.debug(f"Available routing patterns: {list(self.routing_map.keys())}")
         
+        # Normalize endpoint before matching
+        normalized_endpoint = self.normalize_endpoint(endpoint)
+
         # First try exact matches
-        if endpoint in self.routing_map:
-            service = self.routing_map[endpoint]
-            logger.debug(f"Found exact match: {endpoint} -> {service}")
+        if normalized_endpoint in self.routing_map:
+            service = self.routing_map[normalized_endpoint]
+            logger.debug(f"Found exact match: {normalized_endpoint} -> {service}")
             return service
         
         # Then try pattern matching
         for pattern, service in self.routing_map.items():
-            if fnmatch.fnmatch(endpoint, pattern):
-                logger.debug(f"Found pattern match: {endpoint} matches {pattern} -> {service}")
+            if fnmatch.fnmatch(normalized_endpoint, pattern):
+                logger.debug(f"Found pattern match: {normalized_endpoint} matches {pattern} -> {service}")
                 return service
         
-        logger.error(f"No service found for endpoint: {endpoint}")        
-        raise ValueError(f"No service found for endpoint: {endpoint}")
-    
+        logger.error(f"No service found for endpoint: {normalized_endpoint}")        
+        raise ValueError(f"No service found for endpoint: {normalized_endpoint}")
+
     async def route_request(self, endpoint: str, method: str, data: Dict[Any, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Route request to appropriate service and wait for response with resilience"""
         try:
+            # Normalize endpoint for routing and downstream service
+            normalized_endpoint = self.normalize_endpoint(endpoint)
             # Determine target service
             service = self.get_service_for_endpoint(endpoint)
-            
             # Create correlation ID for tracking
             correlation_id = str(uuid.uuid4())
-            
             # Create trace context
             trace_context = request_tracer.create_trace_context(
                 correlation_id, user_context.get("user_id", "unknown")
             )
-            
             # Prepare request message
             request_msg = {
                 "correlation_id": correlation_id,
-                "endpoint": endpoint,
+                "endpoint": normalized_endpoint,
                 "method": method,
                 "data": data,
                 "user_context": user_context,
@@ -101,9 +98,7 @@ class RequestRouter:
                 "service": service,
                 "trace_id": correlation_id
             }
-            
-            logger.info(f"Routing request {correlation_id} to service {service} for endpoint {endpoint}")
-            
+            logger.info(f"Routing request {correlation_id} to service {service} for endpoint {normalized_endpoint}")
             # Send request with resilience patterns
             start_time = time.time()
             try:
@@ -116,40 +111,32 @@ class RequestRouter:
                         "max_delay": 10.0
                     }
                 )
-                
                 # Log successful service call
                 duration = time.time() - start_time
                 request_tracer.log_service_call(
-                    correlation_id, service, f"{method} {endpoint}", duration, "success"
+                    correlation_id, service, f"{method} {normalized_endpoint}", duration, "success"
                 )
-                
                 # Enhanced logging with performance metrics
                 elapsed_time = time.time() - start_time
                 logger.info(f"Request {correlation_id} completed successfully in {elapsed_time:.3f}s")
-                
                 # Record metrics for monitoring
-                self._record_request_metrics(service, method, endpoint, elapsed_time, "success")
-                
+                self._record_request_metrics(service, method, normalized_endpoint, elapsed_time, "success")
                 # Add trace completion
                 request_tracer.complete_trace(correlation_id, {
                     "status": "success",
                     "duration_ms": elapsed_time * 1000,
                     "response_size": len(str(response)) if response else 0
                 })
-                
                 return response
-                
             except Exception as e:
                 # Log failed service call
                 duration = time.time() - start_time
                 request_tracer.log_service_call(
-                    correlation_id, service, f"{method} {endpoint}", duration, "error", str(e)
+                    correlation_id, service, f"{method} {normalized_endpoint}", duration, "error", str(e)
                 )
-                
                 # Complete trace with error
                 request_tracer.complete_trace(correlation_id, "error")
                 raise
-            
         except ValueError as e:
             logger.error(f"Routing error: {e}")
             raise HTTPException(status_code=404, detail=str(e))
@@ -240,6 +227,7 @@ class ResponseCorrelationManager:
     async def handle_response(self, response: Dict[str, Any]):
         """Handle incoming response and resolve corresponding future"""
         correlation_id = response.get("correlation_id")
+        logger.info(f"[ResponseCorrelationManager] Received response: correlation_id={correlation_id}, status={response.get('status')}, keys={list(response.keys())}")
         if not correlation_id:
             logger.warning("Received response without correlation_id")
             return
@@ -251,14 +239,21 @@ class ResponseCorrelationManager:
             logger.warning(f"No pending future found for correlation_id: {correlation_id}")
     
     async def consume_responses(self):
-        """Consume responses from service response queue"""
+        """Consume responses from service response queue with enhanced error handling"""
         try:
             import aio_pika
             from rabbitmq import admin
             
             logger.info("Setting up response consumption...")
-            connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
+            
+            # Use robust connection with reconnection logic
+            connection = await aio_pika.connect_robust(
+                admin.RABBITMQ_URL,
+                heartbeat=60,
+                blocked_connection_timeout=300,
+            )
             channel = await connection.channel()
+            await channel.set_qos(prefetch_count=10)
             
             # Declare the service_responses exchange
             exchange = await channel.declare_exchange("service_responses", aio_pika.ExchangeType.DIRECT, durable=True)
@@ -269,29 +264,45 @@ class ResponseCorrelationManager:
             await queue.bind(exchange, routing_key="core.responses")
             logger.info("Core responses queue bound to service_responses exchange")
             
-            # Set up message handler
+            # Set up message handler with retry logic
             async def handle_response_message(message: aio_pika.IncomingMessage):
-                async with message.process():
-                    try:
+                try:
+                    async with message.process(requeue=False):
                         response_data = json.loads(message.body.decode())
                         await self.handle_response(response_data)
                         logger.debug(f"Processed response: {response_data.get('correlation_id')}")
-                    except Exception as e:
-                        logger.error(f"Error processing response message: {e}")
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid JSON in response message: {e}")
+                except Exception as e:
+                    logger.error(f"Error processing response message: {e}")
+                    # Don't requeue to avoid infinite loops
             
             # Start consuming
-            await queue.consume(handle_response_message)
+            await queue.consume(handle_response_message, consumer_tag="core-response-consumer")
             logger.info("Core service started consuming responses from service_responses exchange")
             
-            # Keep the connection alive
+            # Keep the connection alive with proper exception handling
             try:
-                await asyncio.Future()
+                while True:
+                    await asyncio.sleep(1)
+            except asyncio.CancelledError:
+                logger.info("Response consumption cancelled")
+                raise
             finally:
-                await connection.close()
+                try:
+                    await connection.close()
+                except Exception as e:
+                    logger.warning(f"Error closing RabbitMQ connection: {e}")
                 
+        except asyncio.CancelledError:
+            logger.info("Response consumption task cancelled")
+            raise
         except Exception as e:
             logger.error(f"Error consuming responses: {e}")
-            raise
+            # Wait before retrying to avoid rapid retry loops
+            await asyncio.sleep(5)
+            logger.info("Retrying response consumption...")
+            await self.consume_responses()
 
 
 # Global instance

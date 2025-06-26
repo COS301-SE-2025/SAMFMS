@@ -5,6 +5,7 @@ import logging
 import asyncio
 import json
 import aio_pika
+import os
 
 from rabbitmq.consumer import consume_messages_Direct, consume_messages_FanOut
 from rabbitmq.admin import create_exchange
@@ -19,15 +20,23 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="GPS Data Service", version="1.0.0")
 
-# Initialize Redis connection
-redis_client = redis.Redis(host='redis', port=6379, decode_responses=True)
+# Initialize Redis connection using environment variables
+redis_host = os.getenv("REDIS_HOST", "redis")
+redis_port = int(os.getenv("REDIS_PORT", "6379"))
+redis_client = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
 
-# Initialize RabbitMQ connection
+# Initialize RabbitMQ connection using environment variables
 def get_rabbitmq_connection():
     try:
+        rabbitmq_host = os.getenv("RABBITMQ_HOST", "rabbitmq")
+        rabbitmq_username = os.getenv("RABBITMQ_USERNAME", "guest")
+        rabbitmq_password = os.getenv("RABBITMQ_PASSWORD", "guest")
+        
         connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host='rabbitmq', 
-                                    credentials=pika.PlainCredentials('guest', 'guest'))
+            pika.ConnectionParameters(
+                host=rabbitmq_host, 
+                credentials=pika.PlainCredentials(rabbitmq_username, rabbitmq_password)
+            )
         )
         return connection
     except Exception as e:
@@ -98,4 +107,5 @@ async def respond_GPSBlock(message: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("GPS_DBLOCK_PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)

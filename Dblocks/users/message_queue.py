@@ -1,3 +1,4 @@
+import os
 import pika
 import json
 import asyncio
@@ -11,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 class MessageQueueConsumer:
-    def __init__(self, host='rabbitmq', username='guest', password='guest'):
+    def __init__(self, host='rabbitmq', username=None, password=None):
         self.host = host
-        self.username = username
-        self.password = password
+        self.username = username or os.getenv('RABBITMQ_USER', 'samfms_rabbit')
+        self.password = password or os.getenv('RABBITMQ_PASSWORD', 'samfms_rabbit123')
         self.connection = None
         self.channel = None
         self.consumer_thread = None

@@ -39,7 +39,6 @@ const DriverList = ({
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
-              {' '}
               <th className="w-[36px] px-4 py-3">
                 <input
                   type="checkbox"
@@ -94,7 +93,6 @@ const DriverList = ({
             </tr>
           </thead>
           <tbody>
-            {' '}
             {drivers.map(driver => (
               <tr
                 key={driver.id}

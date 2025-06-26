@@ -23,20 +23,27 @@ async def get_vehicles(
 ):
     """Get all vehicles via Management service"""
     try:
+        logger.info(f"Received get_vehicles request with params: {dict(request.query_params)}")
+        
         # Authorize request
         user_context = await core_auth_service.authorize_request(
             credentials.credentials, "/api/vehicles", "GET"
         )
-          # Route to management service
+        logger.info(f"Authorization successful for user: {user_context.get('user_id', 'unknown')}")
+        
+        # Route to management service
+        logger.info("Routing request to management service")
         response = await request_router.route_request(
             endpoint="/api/vehicles",
             method="GET",
             data=dict(request.query_params),
             user_context=user_context
         )
+        logger.info(f"Received response from management service: {type(response)}")
         
         # Standardize field names for frontend compatibility
         standardized_response = standardize_vehicle_response(response)
+        logger.info("Response standardized successfully")
         
         return standardized_response
         
@@ -584,6 +591,56 @@ async def delete_driver(
         logger.error(f"Error in delete_driver: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+# Analytics Endpoints (Proxy to Management Service)
+@router.get("/analytics/{path:path}")
+async def proxy_analytics_get(
+    path: str,
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Proxy GET analytics requests to Management service"""
+    try:
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials, f"/analytics/{path}", "GET"
+        )
+        response = await request_router.route_request(
+            endpoint=f"/analytics/{path}",
+            method="GET",
+            data=dict(request.query_params),
+            user_context=user_context
+        )
+        return response
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error proxying analytics GET /analytics/{path}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/analytics/{path:path}")
+async def proxy_analytics_post(
+    path: str,
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Proxy POST analytics requests to Management service"""
+    try:
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials, f"/analytics/{path}", "POST"
+        )
+        body = await request.json()
+        response = await request_router.route_request(
+            endpoint=f"/analytics/{path}",
+            method="POST",
+            data=body,
+            user_context=user_context
+        )
+        return response
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error proxying analytics POST /analytics/{path}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 @router.get("/debug/routing/{endpoint:path}")
 async def debug_routing(endpoint: str):
     """Debug endpoint to test routing configuration"""
@@ -646,3 +703,237 @@ def standardize_single_vehicle(vehicle):
             standardized["status"] = status.capitalize()
     
     return standardized
+
+@router.get("/analytics/fleet-utilization")
+async def get_fleet_utilization(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get fleet utilization metrics via Management service"""
+    try:
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials,
+            "/api/analytics/fleet-utilization",
+            "GET"
+        )
+        response = await request_router.route_request(
+            endpoint="/api/analytics/fleet-utilization",
+            method="GET",
+            data=dict(request.query_params),
+            user_context=user_context
+        )
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_fleet_utilization: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/analytics/vehicle-usage")
+async def get_vehicle_usage(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get per-vehicle usage stats via Management service"""
+    try:
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials,
+            "/api/analytics/vehicle-usage",
+            "GET"
+        )
+        response = await request_router.route_request(
+            endpoint="/api/analytics/vehicle-usage",
+            method="GET",
+            data=dict(request.query_params),
+            user_context=user_context
+        )
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_vehicle_usage: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/analytics/assignment-metrics")
+async def get_assignment_metrics(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get assignment metrics via Management service"""
+    try:
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials,
+            "/api/analytics/assignment-metrics",
+            "GET"
+        )
+        response = await request_router.route_request(
+            endpoint="/api/analytics/assignment-metrics",
+            method="GET",
+            data=dict(request.query_params),
+            user_context=user_context
+        )
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_assignment_metrics: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/analytics/maintenance")
+async def get_maintenance_analytics(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get maintenance analytics via Management service"""
+    try:
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials,
+            "/api/analytics/maintenance",
+            "GET"
+        )
+        response = await request_router.route_request(
+            endpoint="/api/analytics/maintenance",
+            method="GET",
+            data=dict(request.query_params),
+            user_context=user_context
+        )
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_maintenance_analytics: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/analytics/driver-performance")
+async def get_driver_performance(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get driver performance metrics via Management service"""
+    try:
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials,
+            "/api/analytics/driver-performance",
+            "GET"
+        )
+        response = await request_router.route_request(
+            endpoint="/api/analytics/driver-performance",
+            method="GET",
+            data=dict(request.query_params),
+            user_context=user_context
+        )
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_driver_performance: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/analytics/costs")
+async def get_cost_analytics(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get cost analytics via Management service"""
+    try:
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials,
+            "/api/analytics/costs",
+            "GET"
+        )
+        response = await request_router.route_request(
+            endpoint="/api/analytics/costs",
+            method="GET",
+            data=dict(request.query_params),
+            user_context=user_context
+        )
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_cost_analytics: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/analytics/status-breakdown")
+async def get_status_breakdown(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get vehicle status breakdown via Management service"""
+    try:
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials,
+            "/api/analytics/status-breakdown",
+            "GET"
+        )
+        response = await request_router.route_request(
+            endpoint="/api/analytics/status-breakdown",
+            method="GET",
+            data=dict(request.query_params),
+            user_context=user_context
+        )
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_status_breakdown: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/analytics/incidents")
+async def get_incident_statistics(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get incident statistics via Management service"""
+    try:
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials,
+            "/api/analytics/incidents",
+            "GET"
+        )
+        response = await request_router.route_request(
+            endpoint="/api/analytics/incidents",
+            method="GET",
+            data=dict(request.query_params),
+            user_context=user_context
+        )
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_incident_statistics: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/analytics/department-location")
+async def get_department_location_analytics(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get department/location analytics via Management service"""
+    try:
+        user_context = await core_auth_service.authorize_request(
+            credentials.credentials,
+            "/api/analytics/department-location",
+            "GET"
+        )
+        response = await request_router.route_request(
+            endpoint="/api/analytics/department-location",
+            method="GET",
+            data=dict(request.query_params),
+            user_context=user_context
+        )
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_department_location_analytics: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
