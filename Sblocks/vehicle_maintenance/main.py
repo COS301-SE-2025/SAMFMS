@@ -11,6 +11,9 @@ async def startup_event():
         print("Maintenance service request handler initialized")
     except Exception as e:
         print(f"Maintenance service request handler initialization failed: {e}")
+    
+    publish_message("service_presence", aio_pika.ExchangeType.FANOUT, {"type": "service_presence", "service":"vehicle_maintenance"}, "")
+
 
 @app.get("/")
 def read_root():

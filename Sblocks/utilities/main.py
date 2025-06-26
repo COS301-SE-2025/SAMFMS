@@ -48,6 +48,8 @@ async def lifespan(app: FastAPI):
     rabbitmq_service.close()
     logger.info("✅ RabbitMQ connections closed")
     logger.info("✅ Utilities Service shutdown completed")
+    publish_message("service_presence", aio_pika.ExchangeType.FANOUT, {"type": "service_presence", "service":"utilities"}, "")
+
 
 app = FastAPI(
     title="SAMFMS Utilities Service",
