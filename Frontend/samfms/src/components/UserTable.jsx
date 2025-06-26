@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import {Button} from './ui/button';
 import {Plus, Search, ChevronUp, ChevronDown} from 'lucide-react';
 
@@ -17,6 +17,12 @@ const UserTable = ({
   onAddUser,
   showAddButton = false,
 }) => {
+  const [filteredUsers, setFilteredUsers] = useState(users);
+
+  useEffect(() => {
+    setFilteredUsers(users);
+  }, [users]);
+
   if (loading && !users.length) {
     return (
       <div className="mb-8">
@@ -53,6 +59,20 @@ const UserTable = ({
     }
   };
 
+  const handleSearchChange = async query => {
+    if (!query.trim()) {
+      setFilteredUsers(users);
+      return;
+    }
+    const lowerQuery = query.toLowerCase();
+    setFilteredUsers(
+      users.filter(user =>
+        (user.full_name && user.full_name.toLowerCase().includes(lowerQuery)) ||
+        (user.email && user.email.toLowerCase().includes(lowerQuery))
+      )
+    );
+  };
+
   return (
     <div className="mb-8">
       <div className="flex justify-between items-center mb-4">
@@ -79,7 +99,7 @@ const UserTable = ({
               type="text"
               placeholder={`Search ${title.toLowerCase()}...`}
               value={search}
-              onChange={e => setSearch && setSearch(e.target.value)}
+              onChange={handleSearchChange}
               className="w-full pl-10 pr-4 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
             />
           </div>

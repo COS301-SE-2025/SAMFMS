@@ -402,13 +402,17 @@ services:
 
   traccar:
     image: traccar/traccar:latest
+    container_name: traccar
+    hostname: traccar
+    restart: unless-stopped
     ports:
       - "8082:8082" 
       - "5055:5055"
       - "5001-5039:5001-5039"
       - "5041-5149:5041-5149"
     volumes:
-      - ./traccar-data:/opt/traccar/data
+      - ./traccar/logs:/opt/traccar/logs:rw
+      - ./traccar/data:/opt/traccar/data:rw
     environment:
       - TZ=UTC
     networks:

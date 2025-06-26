@@ -276,31 +276,46 @@ async def create_vehicle_assignment(assignment_data: Dict[str, Any]):
 
 @router.put("/vehicle-assignments/{assignment_id}")
 async def update_vehicle_assignment(assignment_id: str, assignment_data: Dict[str, Any]):
-    """Update vehicle assignment"""
+    """Update vehicle assignment. If assignment is completed (vehicle returned), return analytics."""
     try:
         from database import vehicle_assignments_collection
-        
+        # Import analytics functions directly
+        from analytics import (
+            fleet_utilization, vehicle_usage, assignment_metrics, maintenance_analytics,
+            driver_performance, cost_analytics, status_breakdown, incident_statistics, department_location_analytics
+        )
         # Validate ObjectId format
         obj_id = validate_object_id(assignment_id, "assignment ID")
-        
         # Add update timestamp
         assignment_data["updated_at"] = datetime.now(timezone.utc)
-        
         # Update assignment
         result = await vehicle_assignments_collection.update_one(
             {"_id": obj_id},
             {"$set": assignment_data}
         )
-        
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Vehicle assignment not found")
-        
         # Get updated assignment
         updated_assignment = await vehicle_assignments_collection.find_one({"_id": obj_id})
         updated_assignment["_id"] = str(updated_assignment["_id"])
-        
+        # If assignment is completed (vehicle returned), return analytics
+        if assignment_data.get("status", "").lower() == "completed":
+            analytics = {}
+            analytics["fleet_utilization"] = await fleet_utilization()
+            analytics["vehicle_usage"] = await vehicle_usage()
+            analytics["assignment_metrics"] = await assignment_metrics()
+            analytics["maintenance_analytics"] = await maintenance_analytics()
+            analytics["driver_performance"] = await driver_performance()
+            analytics["cost_analytics"] = await cost_analytics()
+            analytics["status_breakdown"] = await status_breakdown()
+            analytics["incident_statistics"] = await incident_statistics()
+            analytics["department_location_analytics"] = await department_location_analytics()
+            return {
+                "assignment": updated_assignment,
+                "message": "Vehicle assignment updated successfully. Vehicle returned.",
+                "analytics": analytics
+            }
         return {"assignment": updated_assignment, "message": "Vehicle assignment updated successfully"}
-        
     except HTTPException:
         raise
     except Exception as e:
@@ -354,11 +369,15 @@ async def get_vehicles(
     status_filter: Optional[str] = None,
     make_filter: Optional[str] = None
 ):
-    """Get all vehicles with optional filters"""
+    """Get all vehicles with optional filters and include analytics in the response."""
     try:
         from database import get_vehicle_collection
+        # Import analytics functions directly
+        from analytics import (
+            fleet_utilization, vehicle_usage, assignment_metrics, maintenance_analytics,
+            driver_performance, cost_analytics, status_breakdown, incident_statistics, department_location_analytics
+        )
         vehicles_collection = get_vehicle_collection()
-        
         # Build filter query
         query = {}
         if status_filter:
@@ -369,19 +388,26 @@ async def get_vehicles(
                 query["is_active"] = False
         if make_filter:
             query["make"] = {"$regex": make_filter, "$options": "i"}
-        
         # Get vehicles with pagination
         cursor = vehicles_collection.find(query).skip(skip).limit(limit)
         vehicles = []
         async for vehicle in cursor:
             standardized_vehicle = standardize_vehicle_response(vehicle)
             vehicles.append(standardized_vehicle)
-        
         # Get total count
         total = await vehicles_collection.count_documents(query)
-        
-        return {"vehicles": vehicles, "total": total}
-        
+        # Get analytics
+        analytics = {}
+        analytics["fleet_utilization"] = await fleet_utilization()
+        analytics["vehicle_usage"] = await vehicle_usage()
+        analytics["assignment_metrics"] = await assignment_metrics()
+        analytics["maintenance_analytics"] = await maintenance_analytics()
+        analytics["driver_performance"] = await driver_performance()
+        analytics["cost_analytics"] = await cost_analytics()
+        analytics["status_breakdown"] = await status_breakdown()
+        analytics["incident_statistics"] = await incident_statistics()
+        analytics["department_location_analytics"] = await department_location_analytics()
+        return {"vehicles": vehicles, "total": total, "analytics": analytics}
     except Exception as e:
         logger.error(f"Error getting vehicles: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve vehicles")
@@ -500,11 +526,15 @@ async def delete_vehicle(vehicle_id: str):
 
 @router.get("/vehicles/search/{query}")
 async def search_vehicles(query: str, limit: int = 50):
-    """Search vehicles by make, model, vehicle_number, or license plate"""
+    """Search vehicles by make, model, vehicle_number, or license plate, and include analytics in the response."""
     try:
         from database import get_vehicle_collection
+        # Import analytics functions directly
+        from analytics import (
+            fleet_utilization, vehicle_usage, assignment_metrics, maintenance_analytics,
+            driver_performance, cost_analytics, status_breakdown, incident_statistics, department_location_analytics
+        )
         vehicles_collection = get_vehicle_collection()
-        
         # Create search query (case-insensitive partial match)
         search_query = {
             "$or": [
@@ -515,16 +545,24 @@ async def search_vehicles(query: str, limit: int = 50):
                 {"vin": {"$regex": query, "$options": "i"}}
             ]
         }
-        
         # Find matching vehicles
         cursor = vehicles_collection.find(search_query).limit(limit)
         vehicles = []
         async for vehicle in cursor:
             standardized_vehicle = standardize_vehicle_response(vehicle)
             vehicles.append(standardized_vehicle)
-        
-        return {"vehicles": vehicles, "total": len(vehicles)}
-        
+        # Get analytics
+        analytics = {}
+        analytics["fleet_utilization"] = await fleet_utilization()
+        analytics["vehicle_usage"] = await vehicle_usage()
+        analytics["assignment_metrics"] = await assignment_metrics()
+        analytics["maintenance_analytics"] = await maintenance_analytics()
+        analytics["driver_performance"] = await driver_performance()
+        analytics["cost_analytics"] = await cost_analytics()
+        analytics["status_breakdown"] = await status_breakdown()
+        analytics["incident_statistics"] = await incident_statistics()
+        analytics["department_location_analytics"] = await department_location_analytics()
+        return {"vehicles": vehicles, "total": len(vehicles), "analytics": analytics}
     except Exception as e:
         logger.error(f"Error searching vehicles: {e}")
         raise HTTPException(status_code=500, detail="Failed to search vehicles")

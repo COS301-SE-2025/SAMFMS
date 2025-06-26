@@ -305,6 +305,5 @@ async def test_message_queue():
         }
 
 if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("MANAGEMENT_PORT", "8000"))
+    port = int(os.getenv("MANAGEMENT_PORT", "21010"))
     uvicorn.run(app, host="0.0.0.0", port=port)

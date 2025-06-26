@@ -691,4 +691,6 @@ export const getPlugins = async () => {
   return response.json();
 };
 
+// GPS API functions
+
 // RBAC and Admin Functions have been moved to ./api/auth.js

@@ -9,6 +9,13 @@ import DataVisualization from '../components/vehicles/DataVisualization';
 import AddVehicleModal from '../components/vehicles/AddVehicleModal';
 import EditVehicleModal from '../components/vehicles/EditVehicleModal';
 import {getVehicles, deleteVehicle, searchVehicles} from '../backend/API';
+import FleetUtilizationCard from '../components/analytics/FleetUtilizationCard';
+import VehicleUsageStats from '../components/analytics/VehicleUsageStats';
+import AssignmentMetricsCard from '../components/analytics/AssignmentMetricsCard';
+import MaintenanceAnalyticsCard from '../components/analytics/MaintenanceAnalyticsCard';
+import DriverPerformanceCard from '../components/analytics/DriverPerformanceCard';
+import CostAnalyticsCard from '../components/analytics/CostAnalyticsCard';
+import StatusBreakdownCard from '../components/analytics/StatusBreakdownCard';
 
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
@@ -31,6 +38,7 @@ const Vehicles = () => {
     status: '',
     make: '',
   });
+  const [analytics, setAnalytics] = useState({});
 
   // Enhanced error handling with retry logic
   const handleAPIError = async (error, retryFn, maxRetries = 3) => {
@@ -83,12 +91,9 @@ const Vehicles = () => {
       try {
         setLoading(true);
         setError(null);
-
         const params = {
           limit: 100, // Load more vehicles for better testing
         };
-
-        // Apply filters if any
         if (filters.status) {
           params.status_filter = filters.status.toLowerCase();
         }
@@ -96,12 +101,12 @@ const Vehicles = () => {
           params.make_filter = filters.make;
         }
         const response = await getVehicles(params);
-        // Extract the vehicles array from the response object - handle both formats
         const vehiclesArray = response.vehicles || response || [];
         const transformedVehicles = vehiclesArray
           .map(transformVehicleData)
-          .filter(vehicle => vehicle !== null); // Filter out null transformations
+          .filter(vehicle => vehicle !== null);
         setVehicles(transformedVehicles);
+        setAnalytics(response.analytics || {}); // <-- set analytics here
       } catch (err) {
         console.error('Error loading vehicles:', err);
 
@@ -393,6 +398,25 @@ const Vehicles = () => {
     setItemsPerPage(parseInt(e.target.value));
     setCurrentPage(1); // Reset to first page
   };
+
+  // Local Search Function
+  const localSearchVehicles = (searchTerm) => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return;
+
+    const filteredVehicles = vehicles.filter(vehicle => {
+      return (
+        vehicle.make?.toLowerCase().includes(term) ||
+        vehicle.model?.toLowerCase().includes(term) ||
+        vehicle.year?.toString().includes(term) ||
+        vehicle.color?.toLowerCase().includes(term) ||
+        vehicle.fuelType?.toLowerCase().includes(term)
+      );
+    });
+
+    setVehicles(filteredVehicles);
+  };
+
   return (
     <div className="min-h-screen bg-background relative">
       {/* SVG pattern background like Landing page */}
@@ -411,7 +435,7 @@ const Vehicles = () => {
           <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
             <h2 className="text-xl font-semibold">Manage Vehicles</h2>
             <div className="flex-1 mx-4">
-              <VehicleSearch onSearch={handleSearch} />
+              <VehicleSearch onSearch={localSearchVehicles} />
             </div>
             <button
               className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
@@ -510,7 +534,19 @@ const Vehicles = () => {
           />
         )}
         {/* Data visualization section */}
-        <DataVisualization />
+        <DataVisualization analytics={analytics} />
+
+        <VehicleUsageStats stats={analytics.vehicle_usage} />
+        <DriverPerformanceCard stats={analytics.driver_performance} />
+        <CostAnalyticsCard stats={analytics.cost_analytics} />
+
+        {/* Analytics Cards Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+          <StatusBreakdownCard stats={analytics.status_breakdown} />
+          <FleetUtilizationCard data={analytics.fleet_utilization} />
+          <AssignmentMetricsCard data={analytics.assignment_metrics} />
+          <MaintenanceAnalyticsCard data={analytics.maintenance_analytics} />
+        </div>
       </div>
     </div>
   );

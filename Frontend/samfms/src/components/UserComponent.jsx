@@ -76,7 +76,7 @@ const UserComponent = () => {
                 className="px-4 py-2 text-sm text-foreground hover:bg-accent flex items-center gap-2"
               >
                 <User size={16} />
-                Profile
+                Account
               </Link>{' '}
               <Button
                 variant="ghost"

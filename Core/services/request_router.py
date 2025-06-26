@@ -43,58 +43,54 @@ class RequestRouter:
             "/api/vehicle-maintenance/*": "maintenance",
             "/api/analytics/*": "management"
         }
-    
-    async def initialize(self):
-        """Initialize routing infrastructure"""
-        try:
-            # Create request/response exchanges
-            await create_exchange("service_requests", aio_pika.ExchangeType.DIRECT)
-            await create_exchange("service_responses", aio_pika.ExchangeType.DIRECT)            # Start response consumer
-            asyncio.create_task(self.response_manager.consume_responses())
-            
-            logger.info("Request router initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize request router: {e}")
-            raise
-    
+
+    def normalize_endpoint(self, endpoint: str) -> str:
+        """Normalize endpoints for routing consistency (e.g., analytics endpoints)"""
+        # If you want to rewrite /api/analytics/... to /api/v1/analytics/..., do it here
+        if endpoint.startswith("/api/analytics/"):
+            return endpoint.replace("/api/analytics/", "/api/v1/analytics/")
+        return endpoint
+
     def get_service_for_endpoint(self, endpoint: str) -> str:
         """Determine target service based on endpoint pattern"""
         logger.debug(f"Looking for service for endpoint: {endpoint}")
         logger.debug(f"Available routing patterns: {list(self.routing_map.keys())}")
         
+        # Normalize endpoint before matching
+        normalized_endpoint = self.normalize_endpoint(endpoint)
+
         # First try exact matches
-        if endpoint in self.routing_map:
-            service = self.routing_map[endpoint]
-            logger.debug(f"Found exact match: {endpoint} -> {service}")
+        if normalized_endpoint in self.routing_map:
+            service = self.routing_map[normalized_endpoint]
+            logger.debug(f"Found exact match: {normalized_endpoint} -> {service}")
             return service
         
         # Then try pattern matching
         for pattern, service in self.routing_map.items():
-            if fnmatch.fnmatch(endpoint, pattern):
-                logger.debug(f"Found pattern match: {endpoint} matches {pattern} -> {service}")
+            if fnmatch.fnmatch(normalized_endpoint, pattern):
+                logger.debug(f"Found pattern match: {normalized_endpoint} matches {pattern} -> {service}")
                 return service
         
-        logger.error(f"No service found for endpoint: {endpoint}")        
-        raise ValueError(f"No service found for endpoint: {endpoint}")
-    
+        logger.error(f"No service found for endpoint: {normalized_endpoint}")        
+        raise ValueError(f"No service found for endpoint: {normalized_endpoint}")
+
     async def route_request(self, endpoint: str, method: str, data: Dict[Any, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Route request to appropriate service and wait for response with resilience"""
         try:
+            # Normalize endpoint for routing and downstream service
+            normalized_endpoint = self.normalize_endpoint(endpoint)
             # Determine target service
             service = self.get_service_for_endpoint(endpoint)
-            
             # Create correlation ID for tracking
             correlation_id = str(uuid.uuid4())
-            
             # Create trace context
             trace_context = request_tracer.create_trace_context(
                 correlation_id, user_context.get("user_id", "unknown")
             )
-            
             # Prepare request message
             request_msg = {
                 "correlation_id": correlation_id,
-                "endpoint": endpoint,
+                "endpoint": normalized_endpoint,
                 "method": method,
                 "data": data,
                 "user_context": user_context,
@@ -102,9 +98,7 @@ class RequestRouter:
                 "service": service,
                 "trace_id": correlation_id
             }
-            
-            logger.info(f"Routing request {correlation_id} to service {service} for endpoint {endpoint}")
-            
+            logger.info(f"Routing request {correlation_id} to service {service} for endpoint {normalized_endpoint}")
             # Send request with resilience patterns
             start_time = time.time()
             try:
@@ -117,40 +111,32 @@ class RequestRouter:
                         "max_delay": 10.0
                     }
                 )
-                
                 # Log successful service call
                 duration = time.time() - start_time
                 request_tracer.log_service_call(
-                    correlation_id, service, f"{method} {endpoint}", duration, "success"
+                    correlation_id, service, f"{method} {normalized_endpoint}", duration, "success"
                 )
-                
                 # Enhanced logging with performance metrics
                 elapsed_time = time.time() - start_time
                 logger.info(f"Request {correlation_id} completed successfully in {elapsed_time:.3f}s")
-                
                 # Record metrics for monitoring
-                self._record_request_metrics(service, method, endpoint, elapsed_time, "success")
-                
+                self._record_request_metrics(service, method, normalized_endpoint, elapsed_time, "success")
                 # Add trace completion
                 request_tracer.complete_trace(correlation_id, {
                     "status": "success",
                     "duration_ms": elapsed_time * 1000,
                     "response_size": len(str(response)) if response else 0
                 })
-                
                 return response
-                
             except Exception as e:
                 # Log failed service call
                 duration = time.time() - start_time
                 request_tracer.log_service_call(
-                    correlation_id, service, f"{method} {endpoint}", duration, "error", str(e)
+                    correlation_id, service, f"{method} {normalized_endpoint}", duration, "error", str(e)
                 )
-                
                 # Complete trace with error
                 request_tracer.complete_trace(correlation_id, "error")
                 raise
-            
         except ValueError as e:
             logger.error(f"Routing error: {e}")
             raise HTTPException(status_code=404, detail=str(e))
@@ -241,6 +227,7 @@ class ResponseCorrelationManager:
     async def handle_response(self, response: Dict[str, Any]):
         """Handle incoming response and resolve corresponding future"""
         correlation_id = response.get("correlation_id")
+        logger.info(f"[ResponseCorrelationManager] Received response: correlation_id={correlation_id}, status={response.get('status')}, keys={list(response.keys())}")
         if not correlation_id:
             logger.warning("Received response without correlation_id")
             return

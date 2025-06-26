@@ -1,44 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import { getVehicleUsage } from '../../backend/api/analytics';
+import React from 'react';
 
-const VehicleUsageStats = () => {
-  const [stats, setStats] = useState([]);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    getVehicleUsage()
-      .then(setStats)
-      .catch(setError);
-  }, []);
-
-  if (error) return <div>Error loading vehicle usage stats.</div>;
+const VehicleUsageStats = ({stats}) => {
   if (!stats) return <div>Loading...</div>;
 
   return (
-    <div className="analytics-card">
-      <h3>Vehicle Usage Statistics</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Vehicle ID</th>
-            <th>Total Distance (km)</th>
-            <th>Total Fuel</th>
-            <th>Trips</th>
-            <th>Avg Trip Length</th>
-          </tr>
-        </thead>
-        <tbody>
-          {stats.map(row => (
-            <tr key={row._id}>
-              <td>{row._id}</td>
-              <td>{row.total_distance}</td>
-              <td>{row.total_fuel}</td>
-              <td>{row.trip_count}</td>
-              <td>{row.average_trip_length.toFixed(2)}</td>
+    <div className="bg-card rounded-lg shadow-md p-6 border border-border mt-8">
+      <h3 className="text-xl font-semibold mb-4">Vehicle Usage Statistics</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-muted/50">
+              <th className="py-3 px-4 text-left">Vehicle ID</th>
+              <th className="py-3 px-4 text-left">Total Distance (km)</th>
+              <th className="py-3 px-4 text-left">Total Fuel</th>
+              <th className="py-3 px-4 text-left">Trips</th>
+              <th className="py-3 px-4 text-left">Avg Trip Length</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {stats.map(row => (
+              <tr key={row._id} className="border-b border-border hover:bg-accent/10">
+                <td className="py-3 px-4">{row._id}</td>
+                <td className="py-3 px-4">{row.total_distance}</td>
+                <td className="py-3 px-4">{row.total_fuel}</td>
+                <td className="py-3 px-4">{row.trip_count}</td>
+                <td className="py-3 px-4">{row.average_trip_length?.toFixed(2) ?? '0.00'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

@@ -1,44 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import { getDriverPerformance } from '../../backend/api/analytics';
+import React from 'react';
 
-const DriverPerformanceCard = () => {
-  const [stats, setStats] = useState([]);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    getDriverPerformance()
-      .then(setStats)
-      .catch(setError);
-  }, []);
-
-  if (error) return <div>Error loading driver performance.</div>;
+const DriverPerformanceCard = ({stats}) => {
   if (!stats) return <div>Loading...</div>;
 
   return (
-    <div className="analytics-card">
-      <h3>Driver Performance</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Driver ID</th>
-            <th>Trips</th>
-            <th>Total Distance</th>
-            <th>Avg Distance</th>
-            <th>Incidents</th>
-          </tr>
-        </thead>
-        <tbody>
-          {stats.map(row => (
-            <tr key={row._id}>
-              <td>{row._id}</td>
-              <td>{row.trip_count}</td>
-              <td>{row.total_distance}</td>
-              <td>{row.average_distance.toFixed(2)}</td>
-              <td>{row.incident_count}</td>
+    <div className="bg-card rounded-lg shadow-md p-6 border border-border mt-8">
+      <h3 className="text-xl font-semibold mb-4">Driver Performance</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-muted/50">
+              <th className="py-3 px-4 text-left">Driver ID</th>
+              <th className="py-3 px-4 text-left">Trips</th>
+              <th className="py-3 px-4 text-left">Total Distance</th>
+              <th className="py-3 px-4 text-left">Avg Distance</th>
+              <th className="py-3 px-4 text-left">Incidents</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {stats.map(row => (
+              <tr key={row._id} className="border-b border-border hover:bg-accent/10">
+                <td className="py-3 px-4">{row._id}</td>
+                <td className="py-3 px-4">{row.trip_count}</td>
+                <td className="py-3 px-4">{row.total_distance}</td>
+                <td className="py-3 px-4">{row.average_distance?.toFixed(2) ?? '0.00'}</td>
+                <td className="py-3 px-4">{row.incident_count}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

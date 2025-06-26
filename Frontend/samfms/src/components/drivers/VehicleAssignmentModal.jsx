@@ -19,21 +19,25 @@ const VehicleAssignmentModal = ({
       try {
         setLoading(true);
         setError(null);
-        
-        // Get available vehicles (active status)
-        const response = await getVehicles({ 
-          status_filter: 'active',
-          limit: 100 
+
+        // Fetch all vehicles from the backend API (using fetch directly)
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/vehicles', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         });
-        
-        // Handle both array and object response formats
-        const vehiclesArray = response.vehicles || response || [];
-        
+        if (!response.ok) throw new Error('Failed to fetch vehicles');
+        const vehiclesData = await response.json();
+        // If the API returns an array, use it directly; otherwise, try vehicles property
+        const vehiclesArray = Array.isArray(vehiclesData)
+          ? vehiclesData
+          : vehiclesData.vehicles || [];
         // Filter to only show available vehicles (without drivers)
-        const availableVehicles = vehiclesArray.filter(vehicle => 
-          !vehicle.driver || vehicle.driver === 'Unassigned'
+        const availableVehicles = vehiclesArray.filter(vehicle =>
+          !vehicle.driver || vehicle.driver === 'Unassigned' || vehicle.status === 'Available'
         );
-        
         setVehicles(availableVehicles);
       } catch (err) {
         console.error('Error loading vehicles:', err);
@@ -185,7 +189,7 @@ const VehicleAssignmentModal = ({
             </div>
           )}
 
-          <div className="flex justify-end space-x-2">>
+          <div className="flex justify-end space-x-2">
             <button
               onClick={closeVehicleAssignmentModal}
               className="px-4 py-2 border border-input rounded-md hover:bg-accent hover:text-accent-foreground"

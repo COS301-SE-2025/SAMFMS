@@ -1,8 +1,35 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {Button} from '../components/ui/button';
-import {HelpCircle, BookOpen, FileQuestion, Video, Info, Phone} from 'lucide-react';
+import {HelpCircle, BookOpen, FileQuestion, Video, Info, Phone, ChevronDown, ChevronUp} from 'lucide-react';
+
+const faqs = [
+    {
+        question: 'How do I reset my password?',
+        answer: 'Go to your account settings and click on "Reset Password". Follow the instructions sent to your email.'
+    },
+    {
+        question: 'Where can I view my drivers trip history?',
+        answer: 'You can view your trip history from the Trips section in the sidebar. If you do not see this option, your role may not have access.'
+    },
+    {
+        question: 'How do I assign a vehicle to a driver?',
+        answer: 'Admins and Fleet Managers can assign vehicles to drivers from the Drivers or Vehicles management pages.'
+    },
+    {
+        question: 'Can I export my reports?',
+        answer: 'Yes, you can export reports from the Reports section if your role has permission.'
+    },
+    {
+        question: 'Why do I only see certain menu items in the sidebar?',
+        answer: 'The SAMFMS system uses role-based access control (RBAC). This means you only see the features and pages in the sidebar that your assigned role (such as Admin, Fleet Manager, or Driver) allows you to access. If you need access to additional features, please contact your system administrator.'
+    }
+];
 
 const Help = () => {
+    const [openIndex, setOpenIndex] = useState(null);
+    const toggleFAQ = idx => {
+        setOpenIndex(openIndex === idx ? null : idx);
+    };
     return (
         <div className="min-h-screen bg-background relative">
             {/* SVG pattern background like Landing page */}
@@ -53,12 +80,24 @@ const Help = () => {
                         <p className="text-muted-foreground mb-4">
                             Find quick answers to common questions:
                         </p>
-                        <ul className="space-y-2 ml-6 list-disc text-foreground">
-                            <li>How do I reset my password?</li>
-                            <li>Where can I view my trip history?</li>
-                            <li>How do I assign a vehicle to a driver?</li>
-                            <li>Can I export my reports?</li>
-                        </ul>
+                        <div className="divide-y divide-border">
+                            {faqs.map((faq, idx) => (
+                                <div key={idx}>
+                                    <button
+                                        className="w-full flex justify-between items-center py-3 text-left focus:outline-none"
+                                        onClick={() => toggleFAQ(idx)}
+                                    >
+                                        <span className="font-medium text-foreground">{faq.question}</span>
+                                        {openIndex === idx ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                                    </button>
+                                    {openIndex === idx && (
+                                        <div className="py-2 text-muted-foreground text-sm ml-2 animate-fade-in">
+                                            {faq.answer}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 

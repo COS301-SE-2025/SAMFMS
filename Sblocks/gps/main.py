@@ -88,10 +88,6 @@ async def startup_event():
             "environment": ENVIRONMENT,
             "service": SERVICE_NAME
         }    )
-    
-    startup_delay = int(os.getenv("SERVICE_STARTUP_DELAY", "15"))
-    logger.info(f"Waiting {startup_delay} seconds for services to initialize...")
-    await asyncio.sleep(startup_delay)
 
     traccar_ready = await test_traccar_connection()
     if not traccar_ready:
@@ -124,7 +120,6 @@ async def startup_event():
     # Start the RabbitMQ consumer
     asyncio.create_task(consume_messages_Direct("gps_requests_Direct","gps_requests_Direct",handle_gps_request))
     asyncio.create_task(consume_messages_Direct("gps_responses_Direct","gps_responses_Direct" ,handle_DBlock_responses))
-    publish_message()
     publish_message("service_presence", aio_pika.ExchangeType.FANOUT, {"type": "service_presence", "service":"gps"}, "")
     
 
@@ -249,9 +244,9 @@ async def create_new_simulation(device_id, lat, lon, speed):
 
 # Herrie code: For Message queue between GPS SBlock and Core
 # Function to handle the direct messages sent to the gps_requests queue
-TRACCAR_API_URL = os.getenv("TRACCAR_API_URL", "http://traccar:8082/api")
+TRACCAR_API_URL = os.getenv("TRACCAR_API_URL", "http://196.29.59.165:8082/api")
 TRACCAR_ADMIN_USER = os.getenv("TRACCAR_ADMIN_USER", "herrie732@gmail.com")
-TRACCAR_ADMIN_PASS = os.getenv("TRACCAR_ADMIN_PASS", "Eirreh732")
+TRACCAR_ADMIN_PASS = os.getenv("TRACCAR_ADMIN_PASS", "Pass@1233")
 
 async def fetch_and_respond_live_locations(request_data):
     correlation_id = request_data.get("correlation_id")
@@ -362,7 +357,7 @@ async def request_gps_location(message: dict):
 
 
 # Herrie code for GPS vehicle simulation
-TRACCAR_SIMULATION_HOST = os.getenv("TRACCAR_SIMULATION_HOST", "http://traccar:5055")
+TRACCAR_SIMULATION_HOST = os.getenv("TRACCAR_SIMULATION_HOST", "http://196.29.59.165:5055")
 
 ORS_API_KEY = "5b3ce3597851110001cf6248967d5deccac54ac1bca4d679e41d602d"
 DELAY = 2
@@ -415,7 +410,7 @@ def api_simulate_vehicle(req: SimulationRequest):
     return {"status": "started", "device_id": req.device_id}
 
 def add_traccar_device(name, unique_id):
-    url = f"http://traccar:8082/api/devices"
+    url = f"{TRACCAR_API_URL}/devices"
     payload = {
         "name": name,
         "uniqueId": unique_id
@@ -424,7 +419,7 @@ def add_traccar_device(name, unique_id):
     response = requests.post(
         url,
         json = payload,
-        auth = HTTPBasicAuth("herrie732@gmail.com","Eirreh732") # will have to create a traccar account for fleetmanager    
+        auth = HTTPBasicAuth("herrie732@gmail.com","Pass@1233")    
     )
     if response.status_code == 200:
         print(f"Device '{name}' added successfully.")
@@ -451,7 +446,7 @@ class CreateUserRequest(BaseModel):
     password: str
 
 def add_traccar_user(name,email, password):
-    url = "http://traccar:8082/api/users"
+    url = f"{TRACCAR_API_URL}/users"
     payload = {
         "name": name,
         "email": email,
@@ -464,7 +459,7 @@ def add_traccar_user(name,email, password):
     response = requests.post(
         url,
         json=payload,
-        auth=HTTPBasicAuth("herrie732@gmail.com", "Eirreh732")
+        auth=HTTPBasicAuth("herrie732@gmail.com", "Pass@1233")
     )
     logger.info(f"Traccar user creation response: {response.status_code} {response.text}")
     if response.status_code in (200, 201):
@@ -497,7 +492,7 @@ class CircleGeofenceRequest(BaseModel):
     description: str = ""
 
 def add_polyline_geofence(name, coordinates, description=""):
-    url = "http://traccar:8082/api/geofences"
+    url = f"{TRACCAR_API_URL}/geofences"
     payload = {
         "name": name,
         "description": description,
@@ -508,7 +503,7 @@ def add_polyline_geofence(name, coordinates, description=""):
     response = requests.post(
         url,
         json=payload,
-        auth=HTTPBasicAuth("herrie732@gmail.com","Eirreh732")
+        auth=HTTPBasicAuth("herrie732@gmail.com","Pass@1233")
     )
     logger.info(f"Traccar polyline geofence response: {response.status_code} {response.text}")
     if response.status_code in (200, 201):
@@ -517,7 +512,7 @@ def add_polyline_geofence(name, coordinates, description=""):
         return None
 
 def add_circle_geofence(name, center_lat, center_lon, radius, description=""):
-    url = "http://traccar:8082/api/geofences"
+    url = f"{TRACCAR_API_URL}/geofences"
     payload = {
         "name": name,
         "description": description,
@@ -528,7 +523,7 @@ def add_circle_geofence(name, center_lat, center_lon, radius, description=""):
     response = requests.post(
         url,
         json=payload,
-        auth=HTTPBasicAuth("herrie732@gmail.com","Eirreh732")
+        auth=HTTPBasicAuth("herrie732@gmail.com","Pass@1233")
     )
     logger.info(f"Traccar circle geofence response: {response.status_code} {response.text}")
     if response.status_code in (200, 201):
@@ -553,6 +548,14 @@ def create_circle_geofence(req: CircleGeofenceRequest):
         return {"status": "error", "message": "Failed to create circle geofence"}
 
 #############################################################################
+
+@app.get("/devices")
+def get_devices():
+    response = requests.get(
+        f"{TRACCAR_API_URL}/geofences/devices",
+        auth=HTTPBasicAuth("herrie732@gmail.com","Pass@1233")
+    )
+    return response
     
 @app.post("/test/fetch_live_locations")
 async def test_fetch_live_locations(request: Request):

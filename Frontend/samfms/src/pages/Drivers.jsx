@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { PlusCircle } from 'lucide-react';
+import React, {useState, useEffect, useCallback} from 'react';
+import {PlusCircle} from 'lucide-react';
 import DriverList from '../components/drivers/DriverList';
 import DriverSearch from '../components/drivers/DriverSearch';
 import DriverActions from '../components/drivers/DriverActions';
@@ -8,7 +8,7 @@ import VehicleAssignmentModal from '../components/drivers/VehicleAssignmentModal
 import AddDriverModal from '../components/drivers/AddDriverModal';
 import EditDriverModal from '../components/drivers/EditDriverModal';
 import DataVisualization from '../components/drivers/DataVisualization';
-import { getDrivers, deleteDriver, searchDrivers } from '../backend/API';
+import {getDrivers, deleteDriver, searchDrivers} from '../backend/API';
 
 const Drivers = () => {
   const [drivers, setDrivers] = useState([]);
@@ -117,7 +117,7 @@ const Drivers = () => {
           ...(filters.status && {
             status_filter: filters.status.toLowerCase().replace(/\s+/g, '_'),
           }),
-          ...(filters.department && { department_filter: filters.department }),
+          ...(filters.department && {department_filter: filters.department}),
         });
         const transformedDrivers = response.map(transformDriverData);
         setFilteredDrivers(transformedDrivers);
@@ -282,7 +282,7 @@ const Drivers = () => {
       console.error('Error processing new driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getDrivers({ limit: 100 });
+        const response = await getDrivers({limit: 100});
         const transformedDrivers = response.map(transformDriverData);
         setDrivers(transformedDrivers);
         setFilteredDrivers(transformedDrivers);
@@ -328,7 +328,7 @@ const Drivers = () => {
       console.error('Error processing updated driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getDrivers({ limit: 100 });
+        const response = await getDrivers({limit: 100});
         const transformedDrivers = response.map(transformDriverData);
         setDrivers(transformedDrivers);
         setFilteredDrivers(transformedDrivers);
@@ -359,6 +359,24 @@ const Drivers = () => {
   const changeItemsPerPage = e => {
     setItemsPerPage(parseInt(e.target.value));
     setCurrentPage(1); // Reset to first page
+  };
+
+  // Local Search Function
+  const localSearchDrivers = (searchTerm) => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return;
+
+    const filteredDrivers = drivers.filter(driver => {
+      return (
+        driver.make?.toLowerCase().includes(term) ||
+        driver.model?.toLowerCase().includes(term) ||
+        driver.year?.toString().includes(term) ||
+        driver.color?.toLowerCase().includes(term) ||
+        driver.fuelType?.toLowerCase().includes(term)
+      );
+    });
+
+    setDrivers(filteredDrivers);
   };
   return (
     <div className="min-h-screen bg-background relative">

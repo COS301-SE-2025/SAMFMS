@@ -74,9 +74,11 @@ async def lifespan(app: FastAPI):
         
         # Create consumer tasks with proper error handling
         consumer_task = asyncio.create_task(consume_messages("service_status"))
-        core_response_task = asyncio.create_task(consume_messages_Direct("core_responses","core_responses", on_response))
-        consumer_tasks.extend([consumer_task, core_response_task])
+        consumer_tasks.append(consumer_task)
         asyncio.create_task(consume_messages("service_presence"))
+
+        # Consumer for live vehicle locations
+        asyncio.create_task(consume_messages_Direct("core_responses","core_responses", on_response))
         
         await create_exchange("general", aio_pika.ExchangeType.FANOUT)
         await publish_message("general", aio_pika.ExchangeType.FANOUT, {"message": "Core service started"})
@@ -85,6 +87,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to initialize RabbitMQ: {e}")
         # Continue startup - messaging will retry
+
+    # Start the response consumer for management/generic responses
+    try:
+        asyncio.create_task(request_router.response_manager.consume_responses())
+        logger.info("Started response_manager.consume_responses task")
+    except Exception as e:
+        logger.error(f"Failed to start response_manager.consume_responses: {e}")
 
     # Initialize request router
     try:
@@ -284,7 +293,9 @@ async def on_response(message):
 
 @app.websocket("/ws/vehicles")
 async def websocket_endpoint(websocket: WebSocket):
+    logger.info("Web socket accessed")
     await websocket.accept()
+    logger.info("WebSocket connection accepted and ready to send data.")
     try:
         while True:
             try:

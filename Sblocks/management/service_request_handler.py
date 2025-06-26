@@ -288,18 +288,16 @@ class ServiceRequestHandler:
     
     # Vehicle handlers
     async def _get_vehicles(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle GET /api/vehicles"""
+        """Handle GET /api/vehicles and include analytics in the response."""
         try:
             # Check if this is a drivers request
             if endpoint.endswith('/drivers'):
                 return await self._get_drivers(endpoint, data, user_context)
-            
             # Extract vehicle ID if present (but not if it's a special endpoint like 'drivers')
             parts = endpoint.split('/')
             if len(parts) > 3 and parts[-1] not in ['drivers', 'search']:
                 vehicle_id = parts[-1]
                 return await self._get_single_vehicle(vehicle_id, user_context)
-            
             # Get all vehicles with filtering
             from database import vehicle_management_collection
             query = {}
@@ -315,7 +313,9 @@ class ServiceRequestHandler:
             for vehicle in vehicles:
                 vehicle["_id"] = str(vehicle["_id"])
             
-            return {"vehicles": vehicles, "count": len(vehicles)}
+            # --- Add analytics ---
+            analytics = await self._get_analytics()
+            return {"vehicles": vehicles, "count": len(vehicles), "analytics": analytics}
             
         except Exception as e:
             logger.error(f"Error getting vehicles: {e}")
@@ -722,7 +722,7 @@ class ServiceRequestHandler:
             raise
     
     async def _search_vehicles(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle GET /api/vehicles/search/{query}"""
+        """Handle GET /api/vehicles/search/{query} and include analytics in the response."""
         try:
             # Extract search query from endpoint
             query = endpoint.split('/')[-1] if '/' in endpoint else data.get("query", "")
@@ -755,60 +755,73 @@ class ServiceRequestHandler:
             for vehicle in vehicles:
                 vehicle["_id"] = str(vehicle["_id"])
             
-            return {"vehicles": vehicles, "count": len(vehicles), "query": query}
+            # --- Add analytics ---
+            analytics = await self._get_analytics()
+            return {"vehicles": vehicles, "count": len(vehicles), "query": query, "analytics": analytics}
             
         except Exception as e:
             logger.error(f"Error searching vehicles: {e}")
-            raise    # Driver handlers
-    async def _get_drivers(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle GET /api/drivers or /api/vehicles/drivers"""
+            raise
+
+    async def _get_analytics(self) -> dict:
+        """Helper to gather all analytics for vehicles endpoints."""
         try:
-            # Check if this is a request for a specific driver (has driver ID in path)
-            parts = endpoint.split('/')
-            if len(parts) > 3 and parts[-1] not in ['drivers'] and parts[-1] != '':
-                # This is a request for a specific driver
-                driver_id = parts[-1]
-                return await self._get_single_driver(driver_id, user_context)
-            
-            # Get all drivers
-            from database import get_mongodb
-            db = get_mongodb()  # No await - this returns the db instance directly
-            users_collection = db.users
-            
-            # Find users with driver role
-            query = {"role": "driver"}
-            
-            # Apply user-based filtering for security
+            from analytics import (
+                fleet_utilization, vehicle_usage, assignment_metrics, maintenance_analytics,
+                driver_performance, cost_analytics, status_breakdown, incident_statistics, department_location_analytics
+            )
+            analytics = {}
+            analytics["fleet_utilization"] = await fleet_utilization()
+            analytics["vehicle_usage"] = await vehicle_usage()
+            analytics["assignment_metrics"] = await assignment_metrics()
+            analytics["maintenance_analytics"] = await maintenance_analytics()
+            analytics["driver_performance"] = await driver_performance()
+            analytics["cost_analytics"] = await cost_analytics()
+            analytics["status_breakdown"] = await status_breakdown()
+            analytics["incident_statistics"] = await incident_statistics()
+            analytics["department_location_analytics"] = await department_location_analytics()
+            return analytics
+        except Exception as e:
+            logger.error(f"Error gathering analytics: {e}")
+            return {}
+    
+    async def _get_drivers(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle GET /api/drivers - Returns a list of drivers. Stub implementation."""
+        try:
+            from database import driver_management_collection
+            query = {}
+            # Apply user-based filtering if needed (e.g., only admins/fleet managers can see all drivers)
             if user_context.get("role") == "driver":
-                # Drivers can only see their own info
-                query["_id"] = user_context.get("user_id")
-            
-            drivers = await users_collection.find(query).to_list(100)
-            
-            # Convert ObjectId to string and remove sensitive info
+                query["_id"] = ObjectId(user_context.get("user_id"))
+            drivers = await driver_management_collection.find(query).to_list(100)
             for driver in drivers:
                 driver["_id"] = str(driver["_id"])
-                # Remove password and other sensitive fields
-                driver.pop("password", None)
-                driver.pop("password_hash", None)
-            
-            return {"drivers": drivers, "count": len(drivers)}            
+            return {"drivers": drivers, "count": len(drivers)}
         except Exception as e:
             logger.error(f"Error getting drivers: {e}")
             raise
     
-    async def _get_single_driver(self, driver_id: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Get a single driver by ID"""
+    async def _create_driver(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle POST /api/drivers - Create a new driver. Stub implementation."""
         try:
-            from database import get_mongodb
-            db = get_mongodb()
-            users_collection = db.users
-            
-            # Security check
-            if user_context.get("role") == "driver" and user_context.get("user_id") != driver_id:
-                raise ValueError("Drivers can only access their own information")
-            
-            # Convert string ID to ObjectId if needed
+            from database import driver_management_collection
+            import uuid
+            driver_data = data.copy()
+            driver_data["driver_id"] = str(uuid.uuid4())
+            driver_data["created_by"] = user_context.get("user_id", "system")
+            driver_data["created_at"] = datetime.utcnow()
+            result = await driver_management_collection.insert_one(driver_data)
+            driver_data["_id"] = str(result.inserted_id)
+            return driver_data
+        except Exception as e:
+            logger.error(f"Error creating driver: {e}")
+            raise
+
+    async def _update_driver(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle PUT /api/drivers/{id} - Update a driver. Stub implementation."""
+        try:
+            from database import driver_management_collection
+            driver_id = endpoint.split("/")[-1]
             try:
                 if isinstance(driver_id, str) and len(driver_id) == 24:
                     query_id = ObjectId(driver_id)
@@ -816,148 +829,59 @@ class ServiceRequestHandler:
                     query_id = driver_id
             except:
                 query_id = driver_id
-            
-            driver = await users_collection.find_one({"_id": query_id, "role": "driver"})
-            
-            if not driver:
-                raise ValueError(f"Driver not found: {driver_id}")
-            
-            # Convert ObjectId to string and remove sensitive info
-            driver["_id"] = str(driver["_id"])
-            driver.pop("password", None)
-            driver.pop("password_hash", None)
-            
-            return driver
-            
-        except Exception as e:
-            logger.error(f"Error getting driver {driver_id}: {e}")
-            raise
-
-    async def _create_driver(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle POST /api/drivers"""
-        try:
-            # Only admins and managers can create drivers
-            if user_context.get("role") not in ["admin", "manager"]:
-                raise ValueError("Insufficient permissions to create drivers")
-            
-            from database import get_mongodb
-            db = await get_mongodb()
-            users_collection = db.users
-            
-            # Ensure role is set to driver
-            data["role"] = "driver"
-            data["created_at"] = datetime.utcnow()
-            data["updated_at"] = datetime.utcnow()
-            
-            result = await users_collection.insert_one(data)
-            
-            return {"driver_id": str(result.inserted_id), "message": "Driver created successfully"}
-            
-        except Exception as e:
-            logger.error(f"Error creating driver: {e}")
-            raise
-
-    async def _update_driver(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle PUT /api/drivers"""
-        try:
-            # Extract driver ID
-            driver_id = endpoint.split('/')[-1]
-            
-            # Security check
-            if user_context.get("role") == "driver" and user_context.get("user_id") != driver_id:
-                raise ValueError("Drivers can only update their own information")
-            elif user_context.get("role") not in ["admin", "manager", "driver"]:
-                raise ValueError("Insufficient permissions to update drivers")
-            
-            from database import get_mongodb
-            db = await get_mongodb()
-            users_collection = db.users
-            
-            data["updated_at"] = datetime.utcnow()
-            
-            # Remove sensitive fields that shouldn't be updated
-            data.pop("_id", None)
-            data.pop("password", None)
-            data.pop("password_hash", None)
-            data.pop("role", None)  # Role changes should be handled separately
-            
-            result = await users_collection.update_one(
-                {"_id": ObjectId(driver_id), "role": "driver"},
-                {"$set": data}
-            )
-            
+            update_data = data.copy()
+            update_data["updated_by"] = user_context.get("user_id", "system")
+            update_data["updated_at"] = datetime.utcnow()
+            result = await driver_management_collection.update_one({"_id": query_id}, {"$set": update_data})
             if result.matched_count == 0:
-                raise ValueError(f"Driver not found: {driver_id}")
-            
-            return {"message": "Driver updated successfully"}
-            
+                raise ValueError(f"Driver {driver_id} not found")
+            updated_driver = await driver_management_collection.find_one({"_id": query_id})
+            updated_driver["_id"] = str(updated_driver["_id"])
+            return updated_driver
         except Exception as e:
             logger.error(f"Error updating driver: {e}")
             raise
 
     async def _delete_driver(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle DELETE /api/drivers"""
+        """Handle DELETE /api/drivers/{id} - Delete a driver. Stub implementation."""
         try:
-            # Only admins can delete drivers
-            if user_context.get("role") != "admin":
-                raise ValueError("Only administrators can delete drivers")
-              # Extract driver ID
-            driver_id = endpoint.split('/')[-1]
-            
-            from database import get_mongodb
-            db = await get_mongodb()
-            users_collection = db.users
-            
-            result = await users_collection.delete_one({"_id": ObjectId(driver_id), "role": "driver"})
-            
+            from database import driver_management_collection
+            driver_id = endpoint.split("/")[-1]
+            try:
+                if isinstance(driver_id, str) and len(driver_id) == 24:
+                    query_id = ObjectId(driver_id)
+                else:
+                    query_id = driver_id
+            except:
+                query_id = driver_id
+            result = await driver_management_collection.delete_one({"_id": query_id})
             if result.deleted_count == 0:
-                raise ValueError(f"Driver not found: {driver_id}")
-            
-            return {"message": "Driver deleted successfully"}
-            
+                raise ValueError(f"Driver {driver_id} not found")
+            return {"message": f"Driver {driver_id} deleted successfully"}
         except Exception as e:
             logger.error(f"Error deleting driver: {e}")
             raise
 
     async def _search_drivers(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle GET /api/drivers/search"""
+        """Handle GET /api/drivers/search/{query} - Search for drivers. Stub implementation."""
         try:
-            query = data.get("q", "").strip()
+            from database import driver_management_collection
+            query = endpoint.split("/")[-1] if "/" in endpoint else data.get("query", "")
             if not query:
-                return {"drivers": [], "count": 0, "message": "No search query provided"}
-            
-            from database import get_mongodb
-            db = await get_mongodb()
-            users_collection = db.users
-            
-            # Build search criteria
+                raise ValueError("Search query is required")
             search_criteria = {
-                "role": "driver",
                 "$or": [
                     {"name": {"$regex": query, "$options": "i"}},
-                    {"email": {"$regex": query, "$options": "i"}},
-                    {"username": {"$regex": query, "$options": "i"}}
+                    {"license_number": {"$regex": query, "$options": "i"}},
+                    {"department": {"$regex": query, "$options": "i"}}
                 ]
             }
-            
-            # Apply user-based filtering
-            if user_context.get("role") == "driver":
-                search_criteria["_id"] = user_context.get("user_id")
-            
-            drivers = await users_collection.find(search_criteria).to_list(50)
-            
-            # Convert ObjectId to string and remove sensitive info
+            drivers = await driver_management_collection.find(search_criteria).to_list(50)
             for driver in drivers:
                 driver["_id"] = str(driver["_id"])
-                driver.pop("password", None)
-                driver.pop("password_hash", None)
-            
             return {"drivers": drivers, "count": len(drivers), "query": query}
-            
         except Exception as e:
             logger.error(f"Error searching drivers: {e}")
             raise
-
-
 # Global instance
 service_request_handler = ServiceRequestHandler()

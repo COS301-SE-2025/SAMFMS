@@ -1,38 +1,29 @@
-import React, { useEffect, useState } from 'react';
-import { getStatusBreakdown } from '../../backend/api/analytics';
+import React from 'react';
 
-const StatusBreakdownCard = () => {
-  const [stats, setStats] = useState([]);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    getStatusBreakdown()
-      .then(setStats)
-      .catch(setError);
-  }, []);
-
-  if (error) return <div>Error loading status breakdown.</div>;
+const StatusBreakdownCard = ({stats}) => {
   if (!stats) return <div>Loading...</div>;
 
   return (
-    <div className="analytics-card">
-      <h3>Vehicle Status Breakdown</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Status</th>
-            <th>Count</th>
-          </tr>
-        </thead>
-        <tbody>
-          {stats.map(row => (
-            <tr key={row._id}>
-              <td>{row._id}</td>
-              <td>{row.count}</td>
+    <div className="bg-card rounded-lg shadow-md p-6 border border-border mt-8 max-w-md mx-auto">
+      <h3 className="text-xl font-semibold mb-4">Vehicle Status Breakdown</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-muted/50">
+              <th className="py-3 px-4 text-left">Status</th>
+              <th className="py-3 px-4 text-left">Count</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {stats.map(row => (
+              <tr key={row._id} className="border-b border-border hover:bg-accent/10">
+                <td className="py-3 px-4">{row._id}</td>
+                <td className="py-3 px-4">{row.count}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

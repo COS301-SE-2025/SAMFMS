@@ -1,25 +1,29 @@
-import React, { useEffect, useState } from 'react';
-import { getFleetUtilization } from '../../backend/api/analytics';
+import React from 'react';
 
-const FleetUtilizationCard = () => {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    getFleetUtilization()
-      .then(setData)
-      .catch(setError);
-  }, []);
-
-  if (error) return <div>Error loading fleet utilization.</div>;
+const FleetUtilizationCard = ({data}) => {
   if (!data) return <div>Loading...</div>;
 
   return (
-    <div className="analytics-card">
-      <h3>Fleet Utilization</h3>
-      <p>Total Vehicles: {data.total}</p>
-      <p>In Use: {data.in_use}</p>
-      <p>Utilization Rate: {(data.utilization_rate * 100).toFixed(1)}%</p>
+    <div className="bg-card rounded-lg shadow-md p-6 border border-border mt-8 max-w-md mx-auto">
+      <h3 className="text-xl font-semibold mb-4">Fleet Utilization</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <tbody>
+            <tr className="border-b border-border">
+              <th className="py-3 px-4 text-left bg-muted/50 w-1/2">Total Vehicles</th>
+              <td className="py-3 px-4">{data.total}</td>
+            </tr>
+            <tr className="border-b border-border">
+              <th className="py-3 px-4 text-left bg-muted/50">In Use</th>
+              <td className="py-3 px-4">{data.in_use}</td>
+            </tr>
+            <tr>
+              <th className="py-3 px-4 text-left bg-muted/50">Utilization Rate</th>
+              <td className="py-3 px-4">{(data.utilization_rate * 100).toFixed(1)}%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
