@@ -37,12 +37,10 @@ async def create_indexes():
         await security_users_collection.create_index("email", unique=True)
         await security_users_collection.create_index("user_id", unique=True)
         await sessions_collection.create_index("user_id")
-        await sessions_collection.create_index("expires_at")
         
         await audit_logs_collection.create_index("user_id")
         
         await blacklisted_tokens_collection.create_index("token_hash", unique=True)
-        await blacklisted_tokens_collection.create_index("expires_at")
         
         logger.info("Database indexes created successfully")
     except Exception as e:
