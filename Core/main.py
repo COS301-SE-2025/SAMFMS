@@ -79,6 +79,8 @@ async def lifespan(app: FastAPI):
 
         # Consumer for live vehicle locations
         asyncio.create_task(consume_messages_Direct("core_responses","core_responses", on_response))
+        asyncio.create_task(consume_messages_Direct("core_responses_geofence","core_responses_geofence",on_response_geofence))
+        # C
         
         await create_exchange("general", aio_pika.ExchangeType.FANOUT)
         await publish_message("general", aio_pika.ExchangeType.FANOUT, {"message": "Core service started"})
@@ -290,6 +292,21 @@ async def on_response(message):
         pending_futures[correlation_id].set_result(data["vehicles"])
         del pending_futures[correlation_id]
 
+# This function receives the newly created geofence
+pending_futures_geofences = {}
+
+async def on_response_geofence(message):
+    logger.info(f"Message received from GPS about Geofence: {message}")
+    body = message.body.decode()
+    data = json.loads(body)
+    correlation_id = data.get("correlation_id")
+    geofence = data.get("geofence")
+    if geofence == "failed":
+        logger.info("For build")
+    else:
+        logger.info("For build")
+
+
 
 @app.websocket("/ws/vehicles")
 async def websocket_endpoint(websocket: WebSocket):
@@ -360,7 +377,18 @@ async def get_live_vehicle_data():
 
 #######################################################
 # Herrie code for gps geofences
-
+@app.post("/api/gps/geofences/circle")
+async def add_new_geofence(parameter: dict = Body(...)):
+    logger.info(f"Add geofence request received: {parameter}")
+    await publish_message(
+        "gps_requests_Direct",
+        aio_pika.ExchangeType.DIRECT,
+        {
+            "operation": "add_new_geofence",
+            "parameters": parameter
+        },
+        routing_key="gps_requests_Direct"
+    )
 
 
 # Herrie code for message queues
@@ -442,6 +470,11 @@ def handle_core_response(message):
     # Here you could store the result, notify the UI, etc.
 
 ################################################################################
+
+
+
+
+###########################
 
 
 @app.get("/debug/routes", tags=["Debug"])
@@ -694,3 +727,43 @@ if __name__ == "__main__":
     )
 
 
+@app.get("/api/drivers", tags=["Drivers"])
+async def get_drivers(limit: int = 100):
+    """
+    Fetch drivers from the management service.
+    """
+    try:
+        logger.info(f"Direct drivers endpoint called with limit: {limit}")
+        correlation_id = str(uuid.uuid4())
+        test_message = {
+            "correlation_id": correlation_id,
+            "endpoint": "/api/drivers",
+            "method": "GET",
+            "data": {"limit": limit},
+            "user_context": {"user_id": "test_user", "permissions": ["read:drivers"]},
+            "timestamp": datetime.utcnow().isoformat(),
+            "service": "management",
+            "trace_id": correlation_id
+        }
+        response = await asyncio.wait_for(
+            request_router.send_request_and_wait("management", test_message, correlation_id),
+            timeout=10.0
+        )
+        logger.info("✅ Got response from management service for drivers")
+        return response
+    except asyncio.TimeoutError:
+        logger.error("❌ Timeout waiting for management service (drivers)")
+        return {
+            "drivers": [],
+            "total": 0,
+            "error": "Management service timeout",
+            "fallback": True
+        }
+    except Exception as e:
+        logger.error(f"❌ Error communicating with management service (drivers): {e}")
+        return {
+            "drivers": [],
+            "total": 0,
+            "error": f"Communication error: {str(e)}",
+            "fallback": True
+        }

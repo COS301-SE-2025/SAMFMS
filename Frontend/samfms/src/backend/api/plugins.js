@@ -191,7 +191,7 @@ export const getPluginStatus = async pluginId => {
 // Test function to check Core service connectivity
 export const testCoreService = async () => {
   try {
-    const healthUrl = `http://${getApiHostname()}/health`;
+    const healthUrl = `${getApiHostname()}/health`;
     console.log('Testing Core service at:', healthUrl);
 
     const response = await fetchWithTimeout(

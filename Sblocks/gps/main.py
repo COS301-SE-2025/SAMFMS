@@ -335,8 +335,81 @@ async def handle_gps_request(message: aio_pika.IncomingMessage):
             await request_gps_location(data)
         elif operation == "retrieve_live_locations":
             await fetch_and_respond_live_locations(data)
+        elif operation == "add_new_geofence":
+            handle_add_new_geofence(data)
         else:
             logger.warning(f"Unsupported operation: {operation} for message: {data}")
+
+# function to create new geofence()
+async def handle_add_new_geofence(request_Data):
+    logger.info(f"Geofence information received: {request_Data}")
+    correlation_id = request_Data.get("correlation_id")
+    try:
+        name = request_Data["name"]
+        latitude = request_Data["latitude"]
+        longitude = request_Data["longitude"]
+        radius = request_Data["radius"]
+        description = request_Data.get("description", "")  # Optional
+
+        response = add_circle_geofence(name, latitude, longitude, radius, description)
+
+        if response:
+            status = response["status"]
+            if status == "created":
+                response_payload = {
+                    "correlation_id": correlation_id,
+                    "geofence": response["geofence"]
+                }
+
+                await publish_message(
+                    "core_responses_geofence",
+                    aio_pika.ExchangeType.DIRECT,
+                    response_payload,
+                    routing_key="core_responses_geofence"
+                )
+            else:
+                response_payload = {
+                    "correlation_id": correlation_id,
+                    "geofence": "failed"
+                }
+
+                await publish_message(
+                    "core_responses_geofence",
+                    aio_pika.ExchangeType.DIRECT,
+                    response_payload,
+                    routing_key="core_responses_geofence"
+                )
+        else:
+            response_payload = {
+                "correlation_id": correlation_id,
+                "geofence": "failed"
+            }
+
+            await publish_message(
+                "core_responses_geofence",
+                aio_pika.ExchangeType.DIRECT,
+                response_payload,
+                routing_key="core_responses_geofence"
+            )
+
+        logger.info(f"Geofence creation result: {response}")
+
+    except KeyError as e:
+        logger.error(f"Missing required geofence parameter: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error in geofence handler: {e}")
+
+# function to send updated geofence information
+async def send_geofence_data():
+    await publish_message(
+        "core_responses_geofence",
+        aio_pika.ExchangeType.DIRECT,
+        {
+
+        },
+        "core_responses_geofence"
+    )
+    return {"status": "Geofence data sent to Core"}
 
 # function to for responses from DBlock
 async def handle_DBlock_responses(message: aio_pika.IncomingMessage):

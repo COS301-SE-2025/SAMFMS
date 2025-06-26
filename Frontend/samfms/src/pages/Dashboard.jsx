@@ -81,11 +81,16 @@ const Dashboard = () => {
     const fetchTotalVehicles = async () => {
       try {
         setLoadingVehicles(true);
-        const data = await getTotalVehicles();
+        const data = await getVehicles();
+        // console.log(data);
+        // console.log(data.count);
+        // console.log(data.vehicles);
         // If your API returns { total: 42 }, adjust accordingly
-        setTotalVehicles(data.fleet_overview.total_vehicles ?? data);
-        setAnalytics(response.analytics || {});
+        // data ? setTotalVehicles(data.count) : setTotalVehicles(mockData.fleetOverview.totalVehicles);
+        setTotalVehicles(data.count);
+        setAnalytics(data.analytics || {});
       } catch (error) {
+        console.log(`Error fetching total vehicles: ${error}`);
         setTotalVehicles('N/A');
       } finally {
         setLoadingVehicles(false);
@@ -132,25 +137,25 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Total Vehicles"
-            value={loadingVehicles ? "Loading..." : (totalVehicles || mockData.fleetOverview.totalVehicles)}
+            value={loadingVehicles ? "Loading..." : (totalVehicles)}
             subtitle="Fleet size"
             color="blue"
           />
           <MetricCard
             title="Active Trips"
-            value={mockData.fleetOverview.activeTrips}
+            value={analytics ? "Loading..." : (analytics.status_breakdown[active])}
             subtitle="Currently en route"
             color="green"
           />
           <MetricCard
             title="Available Drivers"
-            value={mockData.fleetOverview.availableDrivers}
+            value={analytics ? "Loading..." : (analytics.status_breakdown[available])}
             subtitle="Ready for dispatch"
             color="purple"
           />
           <MetricCard
             title="Maintenance Alerts"
-            value={mockData.fleetOverview.maintenanceAlerts}
+            value={analytics ? "Loading..." : (analytics.status_breakdown[maintainence])}
             subtitle="Requiring attention"
             color="orange"
           />

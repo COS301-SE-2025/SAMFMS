@@ -25,6 +25,11 @@ vehicles_db_name = os.getenv("DATABASE_VEHICLES", "samfms_vehicles")
 vehicles_db = vehicles_client[vehicles_db_name]
 vehicles_collection = vehicles_db.vehicles
 
+SECURITY_MONGODB_URL = os.getenv("MONGODB_URL", MONGODB_URL)
+security_db_name = os.getenv("DATABASE_SECURITY", "samfms_security")
+security_client = motor.motor_asyncio.AsyncIOMotorClient(SECURITY_MONGODB_URL)
+security_db = security_client[security_db_name]
+security_users_collection = security_db.security_users
 
 def get_mongodb():
     """Get the MongoDB database instance"""
