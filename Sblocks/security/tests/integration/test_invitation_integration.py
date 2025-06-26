@@ -1,7 +1,7 @@
 import pytest
 import uuid
-from services.invitation_service import InvitationService
-from models.api_models import InviteUserRequest
+from services.invitation_service import InvitationService, InvitationError
+from models.api_models import InviteUserRequest, VerifyOTPRequest
 
 pytestmark = pytest.mark.asyncio
 

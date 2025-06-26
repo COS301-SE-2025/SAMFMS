@@ -2,6 +2,8 @@ import pytest
 import uuid
 from services.user_service import UserService
 from models.api_models import CreateUserRequest
+from database import get_security_metrics
+from health_metrics import health_check
 
 pytestmark = pytest.mark.asyncio
 
@@ -68,3 +70,8 @@ async def test_toggle_user_status():
     assert reactivated
     user = await UserService.get_user_by_id(user_id)
     assert user["is_active"] is True
+
+async def test_health_check():
+    response = await health_check()
+    assert response.status_code in (200, 503)
+    assert "service" in response.body.decode() or "service" in response.body
