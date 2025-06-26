@@ -34,9 +34,7 @@ jobs:
 
       - name: Build images & start minimal services
         run: |
-          docker compose -f docker-compose.test.yml build --pull \
-            --cache-from type=local,src=/tmp/.buildx-cache \
-            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max
+          docker compose -f docker-compose.test.yml build --pull
           docker compose -f docker-compose.test.yml up -d --wait --wait-timeout 60
 
       - name: Run pytest in security container
