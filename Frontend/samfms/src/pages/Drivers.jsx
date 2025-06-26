@@ -90,7 +90,7 @@ const Drivers = () => {
         }
 
         const response = await getDrivers(params);
-        const transformedDrivers = response.map(transformDriverData);
+        const transformedDrivers = transformDriverData ? response.map(transformDriverData) : response;
 
         setDrivers(transformedDrivers);
         setFilteredDrivers(transformedDrivers);

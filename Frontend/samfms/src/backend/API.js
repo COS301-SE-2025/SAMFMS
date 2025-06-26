@@ -95,7 +95,7 @@ export {
 
 // Driver API endpoints - Now served by Core Service
 export const DRIVER_API = {
-  drivers: `${API_URL}/vehicles/drivers`,
+  drivers: `${API_URL}/drivers`,
   createDriver: `${API_URL}/vehicles/drivers`,
   getDriver: id => `${API_URL}/vehicles/drivers/${id}`,
   updateDriver: id => `${API_URL}/vehicles/drivers/${id}`,

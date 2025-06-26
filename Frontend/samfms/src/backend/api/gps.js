@@ -12,4 +12,4 @@ const handleResponse = async (response, errorMessage) => {
     throw new Error(`${errorMessage}: ${response.status} ${response.statusText} - ${text}`);
   }
   return response.json();
-};
+}; 
