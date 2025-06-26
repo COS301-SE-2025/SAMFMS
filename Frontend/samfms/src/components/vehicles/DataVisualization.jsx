@@ -35,6 +35,7 @@ const DataVisualization = ({analytics}) => {
           <div className="bg-background p-4 rounded-md border border-border text-center">
             <h3 className="font-medium mb-2">Fleet Utilization</h3>
             <div className="text-3xl font-bold">{((analytics.fleet_utilization?.utilization_rate ?? 0) * 100).toFixed(1)}%</div>
+            {/* Here */}
           </div>
         </div>
         <div className="bg-background p-4 rounded-md border border-border mt-4">
