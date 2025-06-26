@@ -39,7 +39,6 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
         headers: {
           "Content-Type": "application/json"
         },
-
         body: JSON.stringify({
           name: newGeofence.name,
           type: newGeofence.type,
@@ -51,19 +50,25 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
       });
 
       const result = await response.json();
+      console.log("Result from core:", result);
 
       if (!response.ok) {
         throw new Error(result.detail || "Failed to create geofence");
       }
 
-      // Add to frontend list from API response (or trigger refresh)
-      setGeofences([...geofences, result]);
+      if (result.geofence && Object.keys(result.geofence).length > 0) {
+        setGeofences([...geofences, result.geofence]);
+      } else {
+        console.warn("Empty or invalid geofence object received. Skipping add.");
+      }
+
       resetForm();
       setShowAddModal(false);
     } catch (error) {
       console.error("Error creating geofence:", error);
     }
   };
+
 
   // Handle editing a geofence
   const handleEditGeofence = () => {

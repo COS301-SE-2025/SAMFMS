@@ -90,10 +90,10 @@ const Drivers = () => {
         }
 
         const response = await getDrivers(params);
-        const transformedDrivers = transformDriverData ? response.map(transformDriverData) : response;
+        // const transformedDrivers = transformDriverData ? response.map(transformDriverData) : response;
 
-        setDrivers(transformedDrivers);
-        setFilteredDrivers(transformedDrivers);
+        setDrivers(response.drivers);
+        // setFilteredDrivers(transformedDrivers);
       } catch (err) {
         console.error('Error loading drivers:', err);
         setError(err.message || 'Failed to load drivers');
@@ -431,7 +431,7 @@ const Drivers = () => {
             </div>
           ) : (
             /* Driver list with pagination */ <DriverList
-              drivers={filteredDrivers}
+              drivers={drivers}
               selectedDrivers={selectedDrivers}
               handleSelectDriver={handleSelectDriver}
               selectAll={selectAll}

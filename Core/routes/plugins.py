@@ -13,7 +13,7 @@ from auth_service import verify_token, get_current_user_from_token
 from rabbitmq.admin import addSblock, removeSblock
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/plugins", tags=["Plugin Management"])
+router = APIRouter(prefix="/api/plugins", tags=["Plugin Management"])
 security = HTTPBearer()
 
 @router.get("/", response_model=List[PluginInfo])

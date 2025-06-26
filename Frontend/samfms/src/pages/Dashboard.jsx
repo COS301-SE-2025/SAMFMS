@@ -15,72 +15,20 @@ const mockData = {
     availableDrivers: 15,
     maintenanceAlerts: 3,
   },
-  recentTrips: [
-    {
-      id: 'T001',
-      driver: 'John Smith',
-      vehicle: 'TRK-001',
-      route: 'Cape Town → Johannesburg',
-      status: 'In Progress',
-      progress: 65,
-      eta: '14:30',
-    },
-    {
-      id: 'T002',
-      driver: 'Sarah Johnson',
-      vehicle: 'VAN-012',
-      route: 'Durban → Port Elizabeth',
-      status: 'Completed',
-      progress: 100,
-      eta: 'Arrived',
-    },
-    {
-      id: 'T003',
-      driver: 'Mike Wilson',
-      vehicle: 'TRK-005',
-      route: 'Pretoria → Bloemfontein',
-      status: 'Starting',
-      progress: 5,
-      eta: '16:45',
-    },
-  ],
-  maintenanceAlerts: [
-    {
-      vehicle: 'TRK-003',
-      type: 'Oil Change',
-      dueDate: '2025-06-20',
-      priority: 'Medium',
-    },
-    {
-      vehicle: 'VAN-008',
-      type: 'Tire Inspection',
-      dueDate: '2025-06-19',
-      priority: 'High',
-    },
-    {
-      vehicle: 'TRK-007',
-      type: 'Brake Service',
-      dueDate: '2025-06-25',
-      priority: 'Low',
-    },
-  ],
-  fuelConsumption: {
-    thisMonth: 2847,
-    lastMonth: 3124,
-    savings: 277,
-    trend: 'down',
-  },
+  
 };
 
 const Dashboard = () => {
   const [totalVehicles, setTotalVehicles] = useState(null);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(true);
   const [analytics, setAnalytics] = useState({});
 
   useEffect(() => {
     const fetchTotalVehicles = async () => {
       try {
         setLoadingVehicles(true);
+        setLoadingAnalytics(true);
         const data = await getVehicles();
         // console.log(data);
         // console.log(data.count);
@@ -88,12 +36,13 @@ const Dashboard = () => {
         // If your API returns { total: 42 }, adjust accordingly
         // data ? setTotalVehicles(data.count) : setTotalVehicles(mockData.fleetOverview.totalVehicles);
         setTotalVehicles(data.count);
-        setAnalytics(data.analytics || {});
+        setAnalytics(data.analytics);
       } catch (error) {
-        console.log(`Error fetching total vehicles: ${error}`);
+        console.log(`Error fetching data: ${error}`);
         setTotalVehicles('N/A');
       } finally {
         setLoadingVehicles(false);
+        setLoadingAnalytics(false);
       }
     };
 
@@ -143,19 +92,19 @@ const Dashboard = () => {
           />
           <MetricCard
             title="Active Trips"
-            value={analytics ? "Loading..." : (analytics.status_breakdown[active])}
+            value={loadingAnalytics ? "Loading..." : (analytics.status_breakdown.find((status) => status._id === "active")?.count || 0)}
             subtitle="Currently en route"
             color="green"
           />
           <MetricCard
             title="Available Drivers"
-            value={analytics ? "Loading..." : (analytics.status_breakdown[available])}
+            value={loadingAnalytics ? "Loading..." : (analytics.status_breakdown.find((status) => status._id === "available")?.count || 0)}
             subtitle="Ready for dispatch"
             color="purple"
           />
           <MetricCard
             title="Maintenance Alerts"
-            value={analytics ? "Loading..." : (analytics.status_breakdown[maintainence])}
+            value={loadingAnalytics ? "Loading..." : (analytics.status_breakdown.find((status) => status._id === "maintainence")?.count || 0)}
             subtitle="Requiring attention"
             color="orange"
           />
@@ -163,64 +112,12 @@ const Dashboard = () => {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Trips */}
-          <div className="bg-card rounded-lg border border-border p-6 pb-10 pt-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Recent Trips</h2>
-              <Button variant="outline" size="sm">
-                View All
-              </Button>
-            </div>
-            <div className="space-y-4">
-              {mockData.recentTrips.map(trip => (
-                <TripCard key={trip.id} trip={trip} />
-              ))}
-            </div>
-          </div>
-
-          {/* Maintenance Alerts */}
-          <div className="bg-card rounded-lg border border-border p-6 pb-10 pt-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Maintenance Alerts</h2>
-              <Button variant="outline" size="sm">
-                Manage
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {mockData.maintenanceAlerts.map((alert, index) => (
-                <MaintenanceAlert key={index} alert={alert} />
-              ))}
-            </div>
-          </div>
-
+          
           {/* Vehicle Status Breakdown Pie Chart */}
           <StatusBreakdownPieChart stats={analytics.status_breakdown} />
         </div>
 
-        {/* Fuel Consumption */}
-        <div className="bg-card rounded-lg border border-border p-6">
-          <h2 className="text-xl font-semibold mb-4">Fuel Consumption</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">
-                {mockData.fuelConsumption.thisMonth}L
-              </div>
-              <div className="text-sm text-muted-foreground">This Month</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-muted-foreground">
-                {mockData.fuelConsumption.lastMonth}L
-              </div>
-              <div className="text-sm text-muted-foreground">Last Month</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
-                -{mockData.fuelConsumption.savings}L
-              </div>
-              <div className="text-sm text-muted-foreground">Savings</div>
-            </div>
-          </div>
-        </div>
+        
       </div>
     </div>
   );
@@ -284,29 +181,6 @@ const TripCard = ({trip}) => {
         </div>
       )}
       <div className="text-xs text-muted-foreground">ETA: {trip.eta}</div>
-    </div>
-  );
-};
-
-const MaintenanceAlert = ({alert}) => {
-  const priorityColors = {
-    High: 'border-red-200 bg-red-50 text-red-800',
-    Medium: 'border-yellow-200 bg-yellow-50 text-yellow-800',
-    Low: 'border-blue-200 bg-blue-50 text-blue-800',
-  };
-
-  return (
-    <div className={`border rounded-lg p-3 ${priorityColors[alert.priority]}`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="font-medium text-sm">{alert.vehicle}</div>
-          <div className="text-xs opacity-80">{alert.type}</div>
-        </div>
-        <div className="text-right">
-          <div className="text-xs opacity-80">Due: {alert.dueDate}</div>
-          <div className="text-xs font-medium">{alert.priority}</div>
-        </div>
-      </div>
     </div>
   );
 };

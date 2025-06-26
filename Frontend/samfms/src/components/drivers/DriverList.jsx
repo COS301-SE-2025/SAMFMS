@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Edit, Trash2 } from 'lucide-react';
+import {Eye, Edit, Trash2} from 'lucide-react';
 import StatusBadge from '../vehicles/StatusBadge';
 import Pagination from '../vehicles/Pagination';
 import SortableHeader from '../vehicles/SortableHeader';
@@ -24,13 +24,17 @@ const DriverList = ({
   goToPrevPage,
 }) => {
   const getStatusColor = status => {
+    if (!status || typeof status !== 'string') return 'default';
+
+    const normalizedStatus = status.toLowerCase().replace(/\s+/g, '');
+
     const statusMap = {
       available: 'success',
       onTrip: 'info',
       onLeave: 'warning',
       inactive: 'destructive',
     };
-    return statusMap[status.toLowerCase().replace(/\s+/g, '')] || 'default';
+    return statusMap[normalizedStatus] || 'default';
   };
 
   return (
@@ -39,14 +43,14 @@ const DriverList = ({
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
-              <th className="w-[36px] px-4 py-3">
+              {/* <th className="w-[36px] px-4 py-3">
                 <input
                   type="checkbox"
                   checked={selectAll}
                   onChange={handleSelectAll}
                   className="rounded border-gray-300"
                 />
-              </th>
+              </th> */}
               <SortableHeader
                 field="employeeId"
                 label="Employee ID"
@@ -93,19 +97,19 @@ const DriverList = ({
             </tr>
           </thead>
           <tbody>
-            {drivers.map(driver => (
+            {drivers.map((index, driver) => (
               <tr
-                key={driver.id}
+                key={driver.employeeId}
                 className="border-t border-border hover:bg-accent/10 cursor-pointer"
               >
-                <td className="px-4 py-3">
+                {/* <td className="px-4 py-3">
                   <input
                     type="checkbox"
                     checked={selectedDrivers.includes(driver.employeeId)}
                     onChange={() => handleSelectDriver(driver.employeeId)}
                     className="rounded border-gray-300"
                   />
-                </td>
+                </td> */}
                 <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
                   {driver.employeeId}
                 </td>

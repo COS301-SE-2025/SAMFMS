@@ -54,9 +54,7 @@ class ServiceRequestHandler:
             },
             "/api/drivers": {
                 "GET": self._get_drivers,
-                "POST": self._create_driver,
                 "PUT": self._update_driver,
-                "DELETE": self._delete_driver
             },
             "/api/drivers/search": {
                 "GET": self._search_drivers
@@ -513,7 +511,6 @@ class ServiceRequestHandler:
         except Exception as e:
             logger.error(f"Error deleting vehicle: {e}")
             raise
-    
     # Vehicle Assignment handlers
     async def _get_vehicle_assignments(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle GET /api/vehicle-assignments"""
@@ -535,6 +532,7 @@ class ServiceRequestHandler:
         except Exception as e:
             logger.error(f"Error getting vehicle assignments: {e}")
             raise
+    
     async def _create_vehicle_assignment(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle POST /api/vehicle-assignments"""
         try:
@@ -627,7 +625,6 @@ class ServiceRequestHandler:
         except Exception as e:            
             logger.error(f"Error deleting vehicle assignment: {e}")
             raise
-    
     # Vehicle Usage handlers
     async def _get_vehicle_usage(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle GET /api/vehicle-usage"""
@@ -677,6 +674,7 @@ class ServiceRequestHandler:
         except Exception as e:
             logger.error(f"Error creating vehicle usage: {e}")
             raise
+   
     async def _update_vehicle_usage(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle PUT /api/vehicle-usage/{id}"""
         try:
@@ -786,41 +784,31 @@ class ServiceRequestHandler:
             return {}
     
     async def _get_drivers(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle GET /api/drivers - Returns a list of drivers. Stub implementation."""
+        """Handle GET /api/drivers - Returns a list of drivers only, with sensitive fields removed."""
         try:
-            from database import driver_management_collection
-            query = {}
-            # Apply user-based filtering if needed (e.g., only admins/fleet managers can see all drivers)
+            from database import security_users_collection
+            query = {"role": "driver"}
+            # If the user is a driver, only return their own record
             if user_context.get("role") == "driver":
                 query["_id"] = ObjectId(user_context.get("user_id"))
-            drivers = await driver_management_collection.find(query).to_list(100)
+            drivers = await security_users_collection.find(query).to_list(100)
+            sanitized_drivers = []
             for driver in drivers:
                 driver["_id"] = str(driver["_id"])
-            return {"drivers": drivers, "count": len(drivers)}
+                # Remove sensitive fields
+                driver.pop("password_hash", None)
+                driver.pop("password_reset_token", None)
+                driver.pop("two_factor_enabled", None)
+                sanitized_drivers.append(driver)
+            return {"drivers": sanitized_drivers, "count": len(sanitized_drivers)}
         except Exception as e:
             logger.error(f"Error getting drivers: {e}")
             raise
     
-    async def _create_driver(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle POST /api/drivers - Create a new driver. Stub implementation."""
-        try:
-            from database import driver_management_collection
-            import uuid
-            driver_data = data.copy()
-            driver_data["driver_id"] = str(uuid.uuid4())
-            driver_data["created_by"] = user_context.get("user_id", "system")
-            driver_data["created_at"] = datetime.utcnow()
-            result = await driver_management_collection.insert_one(driver_data)
-            driver_data["_id"] = str(result.inserted_id)
-            return driver_data
-        except Exception as e:
-            logger.error(f"Error creating driver: {e}")
-            raise
-
     async def _update_driver(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle PUT /api/drivers/{id} - Update a driver. Stub implementation."""
+        """Handle PUT /api/drivers/{id} - Update a driver, allowing new fields to be added."""
         try:
-            from database import driver_management_collection
+            from database import security_users_collection
             driver_id = endpoint.split("/")[-1]
             try:
                 if isinstance(driver_id, str) and len(driver_id) == 24:
@@ -832,34 +820,17 @@ class ServiceRequestHandler:
             update_data = data.copy()
             update_data["updated_by"] = user_context.get("user_id", "system")
             update_data["updated_at"] = datetime.utcnow()
-            result = await driver_management_collection.update_one({"_id": query_id}, {"$set": update_data})
+            result = await security_users_collection.update_one({"_id": query_id}, {"$set": update_data})
             if result.matched_count == 0:
                 raise ValueError(f"Driver {driver_id} not found")
-            updated_driver = await driver_management_collection.find_one({"_id": query_id})
+            updated_driver = await security_users_collection.find_one({"_id": query_id})
             updated_driver["_id"] = str(updated_driver["_id"])
+            # Remove sensitive fields
+            for field in ["password_hash", "password_reset_token", "two_factor_enabled"]:
+                updated_driver.pop(field, None)
             return updated_driver
         except Exception as e:
             logger.error(f"Error updating driver: {e}")
-            raise
-
-    async def _delete_driver(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle DELETE /api/drivers/{id} - Delete a driver. Stub implementation."""
-        try:
-            from database import driver_management_collection
-            driver_id = endpoint.split("/")[-1]
-            try:
-                if isinstance(driver_id, str) and len(driver_id) == 24:
-                    query_id = ObjectId(driver_id)
-                else:
-                    query_id = driver_id
-            except:
-                query_id = driver_id
-            result = await driver_management_collection.delete_one({"_id": query_id})
-            if result.deleted_count == 0:
-                raise ValueError(f"Driver {driver_id} not found")
-            return {"message": f"Driver {driver_id} deleted successfully"}
-        except Exception as e:
-            logger.error(f"Error deleting driver: {e}")
             raise
 
     async def _search_drivers(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:

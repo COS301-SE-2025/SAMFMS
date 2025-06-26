@@ -336,7 +336,7 @@ async def handle_gps_request(message: aio_pika.IncomingMessage):
         elif operation == "retrieve_live_locations":
             await fetch_and_respond_live_locations(data)
         elif operation == "add_new_geofence":
-            handle_add_new_geofence(data)
+            await handle_add_new_geofence(data)
         else:
             logger.warning(f"Unsupported operation: {operation} for message: {data}")
 
@@ -344,21 +344,22 @@ async def handle_gps_request(message: aio_pika.IncomingMessage):
 async def handle_add_new_geofence(request_Data):
     logger.info(f"Geofence information received: {request_Data}")
     correlation_id = request_Data.get("correlation_id")
+    parameters = request_Data.get("parameters", {})
     try:
-        name = request_Data["name"]
-        latitude = request_Data["latitude"]
-        longitude = request_Data["longitude"]
-        radius = request_Data["radius"]
-        description = request_Data.get("description", "")  # Optional
+        name = parameters.get("name")
+        latitude = parameters.get("latitude")
+        longitude = parameters.get("longitude")
+        radius = parameters.get("radius")
+        description = parameters.get("description", "")
 
-        response = add_circle_geofence(name, latitude, longitude, radius, description)
-
+        response = await add_circle_geofence(name, latitude, longitude, radius, description)
+        logger.info(f"Response from traccar server: {response}")
         if response:
-            status = response["status"]
-            if status == "created":
+            status = response["id"]
+            if status:
                 response_payload = {
                     "correlation_id": correlation_id,
-                    "geofence": response["geofence"]
+                    "geofence": response
                 }
 
                 await publish_message(
@@ -584,7 +585,7 @@ def add_polyline_geofence(name, coordinates, description=""):
     else:
         return None
 
-def add_circle_geofence(name, center_lat, center_lon, radius, description=""):
+async def add_circle_geofence(name, center_lat, center_lon, radius, description=""):
     url = f"{TRACCAR_API_URL}/geofences"
     payload = {
         "name": name,

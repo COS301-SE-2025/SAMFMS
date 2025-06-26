@@ -10,12 +10,12 @@ router = APIRouter()
 
 @router.get("/analytics/fleet-utilization")
 async def fleet_utilization():
-    """Percentage of vehicles actively used vs. total fleet."""
+    """Percentage of vehicles with status 'active' vs. total fleet."""
     try:
         total = await vehicle_management_collection.count_documents({})
-        in_use = await vehicle_management_collection.count_documents({"status": {"$in": ["assigned", "in_use"]}})
-        utilization_rate = in_use / total if total else 0
-        return {"total": total, "in_use": in_use, "utilization_rate": utilization_rate}
+        active = await vehicle_management_collection.count_documents({"status": "active"})
+        utilization_rate = active / total if total else 0
+        return {"total": total, "active": active, "utilization_rate": utilization_rate}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch fleet utilization: {e}")
 

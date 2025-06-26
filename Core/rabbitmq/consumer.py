@@ -142,3 +142,19 @@ async def consume_single_message(queue_name: str,exchange_name: str, message_han
     await queue.consume(on_message)
     await stop_event.wait()
     await connection.close()
+
+async def consume_messages_Direct_GEOFENCES(queue_name: str, exchange_name: str, handler):
+    await wait_for_rabbitmq()
+    
+    try:
+        connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
+        channel = await connection.channel()
+        exchange = await channel.declare_exchange(exchange_name, aio_pika.ExchangeType.DIRECT, durable=True)
+        queue = await channel.declare_queue(queue_name, durable=True)
+        await queue.bind(exchange, routing_key=queue_name)
+        await queue.consume(handler)
+        logger.info(f"Started consuming messages from queue: {queue_name}")
+        # DO NOT AWAIT A FUTURE HERE
+    except Exception as e:
+        logger.error(f"Error in consume_messages: {str(e)}")
+        raise

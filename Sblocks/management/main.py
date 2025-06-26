@@ -13,6 +13,8 @@ from routes import router as vehicle_routes
 from message_queue import MessageQueueService
 from service_request_handler import service_request_handler
 from analytics import router as analytics_router
+from database import security_users_collection
+
 #from logging_config import setup_logging
 #from health_metrics import health_metrics
 
@@ -270,6 +272,20 @@ async def test_vehicle_handler():
             "error_type": type(e).__name__,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
+
+
+@app.get("/drivers")
+async def get_drivers(limit: int = 100):
+    try:
+        # You may want to filter only users with a driver role
+        drivers_cursor = security_users_collection.find({"role": "driver"})
+        drivers = await drivers_cursor.to_list(length=limit)
+        return {"drivers": drivers, "total": len(drivers)}
+    except Exception as e:
+        logger.error(f"Failed to fetch drivers: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch drivers: {e}")
+
+
 
 @app.get("/debug/test-message-queue")
 async def test_message_queue():

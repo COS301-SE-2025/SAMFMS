@@ -19,7 +19,7 @@ from logging_config import setup_logging, get_logger
 setup_logging()
 logger = get_logger(__name__)
 
-from rabbitmq.consumer import consume_messages, consume_single_message, consume_messages_Direct
+from rabbitmq.consumer import consume_messages, consume_single_message, consume_messages_Direct, consume_messages_Direct_GEOFENCES
 from rabbitmq.admin import create_exchange, addSblock, removeSblock
 from rabbitmq.producer import publish_message
 from services.request_router import request_router
@@ -79,7 +79,7 @@ async def lifespan(app: FastAPI):
 
         # Consumer for live vehicle locations
         asyncio.create_task(consume_messages_Direct("core_responses","core_responses", on_response))
-        asyncio.create_task(consume_messages_Direct("core_responses_geofence","core_responses_geofence",on_response_geofence))
+        asyncio.create_task(consume_messages_Direct_GEOFENCES("core_responses_geofence","core_responses_geofence",on_response_geofence))
         # C
         
         await create_exchange("general", aio_pika.ExchangeType.FANOUT)
@@ -159,7 +159,7 @@ except Exception as e:
     service_proxy_available = False
 
 app.include_router(auth_router)
-app.include_router(plugins_router, prefix="/api")
+app.include_router(plugins_router)
 
 # Only include service_proxy if it imported successfully
 if service_proxy_available and service_proxy_router:
@@ -283,7 +283,6 @@ pending_futures = {}
 
 # This function receives vehicle locations
 async def on_response(message):
-    logger.info(f"Message received from GPS: {message}")
     body = message.body.decode()
     data = json.loads(body)
     logger.info(f"Data from message: {data}")
@@ -296,15 +295,21 @@ async def on_response(message):
 pending_futures_geofences = {}
 
 async def on_response_geofence(message):
-    logger.info(f"Message received from GPS about Geofence: {message}")
+    logger.info(f"Pending futures: {pending_futures_geofences.keys()}")
     body = message.body.decode()
     data = json.loads(body)
+    logger.info(f"Message received from GPS about Geofence: {data}")
     correlation_id = data.get("correlation_id")
     geofence = data.get("geofence")
     if geofence == "failed":
         logger.info("For build")
+        if correlation_id in pending_futures_geofences:
+            del pending_futures_geofences[correlation_id]
     else:
-        logger.info("For build")
+        logger.info("For build  entered else")
+        if correlation_id in pending_futures_geofences:
+            pending_futures_geofences[correlation_id].set_result(geofence)
+            del pending_futures_geofences[correlation_id]
 
 
 
@@ -380,15 +385,31 @@ async def get_live_vehicle_data():
 @app.post("/api/gps/geofences/circle")
 async def add_new_geofence(parameter: dict = Body(...)):
     logger.info(f"Add geofence request received: {parameter}")
+    correlation_id = str(uuid.uuid4())
+    loop = asyncio.get_event_loop()
+    future = loop.create_future()
+
+    pending_futures_geofences[correlation_id] = future
+
     await publish_message(
         "gps_requests_Direct",
         aio_pika.ExchangeType.DIRECT,
         {
             "operation": "add_new_geofence",
-            "parameters": parameter
+            "parameters": parameter,
+            "correlation_id": correlation_id
         },
         routing_key="gps_requests_Direct"
     )
+
+    try:
+        geofence = await asyncio.wait_for(future, timeout=15)
+        logger.info(f"geofence information received: {geofence}")
+        return geofence
+    except asyncio.TimeoutError:
+        logger.info("Timeout wating for GPS SBlock geofence response")
+        pending_futures_geofences.pop(correlation_id,None)
+        return []
 
 
 # Herrie code for message queues
@@ -726,7 +747,46 @@ if __name__ == "__main__":
         log_config=None  
     )
 
-
+@app.put("/api/drivers/{driver_id}", tags=["Drivers"])
+async def update_driver(driver_id: str, driver_data: dict):
+    """
+    Update a driver by forwarding the request to the management service.
+    """
+    try:
+        logger.info(f"Update driver endpoint called for driver_id: {driver_id}")
+        correlation_id = str(uuid.uuid4())
+        test_message = {
+            "correlation_id": correlation_id,
+            "endpoint": f"/api/drivers/{driver_id}",
+            "method": "PUT",
+            "data": driver_data,
+            "user_context": {"user_id": "test_user", "permissions": ["edit:drivers"]},
+            "timestamp": datetime.utcnow().isoformat(),
+            "service": "management",
+            "trace_id": correlation_id
+        }
+        response = await asyncio.wait_for(
+            request_router.send_request_and_wait("management", test_message, correlation_id),
+            timeout=10.0
+        )
+        logger.info("✅ Got response from management service for driver update")
+        return response
+    except asyncio.TimeoutError:
+        logger.error("❌ Timeout waiting for management service (driver update)")
+        return {
+            "status": "error",
+            "error": "Management service timeout",
+            "fallback": True
+        }
+    except Exception as e:
+        logger.error(f"❌ Error communicating with management service (driver update): {e}")
+        return {
+            "status": "error",
+            "error": f"Communication error: {str(e)}",
+            "fallback": True
+        }
+    
+    
 @app.get("/api/drivers", tags=["Drivers"])
 async def get_drivers(limit: int = 100):
     """

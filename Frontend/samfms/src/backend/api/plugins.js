@@ -1,16 +1,16 @@
 import { getApiHostname, fetchWithTimeout, getToken } from './auth';
 
 // Get the API hostname with protocol
-const API_URL = `http://${getApiHostname()}`;
+const API_URL = `${getApiHostname()}`;
 
 // Plugin API endpoints
 const PLUGIN_ENDPOINTS = {
-  list: `${API_URL}/plugins/available`,
-  all: `${API_URL}/plugins/`,
-  start: pluginId => `${API_URL}/plugins/${pluginId}/start`,
-  stop: pluginId => `${API_URL}/plugins/${pluginId}/stop`,
-  updateRoles: pluginId => `${API_URL}/plugins/${pluginId}/roles`,
-  status: pluginId => `${API_URL}/plugins/${pluginId}/status`,
+  list: `${API_URL}/api/plugins/available`,
+  all: `${API_URL}/api/plugins/`,
+  start: pluginId => `${API_URL}/api/plugins/${pluginId}/start`,
+  stop: pluginId => `${API_URL}/api/plugins/${pluginId}/stop`,
+  updateRoles: pluginId => `${API_URL}/api/plugins/${pluginId}/roles`,
+  status: pluginId => `${API_URL}/api/plugins/${pluginId}/status`,
 };
 
 /**

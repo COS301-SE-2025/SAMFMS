@@ -295,7 +295,7 @@ const UserManagement = () => {
   };
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="relative container mx-auto py-8">
       {/* Background pattern */}
       <div
         className="absolute inset-0 z-0 opacity-10 pointer-events-none"
@@ -308,7 +308,7 @@ const UserManagement = () => {
         aria-hidden="true"
       />
 
-      <div className="relative z-10">
+      <div className="relative z-10 container">
         <header className="mb-8">
           <h1 className="text-4xl font-bold">User Management</h1>
         </header>{' '}
