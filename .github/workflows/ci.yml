@@ -35,7 +35,8 @@ jobs:
       - name: Build images & start minimal services
         run: |
           docker compose -f docker-compose.test.yml build --pull
-          docker compose -f docker-compose.test.yml up -d --wait --wait-timeout 60
+          docker compose -f docker-compose.test.yml up -d \
+          --wait --wait-timeout 120 security
 
       - name: Run pytest in security container
         run: |
