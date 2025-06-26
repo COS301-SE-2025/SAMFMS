@@ -1,21 +1,16 @@
 import React from 'react';
-import {Eye, Edit, Trash2} from 'lucide-react';
+import {Eye, Edit} from 'lucide-react';
 import StatusBadge from '../vehicles/StatusBadge';
 import Pagination from '../vehicles/Pagination';
 import SortableHeader from '../vehicles/SortableHeader';
 
 const DriverList = ({
   drivers,
-  selectedDrivers,
-  handleSelectDriver,
-  selectAll,
-  handleSelectAll,
   sortField,
   sortDirection,
   handleSort,
   openDriverDetails,
   onEditDriver,
-  onDeleteDriver,
   currentPage,
   totalPages,
   itemsPerPage,
@@ -43,14 +38,6 @@ const DriverList = ({
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
-              {/* <th className="w-[36px] px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={selectAll}
-                  onChange={handleSelectAll}
-                  className="rounded border-gray-300"
-                />
-              </th> */}
               <SortableHeader
                 field="employeeId"
                 label="Employee ID"
@@ -60,7 +47,7 @@ const DriverList = ({
               />
               <SortableHeader
                 field="name"
-                label="Name"
+                label="Full Name"
                 currentSortField={sortField}
                 currentSortDirection={sortDirection}
                 onSort={handleSort}
@@ -87,6 +74,13 @@ const DriverList = ({
                 onSort={handleSort}
               />
               <SortableHeader
+                field="email"
+                label="Email"
+                currentSortField={sortField}
+                currentSortDirection={sortDirection}
+                onSort={handleSort}
+              />
+              <SortableHeader
                 field="status"
                 label="Status"
                 currentSortField={sortField}
@@ -97,36 +91,31 @@ const DriverList = ({
             </tr>
           </thead>
           <tbody>
-            {drivers.map((index, driver) => (
+            {drivers.map((driver, index) => (
               <tr
-                key={driver.employeeId}
+                key={driver.id || driver.employeeId || index}
                 className="border-t border-border hover:bg-accent/10 cursor-pointer"
               >
-                {/* <td className="px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedDrivers.includes(driver.employeeId)}
-                    onChange={() => handleSelectDriver(driver.employeeId)}
-                    className="rounded border-gray-300"
-                  />
-                </td> */}
                 <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
-                  {driver.employeeId}
+                  {driver.employeeId || 'N/A'}
                 </td>
                 <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
-                  {driver.name}
+                  {driver.name || 'N/A'}
                 </td>
                 <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
-                  {driver.licenseNumber}
+                  {driver.licenseNumber || 'N/A'}
                 </td>
                 <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
-                  {driver.phone}
+                  {driver.phone || 'N/A'}
                 </td>
                 <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
-                  {driver.licenseExpiry}
-                </td>{' '}
+                  {driver.licenseExpiry || 'N/A'}
+                </td>
                 <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
-                  <StatusBadge status={driver.status} type={getStatusColor(driver.status)} />
+                  {driver.email || 'N/A'}
+                </td>
+                <td className="px-4 py-3" onClick={() => openDriverDetails(driver)}>
+                  <StatusBadge status={driver.status || 'N/A'} type={getStatusColor(driver.status)} />
                 </td>
                 <td className="px-4 py-3 space-x-2">
                   <button
@@ -148,38 +137,6 @@ const DriverList = ({
                   >
                     <Edit size={16} />
                     Edit
-                  </button>
-                  <button
-                    className="text-destructive hover:text-destructive/80 inline-flex items-center gap-1"
-                    onClick={e => {
-                      e.stopPropagation();
-                      console.log('Delete clicked for driver:', driver);
-
-                      if (
-                        window.confirm(
-                          `Are you sure you want to delete ${driver.name} (${driver.employeeId})?`
-                        )
-                      ) {
-                        // Make sure we have a valid employee ID to pass to the delete function
-                        if (!driver.employeeId) {
-                          console.error(
-                            'Error: Cannot delete driver - Employee ID is missing or undefined',
-                            driver
-                          );
-                          alert(
-                            `Error: Cannot delete driver "${driver.name}" - missing Employee ID`
-                          );
-                          return;
-                        }
-
-                        console.log('Calling onDeleteDriver with Employee ID:', driver.employeeId);
-                        // Pass the employee ID for backend operations
-                        onDeleteDriver?.(driver.employeeId);
-                      }
-                    }}
-                  >
-                    <Trash2 size={16} />
-                    Delete
                   </button>
                 </td>
               </tr>

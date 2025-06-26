@@ -24,6 +24,20 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
     return matchesSearch && matchesType;
   });
 
+  function parseGeofenceArea(areaStr) {
+    const match = areaStr.match(/^CIRCLE\((-?\d+(\.\d+)?) (-?\d+(\.\d+)?),(\d+)\)$/);
+    if (!match) return null;
+
+    const lng = parseFloat(match[1]);
+    const lat = parseFloat(match[3]);
+    const radius = parseFloat(match[5]);
+
+    return {
+      coordinates: { lat, lng },
+      radius,
+    };
+  }
+
   // Effect to notify parent component when geofences change
   useEffect(() => {
     if (onGeofenceChange) {
@@ -56,19 +70,38 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
         throw new Error(result.detail || "Failed to create geofence");
       }
 
-      if (result.geofence && Object.keys(result.geofence).length > 0) {
-        setGeofences([...geofences, result.geofence]);
+      // Handle the response - the API returns the geofence data differently
+      if (result.id) {
+        // Parse the area string from the response
+        const parsed = parseGeofenceArea(result.area);
+        if (parsed) {
+          const newFormattedGeofence = {
+            id: result.id,
+            name: result.name,
+            type: newGeofence.type, // Use the type from our form since it's not in response
+            status: newGeofence.status, // Use the status from our form since it's not in response
+            coordinates: parsed.coordinates,
+            radius: parsed.radius,
+            area: result.area // Keep original area string if needed
+          };
+          
+          console.log("Adding formatted geofence:", newFormattedGeofence);
+          setGeofences(prev => [...prev, newFormattedGeofence]);
+        } else {
+          console.warn("Invalid geofence area format:", result.area);
+        }
       } else {
-        console.warn("Empty or invalid geofence object received. Skipping add.");
+        console.warn("No geofence ID in response:", result);
       }
 
       resetForm();
       setShowAddModal(false);
     } catch (error) {
       console.error("Error creating geofence:", error);
+      // You might want to show a user-friendly error message here
+      alert("Failed to create geofence: " + error.message);
     }
   };
-
 
   // Handle editing a geofence
   const handleEditGeofence = () => {

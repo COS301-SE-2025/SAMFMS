@@ -38,33 +38,21 @@ const Drivers = () => {
   }, []); // Transform backend driver data to frontend format
   const transformDriverData = useCallback(
     backendDriver => {
-      // Debug logging to see what we're receiving
-      console.log('Transforming backend driver data:', backendDriver);
-
       // Store MongoDB ObjectId for backward compatibility
       const driverId = backendDriver.id || backendDriver._id;
-
-      // Get employee ID - this is now our primary identifier for drivers
-      const employeeId = backendDriver.employee_id;
-      console.log('Using employee ID:', employeeId, 'MongoDB ID:', driverId);
-
       return {
-        id: driverId, // Keep this for backward compatibility
-        name: backendDriver.user_info?.full_name || 'Unknown',
-        licenseNumber: backendDriver.license_number,
-        phone: backendDriver.user_info?.phoneNo || 'N/A',
-        licenseExpiry: backendDriver.license_expiry,
-        licenseType: backendDriver.license_type,
-        status: capitalizeStatus(backendDriver.status),
-        email: backendDriver.user_info?.email || 'N/A',
-        emergencyContact: backendDriver.emergency_contact || 'N/A',
-        department: backendDriver.department || 'N/A',
-        joiningDate: backendDriver.joining_date || 'N/A',
-        employeeId: employeeId || 'N/A', // This is now our primary identifier
-        rating: backendDriver.rating?.toString() || '0.0',
-        currentVehicle: null, // TODO: Implement vehicle relationship
-        trips: [], // TODO: Implement trip history
-        documents: [], // TODO: Implement document management
+        id: driverId,
+        name: backendDriver.full_name || backendDriver.user_info?.full_name || 'Unknown',
+        licenseNumber: backendDriver.license_number || 'N/A',
+        phone: backendDriver.phone || backendDriver.user_info?.phoneNo || 'N/A',
+        licenseExpiry: backendDriver.license_expiry || 'N/A',
+        email: backendDriver.email || backendDriver.user_info?.email || 'N/A',
+        status: backendDriver.status
+          ? capitalizeStatus(backendDriver.status)
+          : backendDriver.is_active
+          ? 'Active'
+          : 'Inactive',
+        employeeId: backendDriver.employee_id || backendDriver._id || 'N/A',
       };
     },
     [capitalizeStatus]
@@ -76,26 +64,18 @@ const Drivers = () => {
       try {
         setLoading(true);
         setError(null);
-
-        const params = {
-          limit: 100, // Load more drivers for better testing
-        };
-
-        // Apply filters if any
+        const params = { limit: 100 };
         if (filters.status) {
           params.status_filter = filters.status.toLowerCase().replace(/\s+/g, '_');
         }
         if (filters.department) {
           params.department_filter = filters.department;
         }
-
         const response = await getDrivers(params);
-        // const transformedDrivers = transformDriverData ? response.map(transformDriverData) : response;
-
-        setDrivers(response.drivers);
-        // setFilteredDrivers(transformedDrivers);
+        const transformedDrivers = response.drivers.map(transformDriverData);
+        setDrivers(transformedDrivers);
+        setFilteredDrivers([]); // Always reset filteredDrivers on load
       } catch (err) {
-        console.error('Error loading drivers:', err);
         setError(err.message || 'Failed to load drivers');
         setDrivers([]);
         setFilteredDrivers([]);
@@ -109,28 +89,23 @@ const Drivers = () => {
     try {
       setLoading(true);
       setError(null);
-
       if (!searchQuery.trim()) {
-        // If empty search, reload all drivers
         const response = await getDrivers({
           limit: 100,
           ...(filters.status && {
             status_filter: filters.status.toLowerCase().replace(/\s+/g, '_'),
           }),
-          ...(filters.department && {department_filter: filters.department}),
+          ...(filters.department && { department_filter: filters.department }),
         });
-        const transformedDrivers = response.map(transformDriverData);
+        const transformedDrivers = response.drivers.map(transformDriverData);
         setFilteredDrivers(transformedDrivers);
       } else {
-        // Search drivers
         const searchResults = await searchDrivers(searchQuery);
         const transformedResults = searchResults.map(transformDriverData);
         setFilteredDrivers(transformedResults);
       }
-
-      setCurrentPage(1); // Reset to first page
+      setCurrentPage(1);
     } catch (err) {
-      console.error('Error searching drivers:', err);
       setError(err.message || 'Failed to search drivers');
     } finally {
       setLoading(false);
@@ -197,19 +172,8 @@ const Drivers = () => {
     (a, b) => {
       let aValue = a[sortField];
       let bValue = b[sortField];
-
-      // Handle different data types
-      if (sortField === 'rating') {
-        aValue = parseFloat(aValue) || 0;
-        bValue = parseFloat(bValue) || 0;
-      } else if (sortField === 'licenseExpiry' || sortField === 'joiningDate') {
-        aValue = new Date(aValue);
-        bValue = new Date(bValue);
-      } else {
-        aValue = aValue?.toString().toLowerCase() || '';
-        bValue = bValue?.toString().toLowerCase() || '';
-      }
-
+      aValue = aValue?.toString().toLowerCase() || '';
+      bValue = bValue?.toString().toLowerCase() || '';
       if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
@@ -431,24 +395,18 @@ const Drivers = () => {
             </div>
           ) : (
             /* Driver list with pagination */ <DriverList
-              drivers={drivers}
-              selectedDrivers={selectedDrivers}
-              handleSelectDriver={handleSelectDriver}
-              selectAll={selectAll}
-              handleSelectAll={handleSelectAll}
+              drivers={currentDrivers}
               sortField={sortField}
               sortDirection={sortDirection}
               handleSort={handleSort}
               openDriverDetails={openDriverDetails}
               onEditDriver={handleEditDriver}
-              onDeleteDriver={handleDeleteDriver}
               currentPage={currentPage}
               totalPages={totalPages}
               itemsPerPage={itemsPerPage}
               changeItemsPerPage={changeItemsPerPage}
               goToNextPage={goToNextPage}
               goToPrevPage={goToPrevPage}
-              totalDrivers={sortedDrivers.length}
             />
           )}
         </div>

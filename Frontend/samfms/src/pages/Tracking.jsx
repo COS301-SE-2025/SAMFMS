@@ -8,6 +8,7 @@ import LocationHistory from '../components/tracking/LocationHistory';
 const Tracking = () => {
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [geofences, setGeofences] = useState([]);
 
   useEffect(() => {
     // Connect to your Core backend WebSocket endpoint
@@ -46,6 +47,13 @@ const Tracking = () => {
     setSelectedVehicle(vehicle);
     // The map will automatically center on this vehicle via the MapController component
   };
+
+  // Handle geofence changes from the GeofenceManager
+  const handleGeofenceChange = (updatedGeofences) => {
+    console.log("Geofences updated:", updatedGeofences);
+    setGeofences(updatedGeofences);
+  };
+
   return (
     <div className="relative container mx-auto px-4 py-8">
       {/* Background pattern */}
@@ -94,7 +102,11 @@ const Tracking = () => {
           {' '}
           {/* Map display takes 2/3 of the width on large screens */}
           <div className="lg:col-span-2">
-            <TrackingMap vehicles={vehicles} selectedVehicle={selectedVehicle} />
+            <TrackingMap 
+              vehicles={vehicles} 
+              selectedVehicle={selectedVehicle}
+              geofences={geofences} 
+            />
           </div>{' '}
           {/* Vehicle list takes 1/3 of the width on large screens */}
           <div className="lg:col-span-1">
@@ -103,7 +115,10 @@ const Tracking = () => {
         </div>{' '}
         {/* Geofence Management Component */}
         <div className="mt-8">
-          <GeofenceManager />
+          <GeofenceManager 
+            onGeofenceChange={handleGeofenceChange}
+            currentGeofences={geofences}
+          />
         </div>{' '}
         {/* Location History Component */}
         <div className="mt-8 mb-8">

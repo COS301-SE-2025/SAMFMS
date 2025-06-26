@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Button } from './ui/button';
+import React, {useState} from 'react';
+import {Button} from './ui/button';
 
 const userTypes = ['admin', 'fleet_manager', 'driver'];
 
@@ -15,21 +15,21 @@ const PluginCard = ({
   const getStatusDisplay = status => {
     switch (status) {
       case 'ACTIVE':
-        return { text: 'Active', color: 'text-green-500' };
+        return {text: 'Active', color: 'text-green-500'};
       case 'INACTIVE':
-        return { text: 'Inactive', color: 'text-gray-500' };
+        return {text: 'Inactive', color: 'text-gray-500'};
       case 'STARTING':
-        return { text: 'Starting...', color: 'text-yellow-500' };
+        return {text: 'Starting...', color: 'text-yellow-500'};
       case 'STOPPING':
-        return { text: 'Stopping...', color: 'text-orange-500' };
+        return {text: 'Stopping...', color: 'text-orange-500'};
       case 'ERROR':
-        return { text: 'Error', color: 'text-red-500' };
+        return {text: 'Error', color: 'text-red-500'};
       default:
-        return { text: 'Unknown', color: 'text-gray-500' };
+        return {text: 'Unknown', color: 'text-gray-500'};
     }
   };
 
-  const statusDisplay = getStatusDisplay(plugin.status);
+  const statusDisplay = getStatusDisplay(plugin.status.toUpperCase());
   const isEnabled = plugin.status === 'ACTIVE';
 
   // Convert role names for display
@@ -99,8 +99,8 @@ const PluginCard = ({
         </div>
         <div className="flex flex-col items-end space-y-4">
           <div className="flex items-center">
-            <span className={`mr-3 ${statusDisplay.color}`}>{statusDisplay.text}</span>
-            <button
+            <span className={`mr-3 ${statusDisplay.color}`}>{plugin.status}</span>
+            {/* <button
               className="relative inline-block w-12 h-6 rounded-full bg-secondary focus:outline-none disabled:opacity-50"
               onClick={() => onEnabledToggle(plugin.plugin_id)}
               disabled={isLoading || plugin.status === 'STARTING' || plugin.status === 'STOPPING'}
@@ -122,7 +122,7 @@ const PluginCard = ({
                 className="sr-only"
                 tabIndex={-1}
               />
-            </button>
+            </button> */}
           </div>
           <div className="flex space-x-2">
             <Button variant="outline" size="sm" disabled>
