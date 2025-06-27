@@ -2,22 +2,58 @@ name: CI
 
 on:
   push:
-    branches: [main]         
+    branches:
+      - main
   pull_request:
-    branches: [main]         
+    branches:
+      - main
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # … (rest of your job unchanged) …
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Start services (test stack)
-        run: docker compose -f docker-compose.test.yml up -d --build
+      - name: Build & start all services
+        id: compose_up                 # so later steps can read the outcome
+        continue-on-error: true        # let the job continue on failure
+        run: |
+          docker compose -f docker-compose.test.yml build --pull
+          docker compose -f docker-compose.test.yml up -d --wait --wait-timeout 120
 
-      - name: Run pytest inside “security”
-        run: docker compose -f docker-compose.test.yml exec -T security pytest -q
+      # ──────────────────────────────────────────────────────────────────
+      # DEBUG HELPERS – run only if the step above failed
+      # ──────────────────────────────────────────────────────────────────
+      - name: Show container status table
+        if: failure() && steps.compose_up.outcome == 'failure'
+        run: docker compose -f docker-compose.test.yml ps -a
 
-      - name: Shut everything down
+      - name: Dump MongoDB logs
+        if: failure() && steps.compose_up.outcome == 'failure'
+        run: docker compose -f docker-compose.test.yml logs --no-color --timestamps mongodb
+
+      # optional – zip & upload every container’s logs for later inspection
+      - name: Collect all logs
+        if: always()                                
+        run: docker compose -f docker-compose.test.yml logs --no-color --timestamps > compose.log
+
+      - name: Upload logs artifact
         if: always()
-        run: docker compose -f docker-compose.test.yml down -v
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-logs
+          path: compose.log
+
+
+      - name: Run security integration tests
+        run: docker compose -f docker-compose.test.yml exec -T security \
+             pytest --disable-warnings --tb=no
+
+      - name: Tear everything down
+        if: always()
+        run: docker compose -f docker-compose.test.yml down -v --remove-orphans
