@@ -13,20 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    services:
-      mongo:
-        image: mongo:4.4
-        ports:
-          - 21003:27017
-        options: >-
-          --health-cmd "mongo --eval 'db.adminCommand(\"ping\")'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      MONGODB_URL: mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@localhost:21003
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3

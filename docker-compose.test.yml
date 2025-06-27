@@ -14,7 +14,8 @@ services:
 
   mongodb:
     image: mongo:4.4
-
+    ports:
+     - '${MONGODB_PORT:-21003}:27017'
     healthcheck:
       test: ['CMD-SHELL', "mongo --eval 'db.runCommand({ ping: 1 })' --quiet || exit 1"]
       interval: 30s
