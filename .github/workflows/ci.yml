@@ -8,44 +8,38 @@ on:
     branches:
       - main
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    services:
+      mongo:
+        image: mongo:4.4
+        ports:
+          - 21003:27017
+        options: >-
+          --health-cmd "mongo --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      MONGODB_URL: mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@localhost:21003
+
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Set up QEMU (for multi-arch builds)
-        uses: docker/setup-qemu-action@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Cache Docker layers
-        uses: docker/cache-action@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
 
       - name: Build & start all services
         run: |
           docker compose -f docker-compose.test.yml build --pull
-          docker compose -f docker-compose.test.yml up -d \
-            --wait --wait-timeout 120
+          docker compose -f docker-compose.test.yml up -d --wait --wait-timeout 120
 
       - name: Run security integration tests
         run: docker compose -f docker-compose.test.yml exec -T security \
-               pytest --disable-warnings --tb=no
+             pytest --disable-warnings --tb=no
 
       - name: Tear everything down
         if: always()
-        run: |
-          docker compose -f docker-compose.test.yml down -v --remove-orphans
+        run: docker compose -f docker-compose.test.yml down -v --remove-orphans
