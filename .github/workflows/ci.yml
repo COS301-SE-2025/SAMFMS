@@ -24,7 +24,8 @@ jobs:
         continue-on-error: true        # let the job continue on failure
         run: |
           docker compose -f docker-compose.test.yml build --pull
-          docker compose -f docker-compose.test.yml up -d --wait --wait-timeout 120
+          docker compose -f docker-compose.test.yml up -d 
+          sleep 30  # wait for services to start
 
       # ──────────────────────────────────────────────────────────────────
       # DEBUG HELPERS – run only if the step above failed
