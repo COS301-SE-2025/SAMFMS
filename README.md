@@ -17,6 +17,8 @@ Demo 2 SRS: [Demo 2 SRS](https://docs.google.com/document/d/1G0PdNyn39kSutfvn8tC
 
 Demo 2 Video: [Demo 2 Video]()
 
+Demo 2 Slides: [Presentation](https://www.canva.com/design/DAGrW5d1HYA/LC1cf0PKTY7MIsAVtObYPA/edit)
+
 
 ---
 
