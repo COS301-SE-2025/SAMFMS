@@ -9,7 +9,7 @@
 | Resource | Link |
 |----------|------|
 | 📄 SRS Document | [Requirements](https://docs.google.com/document/d/1G0PdNyn39kSutfvn8tCN5x-yCHrte0QFu_v2-gYdXPU/edit?usp=sharing) |
-| 📊 Project Board | [Project Board](link-to-project-board)
+| 📊 Project Board | [Project Board](https://github.com/orgs/COS301-SE-2025/projects/208/views/2)
 
 Demo 1 SRS: [Demo 1 SRS](https://docs.google.com/document/d/1En1Mck7JwaSdKjgyvRhmX5pXqHhVSUlhZhp7XU-f_K4/edit?tab=t.0)
 
@@ -74,10 +74,10 @@ Here’s our awesome team behind **Firewall Five**:
     <tr>
       <td><img src="https://github.com/herrie732.png" width="80"></td>
       <td><a href="https://github.com/herrie732" style="font-size: 18px;">@herrie732</a></td>
-      <td style="font-size: 18px;">Mr. Herrie Engelbrecht</td>
-      <td style="font-size: 18px;">u21482153</td>
-      <td><a href="https://www.linkedin.com/in/morne-van-heerden-a0b173355/" style="font-size: 18px;">@Morné van heerden</a></td>
-      <td style="font-size: 18px;">Devops, Systems Engineer and Services engineer. Responsible for the maintenance and upkeep of the Github repository.</td>
+      <td style="font-size: 18px;">Mr. Herman Engelbrecht</td>
+      <td style="font-size: 18px;">u22512374</td>
+      <td><a href="https://www.linkedin.com/in/herman-johan-engelbrecht-a6b6a8327/" style="font-size: 18px;">@Herman Engelbrecht</a></td>
+      <td style="font-size: 18px;">Services Engineer, working on development of loosely coupled SBlocks, as well as development of various other things, like Frontend and Database Management. </td>
     </tr>
   </tbody>
 </table>
