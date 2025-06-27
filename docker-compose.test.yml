@@ -1,60 +1,72 @@
+version: "3.8"
+
 services:
   redis:
     image: redis:7-alpine
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     networks:
       - samfms-network
 
   mongodb:
     image: mongo:4.4
+    ports:
+     - '${MONGODB_PORT:-21003}:27017'
     healthcheck:
-      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      test: ['CMD-SHELL', "mongo --eval 'db.runCommand({ ping: 1 })' --quiet || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 3
       start_period: 30s
+    environment:
+     - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USERNAME:-samfms_admin}
+     - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD:-SafeMongoPass2025!SecureDB@SAMFMS}
+    volumes:
+     - mongodb_data:/data/db
+     - ./scripts/init-mongodb.js:/docker-entrypoint-initdb.d/init-mongodb.js:ro
     networks:
       - samfms-network
 
   rabbitmq:
     image: rabbitmq:3-management
+    # create the same app user as prod
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-samfms_rabbit}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS:-RabbitPass2025!}
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     networks:
       - samfms-network
 
   security:
     build: ./Sblocks/security
     depends_on:
+      redis:
+        condition: service_healthy
       mongodb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      redis:
-        condition: service_healthy
+    # no healthcheck (as in prod)
     environment:
       - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
       - DATABASE_NAME=${DATABASE_SECURITY:-samfms_security}
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
       - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-testsecret}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
       - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
-      - ENVIRONMENT=${ENVIRONMENT:-test}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - SERVICE_STARTUP_DELAY=0
-      - RABBITMQ_CONNECTION_RETRY_ATTEMPTS=10
-      - RABBITMQ_CONNECTION_RETRY_DELAY=1
+      - ENVIRONMENT=test
+      - LOG_LEVEL=INFO
     networks:
       - samfms-network
 
@@ -63,29 +75,33 @@ services:
       context: .
       dockerfile: ./Core/Dockerfile
     depends_on:
+      redis:
+        condition: service_healthy
       mongodb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       security:
         condition: service_started
+    # no healthcheck here either; CI will wait on startup
     environment:
       - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
       - DATABASE_NAME=${DATABASE_CORE:-samfms_core}
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
       - SECURITY_URL=http://security:8000
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-testsecret}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
-      - ENVIRONMENT=${ENVIRONMENT:-test}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - SERVICE_STARTUP_DELAY=0
-      - RABBITMQ_CONNECTION_RETRY_ATTEMPTS=10
-      - RABBITMQ_CONNECTION_RETRY_DELAY=1
+      - ENVIRONMENT=test
+      - LOG_LEVEL=INFO
     networks:
       - samfms-network
+
+volumes:
+  mongodb_data:
+  redis_data:
+  rabbitmq_data:
 
 networks:
   samfms-network:
     driver: bridge
+
