@@ -1,46 +1,21 @@
 # 🚀 Firewall Five
 
 ## Project Information
-
-**Firewall Five - SAMFMS - Modular Fleet Management System**
-
----
-
-## 🧪 Testing
-
-The project includes a comprehensive test suite for all services. You can run tests from the root directory:
-
-```cmd
-# Run all tests
-npm test
-# or
-run-tests.bat
-
-# Run tests for specific services
-npm run test:security
-npm run test:core
-
-# Run specific test types
-npm run test:unit
-npm run test:integration
-npm run test:coverage
-```
-
-For detailed testing information, see [TESTING.md](TESTING.md).
+**Firewall Five - SAMFMS - Modular Fleet Management System**  
 
 ---
 
-## 📚 Documentation
+## 📚 Documentation  
+| Resource | Link |
+|----------|------|
+| 📄 SRS Document | [Requirements](https://docs.google.com/document/d/1G0PdNyn39kSutfvn8tCN5x-yCHrte0QFu_v2-gYdXPU/edit?usp=sharing) |
+| 📊 Project Board | [Project Board](link-to-project-board)
 
-| Resource         | Link                                   |
-| ---------------- | -------------------------------------- |
-| 📄 SRS Document  | [Requirements](srs-link)               |
-| 📊 Project Board | [Project Board](link-to-project-board) |
+Demo 1 SRS: [Demo 1 SRS](https://docs.google.com/document/d/1En1Mck7JwaSdKjgyvRhmX5pXqHhVSUlhZhp7XU-f_K4/edit?tab=t.0)
 
 ---
 
-## 👥 Meet the Team
-
+## 👥 Meet the Team 
 Here’s our awesome team behind **Firewall Five**:
 
 <table>
@@ -62,7 +37,34 @@ Here’s our awesome team behind **Firewall Five**:
       <td style="font-size: 18px;">Mr. Stefan Jansen van Rensburg</td>
       <td style="font-size: 18px;">u22550055</td>
       <td><a href="https://linkedin.com/in/stefan-JvR" style="font-size: 18px;">@Stefan Jansen van Rensburg</a></td>
-      <td style="font-size: 18px;"><strong>Team lead/ Project manager.</strong</td>
+      <td style="font-size: 18px;"><strong>Team lead/ Project manager.</strong>, management of <strong>CI\CD</strong> , Worked on <strong>Daemon.</strong> // Features: storage, CRUD operations, reading and writing files, server creation and user management</td>
+    </tr>
+    <tr>
+      <td><img src="https://github.com/22590732.png" width="80"></td>
+      <td><a href="https://github.com/22590732" style="font-size: 18px;">@22590732</a></td>
+      <td style="font-size: 18px;">Mr Johan Jansen van Rensburg</td>
+      <td style="font-size: 18px;">u22590732</td>
+      <td><a href="https://www.linkedin.com/in/nicolaas-jansen-van-rensburg-202629363/" style="font-size: 18px;">@Johan Jansen van Rensburg</a></td>
+      <td style="font-size: 18px;">
+        <strong>UI Engineer, Designer, Services Engineer.</strong>
+        Responsible for designing and implementing the user interface, ensuring a seamless and intuitive user experience. Contributed to the visual design, frontend architecture, and integration of backend services for the SAMFMS platform.
+      </td>
+    </tr>
+    <tr>
+      <td><img src="https://github.com/Laird-G.png" width="80"></td>
+      <td><a href="https://github.com/Laird-G" style="font-size: 18px;">@Laird-G</a></td>
+      <td style="font-size: 18px;">Mr. Laird Glanville</td>
+      <td style="font-size: 18px;">u22541332</td>
+      <td><a href="https://www.linkedin.com/in/laird-glanville-046270326/" style="font-size: 18px;">@Laird Glanville</a></td>
+      <td style="font-size: 18px;">Backend Engineer, working on the inner logic and workings of the system. Responsible for MCore development, and development of modular, standalone SBlocks.</td>
+    </tr>
+    <tr>
+      <td><img src="https://github.com/Mornevanheerden.png" width="80"></td>
+      <td><a href="https://github.com/Mornevanheerden" style="font-size: 18px;">@Mornevanheerden</a></td>
+      <td style="font-size: 18px;">Mr. Morné van Heerden</td>
+      <td style="font-size: 18px;">u21482153</td>
+      <td><a href="https://www.linkedin.com/in/morne-van-heerden-a0b173355/" style="font-size: 18px;">@Morné van heerden</a></td>
+      <td style="font-size: 18px;">Devops, Systems Engineer and Services engineer. Responsible for the maintenance and upkeep of the Github repository.</td>
     </tr>
   </tbody>
 </table>
@@ -70,18 +72,14 @@ Here’s our awesome team behind **Firewall Five**:
 ---
 
 ## Repository Information
-
 ### Git Structure
-
-- **Mono Repo**: Our code for all of our projects or features is kept within a single repository. This keeps all our features centralised and improves the ability for integration amoungst the subsystems.
+- **Mono Repo**: Our code for all of our projects or features is kept within a single repository. This keeps all our features centralised and improves the ability for integration amoungst the subsystems.  
 - **Branching Strategy**: [Branching strategy](https://github.com/COS301-SE-2025/SAMFMS/blob/docs/docs/Branching_Strategy.pdf)
 
 ### Git Management
-
 - **Linting** : Usage of linting to complete our CI/CD pipeline and maintain the quality of our code. This reduced the number of bugs and kept our coding standards up to date. Can be seen in the following file: [Linting](linting link)
 
 ### Issue Tracking
-
 - Managed via [GitHub Issues](https://github.com/COS301-SE-2025/SAMFMS/issues).
 
 ---
