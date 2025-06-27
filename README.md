@@ -13,6 +13,11 @@
 
 Demo 1 SRS: [Demo 1 SRS](https://docs.google.com/document/d/1En1Mck7JwaSdKjgyvRhmX5pXqHhVSUlhZhp7XU-f_K4/edit?tab=t.0)
 
+Demo 2 SRS: [Demo 2 SRS](https://docs.google.com/document/d/1G0PdNyn39kSutfvn8tCN5x-yCHrte0QFu_v2-gYdXPU/edit?tab=t.0)
+
+Demo 2 Video: [Demo 2 Video]()
+
+
 ---
 
 ## 👥 Meet the Team 
@@ -66,6 +71,14 @@ Here’s our awesome team behind **Firewall Five**:
       <td><a href="https://www.linkedin.com/in/morne-van-heerden-a0b173355/" style="font-size: 18px;">@Morné van heerden</a></td>
       <td style="font-size: 18px;">Devops, Systems Engineer and Services engineer. Responsible for the maintenance and upkeep of the Github repository.</td>
     </tr>
+    <tr>
+      <td><img src="https://github.com/herrie732.png" width="80"></td>
+      <td><a href="https://github.com/herrie732" style="font-size: 18px;">@herrie732</a></td>
+      <td style="font-size: 18px;">Mr. Herrie Engelbrecht</td>
+      <td style="font-size: 18px;">u21482153</td>
+      <td><a href="https://www.linkedin.com/in/morne-van-heerden-a0b173355/" style="font-size: 18px;">@Morné van heerden</a></td>
+      <td style="font-size: 18px;">Devops, Systems Engineer and Services engineer. Responsible for the maintenance and upkeep of the Github repository.</td>
+    </tr>
   </tbody>
 </table>
 
@@ -77,7 +90,7 @@ Here’s our awesome team behind **Firewall Five**:
 - **Branching Strategy**: [Branching strategy](https://github.com/COS301-SE-2025/SAMFMS/blob/docs/docs/Branching_Strategy.pdf)
 
 ### Git Management
-- **Linting** : Usage of linting to complete our CI/CD pipeline and maintain the quality of our code. This reduced the number of bugs and kept our coding standards up to date. Can be seen in the following file: [Linting](linting link)
+- **Linting** : Usage of linting to complete our CI/CD pipeline and maintain the quality of our code. This reduced the number of bugs and kept our coding standards up to date. 
 
 ### Issue Tracking
 - Managed via [GitHub Issues](https://github.com/COS301-SE-2025/SAMFMS/issues).
