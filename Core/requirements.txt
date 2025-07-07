@@ -1,6 +1,7 @@
 fastapi>=0.95.0
 starlette>=0.26.0
-uvicorn[standard]
+uvicorn[standard]>=0.20.0
+websockets>=10.0
 motor
 aio_pika
 pyjwt

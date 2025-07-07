@@ -53,14 +53,15 @@ COPY Core/config/ /project/Core/config/
 # Create a directory for docker-compose file but make it optional
 RUN mkdir -p /project
 
-# Make start script executable
-RUN chmod +x /app/start.sh
-
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 EXPOSE 8000 27017
 
-# Use the improved start script
-CMD ["/app/start.sh"]
+# Set environment variables for better compatibility
+ENV OPENBLAS_CORETYPE=generic
+ENV MKL_DEBUG_CPU_TYPE=5
+
+# Use uvicorn directly instead of start.sh script - disable websockets to avoid import issues
+CMD ["python3", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-keep-alive", "65", "--access-log", "--log-level", "info", "--ws", "none"]
