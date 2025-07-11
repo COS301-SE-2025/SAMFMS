@@ -1,18 +1,17 @@
-import { getApiHostname, authFetch } from './auth';
+import { authFetch } from './auth';
+import { buildApiUrl } from '../../config/apiConfig';
 
-// Use the API base URL directly (should include protocol and /api)
-export const API_URL = getApiHostname();
-
+// Analytics API endpoints using centralized configuration
 const ANALYTICS_API = {
-  fleetUtilization: `${API_URL}/analytics/fleet-utilization`,
-  vehicleUsage: `${API_URL}/analytics/vehicle-usage`,
-  assignmentMetrics: `${API_URL}/analytics/assignment-metrics`,
-  maintenance: `${API_URL}/analytics/maintenance`,
-  driverPerformance: `${API_URL}/analytics/driver-performance`,
-  costAnalytics: `${API_URL}/analytics/costs`,
-  statusBreakdown: `${API_URL}/analytics/status-breakdown`,
-  incidentStatistics: `${API_URL}/analytics/incidents`,
-  departmentLocation: `${API_URL}/analytics/department-location`,
+  fleetUtilization: buildApiUrl('/analytics/fleet-utilization'),
+  vehicleUsage: buildApiUrl('/analytics/vehicle-usage'),
+  assignmentMetrics: buildApiUrl('/analytics/assignment-metrics'),
+  maintenance: buildApiUrl('/analytics/maintenance'),
+  driverPerformance: buildApiUrl('/analytics/driver-performance'),
+  costAnalytics: buildApiUrl('/analytics/costs'),
+  statusBreakdown: buildApiUrl('/analytics/status-breakdown'),
+  incidentStatistics: buildApiUrl('/analytics/incidents'),
+  departmentLocation: buildApiUrl('/analytics/department-location'),
 };
 
 const handleResponse = async (response, errorMessage) => {
@@ -22,10 +21,9 @@ const handleResponse = async (response, errorMessage) => {
   }
   return response.json();
 };
- 
 
-
-export const getFleetUtilization = async () => {/*
+export const getFleetUtilization = async () => {
+  /*
   try {
     const response = await authFetch(ANALYTICS_API.fleetUtilization);
     return await handleResponse(response, 'Failed to fetch fleet utilization');
@@ -34,9 +32,6 @@ export const getFleetUtilization = async () => {/*
     throw err;
   }*/
 };
-
-
-
 
 export const getVehicleUsage = async () => {
   try {
@@ -47,8 +42,6 @@ export const getVehicleUsage = async () => {
     throw err;
   }
 };
-
-
 
 export const getAssignmentMetrics = async () => {
   try {

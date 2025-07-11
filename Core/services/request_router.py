@@ -39,16 +39,27 @@ class RequestRouter:
             "/api/tracking/*": "gps", 
             "/api/trips/*": "trip_planning",
             "/api/trip-planning/*": "trip_planning",
-            "/api/maintenance/*": "maintenance",
-            "/api/vehicle-maintenance/*": "maintenance",
+            "/api/maintenance/*": "vehicle_maintenance",
+            "/api/vehicle-maintenance/*": "vehicle_maintenance",
             "/api/analytics/*": "management"
         }
 
     def normalize_endpoint(self, endpoint: str) -> str:
-        """Normalize endpoints for routing consistency (e.g., analytics endpoints)"""
-        # If you want to rewrite /api/analytics/... to /api/v1/analytics/..., do it here
+        """Normalize endpoints for routing consistency"""
+        # Convert /api/analytics/* to /api/v1/analytics/* for management service
         if endpoint.startswith("/api/analytics/"):
             return endpoint.replace("/api/analytics/", "/api/v1/analytics/")
+        
+        # Convert other endpoints to v1 API format for consistency
+        if endpoint.startswith("/api/vehicles"):
+            return endpoint.replace("/api/vehicles", "/api/v1/vehicles")
+        elif endpoint.startswith("/api/drivers"):
+            return endpoint.replace("/api/drivers", "/api/v1/drivers")
+        elif endpoint.startswith("/api/vehicle-assignments"):
+            return endpoint.replace("/api/vehicle-assignments", "/api/v1/vehicle-assignments")
+        elif endpoint.startswith("/api/vehicle-usage"):
+            return endpoint.replace("/api/vehicle-usage", "/api/v1/vehicle-usage")
+            
         return endpoint
 
     def get_service_for_endpoint(self, endpoint: str) -> str:

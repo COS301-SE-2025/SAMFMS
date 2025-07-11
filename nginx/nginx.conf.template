@@ -131,7 +131,40 @@ http {
             # Rate limiting
             limit_req zone=api burst=20 nodelay;
             
-            proxy_pass http://core:8000/;
+            proxy_pass http://core:8000/api/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $server_name;
+            proxy_set_header X-Forwarded-Port $server_port;
+            proxy_redirect off;
+            
+            # CORS headers for API
+            add_header Access-Control-Allow-Origin https://${DOMAIN}:${NGINX_HTTPS_PORT} always;
+            add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" always;
+            add_header Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With" always;
+            add_header Access-Control-Allow-Credentials true always;
+            
+            # Handle preflight requests
+            if ($request_method = 'OPTIONS') {
+                add_header Access-Control-Allow-Origin https://${DOMAIN}:${NGINX_HTTPS_PORT};
+                add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS";
+                add_header Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With";
+                add_header Access-Control-Allow-Credentials true;
+                add_header Access-Control-Max-Age 1728000;
+                add_header Content-Type 'text/plain charset=UTF-8';
+                add_header Content-Length 0;
+                return 204;
+            }
+        }
+
+        # Management Service API routes
+        location /api/management/ {
+            # Rate limiting
+            limit_req zone=api burst=20 nodelay;
+            
+            proxy_pass http://management:8000/api/v1/;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -163,7 +196,7 @@ http {
         location /api/auth/login {
             limit_req zone=login burst=5 nodelay;
             
-            proxy_pass http://core:8000/auth/login;
+            proxy_pass http://core:8000/api/auth/login;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

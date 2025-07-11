@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import redis
 import pika
@@ -6,6 +6,7 @@ import logging
 import json
 import os
 import asyncio
+import uvicorn
 from datetime import datetime, timezone
 
 from database import test_database_connection, create_indexes
@@ -37,10 +38,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routes
-app.include_router(vehicle_routes, prefix="/api/v1/vehicles", tags=["vehicles"])
-# Also include driver routes at the correct path for core service proxy
-app.include_router(vehicle_routes, prefix="/api", tags=["drivers"])
+# Include routes with consistent API versioning
+app.include_router(vehicle_routes, prefix="/api/v1", tags=["vehicles"])
 app.include_router(analytics_router, prefix="/api/v1", tags=["analytics"])
 
 # Initialize Redis connection
@@ -323,5 +322,5 @@ async def test_message_queue():
         }
 
 if __name__ == "__main__":
-    port = int(os.getenv("MANAGEMENT_PORT", "21010"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # Use port 8000 for consistency with Docker mapping
+    uvicorn.run(app, host="0.0.0.0", port=8000)
