@@ -19,6 +19,8 @@ from rabbitmq.admin import create_exchange
 import aio_pika
 from services.resilience import resilience_manager, request_tracer
 
+from utils.exceptions import ServiceUnavailableError, ServiceTimeoutError, AuthorizationError, ValidationError
+
 logger = logging.getLogger(__name__)
 
 class RequestRouter:

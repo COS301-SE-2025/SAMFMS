@@ -358,48 +358,13 @@ services:
     environment:
       - REACT_APP_CORE_PORT=${CORE_PORT:-21004}
       - REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL:-http://localhost:21004/api}
-      - REACT_APP_DOMAIN=${REACT_APP_DOMAIN}
-      - REACT_APP_WS_TARGET=${REACT_APP_WS_TARGET:-wss://capstone-samfms.dns.net.za:21017}
+      - REACT_APP_DOMAIN=${REACT_APP_DOMAIN:-localhost}
+      - REACT_APP_WS_TARGET=${REACT_APP_WS_TARGET:-ws://localhost:21004}
       - CHOKIDAR_USEPOLLING=${HOT_RELOAD:-false}
       - NODE_ENV=${NODE_ENV:-production}
     depends_on:
       - core
     restart: unless-stopped
-    networks:
-      - samfms-network
-
-  # Nginx reverse proxy with SSL (production)
-  nginx:
-    image: nginx:alpine
-    ports:
-      - '${NGINX_HTTP_PORT:-21016}:80'
-      - '${NGINX_HTTPS_PORT:-21017}:443'
-    volumes:
-      - ./nginx/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
-      - ./ssl-certs:/etc/ssl/certs:ro
-      - ./ssl-private:/etc/ssl/private:ro
-      - ./certbot/conf:/etc/letsencrypt:ro
-      - ./certbot/www:/var/www/certbot:ro
-    environment:
-      - NGINX_ENVSUBST_TEMPLATE_DIR=/etc/nginx/templates
-      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
-      - DOMAIN=${REACT_APP_DOMAIN:-capstone-samfms.dns.net.za}
-      - NGINX_HTTPS_PORT=${NGINX_HTTPS_PORT:-21017}
-    depends_on:
-      - frontend
-      - core
-    restart: unless-stopped
-    networks:
-      - samfms-network
-
-  # Certbot for Let's Encrypt SSL (production)
-  certbot:
-    image: certbot/certbot:latest
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    restart: unless-stopped
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done;'"
     networks:
       - samfms-network
 

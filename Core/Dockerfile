@@ -36,15 +36,19 @@ ENV OPENBLAS_CORETYPE=generic
 ENV MKL_DEBUG_CPU_TYPE=5
 ENV PYTHONUNBUFFERED=1
 
-# Install MongoDB - combined into a single RUN command to reduce layers
-RUN curl -fsSL https://pgp.mongodb.com/server-7.0.asc | gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor && \
-    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" \
-      > /etc/apt/sources.list.d/mongodb-org-7.0.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends mongodb-org && \
-    rm -rf /var/lib/apt/lists/* && \
-    # Create docker group in the same layer
-    groupadd -f docker
+# Create docker group (no MongoDB client needed - Python motor handles DB connections)
+# Since you're using MongoDB service from docker-compose and connecting via Python motor,
+# no additional MongoDB client tools are required
+RUN groupadd -f docker
+
+# OPTIONAL: If you need full MongoDB server, uncomment below and comment above
+# RUN curl -fsSL https://pgp.mongodb.com/server-7.0.asc | gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor && \
+#     echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" \
+#       > /etc/apt/sources.list.d/mongodb-org-7.0.list && \
+#     apt-get update && \
+#     apt-get install -y --no-install-recommends mongodb-org && \
+#     rm -rf /var/lib/apt/lists/* && \
+#     groupadd -f docker
 
 # Copy only essential files needed for operations - leverage .dockerignore
 # This is much more selective than copying everything

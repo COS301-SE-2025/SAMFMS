@@ -112,8 +112,18 @@ def verify_token_with_security_service(token: str) -> Dict:
         
         if response.status_code == 200:
             return response.json()
+        elif response.status_code == 401:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token"
+            )
+        elif response.status_code == 403:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions"
+            )
         else:
-            raise requests.RequestException(f"Token verification failed with status {response.status_code}")
+            raise requests.RequestException(f"Token verification failed with status {response.status_code}: {response.text}")
     
     try:
         return security_service_breaker.call(_verify_request)

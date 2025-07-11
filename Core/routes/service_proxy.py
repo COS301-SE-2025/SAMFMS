@@ -8,8 +8,15 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Dict, Any, List, Optional
 import logging
 
+from utils.exceptions import (
+    ServiceUnavailableError, 
+    AuthorizationError, 
+    ValidationError, 
+    ServiceTimeoutError
+)
 from services.request_router import request_router
 from services.core_auth_service import core_auth_service
+from utils.response_utils import standardize_vehicle_response, APIResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Service Proxy"])
@@ -47,11 +54,23 @@ async def get_vehicles(
         
         return standardized_response
         
+    except AuthorizationError as e:
+        logger.warning(f"Authorization failed for get_vehicles: {e.message}")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
+    except ServiceUnavailableError as e:
+        logger.error(f"Service unavailable for get_vehicles: {e.message}")
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=e.message)
+    except ServiceTimeoutError as e:
+        logger.error(f"Service timeout for get_vehicles: {e.message}")
+        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=e.message)
+    except ValidationError as e:
+        logger.warning(f"Validation error in get_vehicles: {e.message}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message)
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error in get_vehicles: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Unexpected error in get_vehicles: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
 
 @router.post("/vehicles")
 async def create_vehicle(
@@ -60,6 +79,15 @@ async def create_vehicle(
 ):
     """Create vehicle via Management service"""
     try:
+        # Validate input data
+        if not vehicle_data:
+            raise ValidationError("Vehicle data is required")
+        
+        required_fields = ["make", "model", "license_plate"]
+        missing_fields = [field for field in required_fields if field not in vehicle_data]
+        if missing_fields:
+            raise ValidationError(f"Missing required fields: {', '.join(missing_fields)}")
+        
         user_context = await core_auth_service.authorize_request(
             credentials.credentials, "/api/vehicles", "POST"
         )
@@ -73,11 +101,23 @@ async def create_vehicle(
         
         return response
         
+    except AuthorizationError as e:
+        logger.warning(f"Authorization failed for create_vehicle: {e.message}")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
+    except ServiceUnavailableError as e:
+        logger.error(f"Service unavailable for create_vehicle: {e.message}")
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=e.message)
+    except ServiceTimeoutError as e:
+        logger.error(f"Service timeout for create_vehicle: {e.message}")
+        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=e.message)
+    except ValidationError as e:
+        logger.warning(f"Validation error in create_vehicle: {e.message}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message)
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error in create_vehicle: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Unexpected error in create_vehicle: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
 
 @router.get("/vehicles/{vehicle_id}")
 async def get_vehicle(
