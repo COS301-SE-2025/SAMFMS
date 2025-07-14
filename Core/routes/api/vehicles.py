@@ -146,16 +146,46 @@ async def get_drivers(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    """Get all drivers via Management service"""
-    response = await handle_service_request(
-        endpoint="/api/drivers",
-        method="GET",
-        data=dict(request.query_params),
-        credentials=credentials,
-        auth_endpoint="/api/vehicles/drivers"
-    )
+    """Get all drivers from Auth service (users with driver role) - handled locally"""
+    import httpx
+    import os
     
-    return response
+    try:
+        # Get the Security service URL  
+        security_url = os.getenv("SECURITY_URL", "http://security:8000")
+        
+        logger.info(f"Fetching drivers from Auth service at {security_url}")
+        
+        # Get all users from Auth service
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{security_url}/auth/users",
+                headers={"Authorization": f"Bearer {credentials.credentials}"},
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                all_users = response.json()
+                # Filter for users with 'driver' role
+                drivers = [user for user in all_users if user.get('role') == 'driver']
+                logger.info(f"Found {len(drivers)} drivers out of {len(all_users)} total users")
+                return drivers
+            else:
+                logger.error(f"Failed to fetch users from Auth service: {response.status_code} - {response.text}")
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Failed to fetch drivers: {response.text}"
+                )
+                
+    except httpx.TimeoutException:
+        logger.error("Timeout while fetching users from Auth service")
+        raise HTTPException(status_code=504, detail="Auth service timeout")
+    except httpx.RequestError as e:
+        logger.error(f"Request error while fetching users: {str(e)}")
+        raise HTTPException(status_code=502, detail="Auth service unavailable")
+    except Exception as e:
+        logger.error(f"Error fetching drivers: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal service error")
 
 @router.post("/vehicles/drivers")
 async def create_driver(

@@ -13,8 +13,8 @@ const ASSIGNMENT_ENDPOINTS = {
   update: API_ENDPOINTS.ASSIGNMENTS.UPDATE,
   delete: API_ENDPOINTS.ASSIGNMENTS.DELETE,
   metrics: buildApiUrl('/analytics/assignment-metrics'),
-  complete: id => buildApiUrl(`/vehicle-assignments/${id}/complete`),
-  cancel: id => buildApiUrl(`/vehicle-assignments/${id}/cancel`),
+  complete: API_ENDPOINTS.ASSIGNMENTS.COMPLETE,
+  cancel: API_ENDPOINTS.ASSIGNMENTS.CANCEL,
 };
 
 /**
@@ -94,38 +94,32 @@ export const deleteVehicleAssignment = async assignmentId => {
 
 /**
  * Complete a vehicle assignment
- * @param {string} assignmentId - Assignment ID
- * @param {Object} completionData - Completion data (end_mileage, notes, etc.)
- * @returns {Promise<Object>} Completed assignment data
+ * @param {string} assignmentId - Assignment ID to complete
+ * @param {Object} completionData - Completion data (notes, completion time, etc.)
+ * @returns {Promise<Object>} Updated assignment data
  */
 export const completeVehicleAssignment = async (assignmentId, completionData = {}) => {
   try {
-    if (!assignmentId) {
-      throw new Error('Assignment ID is required');
-    }
-
-    return await httpClient.post(ASSIGNMENT_ENDPOINTS.complete(assignmentId), completionData);
+    const endpoint = ASSIGNMENT_ENDPOINTS.complete(assignmentId);
+    return await httpClient.put(endpoint, completionData);
   } catch (error) {
-    console.error(`Error completing vehicle assignment ${assignmentId}:`, error);
+    console.error(`Error completing assignment ${assignmentId}:`, error);
     throw error;
   }
 };
 
 /**
  * Cancel a vehicle assignment
- * @param {string} assignmentId - Assignment ID
- * @param {Object} cancellationData - Cancellation data (reason, notes, etc.)
- * @returns {Promise<Object>} Cancelled assignment data
+ * @param {string} assignmentId - Assignment ID to cancel
+ * @param {Object} cancellationData - Cancellation data (reason, cancellation time, etc.)
+ * @returns {Promise<Object>} Updated assignment data
  */
 export const cancelVehicleAssignment = async (assignmentId, cancellationData = {}) => {
   try {
-    if (!assignmentId) {
-      throw new Error('Assignment ID is required');
-    }
-
-    return await httpClient.post(ASSIGNMENT_ENDPOINTS.cancel(assignmentId), cancellationData);
+    const endpoint = ASSIGNMENT_ENDPOINTS.cancel(assignmentId);
+    return await httpClient.put(endpoint, cancellationData);
   } catch (error) {
-    console.error(`Error cancelling vehicle assignment ${assignmentId}:`, error);
+    console.error(`Error cancelling assignment ${assignmentId}:`, error);
     throw error;
   }
 };

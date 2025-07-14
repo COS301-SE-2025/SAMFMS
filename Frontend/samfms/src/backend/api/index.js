@@ -19,6 +19,9 @@ export * from './invitations';
 // Export analytics functionality
 export * from './analytics';
 
+// Export maintenance functionality
+export * from './maintenance';
+
 // Export services
 export { httpClient } from '../services/httpClient';
 export * from '../services/errorHandler';

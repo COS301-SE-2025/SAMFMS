@@ -211,6 +211,14 @@ except ImportError as e:
     logger.warning(f"⚠️  Consolidated routes could not be imported: {e}")
     logger.info("Service will continue with individual routes")
 
+# Import maintenance routes
+try:
+    from routes.maintenance import router as maintenance_router
+    app.include_router(maintenance_router)
+    logger.info("✅ Maintenance routes configured")
+except ImportError as e:
+    logger.warning(f"⚠️  Maintenance routes could not be imported: {e}")
+
 # Add a simple test route to verify routing works
 @app.get("/test-auth")
 async def test_auth_route():

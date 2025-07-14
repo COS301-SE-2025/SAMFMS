@@ -160,33 +160,6 @@ services:
     networks:
       - samfms-network
 
-  vehicle_maintenance:
-    build: ./Sblocks/vehicle_maintenance
-    ports:
-      - '${VEHICLE_MAINTENANCE_SERVICE_PORT:-21007}:8000'
-    environment:
-      - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
-      - DATABASE_NAME=${DATABASE_VEHICLE_MAINTENANCE:-samfms_vehicle_maintenance}
-      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - SERVICE_STARTUP_DELAY=${SERVICE_STARTUP_DELAY:-10}
-      - RABBITMQ_CONNECTION_RETRY_ATTEMPTS=${RABBITMQ_CONNECTION_RETRY_ATTEMPTS:-30}
-      - RABBITMQ_CONNECTION_RETRY_DELAY=${RABBITMQ_CONNECTION_RETRY_DELAY:-2}
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 45s
-    restart: unless-stopped
-    networks:
-      - samfms-network
-
   utilities:
     build: ./Sblocks/utilities
     ports:
@@ -254,6 +227,42 @@ services:
       - CORE_PORT=8000
       - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
       - DATABASE_NAME=${DATABASE_MANAGEMENT:-samfms_management}
+      - DATABASE_VEHICLES=${DATABASE_VEHICLES:-samfms_vehicles}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SERVICE_STARTUP_DELAY=${SERVICE_STARTUP_DELAY:-10}
+      - RABBITMQ_CONNECTION_RETRY_ATTEMPTS=${RABBITMQ_CONNECTION_RETRY_ATTEMPTS:-30}
+      - RABBITMQ_CONNECTION_RETRY_DELAY=${RABBITMQ_CONNECTION_RETRY_DELAY:-2}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - samfms-network
+
+  maintenance:
+    build: ./Sblocks/maintenance
+    ports:
+      - '${MAINTENANCE_SERVICE_PORT:-21016}:8000'
+    environment:
+      - MAINTENANCE_PORT=8000
+      - MAINTENANCE_HOST=maintenance
+      - CORE_HOST=core
+      - CORE_PORT=8000
+      - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
+      - DATABASE_NAME=${DATABASE_MAINTENANCE:-samfms_maintenance}
       - DATABASE_VEHICLES=${DATABASE_VEHICLES:-samfms_vehicles}
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
       - REDIS_HOST=${REDIS_HOST:-redis}

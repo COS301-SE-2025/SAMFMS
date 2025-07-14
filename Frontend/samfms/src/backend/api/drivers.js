@@ -30,22 +30,51 @@ export const createDriver = async driverData => {
 
 /**
  * Get list of drivers with optional filters
+ * Uses the auth/users endpoint and filters for users with driver role
  * @param {Object} params - Query parameters (skip, limit, status_filter, department_filter)
  * @returns {Promise<Object>} Drivers list with pagination info
  */
 export const getDrivers = async (params = {}) => {
   try {
-    const queryParams = new URLSearchParams();
-    if (params.skip) queryParams.append('skip', params.skip);
-    if (params.limit) queryParams.append('limit', params.limit);
-    if (params.status_filter) queryParams.append('status_filter', params.status_filter);
-    if (params.department_filter) queryParams.append('department_filter', params.department_filter);
+    console.log('Fetching drivers using auth/users endpoint...');
 
-    const endpoint = `${DRIVER_ENDPOINTS.list}${
-      queryParams.toString() ? '?' + queryParams.toString() : ''
-    }`;
+    // Get all users from the auth service directly
+    const allUsers = await httpClient.get('/auth/users');
 
-    return await httpClient.get(endpoint);
+    // Filter for users with 'driver' role
+    const drivers = allUsers.filter(user => user.role === 'driver');
+
+    console.log(`Found ${drivers.length} drivers out of ${allUsers.length} total users`);
+
+    // Apply optional filters if provided
+    let filteredDrivers = drivers;
+
+    if (params.status_filter) {
+      // Convert status filter to match auth service data structure
+      const isActiveFilter = params.status_filter.toLowerCase() === 'active';
+      filteredDrivers = filteredDrivers.filter(driver => driver.is_active === isActiveFilter);
+    }
+
+    if (params.department_filter) {
+      filteredDrivers = filteredDrivers.filter(
+        driver => driver.details?.department === params.department_filter
+      );
+    }
+
+    // Apply pagination if provided
+    const skip = parseInt(params.skip) || 0;
+    const limit = parseInt(params.limit) || filteredDrivers.length;
+
+    const paginatedDrivers = filteredDrivers.slice(skip, skip + limit);
+
+    // Return in the expected format with pagination info
+    return {
+      drivers: paginatedDrivers,
+      total: filteredDrivers.length,
+      skip: skip,
+      limit: limit,
+      has_more: skip + limit < filteredDrivers.length,
+    };
   } catch (error) {
     console.error('Error fetching drivers:', error);
     throw error;
@@ -54,7 +83,8 @@ export const getDrivers = async (params = {}) => {
 
 /**
  * Get a specific driver by ID
- * @param {string} driverId - Driver ID (can be MongoDB ObjectId or employee ID)
+ * Uses the auth service to find a user with driver role by ID
+ * @param {string} driverId - Driver ID (user ID)
  * @returns {Promise<Object>} Driver data
  */
 export const getDriver = async driverId => {
@@ -63,7 +93,20 @@ export const getDriver = async driverId => {
       throw new Error('Driver ID is required');
     }
 
-    return await httpClient.get(DRIVER_ENDPOINTS.get(driverId));
+    console.log(`Fetching driver ${driverId} using auth/users endpoint...`);
+
+    // Get all users from the auth service directly
+    const allUsers = await httpClient.get('/auth/users');
+
+    // Find the specific driver by ID
+    const driver = allUsers.find(user => user.id === driverId && user.role === 'driver');
+
+    if (!driver) {
+      throw new Error(`Driver with ID ${driverId} not found`);
+    }
+
+    console.log(`Found driver: ${driver.full_name}`);
+    return driver;
   } catch (error) {
     console.error(`Error fetching driver ${driverId}:`, error);
     throw error;
@@ -109,6 +152,7 @@ export const deleteDriver = async driverId => {
 
 /**
  * Search drivers by query
+ * Uses the auth service and filters drivers by name, email, etc.
  * @param {string} query - Search query
  * @returns {Promise<Array>} Array of matching drivers
  */
@@ -118,9 +162,25 @@ export const searchDrivers = async query => {
       throw new Error('Search query is required');
     }
 
-    // Note: This endpoint might need to be added to API_ENDPOINTS if it doesn't exist
-    const searchEndpoint = `/drivers/search/${encodeURIComponent(query)}`;
-    return await httpClient.get(searchEndpoint);
+    console.log(`Searching drivers for query: "${query}"`);
+
+    // Get all users from the auth service directly
+    const allUsers = await httpClient.get('/auth/users');
+
+    // Filter for drivers first
+    const drivers = allUsers.filter(user => user.role === 'driver');
+
+    // Search within drivers by name, email, etc.
+    const searchTerm = query.toLowerCase();
+    const matchingDrivers = drivers.filter(
+      driver =>
+        driver.full_name?.toLowerCase().includes(searchTerm) ||
+        driver.email?.toLowerCase().includes(searchTerm) ||
+        driver.phoneNo?.includes(searchTerm)
+    );
+
+    console.log(`Found ${matchingDrivers.length} drivers matching "${query}"`);
+    return matchingDrivers;
   } catch (error) {
     console.error(`Error searching drivers with query "${query}":`, error);
     throw error;

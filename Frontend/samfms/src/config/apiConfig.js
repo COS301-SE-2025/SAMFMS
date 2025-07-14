@@ -127,10 +127,12 @@ export const API_ENDPOINTS = {
 
   // Vehicle Assignments
   ASSIGNMENTS: {
-    LIST: '/api/vehicle-assignments',
-    CREATE: '/api/vehicle-assignments',
-    UPDATE: id => `/api/vehicle-assignments/${id}`,
-    DELETE: id => `/api/vehicle-assignments/${id}`,
+    LIST: '/api/assignments',
+    CREATE: '/api/assignments',
+    UPDATE: id => `/api/assignments/${id}`,
+    DELETE: id => `/api/assignments/${id}`,
+    COMPLETE: id => `/api/assignments/${id}/complete`,
+    CANCEL: id => `/api/assignments/${id}/cancel`,
   },
 
   // GPS and Tracking

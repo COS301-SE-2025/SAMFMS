@@ -251,8 +251,22 @@ class ServiceRequestConsumer:
         from services.analytics_service import analytics_service
         
         if method == "GET":
+            use_cache = data.get("use_cache", True)
+            
             if endpoint == "/api/v1/analytics":
                 return await analytics_service.get_analytics_data(data)
+            elif endpoint == "/api/v1/analytics/dashboard":
+                return await analytics_service.get_dashboard_analytics(use_cache=use_cache)
+            elif endpoint == "/api/v1/analytics/fleet-utilization":
+                return await analytics_service.get_fleet_utilization(use_cache=use_cache)
+            elif endpoint == "/api/v1/analytics/vehicle-usage":
+                return await analytics_service.get_vehicle_usage(use_cache=use_cache)
+            elif endpoint == "/api/v1/analytics/assignment-metrics":
+                return await analytics_service.get_assignment_metrics(use_cache=use_cache)
+            elif endpoint == "/api/v1/analytics/driver-performance":
+                return await analytics_service.get_driver_performance(use_cache=use_cache)
+            elif endpoint == "/api/v1/analytics/cost-analysis":
+                return await analytics_service.get_cost_analysis(use_cache=use_cache)
         
         raise ValueError(f"Unsupported analytics operation: {method} {endpoint}")
     

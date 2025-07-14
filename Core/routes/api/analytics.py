@@ -3,9 +3,9 @@ Analytics Routes
 Handles all analytics and reporting operations through service proxy
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from fastapi.security import HTTPAuthorizationCredentials
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import logging
 
 from .base import security, handle_service_request
@@ -13,9 +13,29 @@ from .base import security, handle_service_request
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Analytics"])
 
+@router.get("/analytics/dashboard")
+async def get_dashboard_analytics(
+    request: Request,
+    use_cache: bool = Query(True, description="Use cached data if available"),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get comprehensive dashboard analytics via Management service"""
+    logger.info(f"Received dashboard analytics request with params: {dict(request.query_params)}")
+    
+    response = await handle_service_request(
+        endpoint="/api/analytics/dashboard",
+        method="GET",
+        data=dict(request.query_params),
+        credentials=credentials,
+        auth_endpoint="/api/analytics"
+    )
+    
+    return response
+
 @router.get("/analytics/fleet-utilization")
 async def get_fleet_utilization(
     request: Request,
+    use_cache: bool = Query(True, description="Use cached data if available"),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Get fleet utilization analytics"""
@@ -30,8 +50,9 @@ async def get_fleet_utilization(
     return response
 
 @router.get("/analytics/vehicle-usage")
-async def get_vehicle_usage(
+async def get_vehicle_usage_analytics(
     request: Request,
+    use_cache: bool = Query(True, description="Use cached data if available"),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Get vehicle usage analytics"""
@@ -48,27 +69,14 @@ async def get_vehicle_usage(
 @router.get("/analytics/assignment-metrics")
 async def get_assignment_metrics(
     request: Request,
+    use_cache: bool = Query(True, description="Use cached data if available"),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    """Get assignment metrics analytics"""
+    """Get assignment metrics via Management service"""
+    logger.info(f"Received assignment metrics request with params: {dict(request.query_params)}")
+    
     response = await handle_service_request(
         endpoint="/api/analytics/assignment-metrics",
-        method="GET",
-        data=dict(request.query_params),
-        credentials=credentials,
-        auth_endpoint="/api/analytics"
-    )
-    
-    return response
-
-@router.get("/analytics/maintenance")
-async def get_maintenance_analytics(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    """Get maintenance analytics"""
-    response = await handle_service_request(
-        endpoint="/api/analytics/maintenance",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
@@ -80,9 +88,12 @@ async def get_maintenance_analytics(
 @router.get("/analytics/driver-performance")
 async def get_driver_performance(
     request: Request,
+    use_cache: bool = Query(True, description="Use cached data if available"),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    """Get driver performance analytics"""
+    """Get driver performance analytics via Management service"""
+    logger.info(f"Received driver performance request with params: {dict(request.query_params)}")
+    
     response = await handle_service_request(
         endpoint="/api/analytics/driver-performance",
         method="GET",
@@ -93,14 +104,17 @@ async def get_driver_performance(
     
     return response
 
-@router.get("/analytics/costs")
-async def get_costs_analytics(
+@router.get("/analytics/cost-analytics")
+async def get_cost_analytics(
     request: Request,
+    use_cache: bool = Query(True, description="Use cached data if available"),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    """Get cost analytics"""
+    """Get cost analytics via Management service"""
+    logger.info(f"Received cost analytics request with params: {dict(request.query_params)}")
+    
     response = await handle_service_request(
-        endpoint="/api/analytics/costs",
+        endpoint="/api/analytics/cost-analytics",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,

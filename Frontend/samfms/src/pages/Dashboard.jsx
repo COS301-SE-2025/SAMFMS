@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
-import { getTotalVehicles } from '../backend/api/analytics';
+import {
+  getTotalVehicles,
+  getAssignmentMetrics,
+  getDashboardAnalytics,
+} from '../backend/api/analytics';
 
 import StatusBreakdownPieChart from '../components/analytics/StatusBreakdownPieChart';
+import AssignmentMetricsCard from '../components/analytics/AssignmentMetricsCard';
 import { getStatusBreakdown } from '../backend/api/analytics';
 import { getVehicles } from '../backend/API';
 
@@ -21,6 +26,8 @@ const Dashboard = () => {
   const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
   const [analytics, setAnalytics] = useState({});
+  const [assignmentMetrics, setAssignmentMetrics] = useState({});
+  const [loadingAssignments, setLoadingAssignments] = useState(true);
 
   useEffect(() => {
     const fetchTotalVehicles = async () => {
@@ -53,8 +60,22 @@ const Dashboard = () => {
       }
     };
 
+    const fetchAssignmentMetrics = async () => {
+      try {
+        setLoadingAssignments(true);
+        const response = await getAssignmentMetrics();
+        setAssignmentMetrics(response.data || response);
+      } catch (error) {
+        console.error('Error fetching assignment metrics:', error);
+        setAssignmentMetrics({});
+      } finally {
+        setLoadingAssignments(false);
+      }
+    };
+
     fetchTotalVehicles();
     fetchStatusBreakdown();
+    fetchAssignmentMetrics();
   }, []);
 
   return (
@@ -124,6 +145,9 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Vehicle Status Breakdown Pie Chart */}
           <StatusBreakdownPieChart stats={analytics?.status_breakdown || []} />
+
+          {/* Assignment Metrics */}
+          <AssignmentMetricsCard data={loadingAssignments ? null : assignmentMetrics} />
         </div>
       </div>
     </div>

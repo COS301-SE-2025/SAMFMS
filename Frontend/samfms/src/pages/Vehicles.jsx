@@ -379,6 +379,29 @@ const Vehicles = () => {
   const closeAssignmentModal = () => {
     setShowAssignmentModal(false);
   };
+
+  // Callback to refresh vehicles after assignment
+  const handleAssignmentComplete = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = {
+        limit: 100,
+        ...(filters.status && { status_filter: filters.status.toLowerCase() }),
+        ...(filters.make && { make_filter: filters.make }),
+      };
+      const response = await getVehicles(params);
+      const vehiclesArray = response.vehicles || response || [];
+      const transformedVehicles = vehiclesArray
+        .map(transformVehicleData)
+        .filter(vehicle => vehicle !== null);
+      setVehicles(transformedVehicles);
+      setAnalytics(response.analytics || {});
+    } catch (error) {
+      console.error('Error refreshing vehicles after assignment:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, transformVehicleData]);
   // Analytics are always shown now
 
   // Bulk operations
@@ -505,6 +528,7 @@ const Vehicles = () => {
             handleSelectVehicle={handleSelectVehicle}
             vehicles={vehicles}
             currentVehicle={currentVehicle}
+            onAssignmentComplete={handleAssignmentComplete}
           />
         )}{' '}
         {/* Add Vehicle Modal */}

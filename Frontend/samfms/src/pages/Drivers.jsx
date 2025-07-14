@@ -1,5 +1,5 @@
-import React, {useState, useEffect, useCallback} from 'react';
-import {PlusCircle} from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { PlusCircle } from 'lucide-react';
 import DriverList from '../components/drivers/DriverList';
 import DriverSearch from '../components/drivers/DriverSearch';
 import DriverActions from '../components/drivers/DriverActions';
@@ -8,7 +8,7 @@ import VehicleAssignmentModal from '../components/drivers/VehicleAssignmentModal
 import AddDriverModal from '../components/drivers/AddDriverModal';
 import EditDriverModal from '../components/drivers/EditDriverModal';
 import DataVisualization from '../components/drivers/DataVisualization';
-import {getDrivers, deleteDriver, searchDrivers} from '../backend/API';
+import { getDrivers, deleteDriver, searchDrivers } from '../backend/API';
 
 const Drivers = () => {
   const [drivers, setDrivers] = useState([]);
@@ -38,21 +38,24 @@ const Drivers = () => {
   }, []); // Transform backend driver data to frontend format
   const transformDriverData = useCallback(
     backendDriver => {
-      // Store MongoDB ObjectId for backward compatibility
+      // Handle auth service data structure
       const driverId = backendDriver.id || backendDriver._id;
+
       return {
         id: driverId,
-        name: backendDriver.full_name || backendDriver.user_info?.full_name || 'Unknown',
-        licenseNumber: backendDriver.license_number || 'N/A',
-        phone: backendDriver.phone || backendDriver.user_info?.phoneNo || 'N/A',
-        licenseExpiry: backendDriver.license_expiry || 'N/A',
-        email: backendDriver.email || backendDriver.user_info?.email || 'N/A',
-        status: backendDriver.status
-          ? capitalizeStatus(backendDriver.status)
-          : backendDriver.is_active
-          ? 'Active'
-          : 'Inactive',
-        employeeId: backendDriver.employee_id || backendDriver._id || 'N/A',
+        name: backendDriver.full_name || 'Unknown',
+        licenseNumber: backendDriver.details?.license_number || 'N/A',
+        phone: backendDriver.phoneNo || 'N/A',
+        licenseExpiry: backendDriver.details?.license_expiry || 'N/A',
+        email: backendDriver.email || 'N/A',
+        status: backendDriver.is_active ? 'Active' : 'Inactive',
+        employeeId: backendDriver.details?.employee_id || backendDriver.id || 'N/A',
+        department: backendDriver.details?.department || 'N/A',
+        licenseType: backendDriver.details?.license_type || 'N/A',
+        permissions: backendDriver.permissions || [],
+        last_login: backendDriver.last_login,
+        preferences: backendDriver.preferences || {},
+        role: backendDriver.role,
       };
     },
     [capitalizeStatus]
@@ -246,7 +249,7 @@ const Drivers = () => {
       console.error('Error processing new driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getDrivers({limit: 100});
+        const response = await getDrivers({ limit: 100 });
         const transformedDrivers = response.map(transformDriverData);
         setDrivers(transformedDrivers);
         setFilteredDrivers(transformedDrivers);
@@ -292,7 +295,7 @@ const Drivers = () => {
       console.error('Error processing updated driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getDrivers({limit: 100});
+        const response = await getDrivers({ limit: 100 });
         const transformedDrivers = response.map(transformDriverData);
         setDrivers(transformedDrivers);
         setFilteredDrivers(transformedDrivers);
@@ -326,7 +329,7 @@ const Drivers = () => {
   };
 
   // Local Search Function
-  const localSearchDrivers = (searchTerm) => {
+  const localSearchDrivers = searchTerm => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return;
 
