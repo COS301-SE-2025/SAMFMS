@@ -18,20 +18,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Debug & Testing"])
 
 @router.get("/debug/routes")
-async def list_routes(request):
-    """Debug endpoint to list all available routes"""
-    routes = []
-    app = request.app
-    for route in app.routes:
-        if hasattr(route, 'methods') and hasattr(route, 'path'):
-            routes.append({
-                "path": route.path,
-                "methods": list(route.methods) if route.methods else [],
-                "name": getattr(route, 'name', 'unknown')
-            })
-    return {"routes": routes}
-
-@router.get("/debug/routes")
 async def debug_routes(request):
     """Debug endpoint to check what routes are registered"""
     routes_info = []

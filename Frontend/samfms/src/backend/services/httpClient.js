@@ -110,7 +110,7 @@ class HttpClient {
     while (retries <= maxRetries) {
       try {
         const token = getToken();
-        
+
         // Prepare headers
         const headers = {
           'Content-Type': 'application/json',
@@ -129,7 +129,6 @@ class HttpClient {
 
         const response = await this.fetchWithTimeout(url, requestOptions);
         return await this.handleResponse(response);
-
       } catch (error) {
         // Check if error is due to token expiration
         if (this.isTokenExpiredError(error)) {
@@ -149,11 +148,12 @@ class HttpClient {
         }
 
         // For non-token errors, only retry on network/timeout errors
-        if (retries < maxRetries && (
-          error.message.includes('timeout') ||
-          error.message.includes('network') ||
-          error.message.includes('fetch')
-        )) {
+        if (
+          retries < maxRetries &&
+          (error.message.includes('timeout') ||
+            error.message.includes('network') ||
+            error.message.includes('fetch'))
+        ) {
           retries++;
           // Add exponential backoff
           await new Promise(resolve => setTimeout(resolve, 1000 * retries));

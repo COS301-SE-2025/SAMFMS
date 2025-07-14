@@ -122,6 +122,7 @@ export const API_ENDPOINTS = {
     GET: id => `/drivers/${id}`,
     UPDATE: id => `/drivers/${id}`,
     DELETE: id => `/drivers/${id}`,
+    SEARCH: query => `/drivers/search/${query}`,
   },
 
   // Vehicle Assignments

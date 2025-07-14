@@ -1,4 +1,4 @@
-import { fetchWithTimeout, getToken } from './auth';
+import { httpClient } from '../services/httpClient';
 import { buildApiUrl } from '../../config/apiConfig';
 
 // Plugin API endpoints using centralized configuration
@@ -16,24 +16,7 @@ const PLUGIN_ENDPOINTS = {
  */
 export const getPlugins = async () => {
   try {
-    const token = getToken();
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
-    const response = await fetchWithTimeout(PLUGIN_ENDPOINTS.list, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch plugins: ${response.statusText}`);
-    }
-
-    return await response.json();
+    return await httpClient.get('/plugins/available');
   } catch (error) {
     console.error('Error fetching plugins:', error);
     throw error;

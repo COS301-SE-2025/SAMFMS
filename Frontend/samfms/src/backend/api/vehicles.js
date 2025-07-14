@@ -20,7 +20,7 @@ const VEHICLE_ENDPOINTS = {
  * @param {Object} vehicleData - Vehicle data to create
  * @returns {Promise<Object>} Created vehicle data
  */
-export const createVehicle = async (vehicleData) => {
+export const createVehicle = async vehicleData => {
   try {
     return await httpClient.post(VEHICLE_ENDPOINTS.create, vehicleData);
   } catch (error) {
@@ -58,7 +58,7 @@ export const getVehicles = async (params = {}) => {
  * @param {string} vehicleId - Vehicle ID
  * @returns {Promise<Object>} Vehicle data
  */
-export const getVehicle = async (vehicleId) => {
+export const getVehicle = async vehicleId => {
   try {
     if (!vehicleId) {
       throw new Error('Vehicle ID is required');
@@ -95,7 +95,7 @@ export const updateVehicle = async (vehicleId, updateData) => {
  * @param {string} vehicleId - Vehicle ID
  * @returns {Promise<Object>} Deletion confirmation
  */
-export const deleteVehicle = async (vehicleId) => {
+export const deleteVehicle = async vehicleId => {
   try {
     if (!vehicleId) {
       throw new Error('Vehicle ID is required');
@@ -113,14 +113,14 @@ export const deleteVehicle = async (vehicleId) => {
  * @param {string} query - Search query
  * @returns {Promise<Array>} Array of matching vehicles
  */
-export const searchVehicles = async (query) => {
+export const searchVehicles = async query => {
   try {
     if (!query) {
       throw new Error('Search query is required');
     }
 
     const result = await httpClient.get(VEHICLE_ENDPOINTS.search(encodeURIComponent(query)));
-    
+
     // Return the vehicles array or the whole result if it's already an array
     return result.vehicles || result || [];
   } catch (error) {

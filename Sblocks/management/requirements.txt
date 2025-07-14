@@ -4,7 +4,8 @@ redis
 pymongo
 motor
 pika
+aio_pika
 pyjwt
 requests
 python-multipart
-aio_pika
+asyncio-mqtt

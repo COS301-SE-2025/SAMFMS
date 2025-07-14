@@ -1,326 +1,247 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-import redis
-import pika
-import logging
-import json
-import os
+"""
+Reorganized main application with event-driven architecture
+"""
 import asyncio
-import uvicorn
+import logging
+import os
 from datetime import datetime, timezone
+from contextlib import asynccontextmanager
 
-from database import test_database_connection, create_indexes
-from routes import router as vehicle_routes
-from message_queue import MessageQueueService
-from service_request_handler import service_request_handler
-from analytics import router as analytics_router
-from database import security_users_collection
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-#from logging_config import setup_logging
-#from health_metrics import health_metrics
+# Import new organized modules
+from repositories.database import db_manager
+from events.publisher import event_publisher
+from events.consumer import event_consumer, setup_event_handlers
+from services.analytics_service import analytics_service
+from api.routes.analytics import router as analytics_router
+from api.routes.assignments import router as assignments_router
+from api.routes.drivers import router as drivers_router
+from middleware import LoggingMiddleware, SecurityHeadersMiddleware
 
-#setup_logging()
-logging.basicConfig(level=logging.INFO)
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    logger.info("🚀 Management Service Starting Up...")
+    
+    try:
+        # Connect to database
+        logger.info("🔗 Connecting to database...")
+        await db_manager.connect()
+        logger.info("✅ Database connected successfully")
+        
+        # Connect to RabbitMQ for event publishing
+        logger.info("🔗 Connecting to RabbitMQ for event publishing...")
+        publisher_connected = await event_publisher.connect()
+        if publisher_connected:
+            logger.info("✅ Event publisher connected successfully")
+        else:
+            logger.warning("⚠️ Event publisher connection failed - continuing without events")
+        
+        # Setup and start event consumer
+        logger.info("🔗 Setting up event consumer...")
+        consumer_connected = await event_consumer.connect()
+        if consumer_connected:
+            await setup_event_handlers()
+            # Start consuming in background
+            asyncio.create_task(event_consumer.start_consuming())
+            logger.info("✅ Event consumer started successfully")
+        else:
+            logger.warning("⚠️ Event consumer connection failed - continuing without event consumption")
+        
+        # Publish service started event
+        if publisher_connected:
+            await event_publisher.publish_service_started(
+                version="2.0.0",
+                data={
+                    "reorganized": True,
+                    "event_driven": True,
+                    "optimized": True,
+                    "features": ["analytics_caching", "event_driven_communication", "repository_pattern"]
+                }
+            )
+        
+        # Schedule background tasks
+        asyncio.create_task(background_tasks())
+        
+        logger.info("🎉 Management Service Startup Completed")
+        
+        yield
+        
+    except Exception as e:
+        logger.error(f"💥 CRITICAL ERROR DURING STARTUP: {e}")
+        raise
+    
+    finally:
+        # Cleanup on shutdown
+        logger.info("🛑 Management Service Shutting Down...")
+        
+        # Publish service stopped event
+        try:
+            if event_publisher.connection and not event_publisher.connection.is_closed:
+                await event_publisher.publish_service_stopped(version="2.0.0")
+        except Exception as e:
+            logger.error(f"Error publishing shutdown event: {e}")
+        
+        # Close connections
+        try:
+            await event_publisher.disconnect()
+            await event_consumer.disconnect()
+            await db_manager.disconnect()
+            logger.info("✅ All connections closed successfully")
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
+        
+        logger.info("👋 Management Service Shutdown Completed")
+
+
+async def background_tasks():
+    """Background tasks for maintenance"""
+    while True:
+        try:
+            # Clean up expired analytics cache every 10 minutes
+            await asyncio.sleep(600)  # 10 minutes
+            await analytics_service.cleanup_expired_cache()
+            
+            # Refresh critical analytics every 30 minutes
+            await asyncio.sleep(1200)  # 20 more minutes = 30 total
+            await analytics_service.get_fleet_utilization(use_cache=False)
+            
+        except Exception as e:
+            logger.error(f"Error in background tasks: {e}")
+            await asyncio.sleep(60)  # Wait 1 minute before retrying
+
+
+# Create FastAPI application
 app = FastAPI(
-    title="Management Service", 
-    version="1.0.0",
-    description="Vehicle Management Service - Handles vehicle assignments, usage, and status"
+    title="Management Service",
+    version="2.0.0",
+    description="Reorganized Vehicle Management Service with Event-Driven Architecture",
+    lifespan=lifespan
 )
 
-# Add CORS middleware
+# Add middleware
+app.add_middleware(LoggingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Configure appropriately for production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routes with consistent API versioning
-app.include_router(vehicle_routes, prefix="/api/v1", tags=["vehicles"])
+# Include routers
 app.include_router(analytics_router, prefix="/api/v1", tags=["analytics"])
+app.include_router(assignments_router, prefix="/api/v1", tags=["assignments"])
+app.include_router(drivers_router, prefix="/api/v1", tags=["drivers"])
 
-# Initialize Redis connection
-redis_host = os.getenv("REDIS_HOST", "redis")
-redis_port = int(os.getenv("REDIS_PORT", "6379"))
-redis_client = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
-
-# Initialize global message queue service
-mq_service = None
-
-# Initialize RabbitMQ connection
-def get_rabbitmq_connection():
-    try:
-        rabbitmq_url = os.getenv("RABBITMQ_URL", "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/")
-        connection = pika.BlockingConnection(pika.URLParameters(rabbitmq_url))
-        return connection
-    except Exception as e:
-        logger.error(f"Failed to connect to RabbitMQ: {e}")
-        return None
-
-@app.on_event("startup")
-async def startup_event():
-    """Enhanced startup event with comprehensive error handling and logging"""
-    try:
-        logger.info("🚀 Management Service Starting Up...")
-        
-        # Test database connection and create indexes
-        try:
-            logger.info("🔗 Testing database connection...")
-            db_connected = await test_database_connection()
-            if db_connected:
-                logger.info("✅ Database connection successful")
-                await create_indexes()
-                logger.info("✅ Database indexes created successfully")
-            else:
-                logger.error("❌ Database connection failed")
-        except Exception as e:
-            logger.error(f"❌ Database initialization failed: {e}")
-            logger.exception("Database initialization exception traceback:")
-        
-        # Test Redis connection
-        try:
-            logger.info("🔗 Testing Redis connection...")
-            redis_client.ping()
-            logger.info("✅ Redis connection successful")
-        except Exception as e:
-            logger.error(f"❌ Redis connection failed: {e}")
-        
-        # Test RabbitMQ connection and setup message queue
-        global mq_service
-        try:
-            logger.info("🔗 Setting up RabbitMQ connection...")
-            mq_service = MessageQueueService()
-            connection_success = mq_service.connect()
-            if connection_success:
-                logger.info("✅ RabbitMQ connection established successfully")
-                logger.info("✅ Message queue service is ready for publishing events")
-            else:
-                logger.error("❌ RabbitMQ connection failed - service will continue without messaging")
-        except Exception as e:
-            logger.error(f"❌ RabbitMQ setup failed: {e}")
-            logger.exception("Full RabbitMQ setup exception traceback:")
-        
-        # Initialize service request handler for RabbitMQ consumption
-        try:
-            logger.info("🔗 Initializing service request handler...")
-            # Start the consumer in a background task
-            consumer_task = asyncio.create_task(service_request_handler.start_consuming())
-            logger.info("✅ Service request handler background task started")
-            logger.info("✅ Management service is now consuming requests from Core")
-        except Exception as e:
-            logger.error(f"❌ Service request handler initialization failed: {e}")
-            logger.exception("Service request handler exception traceback:")
-
-        # Send startup notification via message queue
-        try:
-            logger.info("📤 Sending startup notification...")
-            if mq_service:
-                startup_success = mq_service.publish_service_event(
-                    event_type="startup",
-                    service_name="management",
-                    message_data={
-                        "version": "1.0.0",
-                        "port": 8000,
-                        "endpoints": [
-                            "/api/v1/vehicles",
-                            "/api/v1/vehicle-assignments", 
-                            "/api/v1/vehicle-usage"
-                        ],
-                        "status": "ready"
-                    }
-                )
-                if startup_success:
-                    logger.info("✅ Management service startup notification sent to message queue")
-                else:
-                    logger.warning("⚠️ Failed to send startup notification - continuing without messaging")
-            else:
-                logger.warning("⚠️ No message queue service available for startup notification")
-        except Exception as e:
-            logger.error(f"❌ Failed to send startup notification: {e}")
-            logger.warning("Management service will continue without startup messaging")
-        
-        #health_metrics["startup_time"] = datetime.now(timezone.utc).isoformat()
-        logger.info("🎉 Management Service Startup Completed")
-
-        # Removed erroneous publish_message call
-        
-    except Exception as startup_error:
-        logger.error(f"💥 CRITICAL ERROR DURING STARTUP: {startup_error}")
-        logger.exception("Full startup exception traceback:")
-        raise
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Send shutdown notification when service stops"""
-    logger.info("Management Service shutting down...")
-    
-    try:
-        if mq_service:
-            shutdown_success = mq_service.publish_service_event(
-                event_type="shutdown",
-                service_name="management",
-                message_data={
-                    "version": "1.0.0",
-                    "status": "shutting_down",
-                    "shutdown_reason": "normal"
-                }
-            )
-            if shutdown_success:
-                logger.info("Management service shutdown notification sent to message queue")
-            else:
-                logger.warning("Failed to send shutdown notification")
-        else:
-            logger.warning("No message queue service available for shutdown notification")
-    except Exception as e:
-        logger.error(f"Failed to send shutdown notification: {e}")
-    
-    # Close message queue connection
-    try:
-        if mq_service:
-            mq_service.close()
-            logger.info("Message queue connection closed")
-    except Exception as e:
-        logger.error(f"Error closing message queue connection: {e}")
-    
-    logger.info("Management Service shutdown completed")
 
 @app.get("/")
-def read_root():
+async def root():
+    """Service information"""
     return {
-        "message": "Vehicle Management Service", 
         "service": "management",
-        "version": "1.0.0",
+        "version": "2.0.0",
+        "status": "operational",
+        "features": [
+            "event_driven_architecture",
+            "optimized_analytics_with_caching", 
+            "repository_pattern",
+            "clean_separation_of_concerns",
+            "background_task_processing"
+        ],
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
+
 @app.get("/health")
 async def health_check():
-    """Health check endpoint with detailed status"""
+    """Comprehensive health check"""
     try:
-        # Test database connection
-        db_status = await test_database_connection()
-    except Exception:
-        db_status = False
-    
-    # Test Redis connection
-    try:
-        redis_client.ping()
-        redis_status = True
-    except Exception:
-        redis_status = False
-    
-    health_status = {
-        "status": "healthy" if all([db_status, redis_status]) else "unhealthy",
-        "service": "management",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "components": {
-            "database": "up" if db_status else "down",
-            "redis": "up" if redis_status else "down",
-            "rabbitmq": "up" #if health_metrics.get("rabbitmq_connected") else "down"
-        },
-        #"metrics": health_metrics
+        # Check database
+        db_healthy = await db_manager.health_check()
+        
+        # Check event publisher
+        publisher_healthy = (
+            event_publisher.connection is not None and 
+            not event_publisher.connection.is_closed
+        )
+        
+        # Check event consumer
+        consumer_healthy = (
+            event_consumer.connection is not None and 
+            not event_consumer.connection.is_closed
+        )
+        
+        overall_status = "healthy" if all([db_healthy, publisher_healthy, consumer_healthy]) else "degraded"
+        
+        return {
+            "status": overall_status,
+            "service": "management",
+            "version": "2.0.0",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "components": {
+                "database": "up" if db_healthy else "down",
+                "event_publisher": "up" if publisher_healthy else "down", 
+                "event_consumer": "up" if consumer_healthy else "down"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        return {
+            "status": "unhealthy",
+            "service": "management", 
+            "version": "2.0.0",
+            "error": str(e),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+
+@app.get("/info/events")
+async def event_info():
+    """Information about event system status"""
+    return {
+        "event_system": {
+            "publisher_connected": (
+                event_publisher.connection is not None and 
+                not event_publisher.connection.is_closed
+            ),
+            "consumer_connected": (
+                event_consumer.connection is not None and 
+                not event_consumer.connection.is_closed
+            ),
+            "supported_events": [
+                "assignment.created",
+                "assignment.completed", 
+                "trip.started",
+                "trip.ended",
+                "driver.created",
+                "analytics.refreshed"
+            ],
+            "listening_for": [
+                "vehicle.*",
+                "user.*"
+            ]
+        }
     }
-    
-    return health_status
 
-@app.get("/debug/queues")
-async def debug_queues():
-    """Debug endpoint to check queue consumption status"""
-    try:
-        return {
-            "message": "Management service debug info",
-            "service_request_handler": "initialized" if hasattr(service_request_handler, 'endpoint_handlers') else "not_initialized",
-            "available_endpoints": list(service_request_handler.endpoint_handlers.keys()) if hasattr(service_request_handler, 'endpoint_handlers') else [],
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-    except Exception as e:
-        return {
-            "error": str(e),
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-
-@app.get("/debug/test-vehicle-handler")
-async def test_vehicle_handler():
-    """Test the vehicle handler directly"""
-    try:
-        # Test the get vehicles method directly
-        test_user_context = {
-            "user_id": "test-user",
-            "role": "admin",
-            "permissions": ["*"]
-        }
-        
-        result = await service_request_handler._get_vehicles(
-            "/api/vehicles", 
-            {"limit": "10"}, 
-            test_user_context
-        )
-        
-        return {
-            "success": True,
-            "result": result,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-
-
-@app.get("/drivers")
-async def get_drivers(limit: int = 100):
-    try:
-        # You may want to filter only users with a driver role
-        drivers_cursor = security_users_collection.find({"role": "driver"})
-        drivers = await drivers_cursor.to_list(length=limit)
-        return {"drivers": drivers, "total": len(drivers)}
-    except Exception as e:
-        logger.error(f"Failed to fetch drivers: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch drivers: {e}")
-
-
-
-@app.get("/debug/test-message-queue")
-async def test_message_queue():
-    """Test the message queue connectivity"""
-    try:
-        if not mq_service:
-            return {
-                "success": False,
-                "error": "Message queue service not initialized",
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
-        
-        # Test publishing a test message
-        test_success = mq_service.publish_service_event(
-            event_type="test",
-            service_name="management",
-            message_data={
-                "test_message": "Message queue connectivity test",
-                "test_timestamp": datetime.utcnow().isoformat()
-            }
-        )
-        
-        return {
-            "success": test_success,
-            "message": "Test message published successfully" if test_success else "Failed to publish test message",
-            "mq_service_available": mq_service is not None,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
 
 if __name__ == "__main__":
-    # Use port 8000 for consistency with Docker mapping
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import uvicorn
+    uvicorn.run(
+        "main_new:app", 
+        host="0.0.0.0", 
+        port=int(os.getenv("MANAGEMENT_PORT", "8000")),
+        reload=True
+    )
