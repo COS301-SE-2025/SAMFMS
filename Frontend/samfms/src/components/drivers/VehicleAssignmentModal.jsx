@@ -22,9 +22,9 @@ const VehicleAssignmentModal = ({
 
         // Fetch all vehicles from the backend API (using fetch directly)
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/vehicles', {
+        const response = await fetch('/vehicles', {
           headers: {
-            'Authorization': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         });
@@ -35,8 +35,9 @@ const VehicleAssignmentModal = ({
           ? vehiclesData
           : vehiclesData.vehicles || [];
         // Filter to only show available vehicles (without drivers)
-        const availableVehicles = vehiclesArray.filter(vehicle =>
-          !vehicle.driver || vehicle.driver === 'Unassigned' || vehicle.status === 'Available'
+        const availableVehicles = vehiclesArray.filter(
+          vehicle =>
+            !vehicle.driver || vehicle.driver === 'Unassigned' || vehicle.status === 'Available'
         );
         setVehicles(availableVehicles);
       } catch (err) {
@@ -68,7 +69,7 @@ const VehicleAssignmentModal = ({
           currentDriver ? currentDriver.id : 'multiple drivers'
         }`
       );
-      
+
       // For now, just close the modal
       closeVehicleAssignmentModal();
     } catch (error) {
@@ -130,62 +131,62 @@ const VehicleAssignmentModal = ({
             </div>
           ) : (
             <div className="border border-border rounded-md overflow-hidden mb-6">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="w-[36px] px-4 py-3"></th>
-                  <th className="px-4 py-3 text-left">Vehicle ID</th>
-                  <th className="px-4 py-3 text-left">Make & Model</th>
-                  <th className="px-4 py-3 text-left">Year</th>
-                  <th className="px-4 py-3 text-left">License Plate</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredVehicles.map(vehicle => (
-                  <tr
-                    key={vehicle.id}
-                    className={`border-t border-border hover:bg-accent/10 cursor-pointer ${
-                      selectedVehicle?.id === vehicle.id ? 'bg-primary/10' : ''
-                    }`}
-                    onClick={() => setSelectedVehicle(vehicle)}
-                  >
-                    <td className="px-4 py-3">
-                      <input
-                        type="radio"
-                        checked={selectedVehicle?.id === vehicle.id}
-                        onChange={() => setSelectedVehicle(vehicle)}
-                        className="rounded-full border-gray-300"
-                      />
-                    </td>
-                    <td className="px-4 py-3">{vehicle.id}</td>
-                    <td className="px-4 py-3">
-                      {vehicle.make} {vehicle.model}
-                    </td>
-                    <td className="px-4 py-3">{vehicle.year}</td>
-                    <td className="px-4 py-3">{vehicle.licensePlate}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block px-2 py-1 rounded-full text-xs ${
-                          vehicle.status === 'Available'
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                        }`}
-                      >
-                        {vehicle.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-                {filteredVehicles.length === 0 && (
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
                   <tr>
-                    <td colSpan="6" className="px-4 py-3 text-center text-muted-foreground">
-                      No vehicles found
-                    </td>
+                    <th className="w-[36px] px-4 py-3"></th>
+                    <th className="px-4 py-3 text-left">Vehicle ID</th>
+                    <th className="px-4 py-3 text-left">Make & Model</th>
+                    <th className="px-4 py-3 text-left">Year</th>
+                    <th className="px-4 py-3 text-left">License Plate</th>
+                    <th className="px-4 py-3 text-left">Status</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredVehicles.map(vehicle => (
+                    <tr
+                      key={vehicle.id}
+                      className={`border-t border-border hover:bg-accent/10 cursor-pointer ${
+                        selectedVehicle?.id === vehicle.id ? 'bg-primary/10' : ''
+                      }`}
+                      onClick={() => setSelectedVehicle(vehicle)}
+                    >
+                      <td className="px-4 py-3">
+                        <input
+                          type="radio"
+                          checked={selectedVehicle?.id === vehicle.id}
+                          onChange={() => setSelectedVehicle(vehicle)}
+                          className="rounded-full border-gray-300"
+                        />
+                      </td>
+                      <td className="px-4 py-3">{vehicle.id}</td>
+                      <td className="px-4 py-3">
+                        {vehicle.make} {vehicle.model}
+                      </td>
+                      <td className="px-4 py-3">{vehicle.year}</td>
+                      <td className="px-4 py-3">{vehicle.licensePlate}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-block px-2 py-1 rounded-full text-xs ${
+                            vehicle.status === 'Available'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                          }`}
+                        >
+                          {vehicle.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredVehicles.length === 0 && (
+                    <tr>
+                      <td colSpan="6" className="px-4 py-3 text-center text-muted-foreground">
+                        No vehicles found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           )}
 

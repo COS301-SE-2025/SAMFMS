@@ -14,7 +14,7 @@ from services.request_router import request_router
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["Management Direct"])
+router = APIRouter(tags=["Management Direct"])
 
 @router.get("/vehicles")
 async def get_vehicles_direct(limit: int = 100):
@@ -26,7 +26,7 @@ async def get_vehicles_direct(limit: int = 100):
         correlation_id = str(uuid.uuid4())
         test_message = {
             "correlation_id": correlation_id,
-            "endpoint": "/api/vehicles",
+            "endpoint": "/vehicles",
             "method": "GET",
             "data": {"limit": limit},
             "user_context": {"user_id": "test_user", "permissions": ["*"]},
@@ -82,7 +82,7 @@ async def get_drivers(limit: int = 100):
         correlation_id = str(uuid.uuid4())
         test_message = {
             "correlation_id": correlation_id,
-            "endpoint": "/api/drivers",
+            "endpoint": "/drivers",
             "method": "GET",
             "data": {"limit": limit},
             "user_context": {"user_id": "test_user", "permissions": ["read:drivers"]},
@@ -121,7 +121,7 @@ async def update_driver(driver_id: str, driver_data: dict):
         correlation_id = str(uuid.uuid4())
         test_message = {
             "correlation_id": correlation_id,
-            "endpoint": f"/api/drivers/{driver_id}",
+            "endpoint": f"/drivers/{driver_id}",
             "method": "PUT",
             "data": driver_data,
             "user_context": {"user_id": "test_user", "permissions": ["edit:drivers"]},

@@ -1,86 +1,98 @@
 """
-Driver Management API Routes
-Handles driver CRUD operations
+Driver Management Routes
+Handles all driver-related operations
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials
 from typing import Dict, Any
 import logging
 
-from .common import handle_service_request
+from .common import security, handle_service_request, validate_required_fields
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/vehicles/drivers", tags=["Drivers"])
-security = HTTPBearer()
+router = APIRouter(tags=["Drivers"])
 
-@router.get("")
+@router.get("/drivers")
 async def get_drivers(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Get all drivers via Management service"""
-    return await handle_service_request(
-        credentials=credentials,
-        endpoint="/api/drivers",
+    response = await handle_service_request(
+        endpoint="/drivers",
         method="GET",
         data=dict(request.query_params),
-        auth_endpoint="/api/vehicles/drivers"
+        credentials=credentials,
+        auth_endpoint="/drivers"
     )
+    
+    return response
 
-@router.post("")
+@router.post("/drivers")
 async def create_driver(
     driver_data: Dict[str, Any],
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    """Create a new driver via Management service"""
-    return await handle_service_request(
-        credentials=credentials,
-        endpoint="/api/drivers",
+    """Create driver via Management service"""
+    required_fields = ["full_name", "license_number"]
+    validate_required_fields(driver_data, required_fields)
+    
+    response = await handle_service_request(
+        endpoint="/drivers",
         method="POST",
         data=driver_data,
-        auth_endpoint="/api/vehicles/drivers"
+        credentials=credentials,
+        auth_endpoint="/drivers"
     )
+    
+    return response
 
-@router.get("/{driver_id}")
+@router.get("/drivers/{driver_id}")
 async def get_driver(
     driver_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Get specific driver via Management service"""
-    return await handle_service_request(
-        credentials=credentials,
-        endpoint=f"/api/drivers/{driver_id}",
+    response = await handle_service_request(
+        endpoint=f"/drivers/{driver_id}",
         method="GET",
         data={"driver_id": driver_id},
-        auth_endpoint="/api/vehicles/drivers"
+        credentials=credentials,
+        auth_endpoint="/drivers"
     )
+    
+    return response
 
-@router.put("/{driver_id}")
+@router.put("/drivers/{driver_id}")
 async def update_driver(
     driver_id: str,
     driver_data: Dict[str, Any],
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Update driver via Management service"""
-    return await handle_service_request(
-        credentials=credentials,
-        endpoint=f"/api/drivers/{driver_id}",
+    response = await handle_service_request(
+        endpoint=f"/drivers/{driver_id}",
         method="PUT",
         data=driver_data,
-        auth_endpoint="/api/vehicles/drivers"
+        credentials=credentials,
+        auth_endpoint="/drivers"
     )
+    
+    return response
 
-@router.delete("/{driver_id}")
+@router.delete("/drivers/{driver_id}")
 async def delete_driver(
     driver_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Delete driver via Management service"""
-    return await handle_service_request(
-        credentials=credentials,
-        endpoint=f"/api/drivers/{driver_id}",
+    response = await handle_service_request(
+        endpoint=f"/drivers/{driver_id}",
         method="DELETE",
         data={"driver_id": driver_id},
-        auth_endpoint="/api/vehicles/drivers"
+        credentials=credentials,
+        auth_endpoint="/drivers"
     )
+    
+    return response

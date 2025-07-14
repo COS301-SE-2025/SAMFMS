@@ -13,10 +13,10 @@ from auth_service import verify_token, get_current_user_from_token
 from rabbitmq.admin import addSblock, removeSblock
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/plugins", tags=["Plugin Management"])
+router = APIRouter(tags=["Plugin Management"])
 security = HTTPBearer()
 
-@router.get("/", response_model=List[PluginInfo])
+@router.get("/plugins", response_model=List[PluginInfo])
 async def get_all_plugins(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -42,7 +42,7 @@ async def get_all_plugins(
             detail=f"Error retrieving plugins: {str(e)}"
         )
 
-@router.get("/available", response_model=List[PluginInfo])
+@router.get("/plugins/available", response_model=List[PluginInfo])
 async def get_available_plugins(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -71,7 +71,7 @@ async def get_available_plugins(
             detail=f"Error retrieving available plugins: {str(e)}"
         )
 
-@router.get("/{plugin_id}", response_model=PluginInfo)
+@router.get("/plugins/{plugin_id}", response_model=PluginInfo)
 async def get_plugin(
     plugin_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -103,7 +103,7 @@ async def get_plugin(
             detail=f"Error retrieving plugin: {str(e)}"
         )
 
-@router.post("/{plugin_id}/start", response_model=PluginStatusResponse)
+@router.post("/plugins/{plugin_id}/start", response_model=PluginStatusResponse)
 async def start_plugin(
     plugin_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -129,7 +129,7 @@ async def start_plugin(
             detail=f"Error starting plugin: {str(e)}"
         )
 
-@router.post("/{plugin_id}/stop", response_model=PluginStatusResponse)
+@router.post("/plugins/{plugin_id}/stop", response_model=PluginStatusResponse)
 async def stop_plugin(
     plugin_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -155,7 +155,7 @@ async def stop_plugin(
             detail=f"Error stopping plugin: {str(e)}"
         )
 
-@router.put("/{plugin_id}/roles")
+@router.put("/plugins/{plugin_id}/roles")
 async def update_plugin_roles(
     plugin_id: str,
     update_request: PluginUpdateRequest,
@@ -204,7 +204,7 @@ async def update_plugin_roles(
         )
 
 # Add route for getting runtime plugin status
-@router.get("/{plugin_id}/status", response_model=Dict[str, str])
+@router.get("/plugins/{plugin_id}/status", response_model=Dict[str, str])
 async def get_plugin_runtime_status(
     plugin_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -230,7 +230,7 @@ async def get_plugin_runtime_status(
             detail=f"Error retrieving plugin runtime status: {str(e)}"
         )
 
-@router.post("/sync-status")
+@router.post("/plugins/sync-status")
 async def sync_plugin_status(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -255,7 +255,7 @@ async def sync_plugin_status(
             detail=f"Error syncing plugin status: {str(e)}"
         )
 
-@router.get("/debug/docker")
+@router.get("/plugins/debug/docker")
 async def debug_docker_access(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -333,7 +333,7 @@ async def debug_docker_access(
         )
 
 
-@router.get("/sblock/add/{username}", tags=["SBlock"])
+@router.get("/plugins/sblock/add/{username}", tags=["SBlock"])
 async def add_sblock(username: str):
     try:
         credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -352,7 +352,7 @@ async def add_sblock(username: str):
     
 
     
-@router.get("/sblock/remove/{username}", tags=["SBlock"])
+@router.get("/plugins/sblock/remove/{username}", tags=["SBlock"])
 async def remove_sblock(username: str):
     try:
         credentials: HTTPAuthorizationCredentials = Depends(security)

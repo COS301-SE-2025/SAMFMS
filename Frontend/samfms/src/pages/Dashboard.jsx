@@ -1,11 +1,10 @@
-import React, {useState, useEffect} from 'react';
-import {Button} from '../components/ui/button';
-import {getTotalVehicles} from '../backend/api/analytics';
+import React, { useState, useEffect } from 'react';
+import { Button } from '../components/ui/button';
+import { getTotalVehicles } from '../backend/api/analytics';
 
 import StatusBreakdownPieChart from '../components/analytics/StatusBreakdownPieChart';
-import {getStatusBreakdown} from '../backend/api/analytics';
-import {getVehicles} from '../backend/API';
-
+import { getStatusBreakdown } from '../backend/api/analytics';
+import { getVehicles } from '../backend/API';
 
 // Mock data for the dashboard
 const mockData = {
@@ -15,7 +14,6 @@ const mockData = {
     availableDrivers: 15,
     maintenanceAlerts: 3,
   },
-  
 };
 
 const Dashboard = () => {
@@ -61,7 +59,6 @@ const Dashboard = () => {
 
   return (
     <div className="relative container mx-auto py-8 space-y-8">
-
       {/* Background pattern */}
       <div
         className="absolute inset-0 z-0 opacity-10 pointer-events-none"
@@ -75,7 +72,6 @@ const Dashboard = () => {
       />
       {/* Content */}
       <div className="relative z-10">
-
         {/* Header */}
         <header>
           <h1 className="text-4xl font-bold mb-2">Fleet Dashboard</h1>
@@ -86,25 +82,39 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Total Vehicles"
-            value={loadingVehicles ? "Loading..." : (totalVehicles)}
+            value={loadingVehicles ? 'Loading...' : totalVehicles}
             subtitle="Fleet size"
             color="blue"
           />
           <MetricCard
             title="Active Trips"
-            value={loadingAnalytics ? "Loading..." : (analytics.status_breakdown.find((status) => status._id === "active")?.count || 0)}
+            value={
+              loadingAnalytics
+                ? 'Loading...'
+                : analytics?.status_breakdown?.find(status => status._id === 'active')?.count || 0
+            }
             subtitle="Currently en route"
             color="green"
           />
           <MetricCard
             title="Available Drivers"
-            value={loadingAnalytics ? "Loading..." : (analytics.status_breakdown.find((status) => status._id === "available")?.count || 0)}
+            value={
+              loadingAnalytics
+                ? 'Loading...'
+                : analytics?.status_breakdown?.find(status => status._id === 'available')?.count ||
+                  0
+            }
             subtitle="Ready for dispatch"
             color="purple"
           />
           <MetricCard
             title="Maintenance Alerts"
-            value={loadingAnalytics ? "Loading..." : (analytics.status_breakdown.find((status) => status._id === "maintainence")?.count || 0)}
+            value={
+              loadingAnalytics
+                ? 'Loading...'
+                : analytics?.status_breakdown?.find(status => status._id === 'maintainence')
+                    ?.count || 0
+            }
             subtitle="Requiring attention"
             color="orange"
           />
@@ -112,19 +122,16 @@ const Dashboard = () => {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
           {/* Vehicle Status Breakdown Pie Chart */}
-          <StatusBreakdownPieChart stats={analytics.status_breakdown} />
+          <StatusBreakdownPieChart stats={analytics?.status_breakdown || []} />
         </div>
-
-        
       </div>
     </div>
   );
 };
 
 // Component definitions
-const MetricCard = ({title, value, subtitle, color}) => {
+const MetricCard = ({ title, value, subtitle, color }) => {
   const colorClasses = {
     blue: 'text-blue-600',
     green: 'text-green-600',
@@ -145,7 +152,7 @@ const MetricCard = ({title, value, subtitle, color}) => {
   );
 };
 
-const TripCard = ({trip}) => {
+const TripCard = ({ trip }) => {
   const statusColors = {
     'In Progress': 'bg-blue-100 text-blue-800',
     Completed: 'bg-green-100 text-green-800',
@@ -175,7 +182,7 @@ const TripCard = ({trip}) => {
           <div className="w-full bg-secondary rounded-full h-2">
             <div
               className="bg-primary h-2 rounded-full transition-all duration-300"
-              style={{width: `${trip.progress}%`}}
+              style={{ width: `${trip.progress}%` }}
             ></div>
           </div>
         </div>

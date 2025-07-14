@@ -26,7 +26,7 @@ async def test_live_vehicles():
     vehicles = await vehicle_websocket.get_live_vehicle_data()
     return {"vehicles": vehicles}
 
-@router.post("/api/gps/geofences/circle")
+@router.post("/gps/geofences/circle")
 async def add_new_geofence(parameter: dict = Body(...)):
     """Create a new circular geofence"""
     geofence = await vehicle_websocket.create_geofence(parameter)

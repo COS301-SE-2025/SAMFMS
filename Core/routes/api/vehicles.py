@@ -1,21 +1,20 @@
 """
-Vehicle Management API Routes
-Handles vehicle CRUD operations and assignments
+Vehicle Management Routes
+Handles all vehicle-related operations
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials
 from typing import Dict, Any
 import logging
 
-from .common import handle_service_request, validate_required_fields, standardize_vehicle_response
+from .common import security, handle_service_request, validate_required_fields
+from utils.response_utils import standardize_vehicle_response
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Vehicles"])
-security = HTTPBearer()
 
-# Vehicle CRUD Operations
-@router.get("")
+@router.get("/vehicles")
 async def get_vehicles(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -24,10 +23,11 @@ async def get_vehicles(
     logger.info(f"Received get_vehicles request with params: {dict(request.query_params)}")
     
     response = await handle_service_request(
-        credentials=credentials,
-        endpoint="/api/vehicles",
+        endpoint="/vehicles",
         method="GET",
-        data=dict(request.query_params)
+        data=dict(request.query_params),
+        credentials=credentials,
+        auth_endpoint="/vehicles"
     )
     
     # Standardize field names for frontend compatibility
@@ -36,7 +36,7 @@ async def get_vehicles(
     
     return standardized_response
 
-@router.post("")
+@router.post("/vehicles")
 async def create_vehicle(
     vehicle_data: Dict[str, Any],
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -44,122 +44,79 @@ async def create_vehicle(
     """Create vehicle via Management service"""
     # Validate input data
     required_fields = ["make", "model", "license_plate"]
-    validate_required_fields(vehicle_data, required_fields, "Vehicle")
+    validate_required_fields(vehicle_data, required_fields)
     
-    return await handle_service_request(
-        credentials=credentials,
-        endpoint="/api/vehicles",
+    response = await handle_service_request(
+        endpoint="/vehicles",
         method="POST",
-        data=vehicle_data
+        data=vehicle_data,
+        credentials=credentials,
+        auth_endpoint="/vehicles"
     )
+    
+    return response
 
-@router.get("/{vehicle_id}")
+@router.get("/vehicles/{vehicle_id}")
 async def get_vehicle(
     vehicle_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Get specific vehicle via Management service"""
-    return await handle_service_request(
-        credentials=credentials,
-        endpoint=f"/api/vehicles/{vehicle_id}",
+    response = await handle_service_request(
+        endpoint=f"/vehicles/{vehicle_id}",
         method="GET",
-        data={"vehicle_id": vehicle_id}
+        data={"vehicle_id": vehicle_id},
+        credentials=credentials,
+        auth_endpoint="/vehicles"
     )
+    
+    return response
 
-@router.put("/{vehicle_id}")
+@router.put("/vehicles/{vehicle_id}")
 async def update_vehicle(
     vehicle_id: str,
     vehicle_data: Dict[str, Any],
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Update vehicle via Management service"""
-    return await handle_service_request(
-        credentials=credentials,
-        endpoint=f"/api/vehicles/{vehicle_id}",
+    response = await handle_service_request(
+        endpoint=f"/vehicles/{vehicle_id}",
         method="PUT",
-        data=vehicle_data
+        data=vehicle_data,
+        credentials=credentials,
+        auth_endpoint="/vehicles"
     )
+    
+    return response
 
-@router.delete("/{vehicle_id}")
+@router.delete("/vehicles/{vehicle_id}")
 async def delete_vehicle(
     vehicle_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Delete vehicle via Management service"""
-    return await handle_service_request(
-        credentials=credentials,
-        endpoint=f"/api/vehicles/{vehicle_id}",
+    response = await handle_service_request(
+        endpoint=f"/vehicles/{vehicle_id}",
         method="DELETE",
-        data={"vehicle_id": vehicle_id}
+        data={"vehicle_id": vehicle_id},
+        credentials=credentials,
+        auth_endpoint="/vehicles"
     )
+    
+    return response
 
-@router.get("/search/{query}")
+@router.get("/vehicles/search/{query}")
 async def search_vehicles(
     query: str,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Search vehicles via Management service"""
-    return await handle_service_request(
-        credentials=credentials,
-        endpoint=f"/api/vehicles/search/{query}",
+    response = await handle_service_request(
+        endpoint=f"/vehicles/search/{query}",
         method="GET",
-        data={"query": query}
-    )
-
-# Vehicle Assignment Routes
-@router.get("/assignments")
-async def get_vehicle_assignments(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    """Get vehicle assignments via Management service"""
-    return await handle_service_request(
+        data={"query": query},
         credentials=credentials,
-        endpoint="/api/vehicle-assignments",
-        method="GET",
-        data=dict(request.query_params),
-        auth_endpoint="/api/vehicle-assignments"
+        auth_endpoint="/vehicles"
     )
-
-@router.post("/assignments")
-async def create_vehicle_assignment(
-    assignment_data: Dict[str, Any],
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    """Create vehicle assignment via Management service"""
-    return await handle_service_request(
-        credentials=credentials,
-        endpoint="/api/vehicle-assignments",
-        method="POST",
-        data=assignment_data,
-        auth_endpoint="/api/vehicle-assignments"
-    )
-
-@router.put("/assignments/{assignment_id}")
-async def update_vehicle_assignment(
-    assignment_id: str,
-    assignment_data: Dict[str, Any],
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    """Update vehicle assignment via Management service"""
-    return await handle_service_request(
-        credentials=credentials,
-        endpoint=f"/api/vehicle-assignments/{assignment_id}",
-        method="PUT",
-        data=assignment_data,
-        auth_endpoint="/api/vehicle-assignments"
-    )
-
-@router.delete("/assignments/{assignment_id}")
-async def delete_vehicle_assignment(
-    assignment_id: str,
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    """Delete vehicle assignment via Management service"""
-    return await handle_service_request(
-        credentials=credentials,
-        endpoint=f"/api/vehicle-assignments/{assignment_id}",
-        method="DELETE",
-        data={"assignment_id": assignment_id},
-        auth_endpoint="/api/vehicle-assignments"
-    )
+    
+    return response

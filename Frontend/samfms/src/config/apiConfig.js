@@ -30,23 +30,23 @@ const getApiConfig = () => {
 
       // For production/staging with HTTPS - use nginx proxy path
       if (protocol === 'https:') {
-        config.baseURL = `https://${host}/api`;
+        config.baseURL = `https://${host}`;
         config.wsURL = `wss://${host}/ws`;
       }
       // For HTTP deployments (behind nginx HTTP proxy)
       else if (protocol === 'http:' && host !== 'localhost' && host !== '127.0.0.1') {
-        config.baseURL = `http://${host}/api`;
+        config.baseURL = `http://${host}`;
         config.wsURL = `ws://${host}/ws`;
       }
       // For local development - connect directly to core service
       else {
         const corePort = process.env.REACT_APP_CORE_PORT || '21004';
-        config.baseURL = `http://localhost:${corePort}/api`;
+        config.baseURL = `http://localhost:${corePort}`;
         config.wsURL = `ws://localhost:${corePort}/ws`;
       }
     } else {
       // Default fallback for server-side rendering or edge cases
-      config.baseURL = 'http://localhost:21004/api';
+      config.baseURL = 'http://localhost:21004';
       config.wsURL = 'ws://localhost:21004/ws';
     }
   }
@@ -117,11 +117,11 @@ export const API_ENDPOINTS = {
 
   // Driver Management
   DRIVERS: {
-    LIST: '/vehicles/drivers',
-    CREATE: '/vehicles/drivers',
-    GET: id => `/vehicles/drivers/${id}`,
-    UPDATE: id => `/vehicles/drivers/${id}`,
-    DELETE: id => `/vehicles/drivers/${id}`,
+    LIST: '/drivers',
+    CREATE: '/drivers',
+    GET: id => `/drivers/${id}`,
+    UPDATE: id => `/drivers/${id}`,
+    DELETE: id => `/drivers/${id}`,
   },
 
   // Vehicle Assignments

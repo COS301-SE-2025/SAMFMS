@@ -125,20 +125,34 @@ from routes.debug import router as debug_router
 from routes.management_direct import router as management_router
 from routes.sblock import router as sblock_router
 
-# Import service_proxy router with proper error handling
+# Import consolidated router with proper error handling
+try:
+    from routes.consolidated import consolidated_router
+    logger.info("✅ Consolidated router imported successfully")
+    consolidated_available = True
+except ImportError as e:
+    logger.error(f"❌ Failed to import consolidated router: {e}")
+    logger.error("This indicates missing dependencies or configuration issues")
+    logger.error("Consolidated API functionality will be disabled")
+    consolidated_router = None
+    consolidated_available = False
+except Exception as e:
+    logger.error(f"❌ Unexpected error importing consolidated router: {e}")
+    logger.error("Consolidated API functionality will be disabled")
+    consolidated_router = None
+    consolidated_available = False
+
+# Import service_proxy router as fallback with proper error handling
 try:
     from routes.service_proxy import router as service_proxy_router
-    logger.info("✅ Service proxy router imported successfully")
+    logger.info("✅ Service proxy router imported as fallback")
     service_proxy_available = True
 except ImportError as e:
-    logger.error(f"❌ Failed to import service proxy router: {e}")
-    logger.error("This indicates missing dependencies or configuration issues")
-    logger.error("Service proxy functionality will be disabled")
+    logger.warning(f"⚠️ Service proxy router also unavailable: {e}")
     service_proxy_router = None
     service_proxy_available = False
 except Exception as e:
-    logger.error(f"❌ Unexpected error importing service proxy router: {e}")
-    logger.error("Service proxy functionality will be disabled")
+    logger.warning(f"⚠️ Unexpected error importing service proxy router: {e}")
     service_proxy_router = None
     service_proxy_available = False
 
@@ -151,12 +165,15 @@ app.include_router(debug_router)
 app.include_router(management_router)
 app.include_router(sblock_router)
 
-# Include service_proxy router if available
-if service_proxy_available and service_proxy_router:
-    app.include_router(service_proxy_router)  # service_proxy already has /api prefix
-    logger.info("✅ Service proxy router included successfully")
+# Include consolidated router (preferred) or service_proxy router (fallback)
+if consolidated_available and consolidated_router:
+    app.include_router(consolidated_router)  # No prefix needed - routes are organized without /api
+    logger.info("✅ Consolidated router included successfully")
+elif service_proxy_available and service_proxy_router:
+    app.include_router(service_proxy_router)  # service_proxy has /api prefix
+    logger.info("✅ Service proxy router included as fallback")
 else:
-    logger.warning("⚠️ Service proxy router not available - some API functionality may be limited")
+    logger.warning("⚠️ No API router available - API functionality will be limited")
     logger.warning("Ensure all dependencies are installed and configured correctly")
 
 

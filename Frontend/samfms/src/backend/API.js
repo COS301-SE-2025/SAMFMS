@@ -95,12 +95,12 @@ export {
 
 // Driver API endpoints - Now served by Core Service
 export const DRIVER_API = {
-  drivers: `${API_URL}/api/drivers`,
-  createDriver: `${API_URL}/vehicles/drivers`,
-  getDriver: id => `${API_URL}/vehicles/drivers/${id}`,
-  updateDriver: id => `${API_URL}/vehicles/drivers/${id}`,
-  deleteDriver: id => `${API_URL}/vehicles/drivers/${id}`,
-  searchDrivers: query => `${API_URL}/vehicles/drivers/search/${query}`,
+  drivers: `${API_URL}/drivers`,
+  createDriver: `${API_URL}/drivers`,
+  getDriver: id => `${API_URL}/drivers/${id}`,
+  updateDriver: id => `${API_URL}/drivers/${id}`,
+  deleteDriver: id => `${API_URL}/drivers/${id}`,
+  searchDrivers: query => `${API_URL}/drivers/search/${query}`,
 };
 
 // Vehicle API endpoints
@@ -324,8 +324,9 @@ export const getVehicles = async (params = {}) => {
     if (params.status_filter) queryParams.append('status_filter', params.status_filter);
     if (params.make_filter) queryParams.append('make_filter', params.make_filter);
 
-    const url = `${VEHICLE_API.vehicles}${queryParams.toString() ? '?' + queryParams.toString() : ''
-      }`;
+    const url = `${VEHICLE_API.vehicles}${
+      queryParams.toString() ? '?' + queryParams.toString() : ''
+    }`;
 
     const response = await fetch(url, {
       method: 'GET',
@@ -412,7 +413,7 @@ export const deleteVehicle = async vehicleId => {
     return await response.json();
   } catch (e) {
     // If no JSON is returned, return a success object
-    return {success: true};
+    return { success: true };
   }
 };
 
@@ -460,7 +461,7 @@ export const getPendingInvitations = async () => {
 export const resendInvitation = async email => {
   const response = await authFetch('/auth/resend-invitation', {
     method: 'POST',
-    body: JSON.stringify({email}),
+    body: JSON.stringify({ email }),
   });
   return response;
 };
@@ -479,7 +480,7 @@ export const verifyInvitationOTP = async (email, otp) => {
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({email, otp}),
+    body: JSON.stringify({ email, otp }),
   });
 
   if (!response.ok) {
@@ -496,7 +497,7 @@ export const completeUserRegistration = async (email, otp, username, password) =
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({email, otp, username, password}),
+    body: JSON.stringify({ email, otp, username, password }),
   });
 
   if (!response.ok) {
@@ -552,10 +553,10 @@ const handleErrorResponse = async response => {
     if (contentType && contentType.includes('application/json')) {
       errorData = await response.json();
     } else {
-      errorData = {message: (await response.text()) || 'Unknown error occurred'};
+      errorData = { message: (await response.text()) || 'Unknown error occurred' };
     }
   } catch (parseError) {
-    errorData = {message: 'Failed to parse error response'};
+    errorData = { message: 'Failed to parse error response' };
   }
 
   // Standardized error structure
@@ -580,7 +581,9 @@ export const getVehicleAssignments = async (params = {}) => {
   if (params.vehicle_id) queryParams.append('vehicle_id', params.vehicle_id);
   if (params.driver_id) queryParams.append('driver_id', params.driver_id);
 
-  const url = `${VEHICLE_ASSIGNMENT_API.assignments}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  const url = `${VEHICLE_ASSIGNMENT_API.assignments}${
+    queryParams.toString() ? '?' + queryParams.toString() : ''
+  }`;
 
   const response = await fetch(url, {
     method: 'GET',
@@ -667,7 +670,7 @@ export const deleteVehicleAssignment = async assignmentId => {
   try {
     return await response.json();
   } catch (e) {
-    return {success: true};
+    return { success: true };
   }
 };
 

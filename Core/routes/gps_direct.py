@@ -16,9 +16,9 @@ from rabbitmq.producer import publish_message
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/gps", tags=["GPS Direct"])
+router = APIRouter(tags=["GPS Direct"])
 
-@router.post("/request_location")
+@router.post("/gps/request_location")
 async def request_gps_location(parameter: dict = Body(...)):
     """Request location data from GPS service"""
     try:
@@ -37,7 +37,7 @@ async def request_gps_location(parameter: dict = Body(...)):
         logger.error(f"Error requesting GPS location: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to send location request: {str(e)}")
 
-@router.post("/request_speed")
+@router.post("/gps/request_speed")
 async def request_gps_speed(vehicle_id: str):
     """Request speed data from GPS service"""
     try:
@@ -56,7 +56,7 @@ async def request_gps_speed(vehicle_id: str):
         logger.error(f"Error requesting GPS speed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to send speed request: {str(e)}")
 
-@router.post("/request_direction")
+@router.post("/gps/request_direction")
 async def request_gps_direction(vehicle_id: str):
     """Request direction data from GPS service"""
     try:
@@ -75,7 +75,7 @@ async def request_gps_direction(vehicle_id: str):
         logger.error(f"Error requesting GPS direction: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to send direction request: {str(e)}")
 
-@router.post("/request_fuel_level")
+@router.post("/gps/request_fuel_level")
 async def request_gps_fuel_level(vehicle_id: str):
     """Request fuel level data from GPS service"""
     try:
@@ -94,7 +94,7 @@ async def request_gps_fuel_level(vehicle_id: str):
         logger.error(f"Error requesting GPS fuel level: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to send fuel level request: {str(e)}")
 
-@router.post("/request_last_update")
+@router.post("/gps/request_last_update")
 async def request_gps_last_update(vehicle_id: str):
     """Request last update timestamp from GPS service"""
     try:

@@ -182,65 +182,63 @@ This document provides a comprehensive reference for all available API routes in
 
 ## Vehicle Management Routes
 
-**Base Path:** `/api/vehicles`
-
 ### Vehicle CRUD Operations
 
-- **GET** `/api/vehicles`
+- **GET** `/vehicles`
 
   - **Description:** Get all vehicles with optional filtering
   - **Headers:** `Authorization: Bearer <token>`
   - **Query Params:** `skip`, `limit`, `status_filter`, `make_filter`
   - **Response:** `{"vehicles": [...], "total": number, "analytics": {...}}`
 
-- **POST** `/api/vehicles`
+- **POST** `/vehicles`
 
   - **Description:** Create a new vehicle
   - **Headers:** `Authorization: Bearer <token>`
   - **Body:** Vehicle data object
 
-- **GET** `/api/vehicles/{vehicle_id}`
+- **GET** `/vehicles/{vehicle_id}`
 
   - **Description:** Get specific vehicle by ID
   - **Headers:** `Authorization: Bearer <token>`
   - **Response:** Vehicle object
 
-- **PUT** `/api/vehicles/{vehicle_id}`
+- **PUT** `/vehicles/{vehicle_id}`
 
   - **Description:** Update vehicle information
   - **Headers:** `Authorization: Bearer <token>`
   - **Body:** Updated vehicle data
 
-- **DELETE** `/api/vehicles/{vehicle_id}`
+- **DELETE** `/vehicles/{vehicle_id}`
   - **Description:** Delete vehicle
   - **Headers:** `Authorization: Bearer <token>`
 
 ### Vehicle Search & Assignment
 
-- **GET** `/api/vehicles/search/{query}`
+- **GET** `/vehicles/search/{query}`
 
   - **Description:** Search vehicles by query
   - **Headers:** `Authorization: Bearer <token>`
 
-- **GET** `/api/vehicle-assignments`
+- **GET** `/vehicle-assignments`
 
   - **Description:** Get vehicle assignments
   - **Headers:** `Authorization: Bearer <token>`
   - **Query Params:** `skip`, `limit`, `vehicle_id`, `driver_id`
 
-- **POST** `/api/vehicle-assignments`
+- **POST** `/vehicle-assignments`
 
   - **Description:** Create vehicle assignment
   - **Headers:** `Authorization: Bearer <token>`
   - **Body:** Assignment data
 
-- **PUT** `/api/vehicle-assignments/{assignment_id}`
+- **PUT** `/vehicle-assignments/{assignment_id}`
 
   - **Description:** Update vehicle assignment
   - **Headers:** `Authorization: Bearer <token>`
   - **Body:** Updated assignment data
 
-- **DELETE** `/api/vehicle-assignments/{assignment_id}`
+- **DELETE** `/vehicle-assignments/{assignment_id}`
   - **Description:** Delete vehicle assignment
   - **Headers:** `Authorization: Bearer <token>`
 
@@ -248,34 +246,32 @@ This document provides a comprehensive reference for all available API routes in
 
 ## Driver Management Routes
 
-**Base Path:** `/api/vehicles/drivers`
-
 ### Driver CRUD Operations
 
-- **GET** `/api/vehicles/drivers`
+- **GET** `/drivers`
 
   - **Description:** Get all drivers
   - **Headers:** `Authorization: Bearer <token>`
   - **Query Params:** `limit`
 
-- **POST** `/api/vehicles/drivers`
+- **POST** `/drivers`
 
   - **Description:** Create a new driver
   - **Headers:** `Authorization: Bearer <token>`
   - **Body:** Driver data object
 
-- **GET** `/api/vehicles/drivers/{driver_id}`
+- **GET** `/drivers/{driver_id}`
 
   - **Description:** Get specific driver by ID
   - **Headers:** `Authorization: Bearer <token>`
 
-- **PUT** `/api/vehicles/drivers/{driver_id}`
+- **PUT** `/drivers/{driver_id}`
 
   - **Description:** Update driver information
   - **Headers:** `Authorization: Bearer <token>`
   - **Body:** Updated driver data
 
-- **DELETE** `/api/vehicles/drivers/{driver_id}`
+- **DELETE** `/drivers/{driver_id}`
   - **Description:** Delete driver
   - **Headers:** `Authorization: Bearer <token>`
 
@@ -311,19 +307,19 @@ This document provides a comprehensive reference for all available API routes in
 
 ### Location Management
 
-- **GET** `/api/gps/locations`
+- **GET** `/gps/locations`
 
   - **Description:** Get GPS location data
   - **Headers:** `Authorization: Bearer <token>`
 
-- **POST** `/api/gps/locations`
+- **POST** `/gps/locations`
   - **Description:** Create/update GPS location data
   - **Headers:** `Authorization: Bearer <token>`
   - **Body:** Location data
 
 ### Geofencing
 
-- **POST** `/api/gps/geofences/circle`
+- **POST** `/gps/geofences/circle`
   - **Description:** Create a new circular geofence
   - **Body:** `{"center": {"lat": number, "lng": number}, "radius": number, "name": "..."}`
 
@@ -331,62 +327,60 @@ This document provides a comprehensive reference for all available API routes in
 
 ## Analytics Routes
 
-**Base Path:** `/api/analytics`
-
 ### Fleet Analytics
 
-- **GET** `/api/analytics/fleet-utilization`
+- **GET** `/analytics/fleet-utilization`
 
   - **Description:** Get fleet utilization analytics
   - **Headers:** `Authorization: Bearer <token>`
 
-- **GET** `/api/analytics/vehicle-usage`
+- **GET** `/analytics/vehicle-usage`
 
   - **Description:** Get vehicle usage analytics
   - **Headers:** `Authorization: Bearer <token>`
 
-- **GET** `/api/analytics/assignment-metrics`
+- **GET** `/analytics/assignment-metrics`
 
   - **Description:** Get assignment metrics
   - **Headers:** `Authorization: Bearer <token>`
 
-- **GET** `/api/analytics/maintenance`
+- **GET** `/analytics/maintenance`
 
   - **Description:** Get maintenance analytics
   - **Headers:** `Authorization: Bearer <token>`
 
-- **GET** `/api/analytics/driver-performance`
+- **GET** `/analytics/driver-performance`
 
   - **Description:** Get driver performance analytics
   - **Headers:** `Authorization: Bearer <token>`
 
-- **GET** `/api/analytics/costs`
+- **GET** `/analytics/costs`
 
   - **Description:** Get cost analytics
   - **Headers:** `Authorization: Bearer <token>`
 
-- **GET** `/api/analytics/status-breakdown`
+- **GET** `/analytics/status-breakdown`
 
   - **Description:** Get vehicle status breakdown
   - **Headers:** `Authorization: Bearer <token>`
 
-- **GET** `/api/analytics/incidents`
+- **GET** `/analytics/incidents`
 
   - **Description:** Get incident analytics
   - **Headers:** `Authorization: Bearer <token>`
 
-- **GET** `/api/analytics/department-location`
+- **GET** `/analytics/department-location`
   - **Description:** Get department location analytics
   - **Headers:** `Authorization: Bearer <token>`
 
 ### Generic Analytics
 
-- **GET** `/api/analytics/{path:path}`
+- **GET** `/analytics/{path:path}`
 
   - **Description:** Generic analytics endpoint for custom paths
   - **Headers:** `Authorization: Bearer <token>`
 
-- **POST** `/api/analytics/{path:path}`
+- **POST** `/analytics/{path:path}`
   - **Description:** Submit analytics data for custom paths
   - **Headers:** `Authorization: Bearer <token>`
 
@@ -394,31 +388,83 @@ This document provides a comprehensive reference for all available API routes in
 
 ## Trip Planning Routes
 
-**Base Path:** `/api/trips`
+### Trip Management
 
-- **GET** `/api/trips`
+- **GET** `/trips/planned`
 
-  - **Description:** Get trips via Trip Planning service
+  - **Description:** Get planned trips
   - **Headers:** `Authorization: Bearer <token>`
 
-- **POST** `/api/trips`
-  - **Description:** Create a new trip
+- **POST** `/trips/create`
+
+  - **Description:** Create new trip plan
   - **Headers:** `Authorization: Bearer <token>`
-  - **Body:** Trip data
+
+- **PUT** `/trips/{trip_id}/update`
+
+  - **Description:** Update existing trip plan
+  - **Headers:** `Authorization: Bearer <token>`
+
+- **DELETE** `/trips/{trip_id}/cancel`
+  - **Description:** Cancel trip plan
+  - **Headers:** `Authorization: Bearer <token>`
+
+### Generic Trip Operations
+
+- **GET** `/trips/{path:path}`
+
+  - **Description:** Generic trip endpoint for custom paths
+  - **Headers:** `Authorization: Bearer <token>`
+
+- **POST** `/trips/{path:path}`
+
+  - **Description:** Submit trip data for custom paths
+  - **Headers:** `Authorization: Bearer <token>`
+
+- **PUT** `/trips/{path:path}`
+
+  - **Description:** Update trip data for custom paths
+  - **Headers:** `Authorization: Bearer <token>`
+
+- **DELETE** `/trips/{path:path}`
+  - **Description:** Delete trip data for custom paths
+  - **Headers:** `Authorization: Bearer <token>`
 
 ---
 
 ## Maintenance Routes
 
-**Base Path:** `/api/maintenance`
+### Maintenance Management
 
-- **GET** `/api/maintenance`
+- **GET** `/maintenance/records`
 
   - **Description:** Get maintenance records
   - **Headers:** `Authorization: Bearer <token>`
 
-- **POST** `/api/maintenance`
-  - **Description:** Create maintenance record
+- **POST** `/maintenance/schedule`
+
+  - **Description:** Schedule maintenance
+  - **Headers:** `Authorization: Bearer <token>`
+  - **Body:** Maintenance schedule data
+
+- **PUT** `/maintenance/{maintenance_id}/complete`
+
+  - **Description:** Mark maintenance as complete
+  - **Headers:** `Authorization: Bearer <token>`
+
+- **DELETE** `/maintenance/{maintenance_id}/cancel`
+  - **Description:** Cancel scheduled maintenance
+  - **Headers:** `Authorization: Bearer <token>`
+
+### Generic Maintenance Operations
+
+- **GET** `/maintenance/{path:path}`
+
+  - **Description:** Generic maintenance endpoint for custom paths
+  - **Headers:** `Authorization: Bearer <token>`
+
+- **POST** `/maintenance/{path:path}`
+  - **Description:** Submit maintenance data for custom paths
   - **Headers:** `Authorization: Bearer <token>`
   - **Body:** Maintenance data
 
@@ -442,60 +488,83 @@ This document provides a comprehensive reference for all available API routes in
 
 ## Plugin Management Routes
 
-**Base Path:** `/api/plugins`
-
 ### Plugin Information
 
-- **GET** `/api/plugins/`
+- **GET** `/plugins/`
 
   - **Description:** Get all available plugins (Admin only)
   - **Headers:** `Authorization: Bearer <token>`
   - **Response:** Array of plugin information
 
-- **GET** `/api/plugins/available`
+- **GET** `/plugins/available`
 
   - **Description:** Get plugins available to current user based on role
   - **Headers:** `Authorization: Bearer <token>`
 
-- **GET** `/api/plugins/{plugin_id}`
+- **GET** `/plugins/{plugin_id}`
   - **Description:** Get specific plugin information
   - **Headers:** `Authorization: Bearer <token>`
 
 ### Plugin Control
 
-- **POST** `/api/plugins/{plugin_id}/start`
+- **POST** `/plugins/{plugin_id}/start`
 
   - **Description:** Start a plugin (Admin only)
   - **Headers:** `Authorization: Bearer <token>`
   - **Response:** `PluginStatusResponse`
 
-- **POST** `/api/plugins/{plugin_id}/stop`
+- **POST** `/plugins/{plugin_id}/stop`
 
   - **Description:** Stop a plugin (Admin only)
   - **Headers:** `Authorization: Bearer <token>`
   - **Response:** `PluginStatusResponse`
 
-- **GET** `/api/plugins/{plugin_id}/status`
+- **GET** `/plugins/{plugin_id}/status`
   - **Description:** Get plugin status
   - **Headers:** `Authorization: Bearer <token>`
 
 ### Plugin Configuration
 
-- **PUT** `/api/plugins/{plugin_id}/roles`
+- **PUT** `/plugins/{plugin_id}/roles`
 
   - **Description:** Update plugin role requirements (Admin only)
   - **Headers:** `Authorization: Bearer <token>`
   - **Body:** Role configuration
 
-- **POST** `/api/plugins/sync-status`
+- **POST** `/plugins/sync-status`
   - **Description:** Sync plugin status across the system
   - **Headers:** `Authorization: Bearer <token>`
 
 ### Plugin Debug
 
-- **GET** `/api/plugins/debug/docker`
+- **GET** `/plugins/debug/docker`
   - **Description:** Debug Docker access for plugin management (Admin only)
   - **Headers:** `Authorization: Bearer <token>`
+
+### Service Block Plugin Routes
+
+- **POST** `/plugins/sblock/{path:path}`
+
+  - **Description:** Execute service block operations via plugin
+  - **Headers:** `Authorization: Bearer <token>`
+  - **Parameters:** Dynamic path routing to service blocks
+
+- **GET** `/plugins/sblock/{path:path}`
+
+  - **Description:** Query service block operations via plugin
+  - **Headers:** `Authorization: Bearer <token>`
+  - **Parameters:** Dynamic path routing to service blocks
+
+- **PUT** `/plugins/sblock/{path:path}`
+
+  - **Description:** Update service block operations via plugin
+  - **Headers:** `Authorization: Bearer <token>`
+  - **Parameters:** Dynamic path routing to service blocks
+
+- **DELETE** `/plugins/sblock/{path:path}`
+  - **Description:** Delete service block operations via plugin
+  - **Headers:** `Authorization: Bearer <token>`
+  - **Parameters:** Dynamic path routing to service blocks
 
 ---
 

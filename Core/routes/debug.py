@@ -31,7 +31,7 @@ async def list_routes(request):
             })
     return {"routes": routes}
 
-@router.get("/api/debug/routes")
+@router.get("/debug/routes")
 async def debug_routes(request):
     """Debug endpoint to check what routes are registered"""
     routes_info = []
@@ -50,7 +50,7 @@ async def debug_routes(request):
         "api_routes": [r for r in routes_info if r["path"].startswith("/api")]
     }
 
-@router.get("/api/test/simple")
+@router.get("/test/simple")
 async def simple_test():
     """Simple test endpoint to verify /api routing works"""
     return {
@@ -59,7 +59,7 @@ async def simple_test():
         "timestamp": datetime.utcnow().isoformat()
     }
 
-@router.get("/api/test/connection")
+@router.get("/test/connection")
 async def test_service_connection():
     """Test endpoint to verify Core to Management service communication"""
     try:
@@ -101,7 +101,7 @@ async def test_service_connection():
             "response_received": False
         }
 
-@router.get("/api/vehicles/direct")
+@router.get("/vehicles/direct")
 async def get_vehicles_direct():
     """Direct vehicles endpoint for testing without service proxy"""
     try:
