@@ -98,6 +98,16 @@ async def lifespan(app: FastAPI):
             logger.warning(f"⚠️  RabbitMQ initialization failed: {e}")
             # Continue without RabbitMQ for now
         
+        # 5. Initialize startup services (includes response manager)
+        try:
+            logger.info("⚙️ Initializing startup services...")
+            from services.startup import startup_service
+            await startup_service.startup()
+            logger.info("✅ Startup services initialized")
+        except Exception as e:
+            logger.warning(f"⚠️  Startup services initialization failed: {e}")
+            # Continue without startup services
+        
         startup_duration = (datetime.utcnow() - startup_start_time).total_seconds()
         logger.info(f"🎉 SAMFMS Core Service startup completed in {startup_duration:.2f}s")
         
@@ -184,14 +194,6 @@ try:
 except ImportError as e:
     logger.error(f"❌ Failed to import auth routes: {e}")
 
-# Import debug routes
-try:
-    from routes.debug import router as debug_router
-    app.include_router(debug_router)
-    logger.info("✅ Debug routes configured")
-except ImportError as e:
-    logger.warning(f"⚠️  Debug routes could not be imported: {e}")
-
 # Import GPS routes
 try:
     from routes.gps_direct import router as gps_router
@@ -200,11 +202,11 @@ try:
 except ImportError as e:
     logger.warning(f"⚠️  GPS routes could not be imported: {e}")
 
-# Import consolidated routes (optional)
+# Import consolidated routes (includes debug functionality)
 try:
     from routes.consolidated import consolidated_router
     app.include_router(consolidated_router)
-    logger.info("✅ Consolidated routes configured")
+    logger.info("✅ Consolidated routes configured (includes debug, API endpoints)")
 except ImportError as e:
     logger.warning(f"⚠️  Consolidated routes could not be imported: {e}")
     logger.info("Service will continue with individual routes")

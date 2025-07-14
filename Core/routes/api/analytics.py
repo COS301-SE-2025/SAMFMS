@@ -20,11 +20,11 @@ async def get_fleet_utilization(
 ):
     """Get fleet utilization analytics"""
     response = await handle_service_request(
-        endpoint="/analytics/fleet-utilization",
+        endpoint="/api/analytics/fleet-utilization",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/analytics"
+        auth_endpoint="/api/analytics"
     )
     
     return response
@@ -36,11 +36,11 @@ async def get_vehicle_usage(
 ):
     """Get vehicle usage analytics"""
     response = await handle_service_request(
-        endpoint="/analytics/vehicle-usage",
+        endpoint="/api/analytics/vehicle-usage",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/analytics"
+        auth_endpoint="/api/analytics"
     )
     
     return response
@@ -52,11 +52,11 @@ async def get_assignment_metrics(
 ):
     """Get assignment metrics analytics"""
     response = await handle_service_request(
-        endpoint="/analytics/assignment-metrics",
+        endpoint="/api/analytics/assignment-metrics",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/analytics"
+        auth_endpoint="/api/analytics"
     )
     
     return response
@@ -68,11 +68,11 @@ async def get_maintenance_analytics(
 ):
     """Get maintenance analytics"""
     response = await handle_service_request(
-        endpoint="/analytics/maintenance",
+        endpoint="/api/analytics/maintenance",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/analytics"
+        auth_endpoint="/api/analytics"
     )
     
     return response
@@ -84,11 +84,11 @@ async def get_driver_performance(
 ):
     """Get driver performance analytics"""
     response = await handle_service_request(
-        endpoint="/analytics/driver-performance",
+        endpoint="/api/analytics/driver-performance",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/analytics"
+        auth_endpoint="/api/analytics"
     )
     
     return response
@@ -100,11 +100,11 @@ async def get_costs_analytics(
 ):
     """Get cost analytics"""
     response = await handle_service_request(
-        endpoint="/analytics/costs",
+        endpoint="/api/analytics/costs",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/analytics"
+        auth_endpoint="/api/analytics"
     )
     
     return response
@@ -116,11 +116,11 @@ async def get_status_breakdown(
 ):
     """Get vehicle status breakdown analytics"""
     response = await handle_service_request(
-        endpoint="/analytics/status-breakdown",
+        endpoint="/api/analytics/status-breakdown",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/analytics"
+        auth_endpoint="/api/analytics"
     )
     
     return response
@@ -132,11 +132,11 @@ async def get_incidents_analytics(
 ):
     """Get incident analytics"""
     response = await handle_service_request(
-        endpoint="/analytics/incidents",
+        endpoint="/api/analytics/incidents",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/analytics"
+        auth_endpoint="/api/analytics"
     )
     
     return response
@@ -148,11 +148,11 @@ async def get_department_location_analytics(
 ):
     """Get department location analytics"""
     response = await handle_service_request(
-        endpoint="/analytics/department-location",
+        endpoint="/api/analytics/department-location",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/analytics"
+        auth_endpoint="/api/analytics"
     )
     
     return response
@@ -169,7 +169,7 @@ async def get_custom_analytics(
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/analytics"
+        auth_endpoint="/api/analytics"
     )
     
     return response
@@ -186,7 +186,7 @@ async def post_custom_analytics(
         method="POST",
         data=analytics_data,
         credentials=credentials,
-        auth_endpoint="/analytics"
+        auth_endpoint="/api/analytics"
     )
     
     return response

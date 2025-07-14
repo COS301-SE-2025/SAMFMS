@@ -10,22 +10,68 @@ from .entities import AssignmentStatus, AssignmentType, DriverStatus, LicenseCla
 # Vehicle Request Schemas
 class VehicleCreateRequest(BaseModel):
     """Request to create new vehicle"""
-    registration_number: str = Field(..., description="Vehicle registration number")
+    # Support both license_plate (frontend) and registration_number (backend)
+    registration_number: Optional[str] = Field(None, description="Vehicle registration number")
+    license_plate: Optional[str] = Field(None, description="Vehicle license plate")
     make: str = Field(..., description="Vehicle make")
     model: str = Field(..., description="Vehicle model")
     year: int = Field(..., description="Vehicle year", ge=1900, le=2030)
-    type: str = Field(..., description="Vehicle type (e.g., sedan, SUV, truck)")
-    department: str = Field(..., description="Department responsible for vehicle")
-    capacity: Optional[int] = Field(None, description="Passenger capacity")
-    fuel_type: Optional[str] = Field(None, description="Fuel type")
-    color: Optional[str] = Field(None, description="Vehicle color")
+    type: Optional[str] = Field("sedan", description="Vehicle type (e.g., sedan, SUV, truck)")
+    department: Optional[str] = Field("General", description="Department responsible for vehicle")
+    capacity: Optional[int] = Field(5, description="Passenger capacity")
+    fuel_type: Optional[str] = Field("petrol", description="Fuel type")
+    color: Optional[str] = Field("white", description="Vehicle color")
     vin: Optional[str] = Field(None, description="Vehicle identification number")
     status: Optional[str] = Field("available", description="Vehicle status")
+    mileage: Optional[int] = Field(0, description="Current mileage")
+    
+    @validator('registration_number', pre=True, always=True)
+    def validate_registration(cls, v, values):
+        """Use license_plate if registration_number is not provided"""
+        if not v and 'license_plate' in values:
+            return values['license_plate']
+        return v or values.get('license_plate')
+    
+    @validator('license_plate', pre=True, always=True)
+    def validate_license_plate(cls, v, values):
+        """Use registration_number if license_plate is not provided"""
+        if not v and 'registration_number' in values:
+            return values['registration_number']
+        return v or values.get('registration_number')
+    
+    @validator('fuel_type')
+    def validate_fuel_type(cls, v):
+        """Normalize fuel type values"""
+        if v:
+            fuel_type_map = {
+                'petrol': 'petrol',
+                'gasoline': 'petrol',  # US term -> SA term
+                'gas': 'petrol',       # Short form -> SA term
+                'diesel': 'diesel',
+                'hybrid': 'hybrid',
+                'electric': 'electric'
+            }
+            return fuel_type_map.get(v.lower(), v)
+        return v
+    
+    @validator('status')
+    def validate_status(cls, v):
+        """Normalize status values"""
+        if v:
+            status_map = {
+                'active': 'available',
+                'available': 'available',
+                'inactive': 'out_of_service',
+                'out_of_service': 'out_of_service',
+                'maintenance': 'maintenance'
+            }
+            return status_map.get(v.lower(), v)
+        return v
     
     class Config:
         json_schema_extra = {
             "example": {
-                "registration_number": "ABC123GP",
+                "license_plate": "ABC123GP",
                 "make": "Toyota",
                 "model": "Corolla",
                 "year": 2022,
@@ -34,7 +80,9 @@ class VehicleCreateRequest(BaseModel):
                 "capacity": 5,
                 "fuel_type": "petrol",
                 "color": "white",
-                "status": "available"
+                "status": "available",
+                "vin": "1234567890ABCDEFG",
+                "mileage": 0
             }
         }
 
@@ -52,12 +100,44 @@ class VehicleUpdateRequest(BaseModel):
     color: Optional[str] = Field(None, description="Vehicle color")
     vin: Optional[str] = Field(None, description="Vehicle identification number")
     status: Optional[str] = Field(None, description="Vehicle status")
+    mileage: Optional[int] = Field(None, description="Vehicle mileage in kilometers", ge=0)
+    
+    @validator('fuel_type')
+    def validate_fuel_type(cls, v):
+        """Normalize fuel type values"""
+        if v:
+            fuel_type_map = {
+                'petrol': 'petrol',
+                'gasoline': 'petrol',  # US term -> SA term
+                'gas': 'petrol',       # Short form -> SA term
+                'diesel': 'diesel',
+                'hybrid': 'hybrid',
+                'electric': 'electric'
+            }
+            return fuel_type_map.get(v.lower(), v)
+        return v
+    
+    @validator('status')
+    def validate_status(cls, v):
+        """Normalize status values"""
+        if v:
+            status_map = {
+                'active': 'available',
+                'available': 'available',
+                'inactive': 'out_of_service',
+                'out_of_service': 'out_of_service',
+                'maintenance': 'maintenance'
+            }
+            return status_map.get(v.lower(), v)
+        return v
     
     class Config:
         json_schema_extra = {
             "example": {
                 "status": "maintenance",
-                "department": "Security"
+                "department": "Security",
+                "mileage": 50000,
+                "fuel_type": "petrol"
             }
         }
 

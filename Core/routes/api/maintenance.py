@@ -20,11 +20,11 @@ async def get_maintenance_records(
 ):
     """Get maintenance records via Vehicle Maintenance service"""
     response = await handle_service_request(
-        endpoint="/maintenance",
+        endpoint="/api/maintenance",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/maintenance"
+        auth_endpoint="/api/maintenance"
     )
     
     return response
@@ -39,11 +39,11 @@ async def create_maintenance_record(
     validate_required_fields(maintenance_data, required_fields)
     
     response = await handle_service_request(
-        endpoint="/maintenance",
+        endpoint="/api/maintenance",
         method="POST",
         data=maintenance_data,
         credentials=credentials,
-        auth_endpoint="/maintenance"
+        auth_endpoint="/api/maintenance"
     )
     
     return response
@@ -59,7 +59,7 @@ async def get_maintenance_record(
         method="GET",
         data={"maintenance_id": maintenance_id},
         credentials=credentials,
-        auth_endpoint="/maintenance"
+        auth_endpoint="/api/maintenance"
     )
     
     return response
@@ -76,7 +76,7 @@ async def update_maintenance_record(
         method="PUT",
         data=maintenance_data,
         credentials=credentials,
-        auth_endpoint="/maintenance"
+        auth_endpoint="/api/maintenance"
     )
     
     return response
@@ -92,7 +92,7 @@ async def delete_maintenance_record(
         method="DELETE",
         data={"maintenance_id": maintenance_id},
         credentials=credentials,
-        auth_endpoint="/maintenance"
+        auth_endpoint="/api/maintenance"
     )
     
     return response

@@ -10,6 +10,7 @@ import logging
 
 from .base import security, handle_service_request, validate_required_fields
 from .utils import standardize_vehicle_response
+from utils.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Vehicles"])
@@ -23,7 +24,7 @@ async def get_vehicles(
     logger.info(f"Received get_vehicles request with params: {dict(request.query_params)}")
     
     response = await handle_service_request(
-        endpoint="/vehicles",
+        endpoint="/api/vehicles",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
@@ -42,12 +43,24 @@ async def create_vehicle(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Create vehicle via Management service"""
-    # Validate input data
-    required_fields = ["make", "model", "license_plate"]
+    # Validate input data - support both license_plate and registration_number
+    required_fields = ["make", "model", "year"]
     validate_required_fields(vehicle_data, required_fields)
     
+    # Ensure license plate is provided (either as license_plate or registration_number)
+    if not vehicle_data.get("license_plate") and not vehicle_data.get("registration_number"):
+        raise ValidationError("Either license_plate or registration_number is required")
+    
+    # Add default values for backend compatibility
+    if "type" not in vehicle_data:
+        vehicle_data["type"] = "sedan"
+    if "department" not in vehicle_data:
+        vehicle_data["department"] = "General"
+    if "status" not in vehicle_data:
+        vehicle_data["status"] = "available"
+    
     response = await handle_service_request(
-        endpoint="/vehicles",
+        endpoint="/api/vehicles",
         method="POST",
         data=vehicle_data,
         credentials=credentials,
@@ -63,7 +76,7 @@ async def get_vehicle(
 ):
     """Get specific vehicle via Management service"""
     response = await handle_service_request(
-        endpoint=f"/vehicles/{vehicle_id}",
+        endpoint=f"/api/vehicles/{vehicle_id}",
         method="GET",
         data={"vehicle_id": vehicle_id},
         credentials=credentials,
@@ -79,14 +92,17 @@ async def update_vehicle(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Update vehicle via Management service"""
+    logger.info(f"Updating vehicle {vehicle_id} with data: {vehicle_data}")
+    
     response = await handle_service_request(
-        endpoint=f"/vehicles/{vehicle_id}",
+        endpoint=f"/api/vehicles/{vehicle_id}",
         method="PUT",
         data=vehicle_data,
         credentials=credentials,
         auth_endpoint="/api/vehicles"
     )
     
+    logger.info(f"Vehicle {vehicle_id} updated successfully")
     return response
 
 @router.delete("/vehicles/{vehicle_id}")
@@ -95,14 +111,17 @@ async def delete_vehicle(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Delete vehicle via Management service"""
+    logger.info(f"Deleting vehicle {vehicle_id}")
+    
     response = await handle_service_request(
-        endpoint=f"/vehicles/{vehicle_id}",
+        endpoint=f"/api/vehicles/{vehicle_id}",
         method="DELETE",
         data={"vehicle_id": vehicle_id},
         credentials=credentials,
         auth_endpoint="/api/vehicles"
     )
     
+    logger.info(f"Vehicle {vehicle_id} deleted successfully")
     return response
 
 @router.get("/vehicles/search/{query}")
@@ -112,7 +131,7 @@ async def search_vehicles(
 ):
     """Search vehicles via Management service"""
     response = await handle_service_request(
-        endpoint=f"/vehicles/search/{query}",
+        endpoint=f"/api/vehicles/search/{query}",
         method="GET",
         data={"query": query},
         credentials=credentials,
@@ -129,7 +148,7 @@ async def get_drivers(
 ):
     """Get all drivers via Management service"""
     response = await handle_service_request(
-        endpoint="/drivers",
+        endpoint="/api/drivers",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
@@ -145,7 +164,7 @@ async def create_driver(
 ):
     """Create a new driver via Management service"""
     response = await handle_service_request(
-        endpoint="/drivers",
+        endpoint="/api/drivers",
         method="POST",
         data=driver_data,
         credentials=credentials,
@@ -161,7 +180,7 @@ async def get_driver(
 ):
     """Get specific driver via Management service"""
     response = await handle_service_request(
-        endpoint=f"/drivers/{driver_id}",
+        endpoint=f"/api/drivers/{driver_id}",
         method="GET",
         data={"driver_id": driver_id},
         credentials=credentials,
@@ -178,7 +197,7 @@ async def update_driver(
 ):
     """Update driver via Management service"""
     response = await handle_service_request(
-        endpoint=f"/drivers/{driver_id}",
+        endpoint=f"/api/drivers/{driver_id}",
         method="PUT",
         data=driver_data,
         credentials=credentials,
@@ -194,7 +213,7 @@ async def delete_driver(
 ):
     """Delete driver via Management service"""
     response = await handle_service_request(
-        endpoint=f"/drivers/{driver_id}",
+        endpoint=f"/api/drivers/{driver_id}",
         method="DELETE",
         data={"driver_id": driver_id},
         credentials=credentials,

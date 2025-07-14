@@ -20,7 +20,7 @@ async def get_vehicle_assignments(
 ):
     """Get vehicle assignments via Management service"""
     response = await handle_service_request(
-        endpoint="/vehicle-assignments",
+        endpoint="/api/vehicle-assignments",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
@@ -36,7 +36,7 @@ async def create_vehicle_assignment(
 ):
     """Create vehicle assignment via Management service"""
     response = await handle_service_request(
-        endpoint="/vehicle-assignments",
+        endpoint="/api/vehicle-assignments",
         method="POST",
         data=assignment_data,
         credentials=credentials,
@@ -106,11 +106,11 @@ async def get_vehicle_assignments(
 ):
     """Get vehicle assignments via Management service"""
     response = await handle_service_request(
-        endpoint="/vehicle-assignments",
+        endpoint="/api/vehicle-assignments",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/vehicle-assignments"
+        auth_endpoint="/api/vehicle-assignments"
     )
     
     return response
@@ -125,11 +125,11 @@ async def create_vehicle_assignment(
     validate_required_fields(assignment_data, required_fields)
     
     response = await handle_service_request(
-        endpoint="/vehicle-assignments",
+        endpoint="/api/vehicle-assignments",
         method="POST",
         data=assignment_data,
         credentials=credentials,
-        auth_endpoint="/vehicle-assignments"
+        auth_endpoint="/api/vehicle-assignments"
     )
     
     return response
@@ -146,7 +146,7 @@ async def update_vehicle_assignment(
         method="PUT",
         data=assignment_data,
         credentials=credentials,
-        auth_endpoint="/vehicle-assignments"
+        auth_endpoint="/api/vehicle-assignments"
     )
     
     return response
@@ -162,7 +162,7 @@ async def delete_vehicle_assignment(
         method="DELETE",
         data={"assignment_id": assignment_id},
         credentials=credentials,
-        auth_endpoint="/vehicle-assignments"
+        auth_endpoint="/api/vehicle-assignments"
     )
     
     return response

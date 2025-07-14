@@ -7,7 +7,6 @@ import CustomDropdown from './CustomDropdown';
 const initialForm = {
   make: '',
   model: '',
-  year: '',
   vin: '',
   license_plate: '',
   color: '',
@@ -305,6 +304,10 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
         license_plate: form.license_plate,
         fuel_type: form.fuel_type,
         status: form.status,
+        // Add backend-compatible fields with defaults
+        type: 'sedan', // Default vehicle type
+        department: 'General', // Default department
+        capacity: 5, // Default capacity
       };
 
       const newVehicle = await createVehicle(formData);

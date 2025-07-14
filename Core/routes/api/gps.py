@@ -20,7 +20,7 @@ async def get_gps_locations(
 ):
     """Get GPS locations via GPS service"""
     response = await handle_service_request(
-        endpoint="/gps/locations",
+        endpoint="/api/gps/locations",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
@@ -36,7 +36,7 @@ async def create_gps_location(
 ):
     """Create GPS location via GPS service"""
     response = await handle_service_request(
-        endpoint="/gps/locations",
+        endpoint="/api/gps/locations",
         method="POST",
         data=location_data,
         credentials=credentials,
@@ -57,11 +57,11 @@ async def get_gps_locations(
 ):
     """Get GPS location data via GPS service"""
     response = await handle_service_request(
-        endpoint="/gps/locations",
+        endpoint="/api/gps/locations",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/gps/locations"
+        auth_endpoint="/api/gps/locations"
     )
     
     return response
@@ -76,11 +76,11 @@ async def create_gps_location(
     validate_required_fields(location_data, required_fields)
     
     response = await handle_service_request(
-        endpoint="/gps/locations",
+        endpoint="/api/gps/locations",
         method="POST",
         data=location_data,
         credentials=credentials,
-        auth_endpoint="/gps/locations"
+        auth_endpoint="/api/gps/locations"
     )
     
     return response
@@ -92,11 +92,11 @@ async def get_live_tracking(
 ):
     """Get live tracking data for vehicles"""
     response = await handle_service_request(
-        endpoint="/tracking/live",
+        endpoint="/api/tracking/live",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/tracking"
+        auth_endpoint="/api/tracking"
     )
     
     return response
@@ -116,7 +116,7 @@ async def get_tracking_history(
         method="GET",
         data=query_params,
         credentials=credentials,
-        auth_endpoint="/tracking"
+        auth_endpoint="/api/tracking"
     )
     
     return response

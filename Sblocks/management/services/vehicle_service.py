@@ -49,6 +49,14 @@ class VehicleService:
                 sort=[("registration_number", 1)]
             )
             
+            # Convert datetime objects to ISO format for JSON serialization
+            if vehicles:
+                for vehicle in vehicles:
+                    if isinstance(vehicle, dict):
+                        for key, value in vehicle.items():
+                            if isinstance(value, datetime):
+                                vehicle[key] = value.isoformat()
+            
             # Get total count
             total = await self.vehicle_repo.count(filter_query)
             total_pages = (total + pagination["limit"] - 1) // pagination["limit"]
@@ -70,13 +78,24 @@ class VehicleService:
     async def create_vehicle(self, vehicle_request: VehicleCreateRequest, created_by: str) -> Dict[str, Any]:
         """Create new vehicle with validation"""
         try:
+            # Determine the registration number (use license_plate if registration_number not provided)
+            reg_number = vehicle_request.registration_number or vehicle_request.license_plate
+            if not reg_number:
+                raise ValueError("Either registration_number or license_plate must be provided")
+            
             # Check if registration number already exists
-            existing = await self.vehicle_repo.get_by_registration_number(vehicle_request.registration_number)
+            existing = await self.vehicle_repo.get_by_registration_number(reg_number)
             if existing:
-                raise ValueError(f"Vehicle with registration number {vehicle_request.registration_number} already exists")
+                raise ValueError(f"Vehicle with registration number {reg_number} already exists")
             
             # Convert to dict and add metadata
             vehicle_data = vehicle_request.model_dump()
+            
+            # Ensure registration_number is set
+            vehicle_data["registration_number"] = reg_number
+            if not vehicle_data.get("license_plate"):
+                vehicle_data["license_plate"] = reg_number
+                
             vehicle_data["created_by"] = created_by
             vehicle_data["created_at"] = datetime.utcnow()
             vehicle_data["updated_at"] = datetime.utcnow()
@@ -91,6 +110,12 @@ class VehicleService:
             
             # Publish event
             await event_publisher.publish_vehicle_created(vehicle, created_by)
+            
+            # Convert datetime objects to ISO format for JSON serialization
+            if vehicle and isinstance(vehicle, dict):
+                for key, value in vehicle.items():
+                    if isinstance(value, datetime):
+                        vehicle[key] = value.isoformat()
             
             logger.info(f"Created vehicle: {vehicle_id}")
             return vehicle

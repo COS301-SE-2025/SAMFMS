@@ -17,6 +17,7 @@ from repositories.database import db_manager
 from events.publisher import event_publisher
 from events.consumer import event_consumer, setup_event_handlers
 from services.analytics_service import analytics_service
+from services.request_consumer import service_request_consumer
 from api.routes.analytics import router as analytics_router
 from api.routes.assignments import router as assignments_router
 from api.routes.drivers import router as drivers_router
@@ -135,6 +136,20 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"❌ Event consumer setup error: {e}")
             consumer_connected = False
+        
+        # Setup and start service request consumer
+        logger.info("🔗 Setting up service request consumer...")
+        try:
+            request_consumer_connected = await service_request_consumer.connect()
+            if request_consumer_connected:
+                # Start consuming service requests in background
+                asyncio.create_task(service_request_consumer.start_consuming())
+                logger.info("✅ Service request consumer started successfully")
+            else:
+                logger.warning("⚠️ Service request consumer connection failed - Core communication disabled")
+        except Exception as e:
+            logger.error(f"❌ Service request consumer setup error: {e}")
+            request_consumer_connected = False
         
         # Publish service started event with enhanced error handling
         if publisher_connected:

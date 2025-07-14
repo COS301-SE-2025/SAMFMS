@@ -20,11 +20,11 @@ async def get_trips(
 ):
     """Get trips via Trip Planning service"""
     response = await handle_service_request(
-        endpoint="/trips",
+        endpoint="/api/trips",
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/trips"
+        auth_endpoint="/api/trips"
     )
     
     return response
@@ -39,11 +39,11 @@ async def create_trip(
     validate_required_fields(trip_data, required_fields)
     
     response = await handle_service_request(
-        endpoint="/trips",
+        endpoint="/api/trips",
         method="POST",
         data=trip_data,
         credentials=credentials,
-        auth_endpoint="/trips"
+        auth_endpoint="/api/trips"
     )
     
     return response
@@ -59,7 +59,7 @@ async def get_trip(
         method="GET",
         data={"trip_id": trip_id},
         credentials=credentials,
-        auth_endpoint="/trips"
+        auth_endpoint="/api/trips"
     )
     
     return response
@@ -76,7 +76,7 @@ async def update_trip(
         method="PUT",
         data=trip_data,
         credentials=credentials,
-        auth_endpoint="/trips"
+        auth_endpoint="/api/trips"
     )
     
     return response
@@ -92,7 +92,7 @@ async def delete_trip(
         method="DELETE",
         data={"trip_id": trip_id},
         credentials=credentials,
-        auth_endpoint="/trips"
+        auth_endpoint="/api/trips"
     )
     
     return response
