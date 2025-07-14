@@ -9,6 +9,12 @@ from enum import Enum
 
 class EventType(str, Enum):
     """Event types for Management service"""
+    # Vehicle events
+    VEHICLE_CREATED = "vehicle.created"
+    VEHICLE_UPDATED = "vehicle.updated"
+    VEHICLE_DELETED = "vehicle.deleted"
+    VEHICLE_STATUS_CHANGED = "vehicle.status_changed"
+    
     # Assignment events
     ASSIGNMENT_CREATED = "assignment.created"
     ASSIGNMENT_UPDATED = "assignment.updated"
@@ -43,6 +49,14 @@ class BaseEvent(BaseModel):
     user_id: Optional[str] = None
 
 
+class VehicleEvent(BaseEvent):
+    """Vehicle event"""
+    vehicle_id: str
+    registration_number: str
+    status: str
+    data: Optional[Dict[str, Any]] = None
+
+
 class AssignmentEvent(BaseEvent):
     """Vehicle assignment event"""
     assignment_id: str
@@ -66,6 +80,7 @@ class DriverEvent(BaseEvent):
     """Driver event"""
     driver_id: str
     employee_id: str
+    status: str
     data: Optional[Dict[str, Any]] = None
 
 
@@ -79,14 +94,6 @@ class ServiceEvent(BaseEvent):
     """Service lifecycle event"""
     service_status: str
     version: str = "1.0.0"
-    data: Optional[Dict[str, Any]] = None
-
-
-# Vehicle-related events that we listen to from other services
-class VehicleEvent(BaseEvent):
-    """Vehicle event from Vehicles service"""
-    vehicle_id: str
-    action: str  # created, updated, deleted, status_changed
     data: Optional[Dict[str, Any]] = None
 
 

@@ -1,5 +1,6 @@
 import { httpClient } from '../services/httpClient';
 import { buildApiUrl } from '../../config/apiConfig';
+import { getToken, fetchWithTimeout } from './auth';
 
 // Plugin API endpoints using centralized configuration
 const PLUGIN_ENDPOINTS = {

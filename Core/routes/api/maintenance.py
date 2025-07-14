@@ -1,6 +1,6 @@
 """
 Maintenance Routes
-Handles vehicle maintenance operations
+Handles vehicle maintenance operations through service proxy
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -8,10 +8,10 @@ from fastapi.security import HTTPAuthorizationCredentials
 from typing import Dict, Any
 import logging
 
-from .common import security, handle_service_request, validate_required_fields
+from .base import security, handle_service_request, validate_required_fields
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["Maintenance"])
+router = APIRouter(prefix="/api", tags=["Maintenance"])
 
 @router.get("/maintenance")
 async def get_maintenance_records(

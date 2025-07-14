@@ -30,6 +30,7 @@ class EventConsumer:
         self.max_retry_attempts = 3
         self.retry_delay = 2.0  # seconds
         self.is_consuming = False
+        self.enable_dead_letter_queue = os.getenv("ENABLE_DLQ", "true").lower() == "true"
         
     async def connect(self):
         """Connect to RabbitMQ with retry logic"""
@@ -82,7 +83,7 @@ class EventConsumer:
         logger.info(f"Registered handler for {event_pattern}")
     
     async def start_consuming(self):
-        """Start consuming events with proper error handling"""
+        """Start consuming events with proper error handling and graceful queue management"""
         if not self.connection:
             logger.error("Not connected to RabbitMQ")
             return
@@ -92,22 +93,15 @@ class EventConsumer:
             return
         
         try:
-            # Setup dead letter queue first
-            await self._setup_dead_letter_queue()
+            # Setup dead letter queue first (if enabled)
+            if self.enable_dead_letter_queue:
+                await self._setup_dead_letter_queue()
+            else:
+                logger.info("Dead letter queue disabled via configuration")
             
-            # Declare queue for this service
+            # Try to declare queue with dead letter exchange, fallback if it fails
             queue_name = "management_service_events"
-            queue = await self.channel.declare_queue(
-                queue_name,
-                durable=True,
-                arguments={
-                    "x-message-ttl": 300000,  # 5 minutes TTL
-                    "x-max-length": 1000,
-                    "x-overflow": "drop-head",
-                    "x-dead-letter-exchange": "management_dlx",
-                    "x-dead-letter-routing-key": "failed"
-                }
-            )
+            queue = await self._declare_queue_with_fallback(queue_name)
             
             # Bind to relevant exchanges and routing keys
             await self._setup_bindings(queue)
@@ -151,7 +145,7 @@ class EventConsumer:
         logger.info("Setup event bindings")
     
     async def _setup_dead_letter_queue(self):
-        """Setup dead letter queue for failed messages"""
+        """Setup dead letter queue for failed messages with error handling"""
         try:
             # Declare dead letter exchange
             dlx = await self.channel.declare_exchange(
@@ -169,9 +163,12 @@ class EventConsumer:
             # Bind DLQ to DLX
             await self.dead_letter_queue.bind(dlx, "failed")
             
-            logger.info("Setup dead letter queue")
+            logger.info("Setup dead letter queue successfully")
+            
         except Exception as e:
             logger.error(f"Failed to setup dead letter queue: {e}")
+            logger.warning("Continuing without dead letter queue - failed messages will be logged only")
+            self.dead_letter_queue = None
     
     async def _handle_message_with_retry(self, message: aio_pika.IncomingMessage):
         """Handle incoming message with retry logic"""
@@ -227,10 +224,12 @@ class EventConsumer:
             logger.error(f"Failed to retry message: {e}")
     
     async def _send_to_dead_letter_queue(self, message: aio_pika.IncomingMessage, error: str):
-        """Send failed message to dead letter queue"""
+        """Send failed message to dead letter queue or log if DLQ unavailable"""
         try:
             if not self.dead_letter_queue:
-                logger.error("Dead letter queue not available")
+                logger.error(f"Dead letter queue not available, logging failed message: {error}")
+                logger.error(f"Failed message body: {message.body[:500]}...")  # Log first 500 chars
+                logger.error(f"Failed message routing key: {message.routing_key}")
                 return
             
             # Create DLQ message with failure information
@@ -248,14 +247,23 @@ class EventConsumer:
                 delivery_mode=aio_pika.DeliveryMode.PERSISTENT
             )
             
-            # Publish to dead letter exchange
-            dlx = await self.channel.get_exchange("management_dlx")
-            await dlx.publish(dlq_message, routing_key="failed")
-            
-            logger.error(f"Sent message to dead letter queue: {error}")
+            # Try to publish to dead letter exchange
+            try:
+                dlx = await self.channel.get_exchange("management_dlx")
+                await dlx.publish(dlq_message, routing_key="failed")
+                logger.error(f"Sent message to dead letter queue: {error}")
+            except Exception as dlx_error:
+                logger.error(f"Failed to publish to dead letter exchange: {dlx_error}")
+                # Fallback to logging
+                logger.error(f"Failed message (DLX failed): {error}")
+                logger.error(f"Message body: {message.body[:500]}")
             
         except Exception as e:
-            logger.error(f"Failed to send message to dead letter queue: {e}")
+            logger.error(f"Critical error in dead letter queue handling: {e}")
+            # Final fallback - just log the failure
+            logger.error(f"Failed message (DLQ error): {error}")
+            logger.error(f"Message routing key: {message.routing_key}")
+            logger.error(f"Message body: {message.body[:500]}")
     
     async def _handle_message(self, message: aio_pika.IncomingMessage):
         """Handle incoming message with enhanced error context"""
@@ -318,6 +326,90 @@ class EventConsumer:
                 return False
         
         return True
+    
+    async def _declare_queue_with_fallback(self, queue_name: str):
+        """Declare queue with graceful fallback for existing queues"""
+        
+        # First, try to connect to existing queue without modification
+        try:
+            queue = await self.channel.declare_queue(queue_name, passive=True)
+            logger.info(f"Connected to existing queue {queue_name}")
+            return queue
+        except Exception:
+            # Queue doesn't exist or we can't access it passively, try to declare it
+            pass
+        
+        # Define queue arguments based on DLQ availability
+        if self.enable_dead_letter_queue and self.dead_letter_queue:
+            queue_args = {
+                "x-message-ttl": 300000,  # 5 minutes TTL
+                "x-max-length": 1000,
+                "x-overflow": "drop-head",
+                "x-dead-letter-exchange": "management_dlx",
+                "x-dead-letter-routing-key": "failed"
+            }
+            logger.info("Attempting to declare queue with dead letter exchange")
+        else:
+            queue_args = {
+                "x-message-ttl": 300000,  # 5 minutes TTL
+                "x-max-length": 1000,
+                "x-overflow": "drop-head"
+            }
+            logger.info("Attempting to declare queue without dead letter exchange")
+        
+        # Try to declare queue with desired arguments
+        try:
+            queue = await self.channel.declare_queue(
+                queue_name,
+                durable=True,
+                arguments=queue_args
+            )
+            logger.info(f"Successfully declared queue {queue_name}")
+            return queue
+            
+        except Exception as e:
+            if "PRECONDITION_FAILED" in str(e) and "inequivalent arg" in str(e):
+                logger.warning(f"Queue {queue_name} exists with different arguments: {e}")
+                
+                # Recreate channel if it was closed
+                if "Channel closed" in str(e) or "ChannelInvalidStateError" in str(e) or "RPC timeout" in str(e):
+                    logger.info("Recreating channel after precondition failure")
+                    await self._recreate_channel()
+                
+                # Simply connect to the existing queue as-is
+                try:
+                    queue = await self.channel.declare_queue(queue_name, passive=True)
+                    logger.info(f"Connected to existing queue {queue_name} with its current configuration")
+                    return queue
+                except Exception as passive_error:
+                    logger.error(f"Failed to connect to existing queue: {passive_error}")
+                    
+                    # Final attempt: just declare without arguments and let RabbitMQ handle it
+                    try:
+                        queue = await self.channel.declare_queue(queue_name, durable=True)
+                        logger.info(f"Connected to queue {queue_name} with default declaration")
+                        return queue
+                    except Exception as final_error:
+                        logger.error(f"All attempts to access queue {queue_name} failed: {final_error}")
+                        logger.error("Recommendation: Delete and recreate the queue 'management_service_events' in RabbitMQ")
+                        raise
+            else:
+                logger.error(f"Unexpected error declaring queue {queue_name}: {e}")
+                raise
+    
+    async def _recreate_channel(self):
+        """Recreate the channel after it's been closed"""
+        try:
+            if self.channel and not self.channel.is_closed:
+                await self.channel.close()
+            
+            self.channel = await self.connection.channel()
+            await self.channel.set_qos(prefetch_count=10)
+            logger.info("Successfully recreated RabbitMQ channel")
+            
+        except Exception as e:
+            logger.error(f"Failed to recreate channel: {e}")
+            raise
 
 
 # Event handlers
@@ -500,29 +592,50 @@ class ManagementEventHandlers:
             raise
     
     async def handle_user_role_changed(self, data: Dict[str, Any], routing_key: str, headers: Dict[str, Any]):
-        """Handle user role changed event"""
+        """Handle user role changed event with driver status management"""
         try:
             user_id = data.get('user_id')
             old_role = data.get('old_role')
             new_role = data.get('new_role')
             
-            logger.info(f"User role changed: {user_id} from {old_role} to {new_role}")
+            if not user_id:
+                raise ValueError("Missing user_id in event data")
+            
+            logger.info(f"Processing user role change: {user_id} from {old_role} to {new_role}")
             
             # Update driver status if role changed to/from driver
             if old_role == "driver" and new_role != "driver":
                 # User is no longer a driver - deactivate driver record
-                try:
-                    from ..repositories.repositories import DriverRepository
-                    driver_repo = DriverRepository()
-                    
-                    driver = await driver_repo.find_one({"user_id": user_id})
-                    if driver:
-                        await driver_repo.update(driver["_id"], {"status": "inactive"})
-                        logger.info(f"Deactivated driver record for user {user_id}")
-                except ImportError as e:
-                    logger.error(f"Could not import DriverRepository: {e}")
+                driver_repo = self._get_driver_repo()
+                if driver_repo:
+                    try:
+                        driver = await driver_repo.find_one({"user_id": user_id})
+                        if driver:
+                            await driver_repo.update(
+                                driver["_id"], 
+                                {
+                                    "status": "inactive",
+                                    "deactivated_at": datetime.utcnow(),
+                                    "deactivation_reason": "role_changed"
+                                }
+                            )
+                            logger.info(f"Deactivated driver record for user {user_id}")
+                        else:
+                            logger.warning(f"No driver record found for user {user_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to deactivate driver record for user {user_id}: {e}")
+                        # Don't raise - this is a side effect operation
+            
+            elif old_role != "driver" and new_role == "driver":
+                # User became a driver - log for potential driver record creation
+                logger.info(f"User {user_id} became a driver - may need driver record creation")
+            
+            logger.info(f"Successfully processed user role change event: {user_id}")
+            
         except Exception as e:
             logger.error(f"Error handling user role changed event: {e}")
+            logger.error(f"Event data: {data}")
+            raise
 
 
 # Global consumer instance

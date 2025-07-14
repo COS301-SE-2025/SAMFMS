@@ -1,5 +1,5 @@
-fastapi
-uvicorn[standard]
+fastapi>=0.95.0
+uvicorn[standard]>=0.20.0
 redis
 pymongo
 motor
@@ -9,3 +9,6 @@ pyjwt
 requests
 python-multipart
 asyncio-mqtt
+aiohttp
+httpx
+python-json-logger

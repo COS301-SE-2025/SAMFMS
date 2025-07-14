@@ -1,5 +1,5 @@
-import React, {useState, useEffect, useCallback} from 'react';
-import {PlusCircle} from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { PlusCircle } from 'lucide-react';
 import VehicleList from '../components/vehicles/VehicleList';
 import VehicleSearch from '../components/vehicles/VehicleSearch';
 import VehicleActions from '../components/vehicles/VehicleActions';
@@ -8,7 +8,7 @@ import DriverAssignmentModal from '../components/vehicles/DriverAssignmentModal'
 import DataVisualization from '../components/vehicles/DataVisualization';
 import AddVehicleModal from '../components/vehicles/AddVehicleModal';
 import EditVehicleModal from '../components/vehicles/EditVehicleModal';
-import {getVehicles, deleteVehicle, searchVehicles} from '../backend/API';
+import { getVehicles, deleteVehicle, searchVehicles } from '../backend/API';
 import FleetUtilizationCard from '../components/analytics/FleetUtilizationCard';
 import VehicleUsageStats from '../components/analytics/VehicleUsageStats';
 import AssignmentMetricsCard from '../components/analytics/AssignmentMetricsCard';
@@ -43,7 +43,9 @@ const Vehicles = () => {
   // Enhanced error handling with retry logic
   const handleAPIError = async (error, retryFn, maxRetries = 3) => {
     if ((error.status === 503 || error.status === 504) && retryFn && maxRetries > 0) {
-      console.log(`Service unavailable (${error.status}), retrying... (${maxRetries} attempts left)`);
+      console.log(
+        `Service unavailable (${error.status}), retrying... (${maxRetries} attempts left)`
+      );
       await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
       return retryFn(maxRetries - 1);
     }
@@ -64,13 +66,16 @@ const Vehicles = () => {
       licensePlate: backendVehicle.license_plate || backendVehicle.licensePlate || 'N/A',
       color: backendVehicle.color || 'N/A',
       fuelType: backendVehicle.fuel_type || backendVehicle.fuelType || 'N/A',
-      mileage: backendVehicle.mileage?.toString() || backendVehicle.current_mileage?.toString() || '0',
+      mileage:
+        backendVehicle.mileage?.toString() || backendVehicle.current_mileage?.toString() || '0',
       // Fix status mapping - handle both is_active boolean and status string
       status: backendVehicle.status
-        ? (backendVehicle.status.charAt(0).toUpperCase() + backendVehicle.status.slice(1))
-        : (backendVehicle.is_active !== undefined
-          ? (backendVehicle.is_active ? 'Active' : 'Inactive')
-          : 'Active'),
+        ? backendVehicle.status.charAt(0).toUpperCase() + backendVehicle.status.slice(1)
+        : backendVehicle.is_active !== undefined
+        ? backendVehicle.is_active
+          ? 'Active'
+          : 'Inactive'
+        : 'Active',
       driver: backendVehicle.driver_name || backendVehicle.driver || 'Unassigned',
       driverId: backendVehicle.driver_id || backendVehicle.driverId || null,
       department: backendVehicle.department || 'N/A',
@@ -150,8 +155,8 @@ const Vehicles = () => {
         // If empty search, reload all vehicles
         const response = await getVehicles({
           limit: 100,
-          ...(filters.status && {status_filter: filters.status.toLowerCase()}),
-          ...(filters.make && {make_filter: filters.make}),
+          ...(filters.status && { status_filter: filters.status.toLowerCase() }),
+          ...(filters.make && { make_filter: filters.make }),
         });
         // Handle both array and object response formats
         const vehiclesArray = response.vehicles || response || [];
@@ -165,8 +170,7 @@ const Vehicles = () => {
         if (vehiclesArray) {
           const transformedResults = vehiclesArray.map(transformVehicleData);
           setVehicles(transformedResults);
-        }
-        else {
+        } else {
           setVehicles([]); // Clear vehicles if no results found
           setError('No vehicles found matching your search criteria.');
           return; // Exit early if no results
@@ -279,7 +283,7 @@ const Vehicles = () => {
       console.error('Error processing updated vehicle:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getVehicles({limit: 100});
+        const response = await getVehicles({ limit: 100 });
         const transformedVehicles = response.map(transformVehicleData);
         setVehicles(transformedVehicles);
       } catch (refreshError) {
@@ -342,7 +346,7 @@ const Vehicles = () => {
         // Update selectAll state based on whether all current vehicles are selected
         setSelectAll(
           newSelected.length > 0 &&
-          currentVehicles.every(vehicle => newSelected.includes(vehicle.id))
+            currentVehicles.every(vehicle => newSelected.includes(vehicle.id))
         );
         return newSelected;
       } else {
@@ -399,24 +403,6 @@ const Vehicles = () => {
     setCurrentPage(1); // Reset to first page
   };
 
-  // Local Search Function
-  const localSearchVehicles = (searchTerm) => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return;
-
-    const filteredVehicles = vehicles.filter(vehicle => {
-      return (
-        vehicle.make?.toLowerCase().includes(term) ||
-        vehicle.model?.toLowerCase().includes(term) ||
-        vehicle.year?.toString().includes(term) ||
-        vehicle.color?.toLowerCase().includes(term) ||
-        vehicle.fuelType?.toLowerCase().includes(term)
-      );
-    });
-
-    setVehicles(filteredVehicles);
-  };
-
   return (
     <div className="min-h-screen bg-background relative">
       {/* SVG pattern background like Landing page */}
@@ -435,7 +421,11 @@ const Vehicles = () => {
           <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
             <h2 className="text-xl font-semibold">Manage Vehicles</h2>
             <div className="flex-1 mx-4">
-              <VehicleSearch onSearch={localSearchVehicles} />
+              <VehicleSearch
+                onSearch={handleSearch}
+                onApplyFilters={handleApplyFilters}
+                onResetFilters={handleResetFilters}
+              />
             </div>
             <button
               className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
@@ -535,11 +525,9 @@ const Vehicles = () => {
         )}
         {/* Data visualization section */}
         <DataVisualization analytics={analytics} />
-
         <VehicleUsageStats stats={analytics.vehicle_usage} />
         <DriverPerformanceCard stats={analytics.driver_performance} />
         <CostAnalyticsCard stats={analytics.cost_analytics} />
-
         {/* Analytics Cards Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
           <StatusBreakdownCard stats={analytics.status_breakdown} />

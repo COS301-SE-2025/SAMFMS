@@ -1,6 +1,6 @@
 """
 Analytics Routes
-Handles all analytics and reporting operations
+Handles all analytics and reporting operations through service proxy
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -8,10 +8,10 @@ from fastapi.security import HTTPAuthorizationCredentials
 from typing import Dict, Any
 import logging
 
-from .common import security, handle_service_request
+from .base import security, handle_service_request
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["Analytics"])
+router = APIRouter(prefix="/api", tags=["Analytics"])
 
 @router.get("/analytics/fleet-utilization")
 async def get_fleet_utilization(

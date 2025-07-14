@@ -11,6 +11,82 @@ from schemas.entities import VehicleAssignment, VehicleUsageLog, Driver, Analyti
 logger = logging.getLogger(__name__)
 
 
+class VehicleRepository(BaseRepository):
+    """Repository for vehicle management"""
+    
+    def __init__(self):
+        super().__init__("vehicles")
+    
+    async def get_by_registration_number(self, registration_number: str) -> Optional[Dict[str, Any]]:
+        """Get vehicle by registration number"""
+        return await self.find_one({"registration_number": registration_number})
+    
+    async def get_by_department(self, department: str) -> List[Dict[str, Any]]:
+        """Get vehicles by department"""
+        return await self.find(
+            filter_query={"department": department},
+            sort=[("registration_number", 1)]
+        )
+    
+    async def get_by_status(self, status: str) -> List[Dict[str, Any]]:
+        """Get vehicles by status"""
+        return await self.find(
+            filter_query={"status": status},
+            sort=[("registration_number", 1)]
+        )
+    
+    async def get_available_vehicles(self) -> List[Dict[str, Any]]:
+        """Get all available vehicles"""
+        return await self.find(
+            filter_query={"status": "available"},
+            sort=[("registration_number", 1)]
+        )
+    
+    async def get_vehicle_metrics(self) -> Dict[str, Any]:
+        """Get vehicle analytics"""
+        pipeline = [
+            {
+                "$group": {
+                    "_id": "$status",
+                    "count": {"$sum": 1}
+                }
+            }
+        ]
+        
+        status_counts = await self.aggregate(pipeline)
+        
+        # Get department breakdown
+        dept_pipeline = [
+            {
+                "$group": {
+                    "_id": "$department",
+                    "count": {"$sum": 1}
+                }
+            }
+        ]
+        
+        dept_counts = await self.aggregate(dept_pipeline)
+        
+        # Get type breakdown
+        type_pipeline = [
+            {
+                "$group": {
+                    "_id": "$type",
+                    "count": {"$sum": 1}
+                }
+            }
+        ]
+        
+        type_counts = await self.aggregate(type_pipeline)
+        
+        return {
+            "status_breakdown": {item["_id"]: item["count"] for item in status_counts},
+            "department_breakdown": {item["_id"]: item["count"] for item in dept_counts},
+            "type_breakdown": {item["_id"]: item["count"] for item in type_counts},
+            "total_vehicles": await self.count()
+        }
+
+
 class VehicleAssignmentRepository(BaseRepository):
     """Repository for vehicle assignments"""
     

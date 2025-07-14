@@ -7,7 +7,62 @@ from datetime import datetime
 from .entities import AssignmentStatus, AssignmentType, DriverStatus, LicenseClass
 
 
-# Request Schemas
+# Vehicle Request Schemas
+class VehicleCreateRequest(BaseModel):
+    """Request to create new vehicle"""
+    registration_number: str = Field(..., description="Vehicle registration number")
+    make: str = Field(..., description="Vehicle make")
+    model: str = Field(..., description="Vehicle model")
+    year: int = Field(..., description="Vehicle year", ge=1900, le=2030)
+    type: str = Field(..., description="Vehicle type (e.g., sedan, SUV, truck)")
+    department: str = Field(..., description="Department responsible for vehicle")
+    capacity: Optional[int] = Field(None, description="Passenger capacity")
+    fuel_type: Optional[str] = Field(None, description="Fuel type")
+    color: Optional[str] = Field(None, description="Vehicle color")
+    vin: Optional[str] = Field(None, description="Vehicle identification number")
+    status: Optional[str] = Field("available", description="Vehicle status")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "registration_number": "ABC123GP",
+                "make": "Toyota",
+                "model": "Corolla",
+                "year": 2022,
+                "type": "sedan",
+                "department": "General",
+                "capacity": 5,
+                "fuel_type": "petrol",
+                "color": "white",
+                "status": "available"
+            }
+        }
+
+
+class VehicleUpdateRequest(BaseModel):
+    """Request to update vehicle"""
+    registration_number: Optional[str] = Field(None, description="Vehicle registration number")
+    make: Optional[str] = Field(None, description="Vehicle make")
+    model: Optional[str] = Field(None, description="Vehicle model")
+    year: Optional[int] = Field(None, description="Vehicle year", ge=1900, le=2030)
+    type: Optional[str] = Field(None, description="Vehicle type")
+    department: Optional[str] = Field(None, description="Department responsible for vehicle")
+    capacity: Optional[int] = Field(None, description="Passenger capacity")
+    fuel_type: Optional[str] = Field(None, description="Fuel type")
+    color: Optional[str] = Field(None, description="Vehicle color")
+    vin: Optional[str] = Field(None, description="Vehicle identification number")
+    status: Optional[str] = Field(None, description="Vehicle status")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "maintenance",
+                "department": "Security"
+            }
+        }
+
+
+# Assignment Request Schemas
 class VehicleAssignmentRequest(BaseModel):
     """Request to create/update vehicle assignment"""
     vehicle_id: str
@@ -38,6 +93,7 @@ class VehicleUsageEndRequest(BaseModel):
     odometer_end: Optional[float] = None
 
 
+# Driver Request Schemas
 class DriverCreateRequest(BaseModel):
     """Request to create new driver"""
     employee_id: str

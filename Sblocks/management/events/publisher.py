@@ -98,6 +98,70 @@ class EventPublisher:
             logger.error(f"Failed to publish event {event.event_type.value}: {e}")
             return False
     
+    # Vehicle event publishers
+    async def publish_vehicle_created(self, vehicle_data: Dict[str, Any], user_id: str = None) -> bool:
+        """Publish vehicle created event"""
+        from .events import VehicleEvent
+        
+        event = VehicleEvent(
+            event_type=EventType.VEHICLE_CREATED,
+            vehicle_id=str(vehicle_data["_id"]),
+            registration_number=vehicle_data["registration_number"],
+            status=vehicle_data["status"],
+            user_id=user_id,
+            data=vehicle_data
+        )
+        
+        return await self.publish_event(event, "vehicle.created")
+    
+    async def publish_vehicle_updated(self, vehicle_data: Dict[str, Any], user_id: str = None, changes: Dict[str, Any] = None) -> bool:
+        """Publish vehicle updated event"""
+        from .events import VehicleEvent
+        
+        event = VehicleEvent(
+            event_type=EventType.VEHICLE_UPDATED,
+            vehicle_id=str(vehicle_data["_id"]),
+            registration_number=vehicle_data["registration_number"],
+            status=vehicle_data["status"],
+            user_id=user_id,
+            data={
+                **vehicle_data,
+                "changes": changes or {}
+            }
+        )
+        
+        return await self.publish_event(event, "vehicle.updated")
+    
+    async def publish_vehicle_deleted(self, vehicle_data: Dict[str, Any], user_id: str = None) -> bool:
+        """Publish vehicle deleted event"""
+        from .events import VehicleEvent
+        
+        event = VehicleEvent(
+            event_type=EventType.VEHICLE_DELETED,
+            vehicle_id=str(vehicle_data["_id"]),
+            registration_number=vehicle_data["registration_number"],
+            status=vehicle_data["status"],
+            user_id=user_id,
+            data=vehicle_data
+        )
+        
+        return await self.publish_event(event, "vehicle.deleted")
+    
+    async def publish_driver_created(self, driver_data: Dict[str, Any], user_id: str = None) -> bool:
+        """Publish driver created event"""
+        from .events import DriverEvent
+        
+        event = DriverEvent(
+            event_type=EventType.DRIVER_CREATED,
+            driver_id=str(driver_data["_id"]),
+            employee_id=driver_data["employee_id"],
+            status=driver_data["status"],
+            user_id=user_id,
+            data=driver_data
+        )
+        
+        return await self.publish_event(event, "driver.created")
+    
     # Specific event publishers
     async def publish_assignment_created(self, assignment_data: Dict[str, Any], user_id: str = None) -> bool:
         """Publish assignment created event"""

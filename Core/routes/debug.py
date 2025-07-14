@@ -9,13 +9,98 @@ import uuid
 from datetime import datetime
 from typing import Dict, Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
 from services.request_router import request_router
 from database import db
+from common.service_discovery import get_service_discovery
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Debug & Testing"])
+
+class ServiceRegistrationRequest(BaseModel):
+    """Service registration request model"""
+    name: str
+    host: str
+    port: int
+    version: str = "1.0.0"
+    protocol: str = "http"
+    health_check_url: str = "/health"
+    tags: list = []
+    metadata: dict = {}
+
+
+@router.post("/api/services/register")
+async def register_service(registration: ServiceRegistrationRequest):
+    """Register a service with the Core's service discovery"""
+    try:
+        service_discovery = await get_service_discovery()
+        
+        await service_discovery.register_service(
+            name=registration.name,
+            host=registration.host,
+            port=registration.port,
+            version=registration.version,
+            protocol=registration.protocol,
+            health_check_url=registration.health_check_url,
+            tags=registration.tags,
+            metadata=registration.metadata
+        )
+        
+        logger.info(f"🔧 Registered service: {registration.name} at {registration.host}:{registration.port}")
+        
+        return {
+            "status": "success",
+            "message": f"Service {registration.name} registered successfully",
+            "service_info": {
+                "name": registration.name,
+                "base_url": f"{registration.protocol}://{registration.host}:{registration.port}",
+                "registered_at": datetime.utcnow().isoformat()
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to register service {registration.name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Service registration failed: {str(e)}")
+
+
+@router.get("/api/services")
+async def get_registered_services():
+    """Get list of registered services"""
+    try:
+        service_discovery = await get_service_discovery()
+        services = await service_discovery.get_all_services()
+        
+        return {
+            "status": "success",
+            "services": services,
+            "total": len(services)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get registered services: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get services: {str(e)}")
+
+
+@router.delete("/api/services/{service_name}")
+async def deregister_service(service_name: str):
+    """Deregister a service"""
+    try:
+        service_discovery = await get_service_discovery()
+        await service_discovery.deregister_service(service_name)
+        
+        logger.info(f"🗑️ Deregistered service: {service_name}")
+        
+        return {
+            "status": "success",
+            "message": f"Service {service_name} deregistered successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to deregister service {service_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Service deregistration failed: {str(e)}")
+
 
 @router.get("/debug/routes")
 async def debug_routes(request):

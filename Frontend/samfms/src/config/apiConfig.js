@@ -107,61 +107,62 @@ export const API_ENDPOINTS = {
 
   // Vehicle Management
   VEHICLES: {
-    LIST: '/vehicles',
-    CREATE: '/vehicles',
-    GET: id => `/vehicles/${id}`,
-    UPDATE: id => `/vehicles/${id}`,
-    DELETE: id => `/vehicles/${id}`,
-    SEARCH: query => `/vehicles/search/${query}`,
+    LIST: '/api/vehicles',
+    CREATE: '/api/vehicles',
+    GET: id => `/api/vehicles/${id}`,
+    UPDATE: id => `/api/vehicles/${id}`,
+    DELETE: id => `/api/vehicles/${id}`,
+    SEARCH: query => `/api/vehicles/search/${query}`,
   },
 
   // Driver Management
   DRIVERS: {
-    LIST: '/drivers',
-    CREATE: '/drivers',
-    GET: id => `/drivers/${id}`,
-    UPDATE: id => `/drivers/${id}`,
-    DELETE: id => `/drivers/${id}`,
-    SEARCH: query => `/drivers/search/${query}`,
+    LIST: '/api/vehicles/drivers',
+    CREATE: '/api/vehicles/drivers',
+    GET: id => `/api/vehicles/drivers/${id}`,
+    UPDATE: id => `/api/vehicles/drivers/${id}`,
+    DELETE: id => `/api/vehicles/drivers/${id}`,
+    SEARCH: query => `/api/vehicles/drivers/search/${query}`,
   },
 
   // Vehicle Assignments
   ASSIGNMENTS: {
-    LIST: '/vehicle-assignments',
-    CREATE: '/vehicle-assignments',
-    UPDATE: id => `/vehicle-assignments/${id}`,
-    DELETE: id => `/vehicle-assignments/${id}`,
+    LIST: '/api/vehicle-assignments',
+    CREATE: '/api/vehicle-assignments',
+    UPDATE: id => `/api/vehicle-assignments/${id}`,
+    DELETE: id => `/api/vehicle-assignments/${id}`,
   },
 
   // GPS and Tracking
   GPS: {
-    LOCATIONS: '/gps/locations',
-    CREATE_LOCATION: '/gps/locations',
+    LOCATIONS: '/api/gps/locations',
+    CREATE_LOCATION: '/api/gps/locations',
   },
 
   // Trip Planning
   TRIPS: {
-    LIST: '/trips',
-    CREATE: '/trips',
+    LIST: '/api/trips',
+    CREATE: '/api/trips',
   },
 
   // Maintenance
   MAINTENANCE: {
-    LIST: '/maintenance',
-    CREATE: '/maintenance',
+    LIST: '/api/maintenance',
+    CREATE: '/api/maintenance',
   },
 
-  // Analytics
+  // Analytics (updated for management service)
   ANALYTICS: {
-    FLEET_UTILIZATION: '/analytics/fleet-utilization',
-    VEHICLE_USAGE: '/analytics/vehicle-usage',
-    ASSIGNMENT_METRICS: '/analytics/assignment-metrics',
-    MAINTENANCE: '/analytics/maintenance',
-    DRIVER_PERFORMANCE: '/analytics/driver-performance',
-    COSTS: '/analytics/costs',
-    STATUS_BREAKDOWN: '/analytics/status-breakdown',
-    INCIDENTS: '/analytics/incidents',
-    DEPARTMENT_LOCATION: '/analytics/department-location',
+    DASHBOARD: '/api/analytics/dashboard',
+    FLEET_UTILIZATION: '/api/analytics/fleet-utilization',
+    VEHICLE_USAGE: '/api/analytics/vehicle-usage',
+    ASSIGNMENT_METRICS: '/api/analytics/assignment-metrics',
+    MAINTENANCE: '/api/analytics/maintenance',
+    DRIVER_PERFORMANCE: '/api/analytics/driver-performance',
+    COSTS: '/api/analytics/costs',
+    STATUS_BREAKDOWN: '/api/analytics/status-breakdown',
+    INCIDENTS: '/api/analytics/incidents',
+    DEPARTMENT_LOCATION: '/api/analytics/department-location',
   },
 
   // WebSocket

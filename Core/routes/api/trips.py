@@ -1,6 +1,6 @@
 """
 Trip Planning Routes
-Handles trip planning and management operations
+Handles trip planning and management operations through service proxy
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -8,10 +8,10 @@ from fastapi.security import HTTPAuthorizationCredentials
 from typing import Dict, Any
 import logging
 
-from .common import security, handle_service_request, validate_required_fields
+from .base import security, handle_service_request, validate_required_fields
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["Trip Planning"])
+router = APIRouter(prefix="/api", tags=["Trip Planning"])
 
 @router.get("/trips")
 async def get_trips(

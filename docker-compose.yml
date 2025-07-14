@@ -249,6 +249,9 @@ services:
       - '${MANAGEMENT_SERVICE_PORT:-21010}:8000'
     environment:
       - MANAGEMENT_PORT=8000
+      - MANAGEMENT_HOST=management
+      - CORE_HOST=core
+      - CORE_PORT=8000
       - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
       - DATABASE_NAME=${DATABASE_MANAGEMENT:-samfms_management}
       - DATABASE_VEHICLES=${DATABASE_VEHICLES:-samfms_vehicles}

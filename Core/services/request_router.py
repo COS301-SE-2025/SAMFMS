@@ -29,21 +29,32 @@ class RequestRouter:
     def __init__(self):
         self.response_manager = ResponseCorrelationManager()
         self.routing_map = {
+            # Management service endpoints (both v1 and legacy paths)
             "/api/vehicles": "management",
             "/api/vehicles/*": "management",
+            "/api/v1/vehicles": "management",
+            "/api/v1/vehicles/*": "management",
             "/api/drivers": "management",
             "/api/drivers/*": "management",
+            "/api/v1/drivers": "management", 
+            "/api/v1/drivers/*": "management",
             "/api/vehicle-assignments": "management",
             "/api/vehicle-assignments/*": "management",
+            "/api/v1/assignments": "management",
+            "/api/v1/assignments/*": "management",
             "/api/vehicle-usage": "management",
             "/api/vehicle-usage/*": "management",
+            "/api/analytics": "management",
+            "/api/analytics/*": "management",
+            "/api/v1/analytics": "management",
+            "/api/v1/analytics/*": "management",
+            # Other services
             "/api/gps/*": "gps",
             "/api/tracking/*": "gps", 
             "/api/trips/*": "trip_planning",
             "/api/trip-planning/*": "trip_planning",
             "/api/maintenance/*": "vehicle_maintenance",
-            "/api/vehicle-maintenance/*": "vehicle_maintenance",
-            "/api/analytics/*": "management"
+            "/api/vehicle-maintenance/*": "vehicle_maintenance"
         }
 
     def normalize_endpoint(self, endpoint: str) -> str:

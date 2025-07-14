@@ -1,12 +1,49 @@
 """
-GPS and Location Routes
-Handles GPS tracking and location-related operations
+GPS and Tracking Routes
+Handles all GPS location and tracking operations through service proxy
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from typing import Dict, Any
 import logging
+
+from .base import security, handle_service_request
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/api", tags=["GPS & Tracking"])
+
+@router.get("/gps/locations")
+async def get_gps_locations(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get GPS locations via GPS service"""
+    response = await handle_service_request(
+        endpoint="/gps/locations",
+        method="GET",
+        data=dict(request.query_params),
+        credentials=credentials,
+        auth_endpoint="/api/gps"
+    )
+    
+    return response
+
+@router.post("/gps/locations")
+async def create_gps_location(
+    location_data: Dict[str, Any],
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Create GPS location via GPS service"""
+    response = await handle_service_request(
+        endpoint="/gps/locations",
+        method="POST",
+        data=location_data,
+        credentials=credentials,
+        auth_endpoint="/api/gps"
+    )
+    
+    return response
 
 from .common import security, handle_service_request, validate_required_fields
 

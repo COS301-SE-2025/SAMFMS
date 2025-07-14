@@ -1,6 +1,6 @@
 """
 Vehicle Management Routes
-Handles all vehicle-related operations
+Handles all vehicle-related operations through service proxy
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -8,11 +8,11 @@ from fastapi.security import HTTPAuthorizationCredentials
 from typing import Dict, Any
 import logging
 
-from .common import security, handle_service_request, validate_required_fields
-from utils.response_utils import standardize_vehicle_response
+from .base import security, handle_service_request, validate_required_fields
+from .utils import standardize_vehicle_response
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["Vehicles"])
+router = APIRouter(prefix="/api", tags=["Vehicles"])
 
 @router.get("/vehicles")
 async def get_vehicles(
@@ -27,7 +27,7 @@ async def get_vehicles(
         method="GET",
         data=dict(request.query_params),
         credentials=credentials,
-        auth_endpoint="/vehicles"
+        auth_endpoint="/api/vehicles"
     )
     
     # Standardize field names for frontend compatibility
@@ -51,7 +51,7 @@ async def create_vehicle(
         method="POST",
         data=vehicle_data,
         credentials=credentials,
-        auth_endpoint="/vehicles"
+        auth_endpoint="/api/vehicles"
     )
     
     return response
@@ -67,7 +67,7 @@ async def get_vehicle(
         method="GET",
         data={"vehicle_id": vehicle_id},
         credentials=credentials,
-        auth_endpoint="/vehicles"
+        auth_endpoint="/api/vehicles"
     )
     
     return response
@@ -84,7 +84,7 @@ async def update_vehicle(
         method="PUT",
         data=vehicle_data,
         credentials=credentials,
-        auth_endpoint="/vehicles"
+        auth_endpoint="/api/vehicles"
     )
     
     return response
@@ -100,7 +100,7 @@ async def delete_vehicle(
         method="DELETE",
         data={"vehicle_id": vehicle_id},
         credentials=credentials,
-        auth_endpoint="/vehicles"
+        auth_endpoint="/api/vehicles"
     )
     
     return response
@@ -116,7 +116,89 @@ async def search_vehicles(
         method="GET",
         data={"query": query},
         credentials=credentials,
-        auth_endpoint="/vehicles"
+        auth_endpoint="/api/vehicles"
+    )
+    
+    return response
+
+# Driver Management Routes (under vehicles namespace)
+@router.get("/vehicles/drivers")
+async def get_drivers(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get all drivers via Management service"""
+    response = await handle_service_request(
+        endpoint="/drivers",
+        method="GET",
+        data=dict(request.query_params),
+        credentials=credentials,
+        auth_endpoint="/api/vehicles/drivers"
+    )
+    
+    return response
+
+@router.post("/vehicles/drivers")
+async def create_driver(
+    driver_data: Dict[str, Any],
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Create a new driver via Management service"""
+    response = await handle_service_request(
+        endpoint="/drivers",
+        method="POST",
+        data=driver_data,
+        credentials=credentials,
+        auth_endpoint="/api/vehicles/drivers"
+    )
+    
+    return response
+
+@router.get("/vehicles/drivers/{driver_id}")
+async def get_driver(
+    driver_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Get specific driver via Management service"""
+    response = await handle_service_request(
+        endpoint=f"/drivers/{driver_id}",
+        method="GET",
+        data={"driver_id": driver_id},
+        credentials=credentials,
+        auth_endpoint="/api/vehicles/drivers"
+    )
+    
+    return response
+
+@router.put("/vehicles/drivers/{driver_id}")
+async def update_driver(
+    driver_id: str,
+    driver_data: Dict[str, Any],
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Update driver via Management service"""
+    response = await handle_service_request(
+        endpoint=f"/drivers/{driver_id}",
+        method="PUT",
+        data=driver_data,
+        credentials=credentials,
+        auth_endpoint="/api/vehicles/drivers"
+    )
+    
+    return response
+
+@router.delete("/vehicles/drivers/{driver_id}")
+async def delete_driver(
+    driver_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Delete driver via Management service"""
+    response = await handle_service_request(
+        endpoint=f"/drivers/{driver_id}",
+        method="DELETE",
+        data={"driver_id": driver_id},
+        credentials=credentials,
+        auth_endpoint="/api/vehicles/drivers"
     )
     
     return response
