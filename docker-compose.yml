@@ -103,19 +103,22 @@ services:
     ports:
       - '${GPS_SERVICE_PORT:-21005}:8000'
     environment:
+      - GPS_PORT=8000
+      - GPS_HOST=gps
+      - CORE_HOST=core
+      - CORE_PORT=8000
       - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
       - DATABASE_NAME=${DATABASE_GPS:-samfms_gps}
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
       - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
-      - TRACCAR_API_URL=http://traccar:8082/api
-      - TRACCAR_SIMULATION_HOST=http://traccar:5055
-      - TRACCAR_ADMIN_USER=${TRACCAR_ADMIN_USER:-herrie732@gmail.com}
-      - TRACCAR_ADMIN_PASS=${TRACCAR_ADMIN_PASS:-Eirreh732}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - SERVICE_STARTUP_DELAY=${SERVICE_STARTUP_DELAY:-15}
       - RABBITMQ_CONNECTION_RETRY_ATTEMPTS=${RABBITMQ_CONNECTION_RETRY_ATTEMPTS:-30}
       - RABBITMQ_CONNECTION_RETRY_DELAY=${RABBITMQ_CONNECTION_RETRY_DELAY:-2}
+      - LOCATION_HISTORY_DAYS=${LOCATION_HISTORY_DAYS:-90}
+      - GEOFENCE_CHECK_ENABLED=${GEOFENCE_CHECK_ENABLED:-true}
+      - REAL_TIME_TRACKING=${REAL_TIME_TRACKING:-true}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -331,25 +334,6 @@ services:
     environment:
       - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
       - DATABASE_NAME=${DATABASE_VEHICLES:-samfms_vehicles}
-      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PORT=${REDIS_PORT:-6379}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    depends_on:
-      - mongodb
-      - rabbitmq
-      - redis
-    restart: unless-stopped
-    networks:
-      - samfms-network
-
-  gps_dblock:
-    build: ./Dblocks/gps
-    ports:
-      - '${GPS_DBLOCK_PORT:-21014}:8000'
-    environment:
-      - MONGODB_URL=${MONGODB_URL:-mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017}
-      - DATABASE_NAME=${DATABASE_GPS:-samfms_gps}
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/}
       - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
