@@ -128,3 +128,16 @@ export const searchVehicles = async query => {
     throw error;
   }
 };
+
+// Default export object for easy importing
+export const vehiclesAPI = {
+  createVehicle,
+  getVehicles,
+  getVehicle,
+  updateVehicle,
+  deleteVehicle,
+  searchVehicles,
+};
+
+// Also export as default for alternative import syntax
+export default vehiclesAPI;

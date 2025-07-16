@@ -250,7 +250,7 @@ if __name__ == "__main__":
     
     # Get configuration from environment
     host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "8004"))  # Different port from management service
+    port = int(os.getenv("MAINTENANCE_PORT", "8000"))  # Use MAINTENANCE_PORT from environment
     log_level = os.getenv("LOG_LEVEL", "info").lower()
     
     logger.info(f"Starting Maintenance Service on {host}:{port}")

@@ -149,8 +149,47 @@ export const API_ENDPOINTS = {
 
   // Maintenance
   MAINTENANCE: {
-    LIST: '/api/maintenance',
-    CREATE: '/api/maintenance',
+    RECORDS: {
+      LIST: '/api/maintenance/records',
+      CREATE: '/api/maintenance/records',
+      GET: id => `/api/maintenance/records/${id}`,
+      UPDATE: id => `/api/maintenance/records/${id}`,
+      DELETE: id => `/api/maintenance/records/${id}`,
+      BY_VEHICLE: vehicleId => `/api/maintenance/records/vehicle/${vehicleId}`,
+      OVERDUE: '/api/maintenance/records/overdue',
+    },
+    SCHEDULES: {
+      LIST: '/api/maintenance/schedules',
+      CREATE: '/api/maintenance/schedules',
+      GET: id => `/api/maintenance/schedules/${id}`,
+      UPDATE: id => `/api/maintenance/schedules/${id}`,
+      DELETE: id => `/api/maintenance/schedules/${id}`,
+    },
+    LICENSES: {
+      LIST: '/api/maintenance/licenses',
+      CREATE: '/api/maintenance/licenses',
+      GET: id => `/api/maintenance/licenses/${id}`,
+      UPDATE: id => `/api/maintenance/licenses/${id}`,
+      DELETE: id => `/api/maintenance/licenses/${id}`,
+      EXPIRING: '/api/maintenance/licenses/expiring',
+    },
+    VENDORS: {
+      LIST: '/api/maintenance/vendors',
+      CREATE: '/api/maintenance/vendors',
+      GET: id => `/api/maintenance/vendors/${id}`,
+      UPDATE: id => `/api/maintenance/vendors/${id}`,
+      DELETE: id => `/api/maintenance/vendors/${id}`,
+    },
+    ANALYTICS: {
+      DASHBOARD: '/api/maintenance/analytics/dashboard',
+      COSTS: '/api/maintenance/analytics/costs',
+      OVERVIEW: '/api/maintenance/analytics',
+    },
+    NOTIFICATIONS: {
+      LIST: '/api/maintenance/notifications',
+      MARK_READ: id => `/api/maintenance/notifications/${id}/read`,
+      DELETE: id => `/api/maintenance/notifications/${id}`,
+    },
   },
 
   // Analytics (updated for management service)
