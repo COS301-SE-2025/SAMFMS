@@ -1,6 +1,6 @@
 """
 Real Integration Tests for SAMFMS Core, Management, and Maintenance Services
-Tests actual service integration components with proper mocking
+Tests actual service integration components with proper mocking and container support
 """
 
 import pytest
@@ -8,6 +8,9 @@ import asyncio
 import json
 import sys
 import os
+import httpx
+import requests
+import time
 from unittest.mock import Mock, patch, AsyncMock, MagicMock
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
@@ -16,7 +19,19 @@ import logging
 # Add project root to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Test configuration - can work with containers or local services
+TEST_CONFIG = {
+    "use_containers": os.getenv("USE_CONTAINERS", "false").lower() == "true",
+    "core_url": os.getenv("CORE_TEST_URL", "http://localhost:8004"),
+    "security_url": os.getenv("SECURITY_TEST_URL", "http://localhost:8001"),
+    "management_url": os.getenv("MANAGEMENT_TEST_URL", "http://localhost:8002"),
+    "maintenance_url": os.getenv("MAINTENANCE_TEST_URL", "http://localhost:8003"),
+    "timeout": 30
+}
 
 class TestRequestRouter:
     """Test the actual RequestRouter component"""
