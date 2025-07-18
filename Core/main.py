@@ -172,8 +172,13 @@ origins = [
 if config.environment.value == "development":
     origins.extend([
         "http://localhost:*",
-        "http://127.0.0.1:*"
+        "http://127.0.0.1:*",
+        "https://hoppscotch.io",     # Hoppscotch web app
+        "http://localhost:3100",     # Hoppscotch local
+        "http://127.0.0.1:3100"      # Hoppscotch local alternative
     ])
+    # For development, allow all origins for API testing
+    origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,

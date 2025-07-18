@@ -258,7 +258,7 @@ services:
   maintenance:
     build: ./Sblocks/maintenance
     ports:
-      - '${MAINTENANCE_SERVICE_PORT:-21016}:8000'
+      - '${MAINTENANCE_SERVICE_PORT:-21007}:8000'
     environment:
       - MAINTENANCE_PORT=8000
       - MAINTENANCE_HOST=maintenance

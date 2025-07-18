@@ -117,7 +117,7 @@ def require_permission(permission: str):
         except AuthorizationError:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Permission required: {permission}"
+                detail=f"Permission required: {permission} Current permissions: {current_user.get('permissions', [])}"
             )
         except Exception as e:
             logger.error(f"Authorization error: {e}")

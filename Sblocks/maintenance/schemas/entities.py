@@ -47,7 +47,7 @@ class LicenseType(str, Enum):
 
 
 class MaintenanceRecord(BaseModel):
-    """Maintenance record entity"""
+    """Maintenance record entity - aligned with frontend expectations"""
     id: Optional[str] = Field(None, alias="_id")
     vehicle_id: str = Field(..., description="Vehicle identifier")
     maintenance_type: MaintenanceType
@@ -64,38 +64,54 @@ class MaintenanceRecord(BaseModel):
     title: str = Field(..., description="Maintenance task title")
     description: Optional[str] = Field(None, description="Detailed description")
     work_performed: Optional[str] = Field(None, description="Work that was performed")
+    notes: Optional[str] = Field(None, description="Additional notes")
     
     # Cost tracking
     estimated_cost: Optional[float] = Field(None, description="Estimated cost")
     actual_cost: Optional[float] = Field(None, description="Actual cost incurred")
     labor_cost: Optional[float] = Field(None, description="Labor cost")
     parts_cost: Optional[float] = Field(None, description="Parts cost")
+    other_costs: Optional[float] = Field(None, description="Other miscellaneous costs")
     
     # Personnel and vendor information
     assigned_technician: Optional[str] = Field(None, description="Assigned technician ID")
+    technician_name: Optional[str] = Field(None, description="Assigned technician name")
     vendor_id: Optional[str] = Field(None, description="Service vendor ID")
+    vendor_name: Optional[str] = Field(None, description="Service vendor name")
     service_provider: Optional[str] = Field(None, description="Service provider name")
     
     # Mileage information
     mileage_at_service: Optional[int] = Field(None, description="Vehicle mileage at service")
     next_service_mileage: Optional[int] = Field(None, description="Next service due at mileage")
+    odometer_reading: Optional[int] = Field(None, description="Odometer reading at service")
     
     # Parts and materials
     parts_used: Optional[List[Dict[str, Any]]] = Field(None, description="Parts used in maintenance")
     warranty_info: Optional[Dict[str, Any]] = Field(None, description="Warranty information")
     
+    # Images and documents
+    photos: Optional[List[str]] = Field(None, description="Photo URLs/paths")
+    documents: Optional[List[str]] = Field(None, description="Document URLs/paths")
+    
     # Metadata
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     created_by: Optional[str] = Field(None, description="User who created the record")
+    updated_by: Optional[str] = Field(None, description="User who last updated the record")
     
     # Recurring maintenance
     is_recurring: bool = False
     recurrence_interval: Optional[int] = Field(None, description="Recurrence interval in days")
+    recurrence_type: Optional[str] = Field(None, description="Type of recurrence (daily, weekly, monthly)")
     parent_schedule_id: Optional[str] = Field(None, description="Parent schedule if recurring")
     
+    # Additional business fields for frontend
+    is_overdue: Optional[bool] = Field(None, description="Computed field for overdue status")
+    days_until_due: Optional[int] = Field(None, description="Computed field for days until due")
+    total_cost: Optional[float] = Field(None, description="Computed total cost")
+    
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }

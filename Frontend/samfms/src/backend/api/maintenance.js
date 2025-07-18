@@ -16,11 +16,18 @@ export const maintenanceAPI = {
       const params = new URLSearchParams();
       if (vehicleId) params.append('vehicle_id', vehicleId);
       if (status) params.append('status', status);
-      params.append('page', page);
-      params.append('size', size);
+      params.append('skip', (page - 1) * size);
+      params.append('limit', size);
 
       const response = await httpClient.get(`${API_ENDPOINTS.MAINTENANCE.RECORDS.LIST}?${params}`);
-      return handleApiResponse(response);
+      const result = handleApiResponse(response);
+
+      // Transform backend data to match frontend expectations
+      if (result.data && Array.isArray(result.data)) {
+        result.data = result.data.map(record => transformMaintenanceRecord(record));
+      }
+
+      return result;
     });
   },
 
@@ -28,9 +35,44 @@ export const maintenanceAPI = {
     validateRequiredFields(recordData, [
       'vehicle_id',
       'maintenance_type',
-      'description',
+      'title',
       'scheduled_date',
     ]);
+
+    // Validate dates
+    if (recordData.scheduled_date) {
+      const scheduledDate = new Date(recordData.scheduled_date);
+      if (isNaN(scheduledDate.getTime())) {
+        throw parseApiError({
+          response: {
+            status: 400,
+            data: { message: 'Invalid scheduled_date format', error_code: ERROR_TYPES.VALIDATION },
+          },
+        });
+      }
+      // Ensure proper ISO format
+      recordData.scheduled_date = scheduledDate.toISOString();
+    }
+
+    // Validate cost fields
+    const costFields = ['estimated_cost', 'actual_cost', 'labor_cost', 'parts_cost'];
+    costFields.forEach(field => {
+      if (recordData[field] !== undefined && recordData[field] !== null) {
+        const cost = parseFloat(recordData[field]);
+        if (isNaN(cost) || cost < 0) {
+          throw parseApiError({
+            response: {
+              status: 400,
+              data: {
+                message: `Invalid ${field}: must be a positive number`,
+                error_code: ERROR_TYPES.VALIDATION,
+              },
+            },
+          });
+        }
+        recordData[field] = cost;
+      }
+    });
 
     return withRetry(
       async () => {
@@ -38,10 +80,17 @@ export const maintenanceAPI = {
           API_ENDPOINTS.MAINTENANCE.RECORDS.CREATE,
           recordData
         );
-        return handleApiResponse(response);
+        const result = handleApiResponse(response);
+
+        // Transform response data
+        if (result.data) {
+          result.data = transformMaintenanceRecord(result.data);
+        }
+
+        return result;
       },
       { maxRetries: 1 }
-    ); // Don't retry create operations multiple times
+    );
   },
 
   async updateMaintenanceRecord(recordId, recordData) {
@@ -437,6 +486,103 @@ export const maintenanceAPI = {
       { maxRetries: 1 }
     );
   },
+};
+
+/**
+ * Transform maintenance record from backend format to frontend format
+ */
+function transformMaintenanceRecord(record) {
+  if (!record) return record;
+
+  const transformed = {
+    ...record,
+    // Ensure dates are properly formatted
+    scheduled_date: record.scheduled_date ? new Date(record.scheduled_date).toISOString() : null,
+    actual_start_date: record.actual_start_date
+      ? new Date(record.actual_start_date).toISOString()
+      : null,
+    actual_completion_date: record.actual_completion_date
+      ? new Date(record.actual_completion_date).toISOString()
+      : null,
+    created_at: record.created_at ? new Date(record.created_at).toISOString() : null,
+    updated_at: record.updated_at ? new Date(record.updated_at).toISOString() : null,
+
+    // Calculate computed fields
+    total_cost: calculateTotalCost(record),
+    is_overdue: isMaintenanceOverdue(record),
+    days_until_due: calculateDaysUntilDue(record),
+
+    // Ensure numeric fields are properly typed
+    estimated_cost: parseFloat(record.estimated_cost) || 0,
+    actual_cost: parseFloat(record.actual_cost) || 0,
+    labor_cost: parseFloat(record.labor_cost) || 0,
+    parts_cost: parseFloat(record.parts_cost) || 0,
+    other_costs: parseFloat(record.other_costs) || 0,
+
+    // Ensure arrays exist
+    parts_used: record.parts_used || [],
+    photos: record.photos || [],
+    documents: record.documents || [],
+  };
+
+  return transformed;
+}
+
+/**
+ * Calculate total cost from individual cost components
+ */
+function calculateTotalCost(record) {
+  const labor = parseFloat(record.labor_cost) || 0;
+  const parts = parseFloat(record.parts_cost) || 0;
+  const other = parseFloat(record.other_costs) || 0;
+  const actual = parseFloat(record.actual_cost) || 0;
+
+  // Use actual_cost if available, otherwise sum components
+  return actual > 0 ? actual : labor + parts + other;
+}
+
+/**
+ * Check if maintenance is overdue
+ */
+function isMaintenanceOverdue(record) {
+  if (record.status === 'completed' || record.status === 'cancelled') {
+    return false;
+  }
+
+  const scheduledDate = new Date(record.scheduled_date);
+  const now = new Date();
+
+  return scheduledDate < now;
+}
+
+/**
+ * Calculate days until maintenance is due
+ */
+function calculateDaysUntilDue(record) {
+  if (record.status === 'completed' || record.status === 'cancelled') {
+    return null;
+  }
+
+  const scheduledDate = new Date(record.scheduled_date);
+  const now = new Date();
+  const diffTime = scheduledDate - now;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  return diffDays;
+}
+
+/**
+ * Maintenance error codes specific to maintenance service
+ */
+export const MAINTENANCE_ERROR_CODES = {
+  INVALID_VEHICLE: 'INVALID_VEHICLE',
+  INVALID_MAINTENANCE_TYPE: 'INVALID_MAINTENANCE_TYPE',
+  INVALID_DATE: 'INVALID_DATE',
+  INVALID_COST: 'INVALID_COST',
+  DUPLICATE_MAINTENANCE: 'DUPLICATE_MAINTENANCE',
+  VENDOR_NOT_FOUND: 'VENDOR_NOT_FOUND',
+  TECHNICIAN_NOT_AVAILABLE: 'TECHNICIAN_NOT_AVAILABLE',
+  PARTS_NOT_AVAILABLE: 'PARTS_NOT_AVAILABLE',
 };
 
 export default maintenanceAPI;

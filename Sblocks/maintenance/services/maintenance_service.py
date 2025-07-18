@@ -20,7 +20,7 @@ class MaintenanceRecordsService:
         self.repository = MaintenanceRecordsRepository()
         
     async def create_maintenance_record(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new maintenance record"""
+        """Create a new maintenance record with business logic"""
         try:
             # Validate required fields
             required_fields = ["vehicle_id", "maintenance_type", "scheduled_date", "title"]
@@ -39,9 +39,23 @@ class MaintenanceRecordsService:
             # Parse datetime if it's a string
             if isinstance(data["scheduled_date"], str):
                 data["scheduled_date"] = datetime.fromisoformat(data["scheduled_date"].replace("Z", "+00:00"))
-                
+            
+            # Auto-determine priority based on maintenance type and urgency
+            await self._auto_set_priority(data)
+            
+            # Set next service mileage if not provided
+            if "next_service_mileage" not in data and "mileage_at_service" in data:
+                data["next_service_mileage"] = await self._calculate_next_service_mileage(
+                    data["vehicle_id"], 
+                    data["maintenance_type"], 
+                    data["mileage_at_service"]
+                )
+            
             record = await self.repository.create(data)
             logger.info(f"Created maintenance record {record['id']} for vehicle {data['vehicle_id']}")
+            
+            # Generate automatic notifications if needed
+            await self._generate_automatic_notifications(record)
             
             return record
             
@@ -218,6 +232,164 @@ class MaintenanceRecordsService:
             
         except Exception as e:
             logger.error(f"Error searching maintenance records: {e}")
+            raise
+    
+    async def _auto_set_priority(self, data: Dict[str, Any]) -> None:
+        """Automatically set priority based on maintenance type and conditions"""
+        try:
+            maintenance_type = data.get("maintenance_type", "").lower()
+            scheduled_date = data.get("scheduled_date")
+            
+            # High priority for safety-critical maintenance
+            if maintenance_type in ["brake", "tire", "steering", "emergency"]:
+                data["priority"] = MaintenancePriority.HIGH
+            # Critical for emergency repairs
+            elif maintenance_type == "emergency":
+                data["priority"] = MaintenancePriority.CRITICAL
+            # Check if overdue
+            elif scheduled_date and scheduled_date < datetime.utcnow():
+                data["priority"] = MaintenancePriority.HIGH
+            # Default remains as set
+            
+        except Exception as e:
+            logger.error(f"Error auto-setting priority: {e}")
+    
+    async def _calculate_next_service_mileage(self, vehicle_id: str, maintenance_type: str, current_mileage: int) -> int:
+        """Calculate next service mileage based on maintenance type"""
+        try:
+            # Standard service intervals (in kilometers)
+            service_intervals = {
+                "oil_change": 10000,
+                "brake_check": 20000,
+                "tire_rotation": 15000,
+                "general_service": 15000,
+                "major_service": 50000,
+                "inspection": 25000
+            }
+            
+            interval = service_intervals.get(maintenance_type.lower(), 15000)  # Default 15k km
+            return current_mileage + interval
+            
+        except Exception as e:
+            logger.error(f"Error calculating next service mileage: {e}")
+            return current_mileage + 15000  # Default fallback
+    
+    async def _generate_automatic_notifications(self, record: Dict[str, Any]) -> None:
+        """Generate automatic notifications for maintenance records"""
+        try:
+            from services.notification_service import notification_service
+            
+            # Generate notification for upcoming maintenance (3 days before)
+            scheduled_date = record.get("scheduled_date")
+            if scheduled_date:
+                notification_date = scheduled_date - timedelta(days=3)
+                
+                if notification_date > datetime.utcnow():
+                    notification_data = {
+                        "vehicle_id": record["vehicle_id"],
+                        "maintenance_record_id": record["id"],
+                        "type": "upcoming_maintenance",
+                        "priority": record.get("priority", "medium"),
+                        "scheduled_send_time": notification_date,
+                        "message": f"Maintenance '{record['title']}' scheduled for {scheduled_date.strftime('%Y-%m-%d')}"
+                    }
+                    
+                    await notification_service.create_notification(notification_data)
+                    
+        except Exception as e:
+            logger.error(f"Error generating automatic notifications: {e}")
+    
+    async def update_overdue_statuses(self) -> List[Dict[str, Any]]:
+        """Batch update overdue maintenance records"""
+        try:
+            now = datetime.utcnow()
+            
+            # Find scheduled maintenance that's now overdue
+            overdue_records = await self.repository.find(
+                query={
+                    "status": MaintenanceStatus.SCHEDULED,
+                    "scheduled_date": {"$lt": now}
+                }
+            )
+            
+            updated_records = []
+            for record in overdue_records:
+                updated_record = await self.repository.update(
+                    record["_id"], 
+                    {
+                        "status": MaintenanceStatus.OVERDUE,
+                        "priority": MaintenancePriority.HIGH,
+                        "updated_at": now
+                    }
+                )
+                if updated_record:
+                    updated_records.append(updated_record)
+                    
+            logger.info(f"Updated {len(updated_records)} records to overdue status")
+            return updated_records
+            
+        except Exception as e:
+            logger.error(f"Error updating overdue statuses: {e}")
+            raise
+    
+    async def calculate_maintenance_costs(self, vehicle_id: Optional[str] = None, 
+                                        start_date: Optional[datetime] = None,
+                                        end_date: Optional[datetime] = None) -> Dict[str, Any]:
+        """Calculate comprehensive maintenance costs"""
+        try:
+            query = {"status": MaintenanceStatus.COMPLETED}
+            
+            if vehicle_id:
+                query["vehicle_id"] = vehicle_id
+            if start_date or end_date:
+                date_filter = {}
+                if start_date:
+                    date_filter["$gte"] = start_date
+                if end_date:
+                    date_filter["$lte"] = end_date
+                query["actual_completion_date"] = date_filter
+            
+            records = await self.repository.find(query=query)
+            
+            total_cost = 0
+            labor_cost = 0
+            parts_cost = 0
+            record_count = len(records)
+            
+            cost_by_type = {}
+            cost_by_month = {}
+            
+            for record in records:
+                actual_cost = record.get("actual_cost", 0) or 0
+                labor = record.get("labor_cost", 0) or 0
+                parts = record.get("parts_cost", 0) or 0
+                
+                total_cost += actual_cost
+                labor_cost += labor
+                parts_cost += parts
+                
+                # Cost by maintenance type
+                maintenance_type = record.get("maintenance_type", "unknown")
+                cost_by_type[maintenance_type] = cost_by_type.get(maintenance_type, 0) + actual_cost
+                
+                # Cost by month
+                completion_date = record.get("actual_completion_date")
+                if completion_date:
+                    month_key = completion_date.strftime("%Y-%m")
+                    cost_by_month[month_key] = cost_by_month.get(month_key, 0) + actual_cost
+            
+            return {
+                "total_cost": total_cost,
+                "labor_cost": labor_cost,
+                "parts_cost": parts_cost,
+                "record_count": record_count,
+                "average_cost": total_cost / record_count if record_count > 0 else 0,
+                "cost_by_type": cost_by_type,
+                "cost_by_month": cost_by_month
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating maintenance costs: {e}")
             raise
 
 

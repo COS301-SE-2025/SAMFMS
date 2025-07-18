@@ -35,6 +35,8 @@ class MaintenanceServiceRequestConsumer:
         self.connection = None
         self.channel = None
         self.is_consuming = False
+        self.request_timeout = int(os.getenv("REQUEST_TIMEOUT", "30"))  # seconds
+        self.max_retries = int(os.getenv("MAX_REQUEST_RETRIES", "3"))
         self.rabbitmq_url = os.getenv(
             "RABBITMQ_URL", 
             "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/"
@@ -94,12 +96,39 @@ class MaintenanceServiceRequestConsumer:
         logger.info("Stopped consuming maintenance service requests")
         
     async def _handle_request(self, message: AbstractIncomingMessage):
-        """Handle incoming service request"""
+        """Handle incoming service request with timeout and validation"""
+        request_data = None
+        start_time = datetime.utcnow()
+        
         async with message.process():
             try:
-                # Parse the message
-                request_data = json.loads(message.body.decode())
-                logger.info(f"Received maintenance service request: {request_data.get('action', 'unknown')}")
+                # Parse the message with timeout
+                try:
+                    request_data = json.loads(message.body.decode())
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid JSON in maintenance service request: {e}")
+                    error_response = {
+                        "success": False,
+                        "message": "Invalid JSON format",
+                        "error_code": "INVALID_JSON"
+                    }
+                    await self._send_response(message, error_response, None)
+                    return
+                
+                # Validate required fields
+                required_fields = ["action", "endpoint"]
+                missing_fields = [field for field in required_fields if field not in request_data]
+                if missing_fields:
+                    logger.error(f"Missing required fields in request: {missing_fields}")
+                    error_response = {
+                        "success": False,
+                        "message": f"Missing required fields: {', '.join(missing_fields)}",
+                        "error_code": "MISSING_FIELDS"
+                    }
+                    await self._send_response(message, error_response, request_data.get("request_id"))
+                    return
+                
+                logger.info(f"Received maintenance service request: {request_data.get('action', 'unknown')} - {request_data.get('endpoint', 'unknown')}")
                 
                 # Extract request details
                 action = request_data.get("action")
@@ -108,20 +137,52 @@ class MaintenanceServiceRequestConsumer:
                 params = request_data.get("params", {})
                 request_id = request_data.get("request_id")
                 
-                # Route request to appropriate handler
-                response = await self._route_request(action, endpoint, data, params)
+                # Check for timeout
+                if hasattr(message, 'timestamp') and message.timestamp:
+                    message_age = (datetime.utcnow() - message.timestamp).total_seconds()
+                    if message_age > self.request_timeout:
+                        logger.warning(f"Request {request_id} timed out (age: {message_age}s)")
+                        error_response = {
+                            "success": False,
+                            "message": "Request timed out",
+                            "error_code": "REQUEST_TIMEOUT"
+                        }
+                        await self._send_response(message, error_response, request_id)
+                        return
+                
+                # Route request to appropriate handler with timeout
+                try:
+                    response = await asyncio.wait_for(
+                        self._route_request(action, endpoint, data, params),
+                        timeout=self.request_timeout
+                    )
+                except asyncio.TimeoutError:
+                    logger.error(f"Request {request_id} processing timed out")
+                    response = {
+                        "success": False,
+                        "message": "Request processing timed out",
+                        "error_code": "PROCESSING_TIMEOUT"
+                    }
+                
+                # Add processing metadata
+                processing_time = (datetime.utcnow() - start_time).total_seconds()
+                response["processing_time"] = processing_time
+                response["timestamp"] = datetime.utcnow().isoformat()
                 
                 # Send response back
                 await self._send_response(message, response, request_id)
                 
+                logger.info(f"Processed request {request_id} in {processing_time:.2f}s")
+                
             except Exception as e:
-                logger.error(f"Error handling maintenance service request: {e}")
+                logger.error(f"Error handling maintenance service request: {e}", exc_info=True)
                 error_response = {
                     "success": False,
                     "message": f"Internal server error: {str(e)}",
-                    "error_code": "INTERNAL_ERROR"
+                    "error_code": "INTERNAL_ERROR",
+                    "timestamp": datetime.utcnow().isoformat()
                 }
-                await self._send_response(message, error_response, request_data.get("request_id"))
+                await self._send_response(message, error_response, request_data.get("request_id") if request_data else None)
                 
     async def _route_request(self, action: str, endpoint: str, data: Dict[str, Any], params: Dict[str, Any]) -> Dict[str, Any]:
         """Route request to appropriate service method"""

@@ -37,13 +37,39 @@ def mock_mongodb():
     
     # Mock collection methods
     mock_collection.find_one = AsyncMock()
-    mock_collection.find = MagicMock()
+    mock_collection.find = MagicMock(return_value=create_mock_cursor([]))
     mock_collection.insert_one = AsyncMock()
     mock_collection.update_one = AsyncMock()
     mock_collection.delete_one = AsyncMock()
     mock_collection.count_documents = AsyncMock()
     
-    with patch('repositories.base.get_database', return_value=mock_db):
+    # Mock the update result
+    mock_update_result = MagicMock()
+    mock_update_result.modified_count = 1
+    mock_update_result.matched_count = 1
+    mock_collection.update_one.return_value = mock_update_result
+    
+    # Mock the insert result
+    mock_insert_result = MagicMock()
+    mock_insert_result.inserted_id = ObjectId()
+    mock_collection.insert_one.return_value = mock_insert_result
+    
+    # Mock the delete result
+    mock_delete_result = MagicMock()
+    mock_delete_result.deleted_count = 1
+    mock_collection.delete_one.return_value = mock_delete_result
+    
+    # Mock collection access by name
+    mock_db.__getitem__ = lambda self, key: mock_collection
+    
+    # Mock the entire database manager
+    mock_db_manager = MagicMock()
+    mock_db_manager.db = mock_db
+    mock_db_manager._db = mock_db  # Mock the private attribute to avoid "not connected" errors
+    
+    # Patch both the instance and the property
+    with patch('repositories.database.db_manager', mock_db_manager), \
+         patch('repositories.base.db_manager', mock_db_manager):
         yield mock_db
 
 
@@ -207,7 +233,9 @@ async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
 def create_mock_cursor(items):
     """Helper to create mock MongoDB cursor"""
     mock_cursor = MagicMock()
-    mock_cursor.__aiter__ = lambda: MockAsyncIterator(items)
+    # Set up the async iterator properly
+    async_iter = MockAsyncIterator(items)
+    mock_cursor.__aiter__ = MagicMock(return_value=async_iter)
     mock_cursor.to_list = AsyncMock(return_value=items)
     mock_cursor.skip = MagicMock(return_value=mock_cursor)
     mock_cursor.limit = MagicMock(return_value=mock_cursor)

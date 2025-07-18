@@ -4,7 +4,7 @@ Base repository class for Maintenance Service
 
 import logging
 from typing import Optional, List, Dict, Any, Union
-from datetime import datetime
+from datetime import datetime, date
 from bson import ObjectId
 from pymongo.errors import DuplicateKeyError
 
@@ -27,12 +27,39 @@ class BaseRepository:
         """Prepare document for MongoDB insertion"""
         doc = data.copy()
         
-        # Handle datetime objects
+        # Handle datetime and date objects
         for key, value in doc.items():
-            if isinstance(value, datetime):
+            if isinstance(value, date) and not isinstance(value, datetime):
+                # Convert date to datetime at midnight
+                doc[key] = datetime.combine(value, datetime.min.time())
+            elif isinstance(value, datetime):
                 doc[key] = value
                 
         return doc
+        
+    def _prepare_query(self, query: Dict[str, Any]) -> Dict[str, Any]:
+        """Prepare query for MongoDB by converting date objects"""
+        if not query:
+            return {}
+            
+        prepared_query = {}
+        for key, value in query.items():
+            if isinstance(value, date) and not isinstance(value, datetime):
+                # Convert date to datetime at midnight
+                prepared_query[key] = datetime.combine(value, datetime.min.time())
+            elif isinstance(value, dict):
+                # Handle nested queries (like date ranges)
+                prepared_value = {}
+                for nested_key, nested_value in value.items():
+                    if isinstance(nested_value, date) and not isinstance(nested_value, datetime):
+                        prepared_value[nested_key] = datetime.combine(nested_value, datetime.min.time())
+                    else:
+                        prepared_value[nested_key] = nested_value
+                prepared_query[key] = prepared_value
+            else:
+                prepared_query[key] = value
+                
+        return prepared_query
         
     def _process_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
         """Process MongoDB result for API response"""
@@ -121,7 +148,9 @@ class BaseRepository:
         try:
             collection = await self.get_collection()
             
-            cursor = collection.find(query or {})
+            # Prepare query to handle date objects
+            prepared_query = self._prepare_query(query)
+            cursor = collection.find(prepared_query)
             
             if sort:
                 cursor = cursor.sort(sort)

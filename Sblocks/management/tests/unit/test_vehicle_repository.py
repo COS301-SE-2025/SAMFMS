@@ -90,7 +90,7 @@ class TestVehicleRepository:
         mock_mongodb.vehicles.find.return_value = mock_cursor
 
         # Act
-        result = await vehicle_repo.get_all()
+        result = await vehicle_repo.find()
 
         # Assert
         assert result == vehicles
@@ -106,7 +106,7 @@ class TestVehicleRepository:
         mock_mongodb.vehicles.find.return_value = mock_cursor
 
         # Act
-        result = await vehicle_repo.get_all(filter_query)
+        result = await vehicle_repo.find(filter_query)
 
         # Assert
         assert result == vehicles
@@ -123,7 +123,7 @@ class TestVehicleRepository:
         mock_mongodb.vehicles.find.return_value = mock_cursor
 
         # Act
-        result = await vehicle_repo.get_all({}, skip=skip, limit=limit)
+        result = await vehicle_repo.find({}, skip=skip, limit=limit)
 
         # Assert
         assert result == vehicles
@@ -151,7 +151,7 @@ class TestVehicleRepository:
         # Arrange
         vehicle_id = str(ObjectId())
         update_data = {"status": "maintenance"}
-        mock_mongodb.vehicles.update_one.return_value.matched_count = 0
+        mock_mongodb.vehicles.update_one.return_value.modified_count = 0
 
         # Act
         result = await vehicle_repo.update(vehicle_id, update_data)
@@ -217,22 +217,25 @@ class TestVehicleRepository:
 
     @pytest.mark.asyncio
     async def test_search_vehicles(self, vehicle_repo, sample_vehicle_data, mock_mongodb):
-        """Test searching vehicles"""
+        """Test searching vehicles using find method"""
         # Arrange
-        search_term = "Toyota"
+        search_filter = {
+            "$or": [
+                {"make": {"$regex": "Toyota", "$options": "i"}},
+                {"model": {"$regex": "Toyota", "$options": "i"}},
+                {"registration_number": {"$regex": "Toyota", "$options": "i"}}
+            ]
+        }
         vehicles = [sample_vehicle_data]
         mock_cursor = create_mock_cursor(vehicles)
         mock_mongodb.vehicles.find.return_value = mock_cursor
 
         # Act
-        result = await vehicle_repo.search(search_term)
+        result = await vehicle_repo.find(search_filter)
 
         # Assert
         assert result == vehicles
-        # Verify that find was called with a regex search query
-        call_args = mock_mongodb.vehicles.find.call_args[0][0]
-        assert "$or" in call_args
-        mock_mongodb.vehicles.find.assert_called_once()
+        mock_mongodb.vehicles.find.assert_called_once_with(search_filter)
 
     @pytest.mark.asyncio
     async def test_get_by_department(self, vehicle_repo, sample_vehicle_data, mock_mongodb):

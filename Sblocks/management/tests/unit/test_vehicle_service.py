@@ -136,10 +136,10 @@ class TestVehicleService:
         vehicles = [sample_vehicle_data]
         pagination = {"skip": 0, "limit": 10}
         
-        with patch.object(vehicle_service.vehicle_repo, 'get_all') as mock_get_all, \
+        with patch.object(vehicle_service.vehicle_repo, 'find') as mock_find, \
              patch.object(vehicle_service.vehicle_repo, 'count', return_value=1):
             
-            mock_get_all.return_value = vehicles
+            mock_find.return_value = vehicles
 
             # Act
             result = await vehicle_service.get_vehicles(pagination=pagination)
@@ -148,6 +148,12 @@ class TestVehicleService:
             assert "vehicles" in result
             assert "pagination" in result
             assert len(result["vehicles"]) == 1
+            mock_find.assert_called_once_with(
+                filter_query={},
+                skip=0,
+                limit=10,
+                sort=[("registration_number", 1)]
+            )
             assert result["pagination"]["total"] == 1
             assert result["pagination"]["page"] == 1
 
@@ -158,28 +164,37 @@ class TestVehicleService:
         vehicles = [sample_vehicle_data]
         filters = {"department": "Security", "status": "available"}
         
-        with patch.object(vehicle_service.vehicle_repo, 'get_all') as mock_get_all, \
+        with patch.object(vehicle_service.vehicle_repo, 'find') as mock_find, \
              patch.object(vehicle_service.vehicle_repo, 'count', return_value=1):
             
-            mock_get_all.return_value = vehicles
+            mock_find.return_value = vehicles
 
             # Act
-            result = await vehicle_service.get_vehicles(filters=filters)
+            result = await vehicle_service.get_vehicles(
+                department="Security", 
+                status="available"
+            )
 
             # Assert
             assert "vehicles" in result
             assert len(result["vehicles"]) == 1
-            mock_get_all.assert_called_once()
+            mock_find.assert_called_once_with(
+                filter_query=filters,
+                skip=0,
+                limit=50,
+                sort=[("registration_number", 1)]
+            )
 
     @pytest.mark.asyncio
     async def test_update_vehicle_success(self, vehicle_service, sample_vehicle_data):
         """Test successful vehicle update"""
         # Arrange
         vehicle_id = str(sample_vehicle_data["_id"])
-        update_data = {"status": "maintenance", "mileage": 20000}
+        from schemas.requests import VehicleUpdateRequest
+        update_data = VehicleUpdateRequest(status="maintenance", mileage=20000)
         updated_by = "test_user"
         
-        updated_vehicle = {**sample_vehicle_data, **update_data}
+        updated_vehicle = {**sample_vehicle_data, "status": "maintenance", "mileage": 20000}
         
         with patch.object(vehicle_service.vehicle_repo, 'get_by_id', return_value=sample_vehicle_data), \
              patch.object(vehicle_service.vehicle_repo, 'update', return_value=True), \
@@ -198,7 +213,8 @@ class TestVehicleService:
         """Test vehicle update with non-existent ID"""
         # Arrange
         vehicle_id = str(ObjectId())
-        update_data = {"status": "maintenance"}
+        from schemas.requests import VehicleUpdateRequest
+        update_data = VehicleUpdateRequest(status="maintenance")
         updated_by = "test_user"
         
         with patch.object(vehicle_service.vehicle_repo, 'get_by_id', return_value=None):
@@ -212,12 +228,14 @@ class TestVehicleService:
         """Test successful vehicle deletion"""
         # Arrange
         vehicle_id = str(sample_vehicle_data["_id"])
+        deleted_by = "test_user"
         
         with patch.object(vehicle_service.vehicle_repo, 'get_by_id', return_value=sample_vehicle_data), \
+             patch.object(vehicle_service.assignment_repo, 'get_by_vehicle_id', return_value=[]), \
              patch.object(vehicle_service.vehicle_repo, 'delete', return_value=True):
 
             # Act
-            result = await vehicle_service.delete_vehicle(vehicle_id)
+            result = await vehicle_service.delete_vehicle(vehicle_id, deleted_by)
 
             # Assert
             assert result is True
@@ -227,12 +245,13 @@ class TestVehicleService:
         """Test vehicle deletion with non-existent ID"""
         # Arrange
         vehicle_id = str(ObjectId())
+        deleted_by = "test_user"
         
         with patch.object(vehicle_service.vehicle_repo, 'get_by_id', return_value=None):
 
             # Act & Assert
             with pytest.raises(ValueError, match="not found"):
-                await vehicle_service.delete_vehicle(vehicle_id)
+                await vehicle_service.delete_vehicle(vehicle_id, deleted_by)
 
     @pytest.mark.asyncio
     async def test_fuel_type_normalization(self, vehicle_service, mock_mongodb):
@@ -259,6 +278,7 @@ class TestVehicleService:
                 **request_data,
                 "_id": vehicle_id,
                 "fuel_type": "petrol",  # Normalized
+                "status": "available",  # Add missing status field
                 "registration_number": request_data["license_plate"],
                 "created_by": created_by,
                 "created_at": datetime.utcnow().isoformat(),
