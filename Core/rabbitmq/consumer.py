@@ -23,6 +23,9 @@ async def handle_message(message: aio_pika.IncomingMessage):
         elif data.get('type') == 'service_response':
             # Handle service block responses
             await handle_service_response(data)
+        elif data.get('correlation_id'):
+            # This is a service response - handle it
+            await handle_service_response(data)
         else:
             logger.info(f"Message Received: {data}")
 
@@ -68,10 +71,20 @@ async def consume_messages(queue_name: str = "core_responses"):
         await queue.consume(handle_message)
         logger.info(f"Started consuming service responses from queue: {queue_name}")
         
+        # Keep the consumer running
         try:
-            await asyncio.Future()
+            # Create a future that runs indefinitely
+            future = asyncio.Future()
+            await future
+        except asyncio.CancelledError:
+            logger.info("Consumer task was cancelled")
+        except Exception as e:
+            logger.error(f"Consumer error: {e}")
         finally:
-            await connection.close()
+            try:
+                await connection.close()
+            except:
+                pass
     except Exception as e:
         logger.error(f"Error in consume_messages: {str(e)}")
         raise

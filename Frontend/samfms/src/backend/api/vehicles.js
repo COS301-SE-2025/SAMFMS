@@ -3,7 +3,7 @@
  * All vehicle-related API endpoints and functions
  */
 import { httpClient } from '../services/httpClient';
-import { buildApiUrl, API_ENDPOINTS } from '../../config/apiConfig';
+import { API_ENDPOINTS } from '../../config/apiConfig';
 
 // Vehicle API endpoints using centralized configuration
 const VEHICLE_ENDPOINTS = {

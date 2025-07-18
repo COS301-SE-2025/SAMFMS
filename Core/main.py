@@ -87,15 +87,20 @@ async def lifespan(app: FastAPI):
             logger.info("🐰 Initializing RabbitMQ...")
             from rabbitmq.consumer import consume_messages
             from rabbitmq.admin import create_exchange
+            import aio_pika
             
-            # Create exchange if needed
-            await create_exchange()
+            # Create exchanges if needed
+            await create_exchange("service_requests", aio_pika.ExchangeType.DIRECT)
+            await create_exchange("core_responses", aio_pika.ExchangeType.DIRECT)
             
             # Start background message consumption for service responses
-            asyncio.create_task(consume_messages("core_responses"))
+            consumer_task = asyncio.create_task(consume_messages("core_responses"))
+            # Keep a reference to prevent garbage collection
+            app.state.consumer_task = consumer_task
             logger.info("✅ RabbitMQ initialized with service response consumer")
         except Exception as e:
             logger.warning(f"⚠️  RabbitMQ initialization failed: {e}")
+            logger.exception("RabbitMQ initialization error details:")
             # Continue without RabbitMQ for now
         
         # 5. Initialize startup services (includes response manager)
@@ -138,7 +143,18 @@ async def lifespan(app: FastAPI):
         logger.info("🔍 Shutting down service discovery...")
         await shutdown_service_discovery()
         
-        # 2. Close database connections
+        # 2. Stop RabbitMQ consumer
+        if hasattr(app.state, 'consumer_task'):
+            logger.info("🐰 Stopping RabbitMQ consumer...")
+            try:
+                app.state.consumer_task.cancel()
+                await app.state.consumer_task
+            except asyncio.CancelledError:
+                logger.info("RabbitMQ consumer stopped")
+            except Exception as e:
+                logger.warning(f"Error stopping RabbitMQ consumer: {e}")
+        
+        # 3. Close database connections
         if hasattr(app.state, 'db_manager'):
             logger.info("📊 Closing database connections...")
             await app.state.db_manager.close()
@@ -221,6 +237,16 @@ except ImportError as e:
         logger.info("✅ Direct GPS routes configured as fallback")
     except ImportError as gps_error:
         logger.warning(f"⚠️  Direct GPS routes also failed: {gps_error}")
+
+# Import direct vehicle routes for frontend compatibility
+try:
+    from routes.api import api_router
+    app.include_router(api_router)
+    logger.info("✅ Direct vehicle routes configured for frontend compatibility")
+    logger.info("    • /vehicles/* -> Vehicle management routes")
+except ImportError as e:
+    logger.error(f"❌ Failed to import direct vehicle routes: {e}")
+    logger.warning("⚠️  Frontend vehicle routes will not be available")
 
 # Import debug routes if in development
 if config.environment.value == "development":

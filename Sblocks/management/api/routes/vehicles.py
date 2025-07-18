@@ -68,7 +68,7 @@ async def get_vehicles(
 
 @router.post("/vehicles")
 async def create_vehicle(
-    request,
+    request: Request,
     vehicle_request: VehicleCreateRequest,
     current_user = Depends(require_permission("vehicles:create"))
 ):
@@ -113,7 +113,7 @@ async def create_vehicle(
 
 @router.get("/vehicles/{vehicle_id}")
 async def get_vehicle(
-    request,
+    request: Request,
     vehicle_id: str = Path(..., description="Vehicle ID"),
     current_user = Depends(require_permission("vehicles:read"))
 ):
@@ -155,7 +155,7 @@ async def get_vehicle(
 
 @router.put("/vehicles/{vehicle_id}")
 async def update_vehicle(
-    request,
+    request: Request,
     updates: VehicleUpdateRequest,
     vehicle_id: str = Path(..., description="Vehicle ID"),
     current_user = Depends(require_permission("vehicles:update"))
@@ -202,7 +202,7 @@ async def update_vehicle(
 
 @router.delete("/vehicles/{vehicle_id}")
 async def delete_vehicle(
-    request,
+    request: Request,
     vehicle_id: str = Path(..., description="Vehicle ID"),
     current_user = Depends(require_permission("vehicles:delete"))
 ):
@@ -247,7 +247,7 @@ async def delete_vehicle(
 
 @router.get("/vehicles/search")
 async def search_vehicles(
-    request,
+    request: Request,
     q: str = Query(..., description="Search query"),
     pagination = Depends(get_pagination_params),
     current_user = Depends(require_permission("vehicles:read"))
@@ -281,7 +281,7 @@ async def search_vehicles(
 
 @router.get("/vehicles/{vehicle_id}/assignments")
 async def get_vehicle_assignments(
-    request,
+    request: Request,
     vehicle_id: str = Path(..., description="Vehicle ID"),
     status: Optional[str] = Query(None, description="Filter by assignment status"),
     current_user = Depends(require_permission("assignments:read"))
@@ -318,7 +318,7 @@ async def get_vehicle_assignments(
 
 @router.get("/vehicles/{vehicle_id}/usage")
 async def get_vehicle_usage(
-    request,
+    request: Request,
     vehicle_id: str = Path(..., description="Vehicle ID"),
     start_date: Optional[str] = Query(None, description="Start date (ISO format)"),
     end_date: Optional[str] = Query(None, description="End date (ISO format)"),

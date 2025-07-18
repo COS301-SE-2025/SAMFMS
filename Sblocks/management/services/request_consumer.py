@@ -123,12 +123,13 @@ class ServiceRequestConsumer:
                 endpoint = request_data.get("endpoint")
                 method = request_data.get("method")
                 data = request_data.get("data", {})
+                body = request_data.get("body")
                 user_context = request_data.get("user_context", {})
                 
                 logger.info(f"Processing service request {correlation_id}: {method} {endpoint}")
                 
                 # Process the request
-                response = await self._process_request(endpoint, method, data, user_context)
+                response = await self._process_request(endpoint, method, data, body, user_context)
                 
                 # Send response back to Core
                 await self._send_response(correlation_id, response)
@@ -148,7 +149,7 @@ class ServiceRequestConsumer:
             except:
                 pass
     
-    async def _process_request(self, endpoint: str, method: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _process_request(self, endpoint: str, method: str, data: Dict[str, Any], body: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Process the actual service request"""
         try:
             # Core is already sending /api/v1/vehicles, so we don't need to map
@@ -156,13 +157,13 @@ class ServiceRequestConsumer:
             
             # Route to appropriate handler based on endpoint
             if "/vehicles" in endpoint:
-                return await self._handle_vehicles_request(endpoint, method, data, user_context)
+                return await self._handle_vehicles_request(endpoint, method, data, body, user_context)
             elif "/drivers" in endpoint:
-                return await self._handle_drivers_request(endpoint, method, data, user_context)
+                return await self._handle_drivers_request(endpoint, method, data, body, user_context)
             elif "/assignments" in endpoint or "/vehicle-assignments" in endpoint:
-                return await self._handle_assignments_request(endpoint, method, data, user_context)
+                return await self._handle_assignments_request(endpoint, method, data, body, user_context)
             elif "/analytics" in endpoint:
-                return await self._handle_analytics_request(endpoint, method, data, user_context)
+                return await self._handle_analytics_request(endpoint, method, data, body, user_context)
             else:
                 raise ValueError(f"Unknown endpoint: {endpoint}")
                 
@@ -170,30 +171,60 @@ class ServiceRequestConsumer:
             logger.error(f"Error processing request for {endpoint}: {e}")
             raise
     
-    async def _handle_vehicles_request(self, endpoint: str, method: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_vehicles_request(self, endpoint: str, method: str, data: Dict[str, Any], body: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle vehicles-related requests"""
         # Import and create service instance
         from services.vehicle_service import VehicleService
         from schemas.requests import VehicleCreateRequest, VehicleUpdateRequest
         vehicle_service = VehicleService()
         
-        # Support both /api/vehicles and /api/v1/vehicles endpoints
+        # Support various vehicles endpoint formats
         if method == "GET":
-            if endpoint in ["/api/vehicles", "/api/v1/vehicles"]:
-                return await vehicle_service.get_vehicles()
-            elif "/vehicles/" in endpoint:
+            if endpoint in ["/vehicles", "/api/vehicles", "/api/v1/vehicles"] or endpoint.endswith("/vehicles"):
+                # Extract query parameters from data
+                department = data.get("department")
+                status = data.get("status")
+                vehicle_type = data.get("vehicle_type")
+                
+                # Create pagination object
+                pagination = {
+                    "skip": int(data.get("skip", 0)),
+                    "limit": int(data.get("limit", 50))
+                }
+                
+                return await vehicle_service.get_vehicles(
+                    department=department,
+                    status=status,
+                    vehicle_type=vehicle_type,
+                    pagination=pagination
+                )
+            elif "/vehicles/" in endpoint and not endpoint.endswith("/vehicles"):
                 vehicle_id = endpoint.split("/")[-1]
                 return await vehicle_service.get_vehicle_by_id(vehicle_id)
             elif "/vehicles/search" in endpoint:
-                query = data.get("query", "")
-                return await vehicle_service.search_vehicles(query)
+                query = data.get("q", "")
+                pagination = {
+                    "skip": int(data.get("skip", 0)),
+                    "limit": int(data.get("limit", 50))
+                }
+                return await vehicle_service.search_vehicles(query, pagination)
         elif method == "POST":
-            if endpoint in ["/api/vehicles", "/api/v1/vehicles"]:
-                # Convert dict to VehicleCreateRequest object
-                vehicle_request = VehicleCreateRequest(**data)
-                # Extract created_by from user_context
-                created_by = user_context.get("user_id", "unknown")
-                return await vehicle_service.create_vehicle(vehicle_request, created_by)
+            if endpoint in ["/vehicles", "/api/vehicles", "/api/v1/vehicles"] or endpoint.endswith("/vehicles"):
+                # For POST requests, the body contains the JSON data
+                import json
+                try:
+                    # Try to parse the body as JSON
+                    body_data = json.loads(body) if body else {}
+                    # Convert dict to VehicleCreateRequest object
+                    vehicle_request = VehicleCreateRequest(**body_data)
+                    # Extract created_by from user_context
+                    created_by = user_context.get("user_id", "unknown")
+                    return await vehicle_service.create_vehicle(vehicle_request, created_by)
+                except json.JSONDecodeError:
+                    # If body is not valid JSON, try using data field
+                    vehicle_request = VehicleCreateRequest(**data)
+                    created_by = user_context.get("user_id", "unknown")
+                    return await vehicle_service.create_vehicle(vehicle_request, created_by)
         elif method == "PUT":
             if "/vehicles/" in endpoint:
                 vehicle_id = endpoint.split("/")[-1]
@@ -211,36 +242,36 @@ class ServiceRequestConsumer:
         
         raise ValueError(f"Unsupported vehicles operation: {method} {endpoint}")
     
-    async def _handle_drivers_request(self, endpoint: str, method: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_drivers_request(self, endpoint: str, method: str, data: Dict[str, Any], body: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle drivers-related requests"""
         from services.driver_service import DriverService
         driver_service = DriverService()
         
         if method == "GET":
-            if endpoint == "/api/v1/drivers":
+            if endpoint in ["/drivers", "/api/drivers", "/api/v1/drivers"] or endpoint.endswith("/drivers"):
                 return await driver_service.get_active_drivers()
-            elif "/api/v1/drivers/" in endpoint:
+            elif "/drivers/" in endpoint:
                 driver_id = endpoint.split("/")[-1]
                 return await driver_service.get_driver_by_id(driver_id)
         elif method == "POST":
-            if endpoint == "/api/v1/drivers":
+            if endpoint in ["/drivers", "/api/drivers", "/api/v1/drivers"] or endpoint.endswith("/drivers"):
                 # Extract created_by from user_context
                 created_by = user_context.get("user_id", "unknown")
                 return await driver_service.create_driver(data, created_by)
         elif method == "PUT":
-            if "/api/v1/drivers/" in endpoint:
+            if "/drivers/" in endpoint:
                 driver_id = endpoint.split("/")[-1]
                 # Extract updated_by from user_context
                 updated_by = user_context.get("user_id", "unknown")
                 return await driver_service.update_driver(driver_id, data, updated_by)
         elif method == "DELETE":
-            if "/api/v1/drivers/" in endpoint:
+            if "/drivers/" in endpoint:
                 driver_id = endpoint.split("/")[-1]
                 return await driver_service.delete_driver(driver_id)
         
         raise ValueError(f"Unsupported drivers operation: {method} {endpoint}")
     
-    async def _handle_assignments_request(self, endpoint: str, method: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_assignments_request(self, endpoint: str, method: str, data: Dict[str, Any], body: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle assignments-related requests"""
         # Assignment service not implemented yet
         return {
@@ -249,7 +280,7 @@ class ServiceRequestConsumer:
             "method": method
         }
     
-    async def _handle_analytics_request(self, endpoint: str, method: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_analytics_request(self, endpoint: str, method: str, data: Dict[str, Any], body: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle analytics-related requests"""
         from services.analytics_service import analytics_service
         
@@ -284,9 +315,9 @@ class ServiceRequestConsumer:
                 "timestamp": asyncio.get_event_loop().time()
             }
             
-            # Declare service_responses exchange
+            # Declare core_responses exchange
             exchange = await self.channel.declare_exchange(
-                "service_responses", 
+                "core_responses", 
                 aio_pika.ExchangeType.DIRECT, 
                 durable=True
             )
@@ -297,7 +328,7 @@ class ServiceRequestConsumer:
                 delivery_mode=aio_pika.DeliveryMode.PERSISTENT
             )
             
-            await exchange.publish(message, routing_key="core.responses")
+            await exchange.publish(message, routing_key="core.response")
             
             logger.debug(f"Sent response for correlation_id: {correlation_id}")
             
@@ -316,7 +347,7 @@ class ServiceRequestConsumer:
             }
             
             exchange = await self.channel.declare_exchange(
-                "service_responses", 
+                "core_responses", 
                 aio_pika.ExchangeType.DIRECT, 
                 durable=True
             )
@@ -326,7 +357,7 @@ class ServiceRequestConsumer:
                 delivery_mode=aio_pika.DeliveryMode.PERSISTENT
             )
             
-            await exchange.publish(message, routing_key="core.responses")
+            await exchange.publish(message, routing_key="core.response")
             
             logger.debug(f"Sent error response for correlation_id: {correlation_id}")
             
