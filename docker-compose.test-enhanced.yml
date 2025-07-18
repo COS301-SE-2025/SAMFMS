@@ -1,0 +1,243 @@
+version: '3.8'
+
+services:
+  # Test Infrastructure
+  mongodb-test:
+    image: mongo:6.0
+    container_name: samfms-mongodb-test
+    ports:
+      - '27018:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: test_admin
+      MONGO_INITDB_ROOT_PASSWORD: test_password_123
+      MONGO_INITDB_DATABASE: samfms_test
+    volumes:
+      - mongodb_test_data:/data/db
+      - ./scripts/init-mongodb.js:/docker-entrypoint-initdb.d/init-mongodb.js:ro
+    networks:
+      - samfms-test-network
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: mongod --auth
+
+  rabbitmq-test:
+    image: rabbitmq:3.11-management
+    container_name: samfms-rabbitmq-test
+    ports:
+      - '5673:5672'
+      - '15673:15672'
+    environment:
+      RABBITMQ_DEFAULT_USER: test_user
+      RABBITMQ_DEFAULT_PASS: test_password
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq_test_data:/var/lib/rabbitmq
+    networks:
+      - samfms-test-network
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: samfms-redis-test
+    ports:
+      - '6380:6379'
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_test_data:/data
+    networks:
+      - samfms-test-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Test Services
+  security-test:
+    build:
+      context: .
+      dockerfile: ./Sblocks/security/Dockerfile
+    container_name: samfms-security-test
+    ports:
+      - '8001:8000'
+    environment:
+      - MONGODB_URL=mongodb://test_admin:test_password_123@mongodb-test:27017
+      - DATABASE_NAME=samfms_security_test
+      - RABBITMQ_URL=amqp://test_user:test_password@rabbitmq-test:5672/
+      - REDIS_HOST=redis-test
+      - REDIS_PORT=6379
+      - JWT_SECRET_KEY=test_jwt_secret_key_for_testing_purposes_only
+      - ACCESS_TOKEN_EXPIRE_MINUTES=15
+      - REFRESH_TOKEN_EXPIRE_DAYS=7
+      - LOGIN_ATTEMPT_LIMIT=5
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=test
+    depends_on:
+      mongodb-test:
+        condition: service_healthy
+      rabbitmq-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - samfms-test-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  management-test:
+    build:
+      context: .
+      dockerfile: ./Sblocks/management/Dockerfile
+    container_name: samfms-management-test
+    ports:
+      - '8002:8000'
+    environment:
+      - MONGODB_URL=mongodb://test_admin:test_password_123@mongodb-test:27017
+      - DATABASE_NAME=samfms_management_test
+      - RABBITMQ_URL=amqp://test_user:test_password@rabbitmq-test:5672/
+      - REDIS_HOST=redis-test
+      - REDIS_PORT=6379
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=test
+    depends_on:
+      mongodb-test:
+        condition: service_healthy
+      rabbitmq-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - samfms-test-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  maintenance-test:
+    build:
+      context: .
+      dockerfile: ./Sblocks/maintenance/Dockerfile
+    container_name: samfms-maintenance-test
+    ports:
+      - '8003:8000'
+    environment:
+      - MONGODB_URL=mongodb://test_admin:test_password_123@mongodb-test:27017
+      - DATABASE_NAME=samfms_maintenance_test
+      - RABBITMQ_URL=amqp://test_user:test_password@rabbitmq-test:5672/
+      - REDIS_HOST=redis-test
+      - REDIS_PORT=6379
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=test
+    depends_on:
+      mongodb-test:
+        condition: service_healthy
+      rabbitmq-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - samfms-test-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  core-test:
+    build:
+      context: .
+      dockerfile: ./Core/Dockerfile
+    container_name: samfms-core-test
+    ports:
+      - '8004:8000'
+    environment:
+      - MONGODB_URL=mongodb://test_admin:test_password_123@mongodb-test:27017
+      - DATABASE_NAME=samfms_core_test
+      - RABBITMQ_URL=amqp://test_user:test_password@rabbitmq-test:5672/
+      - SECURITY_URL=http://security-test:8000
+      - JWT_SECRET_KEY=test_jwt_secret_key_for_testing_purposes_only
+      - ACCESS_TOKEN_EXPIRE_MINUTES=15
+      - ENVIRONMENT=test
+      - LOG_LEVEL=DEBUG
+    depends_on:
+      mongodb-test:
+        condition: service_healthy
+      rabbitmq-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+      security-test:
+        condition: service_healthy
+    networks:
+      - samfms-test-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+
+  # Test Runner Container
+  test-runner:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.test
+    container_name: samfms-test-runner
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /app
+    environment:
+      - MONGODB_TEST_URL=mongodb://test_admin:test_password_123@mongodb-test:27017
+      - RABBITMQ_TEST_URL=amqp://test_user:test_password@rabbitmq-test:5672/
+      - REDIS_TEST_HOST=redis-test
+      - REDIS_TEST_PORT=6379
+      - CORE_TEST_URL=http://core-test:8000
+      - SECURITY_TEST_URL=http://security-test:8000
+      - MANAGEMENT_TEST_URL=http://management-test:8000
+      - MAINTENANCE_TEST_URL=http://maintenance-test:8000
+      - ENVIRONMENT=test
+      - LOG_LEVEL=DEBUG
+    depends_on:
+      core-test:
+        condition: service_healthy
+      security-test:
+        condition: service_healthy
+      management-test:
+        condition: service_healthy
+      maintenance-test:
+        condition: service_healthy
+    networks:
+      - samfms-test-network
+    profiles:
+      - test
+    command: >
+      sh -c "
+        echo 'Waiting for all services to be ready...' &&
+        sleep 30 &&
+        echo 'Running integration tests...' &&
+        python -m pytest tests/integration/test_container_integration.py -v --tb=short --cov=Core --cov=Sblocks --cov-report=html --cov-report=xml --cov-report=term-missing
+      "
+
+volumes:
+  mongodb_test_data:
+  rabbitmq_test_data:
+  redis_test_data:
+
+networks:
+  samfms-test-network:
+    driver: bridge

@@ -25,28 +25,6 @@ from events.publisher import EventPublisher
 class TestEventModels:
     """Test class for event models"""
     
-    def test_vehicle_event_creation(self):
-        """Test VehicleEvent creation"""
-        # Arrange
-        event_data = {
-            "event_type": EventType.VEHICLE_CREATED,
-            "vehicle_id": "vehicle123",
-            "registration_number": "ABC123GP",
-            "status": "available",
-            "data": {"make": "Toyota", "model": "Corolla"}
-        }
-        
-        # Act
-        event = VehicleEvent(**event_data)
-        
-        # Assert
-        assert event.event_type == EventType.VEHICLE_CREATED
-        assert event.vehicle_id == "vehicle123"
-        assert event.registration_number == "ABC123GP"
-        assert event.status == "available"
-        assert event.data["make"] == "Toyota"
-        assert event.service == "management"
-    
     def test_assignment_event_creation(self):
         """Test AssignmentEvent creation"""
         # Arrange

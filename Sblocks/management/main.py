@@ -48,7 +48,7 @@ metrics_middleware = MetricsMiddleware(None)
 service_discovery_client = None
 
 async def register_with_core_service():
-    """Register this service with Core's service discovery"""
+    """Register this service with Core's service discovery with proper error handling"""
     global service_discovery_client
     try:
         import aiohttp
@@ -77,19 +77,33 @@ async def register_with_core_service():
             }
         }
         
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"http://{core_host}:{core_port}/api/services/register",
-                json=service_info,
-                timeout=aiohttp.ClientTimeout(total=10)
-            ) as response:
-                if response.status == 200:
-                    logger.info("✅ Successfully registered with Core service discovery")
-                    return True
-                else:
-                    logger.warning(f"⚠️ Service registration failed with status {response.status}")
-                    return False
+        # Add timeout and retry logic
+        timeout = aiohttp.ClientTimeout(total=30)
+        connector = aiohttp.TCPConnector(limit=100, ttl_dns_cache=300)
+        
+        async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+            try:
+                async with session.post(
+                    f"http://{core_host}:{core_port}/api/services/register",
+                    json=service_info,
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as response:
+                    if response.status == 200:
+                        logger.info("✅ Successfully registered with Core service discovery")
+                        return True
+                    else:
+                        logger.warning(f"⚠️ Service registration failed with status {response.status}")
+                        return False
+            except asyncio.TimeoutError:
+                logger.warning("⚠️ Service registration timed out")
+                return False
+            except aiohttp.ClientError as e:
+                logger.warning(f"⚠️ Service registration failed with client error: {e}")
+                return False
                     
+    except ImportError as e:
+        logger.warning(f"⚠️ Missing required dependencies for service registration: {e}")
+        return False
     except Exception as e:
         logger.warning(f"⚠️ Failed to register with Core service discovery: {e}")
         logger.info("Service will continue without Core registration")
@@ -125,15 +139,14 @@ async def lifespan(app: FastAPI):
         # Setup and start event consumer
         logger.info("🔗 Setting up event consumer...")
         try:
-            consumer_connected = await event_consumer.connect()
-            if consumer_connected:
-                await setup_event_handlers()
-                # Start consuming in background
-                asyncio.create_task(event_consumer.start_consuming())
-                logger.info("✅ Event consumer started successfully")
-            else:
-                logger.warning("⚠️ Event consumer connection failed - continuing without event consumption")
+            await event_consumer.connect()
+            await setup_event_handlers()
+            # Start consuming in background without blocking startup
+            asyncio.create_task(event_consumer.start_consuming())
+            logger.info("✅ Event consumer setup completed")
         except Exception as e:
+            logger.error(f"❌ Event consumer setup failed: {e}")
+            logger.warning("⚠️ Service will continue without event consumption")
             logger.error(f"❌ Event consumer setup error: {e}")
             consumer_connected = False
         
@@ -174,9 +187,6 @@ async def lifespan(app: FastAPI):
                 )
             except Exception as e:
                 logger.warning(f"Failed to publish service started event: {e}")
-        
-        # Register with Core's service discovery
-        await register_with_core_service()
         
         # Register with Core service discovery
         logger.info("🔍 Registering with Core service discovery...")

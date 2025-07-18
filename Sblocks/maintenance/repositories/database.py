@@ -25,7 +25,7 @@ class DatabaseManager:
         self.db_name = os.getenv("DATABASE_NAME", "samfms_maintenance")
         self.connection_string = os.getenv(
             "MONGODB_URL", 
-            "mongodb://samfms_admin:SafeMongoPass2025!SecureDB@SAMFMS@mongodb:27017"
+            "mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017"
         )
         
         # Connection pool settings

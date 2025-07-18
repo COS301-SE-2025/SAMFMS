@@ -198,6 +198,8 @@ try:
     logger.info("✅ Auth routes configured")
 except ImportError as e:
     logger.error(f"❌ Failed to import auth routes: {e}")
+    # Auth routes are essential, so we should raise an error
+    raise SystemExit(f"Critical error: Auth routes are required but could not be imported: {e}")
 
 # Import GPS routes
 try:
@@ -206,6 +208,7 @@ try:
     logger.info("✅ GPS routes configured")
 except ImportError as e:
     logger.warning(f"⚠️  GPS routes could not be imported: {e}")
+    # GPS routes are optional, service can continue without them
 
 # Import consolidated routes (includes debug functionality)
 try:
@@ -215,6 +218,18 @@ try:
 except ImportError as e:
     logger.warning(f"⚠️  Consolidated routes could not be imported: {e}")
     logger.info("Service will continue with individual routes")
+    
+    # Try to import individual API routes as fallback
+    try:
+        from routes.api.vehicles import router as vehicles_router
+        from routes.api.drivers import router as drivers_router
+        from routes.api.assignments import router as assignments_router
+        app.include_router(vehicles_router)
+        app.include_router(drivers_router)
+        app.include_router(assignments_router)
+        logger.info("✅ Individual API routes configured as fallback")
+    except ImportError as fallback_error:
+        logger.warning(f"⚠️  Individual API routes also failed: {fallback_error}")
 
 # Import maintenance routes
 try:
@@ -223,6 +238,7 @@ try:
     logger.info("✅ Maintenance routes configured")
 except ImportError as e:
     logger.warning(f"⚠️  Maintenance routes could not be imported: {e}")
+    # Maintenance routes are optional, service can continue without them
 
 # Add a simple test route to verify routing works
 @app.get("/test-auth")

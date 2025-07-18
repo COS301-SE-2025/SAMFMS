@@ -33,20 +33,45 @@ class EventConsumer:
         self.enable_dead_letter_queue = os.getenv("ENABLE_DLQ", "true").lower() == "true"
         
     async def connect(self):
-        """Connect to RabbitMQ with retry logic"""
-        max_retries = 3
+        """Connect to RabbitMQ with retry logic and better error handling"""
+        max_retries = 5
+        base_delay = 2.0
+        
         for attempt in range(max_retries):
             try:
+                logger.info(f"Attempting to connect to RabbitMQ (attempt {attempt + 1}/{max_retries})")
+                
+                # Use more robust connection settings
                 self.connection = await aio_pika.connect_robust(
                     self.rabbitmq_url,
-                    heartbeat=600,
-                    blocked_connection_timeout=300,
+                    heartbeat=300,  # Reduced heartbeat
+                    blocked_connection_timeout=120,  # Reduced timeout
                     connection_attempts=3,
-                    retry_delay=2.0
+                    retry_delay=1.0
                 )
                 
-                self.channel = await self.connection.channel()
-                await self.channel.set_qos(prefetch_count=10)
+                # Create channel with better settings
+                self.channel = await self.connection.channel(
+                    publisher_confirms=True,
+                    on_return_raises=False
+                )
+                
+                # Set QoS with lower prefetch to reduce memory usage
+                await self.channel.set_qos(prefetch_count=5)
+                
+                logger.info("Successfully connected to RabbitMQ")
+                return
+                
+            except Exception as e:
+                logger.error(f"Failed to connect to RabbitMQ (attempt {attempt + 1}): {e}")
+                
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)  # Exponential backoff
+                    logger.info(f"Retrying in {delay} seconds...")
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error("All RabbitMQ connection attempts failed")
+                    raise ConnectionError("Unable to connect to RabbitMQ after multiple attempts")
                 
                 logger.info("Connected to RabbitMQ for event consumption")
                 return True
@@ -83,7 +108,7 @@ class EventConsumer:
         logger.info(f"Registered handler for {event_pattern}")
     
     async def start_consuming(self):
-        """Start consuming events with proper error handling and graceful queue management"""
+        """Start consuming events with improved error handling"""
         if not self.connection:
             logger.error("Not connected to RabbitMQ")
             return
@@ -95,11 +120,16 @@ class EventConsumer:
         try:
             # Setup dead letter queue first (if enabled)
             if self.enable_dead_letter_queue:
-                await self._setup_dead_letter_queue()
+                try:
+                    await self._setup_dead_letter_queue()
+                except Exception as dlq_error:
+                    logger.warning(f"Failed to setup dead letter queue: {dlq_error}")
+                    logger.info("Continuing without dead letter queue")
+                    self.enable_dead_letter_queue = False
             else:
                 logger.info("Dead letter queue disabled via configuration")
             
-            # Try to declare queue with dead letter exchange, fallback if it fails
+            # Try to declare queue with better error handling
             queue_name = "management_service_events"
             queue = await self._declare_queue_with_fallback(queue_name)
             
@@ -110,12 +140,16 @@ class EventConsumer:
             await queue.consume(self._handle_message_with_retry, no_ack=False)
             
             self.is_consuming = True
-            logger.info("Started consuming events")
+            logger.info("Started consuming events successfully")
             
         except Exception as e:
             logger.error(f"Failed to start consuming events: {e}")
+            logger.error(f"Error traceback: {traceback.format_exc()}")
             self.is_consuming = False
-            raise
+            
+            # Don't raise - allow service to continue without events
+            logger.warning("Service will continue without event consumption")
+            return
     
     async def _setup_bindings(self, queue: aio_pika.Queue):
         """Setup queue bindings to exchanges"""
@@ -403,8 +437,12 @@ class EventConsumer:
             if self.channel and not self.channel.is_closed:
                 await self.channel.close()
             
-            self.channel = await self.connection.channel()
-            await self.channel.set_qos(prefetch_count=10)
+            # Create new channel with better settings
+            self.channel = await self.connection.channel(
+                publisher_confirms=True,
+                on_return_raises=False
+            )
+            await self.channel.set_qos(prefetch_count=5)
             logger.info("Successfully recreated RabbitMQ channel")
             
         except Exception as e:

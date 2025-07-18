@@ -14,12 +14,14 @@ sys.modules['aio_pika.abc'] = Mock()
 sys.modules['services.request_consumer'] = Mock()
 
 # Mock the main module imports to avoid dependency issues
-with patch('main.service_request_consumer', Mock()), \
-     patch('main.get_database', Mock()), \
-     patch('main.setup_logging', Mock()), \
-     patch('main.add_middleware', Mock()):
-    from main import app, lifespan, create_app
-    from middleware import add_middleware
+with patch.dict('sys.modules', {
+    'services.request_consumer': Mock(),
+    'database': Mock(),
+    'logging_config': Mock()
+}):
+    from main import app, lifespan
+    # Don't import middleware add_middleware since it doesn't exist
+    # from middleware import add_middleware
 
 
 @pytest.mark.unit

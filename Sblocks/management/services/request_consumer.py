@@ -40,24 +40,28 @@ class ServiceRequestConsumer:
         )
         
     async def connect(self):
-        """Connect to RabbitMQ"""
+        """Connect to RabbitMQ with improved error handling"""
         try:
             # Use the same connection parameters as event consumer
             self.connection = await aio_pika.connect_robust(
                 self.rabbitmq_url,
-                heartbeat=600,
-                blocked_connection_timeout=300,
+                heartbeat=300,  # Reduced heartbeat
+                blocked_connection_timeout=120,  # Reduced timeout
                 connection_attempts=3,
-                retry_delay=2.0
+                retry_delay=1.0
             )
-            self.channel = await self.connection.channel()
-            await self.channel.set_qos(prefetch_count=10)
             
-            logger.info("Service request consumer connected to RabbitMQ")
+            self.channel = await self.connection.channel(
+                publisher_confirms=True,
+                on_return_raises=False
+            )
+            await self.channel.set_qos(prefetch_count=5)
+            
+            logger.info("✅ Service request consumer connected to RabbitMQ")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to connect service request consumer to RabbitMQ: {e}")
+            logger.error(f"❌ Failed to connect service request consumer: {e}")
             return False
     
     async def setup_queues(self):
