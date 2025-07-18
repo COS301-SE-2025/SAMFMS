@@ -7,6 +7,18 @@ from typing import Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, Query, Path, Request
 
+from api.dependencies import (
+    validate_date_range,
+    require_permission,
+    RequestTimer,
+    get_current_user,
+    get_pagination_params,
+    validate_object_id,
+    get_request_id
+)
+
+# Initialize router
+
 from schemas.requests import (
     CreateMaintenanceRecordRequest,
     UpdateMaintenanceRecordRequest,
@@ -14,64 +26,50 @@ from schemas.requests import (
 )
 from schemas.responses import ResponseBuilder
 from services.maintenance_service import maintenance_records_service
-from api.dependencies import (
-    get_current_user,
-    require_permission,
-    get_pagination_params,
-    validate_object_id,
-    get_request_id,
-    RequestTimer,
-    validate_date_range
-)
 
+router = APIRouter()
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/records", tags=["maintenance_records"])
-
 
 @router.post("/")
 async def create_maintenance_record(
     request: Request,
     maintenance_request: CreateMaintenanceRecordRequest,
-    current_user = Depends(require_permission("maintenance:create"))
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_permission("maintenance.records.create"))
 ):
     """Create a new maintenance record"""
     request_id = await get_request_id(request)
     
     with RequestTimer() as timer:
         try:
-            logger.info(f"Maintenance record creation requested by user {current_user.get('user_id')}")
-            
             data = maintenance_request.dict()
-            record = await maintenance_records_service.create_maintenance_record(
-                data, 
-                current_user["user_id"]
-            )
+            data["created_by"] = user["user_id"]
+            data["updated_by"] = user["user_id"]
+            
+            record = await maintenance_records_service.create_maintenance_record(data)
             
             return ResponseBuilder.success(
-                data={"record": record},
+                data=record,
                 message="Maintenance record created successfully",
                 request_id=request_id,
                 execution_time_ms=timer.execution_time_ms
-            ).model_dump()
+            )
             
         except ValueError as e:
-            logger.warning(f"Maintenance record creation validation error: {e}")
             return ResponseBuilder.error(
-                error="ValidationError",
                 message=str(e),
-                details={"field_errors": str(e)},
+                status_code=400,
                 request_id=request_id,
                 execution_time_ms=timer.execution_time_ms
-            ).model_dump()
+            )
         except Exception as e:
             logger.error(f"Error creating maintenance record: {e}")
             return ResponseBuilder.error(
-                error="MaintenanceRecordCreationError",
-                message="Failed to create maintenance record",
-                details={"error": str(e)},
+                message="Internal server error",
+                status_code=500,
                 request_id=request_id,
                 execution_time_ms=timer.execution_time_ms
-            ).model_dump()
+            )
 
 
 @router.get("/")
@@ -142,193 +140,270 @@ async def get_maintenance_records(
                 execution_time_ms=timer.execution_time_ms
             ).model_dump()
         except Exception as e:
-        logger.error(f"Error retrieving maintenance records: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+            logger.error(f"Error retrieving maintenance records: {e}")
+            return ResponseBuilder.error(
+                error="MaintenanceRecordRetrievalError",
+                message="Failed to retrieve maintenance records",
+                details={"error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
 
 
-@router.get("/{record_id}", response_model=DataResponse)
-async def get_maintenance_record(record_id: str):
-    """Get a specific maintenance record"""
-    try:
-        record = await maintenance_records_service.get_maintenance_record(record_id)
-        
-        if not record:
-            raise HTTPException(status_code=404, detail="Maintenance record not found")
+@router.get("/{record_id}")
+async def get_maintenance_record(
+    request: Request,
+    record_id: str = Path(..., description="Maintenance record ID"),
+    current_user = Depends(require_permission("maintenance:read"))
+):
+    """Get specific maintenance record by ID"""
+    request_id = await get_request_id(request)
+    
+    with RequestTimer() as timer:
+        try:
+            logger.info(f"Maintenance record {record_id} requested by user {current_user.get('user_id')}")
             
-        return DataResponse(
-            success=True,
-            message="Maintenance record retrieved successfully",
-            data=record
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error retrieving maintenance record {record_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.put("/{record_id}", response_model=DataResponse)
-async def update_maintenance_record(record_id: str, request: UpdateMaintenanceRecordRequest):
-    """Update a maintenance record"""
-    try:
-        # Filter out None values
-        data = {k: v for k, v in request.dict().items() if v is not None}
-        
-        if not data:
-            raise HTTPException(status_code=400, detail="No update data provided")
+            validate_object_id(record_id, "maintenance record ID")
             
-        record = await maintenance_records_service.update_maintenance_record(record_id, data)
-        
-        if not record:
-            raise HTTPException(status_code=404, detail="Maintenance record not found")
+            record = await maintenance_records_service.get_maintenance_record_by_id(record_id)
+            if not record:
+                return ResponseBuilder.error(
+                    error="MaintenanceRecordNotFound",
+                    message="Maintenance record not found",
+                    details={"record_id": record_id},
+                    request_id=request_id,
+                    execution_time_ms=timer.execution_time_ms
+                ).model_dump()
             
-        return DataResponse(
-            success=True,
-            message="Maintenance record updated successfully",
-            data=record
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating maintenance record {record_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.delete("/{record_id}", response_model=DataResponse)
-async def delete_maintenance_record(record_id: str):
-    """Delete a maintenance record"""
-    try:
-        success = await maintenance_records_service.delete_maintenance_record(record_id)
-        
-        if not success:
-            raise HTTPException(status_code=404, detail="Maintenance record not found")
+            return ResponseBuilder.success(
+                data={"record": record},
+                message="Maintenance record retrieved successfully",
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
             
-        return DataResponse(
-            success=True,
-            message="Maintenance record deleted successfully"
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting maintenance record {record_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        except ValueError as e:
+            return ResponseBuilder.error(
+                error="ValidationError",
+                message=str(e),
+                details={"field_errors": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+        except Exception as e:
+            logger.error(f"Error retrieving maintenance record {record_id}: {e}")
+            return ResponseBuilder.error(
+                error="MaintenanceRecordRetrievalError",
+                message="Failed to retrieve maintenance record",
+                details={"record_id": record_id, "error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
 
 
-@router.get("/vehicle/{vehicle_id}", response_model=ListResponse)
+@router.put("/{record_id}")
+async def update_maintenance_record(
+    request: Request,
+    updates: UpdateMaintenanceRecordRequest,
+    record_id: str = Path(..., description="Maintenance record ID"),
+    current_user = Depends(require_permission("maintenance:update"))
+):
+    """Update maintenance record"""
+    request_id = await get_request_id(request)
+    
+    with RequestTimer() as timer:
+        try:
+            logger.info(f"Maintenance record {record_id} update requested by user {current_user.get('user_id')}")
+            
+            validate_object_id(record_id, "maintenance record ID")
+            
+            update_data = updates.dict(exclude_unset=True)
+            if not update_data:
+                return ResponseBuilder.error(
+                    error="ValidationError",
+                    message="No update data provided",
+                    details={"record_id": record_id},
+                    request_id=request_id,
+                    execution_time_ms=timer.execution_time_ms
+                ).model_dump()
+            
+            record = await maintenance_records_service.update_maintenance_record(
+                record_id, 
+                update_data, 
+                current_user["user_id"]
+            )
+            
+            if not record:
+                return ResponseBuilder.error(
+                    error="MaintenanceRecordNotFound",
+                    message="Maintenance record not found",
+                    details={"record_id": record_id},
+                    request_id=request_id,
+                    execution_time_ms=timer.execution_time_ms
+                ).model_dump()
+            
+            return ResponseBuilder.success(
+                data={"record": record},
+                message="Maintenance record updated successfully",
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+            
+        except ValueError as e:
+            return ResponseBuilder.error(
+                error="ValidationError",
+                message=str(e),
+                details={"field_errors": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+        except Exception as e:
+            logger.error(f"Error updating maintenance record {record_id}: {e}")
+            return ResponseBuilder.error(
+                error="MaintenanceRecordUpdateError",
+                message="Failed to update maintenance record",
+                details={"record_id": record_id, "error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+
+
+@router.delete("/{record_id}")
+async def delete_maintenance_record(
+    request: Request,
+    record_id: str = Path(..., description="Maintenance record ID"),
+    current_user = Depends(require_permission("maintenance:delete"))
+):
+    """Delete maintenance record"""
+    request_id = await get_request_id(request)
+    
+    with RequestTimer() as timer:
+        try:
+            logger.info(f"Maintenance record {record_id} deletion requested by user {current_user.get('user_id')}")
+            
+            validate_object_id(record_id, "maintenance record ID")
+            
+            success = await maintenance_records_service.delete_maintenance_record(
+                record_id, 
+                current_user["user_id"]
+            )
+            
+            if not success:
+                return ResponseBuilder.error(
+                    error="MaintenanceRecordNotFound",
+                    message="Maintenance record not found",
+                    details={"record_id": record_id},
+                    request_id=request_id,
+                    execution_time_ms=timer.execution_time_ms
+                ).model_dump()
+            
+            return ResponseBuilder.success(
+                data={"record_id": record_id},
+                message="Maintenance record deleted successfully",
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+            
+        except ValueError as e:
+            return ResponseBuilder.error(
+                error="ValidationError",
+                message=str(e),
+                details={"field_errors": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+        except Exception as e:
+            logger.error(f"Error deleting maintenance record {record_id}: {e}")
+            return ResponseBuilder.error(
+                error="MaintenanceRecordDeletionError",
+                message="Failed to delete maintenance record",
+                details={"record_id": record_id, "error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+
+
+@router.get("/vehicle/{vehicle_id}")
 async def get_vehicle_maintenance_records(
-    vehicle_id: str,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000)
+    request: Request,
+    vehicle_id: str = Path(..., description="Vehicle ID"),
+    status: Optional[str] = Query(None, description="Filter by status"),
+    pagination = Depends(get_pagination_params),
+    current_user = Depends(require_permission("maintenance:read"))
 ):
     """Get maintenance records for a specific vehicle"""
-    try:
-        records = await maintenance_records_service.get_vehicle_maintenance_records(
-            vehicle_id, skip, limit
-        )
-        
-        return ListResponse(
-            success=True,
-            message=f"Maintenance records for vehicle {vehicle_id} retrieved successfully",
-            data=records,
-            total=len(records),
-            skip=skip,
-            limit=limit
-        )
-        
-    except Exception as e:
-        logger.error(f"Error retrieving maintenance records for vehicle {vehicle_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    request_id = await get_request_id(request)
+    
+    with RequestTimer() as timer:
+        try:
+            logger.info(f"Vehicle {vehicle_id} maintenance records requested by user {current_user.get('user_id')}")
+            
+            validate_object_id(vehicle_id, "vehicle ID")
+            
+            query_params = {"vehicle_id": vehicle_id}
+            if status:
+                query_params["status"] = status
+            
+            records = await maintenance_records_service.search_maintenance_records(
+                query=query_params,
+                pagination=pagination
+            )
+            
+            return ResponseBuilder.success(
+                data=records,
+                message="Vehicle maintenance records retrieved successfully",
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+            
+        except ValueError as e:
+            return ResponseBuilder.error(
+                error="ValidationError",
+                message=str(e),
+                details={"field_errors": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+        except Exception as e:
+            logger.error(f"Error retrieving vehicle maintenance records for {vehicle_id}: {e}")
+            return ResponseBuilder.error(
+                error="VehicleMaintenanceRecordsError",
+                message="Failed to retrieve vehicle maintenance records",
+                details={"vehicle_id": vehicle_id, "error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
 
 
-@router.get("/status/overdue", response_model=ListResponse)
-async def get_overdue_maintenance():
-    """Get overdue maintenance records"""
-    try:
-        records = await maintenance_records_service.get_overdue_maintenance()
-        
-        return ListResponse(
-            success=True,
-            message="Overdue maintenance records retrieved successfully",
-            data=records,
-            total=len(records)
-        )
-        
-    except Exception as e:
-        logger.error(f"Error retrieving overdue maintenance: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/status/upcoming", response_model=ListResponse)
-async def get_upcoming_maintenance(
-    days: int = Query(7, ge=1, le=30, description="Number of days ahead to look")
+@router.get("/search")
+async def search_maintenance_records(
+    request: Request,
+    q: str = Query(..., description="Search query"),
+    pagination = Depends(get_pagination_params),
+    current_user = Depends(require_permission("maintenance:read"))
 ):
-    """Get upcoming maintenance records"""
-    try:
-        records = await maintenance_records_service.get_upcoming_maintenance(days)
-        
-        return ListResponse(
-            success=True,
-            message=f"Upcoming maintenance for next {days} days retrieved successfully",
-            data=records,
-            total=len(records)
-        )
-        
-    except Exception as e:
-        logger.error(f"Error retrieving upcoming maintenance: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/vehicle/{vehicle_id}/history", response_model=ListResponse)
-async def get_maintenance_history(
-    vehicle_id: str,
-    start_date: Optional[datetime] = Query(None, description="Start date for history"),
-    end_date: Optional[datetime] = Query(None, description="End date for history")
-):
-    """Get maintenance history for a vehicle"""
-    try:
-        start_date_str = start_date.isoformat() if start_date else None
-        end_date_str = end_date.isoformat() if end_date else None
-        
-        records = await maintenance_records_service.get_maintenance_history(
-            vehicle_id, start_date_str, end_date_str
-        )
-        
-        return ListResponse(
-            success=True,
-            message=f"Maintenance history for vehicle {vehicle_id} retrieved successfully",
-            data=records,
-            total=len(records)
-        )
-        
-    except Exception as e:
-        logger.error(f"Error retrieving maintenance history for vehicle {vehicle_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/costs/summary", response_model=DataResponse)
-async def get_cost_summary(
-    vehicle_id: Optional[str] = Query(None, description="Filter by vehicle ID"),
-    start_date: Optional[datetime] = Query(None, description="Start date for cost summary"),
-    end_date: Optional[datetime] = Query(None, description="End date for cost summary")
-):
-    """Get maintenance cost summary"""
-    try:
-        start_date_str = start_date.isoformat() if start_date else None
-        end_date_str = end_date.isoformat() if end_date else None
-        
-        summary = await maintenance_records_service.get_maintenance_cost_summary(
-            vehicle_id, start_date_str, end_date_str
-        )
-        
-        return DataResponse(
-            success=True,
-            message="Cost summary retrieved successfully",
-            data=summary
-        )
-        
-    except Exception as e:
-        logger.error(f"Error retrieving cost summary: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    """Search maintenance records"""
+    request_id = await get_request_id(request)
+    
+    with RequestTimer() as timer:
+        try:
+            logger.info(f"Maintenance records search requested by user {current_user.get('user_id')} with query: {q}")
+            
+            results = await maintenance_records_service.search_maintenance_records_text(q, pagination)
+            
+            return ResponseBuilder.success(
+                data=results,
+                message="Maintenance records search completed successfully",
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+            
+        except Exception as e:
+            logger.error(f"Error searching maintenance records: {e}")
+            return ResponseBuilder.error(
+                error="MaintenanceRecordSearchError",
+                message="Failed to search maintenance records",
+                details={"query": q, "error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()

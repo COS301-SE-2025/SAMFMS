@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="6.563" timestamp="2025-07-18T20:21:49.042289+02:00" hostname="DESKTOP-0C1EB3V"><testcase classname="" name="tests.utils.test_helpers" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\user\OneDrive\Documents\capstone\repo\SAMFMS\tests\utils\test_helpers.py'.
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="3.097" timestamp="2025-07-18T20:36:18.763710+02:00" hostname="DESKTOP-0C1EB3V"><testcase classname="" name="tests.utils.test_helpers" time="0.000"><error message="collection failure">ImportError while importing test module 'C:\Users\user\OneDrive\Documents\capstone\repo\SAMFMS\tests\utils\test_helpers.py'.
 Hint: make sure your test modules/packages have valid Python names.
 Traceback:
 C:\Users\user\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py:88: in import_module
