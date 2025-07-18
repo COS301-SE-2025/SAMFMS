@@ -39,14 +39,47 @@ async def get_current_user(
 ) -> Dict[str, Any]:
     """Get current user from token with enhanced validation"""
     try:
-        # TODO: Replace with actual security service integration
-        # For now, implement basic token validation logic
+        import aiohttp
+        import os
         
         token = credentials.credentials
         
-        # Basic token validation (replace with JWT validation)
+        # Basic token validation
         if not token or len(token) < 10:
             raise AuthenticationError("Invalid token format")
+        
+        # Call Security service to validate token
+        security_service_url = os.getenv("SECURITY_SERVICE_URL", "http://security:8000")
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{security_service_url}/auth/verify-token",
+                    json={"token": token},
+                    timeout=aiohttp.ClientTimeout(total=5)
+                ) as response:
+                    if response.status == 200:
+                        user_data = await response.json()
+                        return user_data
+                    else:
+                        raise AuthenticationError("Invalid token")
+        except aiohttp.ClientError as e:
+            logger.warning(f"Security service unavailable: {e}")
+            # Fallback to basic validation for development
+            if os.getenv("ENVIRONMENT") == "development":
+                return {
+                    "user_id": "dev_user",
+                    "email": "dev@example.com",
+                    "role": "admin",
+                    "permissions": ["*"]
+                }
+            raise AuthenticationError("Authentication service unavailable")
+            
+    except AuthenticationError:
+        raise
+    except Exception as e:
+        logger.error(f"Authentication error: {e}")
+        raise AuthenticationError("Authentication failed")
         
         # Mock user data - replace with actual token decoding
         if token == "admin_token":

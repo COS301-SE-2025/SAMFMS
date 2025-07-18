@@ -13,7 +13,7 @@ from .utils import standardize_vehicle_response
 from utils.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api", tags=["Vehicles"])
+router = APIRouter(tags=["Vehicles"])
 
 @router.get("/vehicles")
 async def get_vehicles(

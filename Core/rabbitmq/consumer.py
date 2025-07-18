@@ -20,10 +20,20 @@ async def handle_message(message: aio_pika.IncomingMessage):
                 logger.info(f"Message Received: {data}")
         elif data.get('type') == 'service_presence':
             db.get_collection("service_presence").insert_one({"service":data.get('service')})
-            
-
+        elif data.get('type') == 'service_response':
+            # Handle service block responses
+            await handle_service_response(data)
         else:
             logger.info(f"Message Received: {data}")
+
+async def handle_service_response(data: Dict[str, Any]):
+    """Handle responses from service blocks"""
+    try:
+        # Import here to avoid circular imports
+        from routes.service_routing import handle_service_response
+        await handle_service_response(data)
+    except Exception as e:
+        logger.error(f"Error handling service response: {e}")
 
 async def wait_for_rabbitmq(max_retries: int = 30, delay: int = 2):
     """Wait for RabbitMQ to be available with retry logic"""
@@ -42,16 +52,21 @@ async def wait_for_rabbitmq(max_retries: int = 30, delay: int = 2):
                 raise
     return False
 
-async def consume_messages(queue_name: str):
+async def consume_messages(queue_name: str = "core_responses"):
+    """Enhanced message consumer for service routing responses"""
     await wait_for_rabbitmq()
     
     try:
         connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
         channel = await connection.channel()
+        
+        # Declare response exchange and queue for Core service
+        response_exchange = await channel.declare_exchange("core_responses", aio_pika.ExchangeType.DIRECT, durable=True)
         queue = await channel.declare_queue(queue_name, durable=True)
+        await queue.bind(response_exchange, routing_key="core.response")
         
         await queue.consume(handle_message)
-        logger.info(f"Started consuming messages from queue: {queue_name}")
+        logger.info(f"Started consuming service responses from queue: {queue_name}")
         
         try:
             await asyncio.Future()

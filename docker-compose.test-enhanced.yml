@@ -233,6 +233,43 @@ services:
         python -m pytest tests/integration/test_container_integration.py -v --tb=short --cov=Core --cov=Sblocks --cov-report=html --cov-report=xml --cov-report=term-missing
       "
 
+  frontend-test:
+    build:
+      context: ./Frontend/samfms
+      dockerfile: Dockerfile.test
+    container_name: samfms-frontend-test
+    volumes:
+      - ./Frontend/samfms:/app
+      - /app/node_modules
+      - ./test-results:/app/test-results
+      - ./coverage-reports:/app/coverage-reports
+    working_dir: /app
+    environment:
+      - NODE_ENV=test
+      - REACT_APP_API_BASE_URL=http://core-test:8000
+      - REACT_APP_WS_TARGET=ws://core-test:8000
+      - CI=true
+    depends_on:
+      core-test:
+        condition: service_healthy
+      security-test:
+        condition: service_healthy
+      management-test:
+        condition: service_healthy
+      maintenance-test:
+        condition: service_healthy
+    networks:
+      - samfms-test-network
+    profiles:
+      - test
+    command: >
+      sh -c "
+        echo 'Waiting for backend services to be ready...' &&
+        sleep 30 &&
+        echo 'Running frontend API tests...' &&
+        npm test -- --coverage --watchAll=false --testResultsProcessor=jest-junit --coverageReporters=html --coverageReporters=xml --coverageReporters=text --coverageDirectory=coverage-reports/frontend
+      "
+
 volumes:
   mongodb_test_data:
   rabbitmq_test_data:

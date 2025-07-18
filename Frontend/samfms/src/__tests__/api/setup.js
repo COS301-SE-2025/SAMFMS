@@ -47,7 +47,7 @@ afterEach(() => {
 // Global test utilities
 global.mockFetch = (response, options = {}) => {
   const { status = 200, ok = true, headers = {} } = options;
-  
+
   fetch.mockImplementationOnce(() =>
     Promise.resolve({
       ok,
@@ -59,7 +59,7 @@ global.mockFetch = (response, options = {}) => {
   );
 };
 
-global.mockFetchError = (error) => {
+global.mockFetchError = error => {
   fetch.mockImplementationOnce(() => Promise.reject(error));
 };
 
@@ -122,5 +122,5 @@ jest.mock('../../config/apiConfig', () => ({
       DELETE: '/api/assignments',
     },
   },
-  buildApiUrl: jest.fn((endpoint) => `http://localhost:8004${endpoint}`),
+  buildApiUrl: jest.fn(endpoint => `http://localhost:8004${endpoint}`),
 }));

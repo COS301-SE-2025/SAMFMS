@@ -19,7 +19,6 @@ from events.consumer import event_consumer, setup_event_handlers
 from services.analytics_service import analytics_service
 from services.request_consumer import service_request_consumer
 from api.routes.analytics import router as analytics_router
-from api.routes.assignments import router as assignments_router
 from api.routes.drivers import router as drivers_router
 from api.routes.vehicles import router as vehicles_router
 
@@ -65,7 +64,7 @@ async def register_with_core_service():
             "version": "2.1.0",
             "protocol": "http",
             "health_check_url": "/health",
-            "tags": ["management", "analytics", "assignments", "drivers"],
+            "tags": ["management", "analytics", "drivers", "vehicles"],
             "metadata": {
                 "features": [
                     "event_driven_architecture",
@@ -307,10 +306,9 @@ app.add_middleware(
 metrics_middleware.app = app
 
 # Include routers with enhanced error handling
-app.include_router(analytics_router, prefix="/api/v1", tags=["analytics"])
-app.include_router(assignments_router, prefix="/api/v1", tags=["assignments"])
-app.include_router(drivers_router, prefix="/api/v1", tags=["drivers"])
-app.include_router(vehicles_router, prefix="/api/v1", tags=["vehicles"])
+app.include_router(analytics_router, tags=["analytics"])
+app.include_router(drivers_router, tags=["drivers"])
+app.include_router(vehicles_router, tags=["vehicles"])
 
 
 @app.get("/")

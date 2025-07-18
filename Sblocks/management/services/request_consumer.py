@@ -14,7 +14,6 @@ from aio_pika.abc import AbstractIncomingMessage
 
 from api.routes.vehicles import router as vehicles_router
 from api.routes.drivers import router as drivers_router
-from api.routes.assignments import router as assignments_router
 from api.routes.analytics import router as analytics_router
 
 logger = logging.getLogger(__name__)

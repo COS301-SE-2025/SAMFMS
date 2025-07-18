@@ -91,9 +91,9 @@ async def lifespan(app: FastAPI):
             # Create exchange if needed
             await create_exchange()
             
-            # Start background message consumption
-            asyncio.create_task(consume_messages())
-            logger.info("✅ RabbitMQ initialized")
+            # Start background message consumption for service responses
+            asyncio.create_task(consume_messages("core_responses"))
+            logger.info("✅ RabbitMQ initialized with service response consumer")
         except Exception as e:
             logger.warning(f"⚠️  RabbitMQ initialization failed: {e}")
             # Continue without RabbitMQ for now
@@ -189,7 +189,7 @@ app.add_middleware(
 )
 
 # Setup API routes
-logger.info("🛣️  Setting up API routes...")
+logger.info("🛣️  Setting up simplified service routing...")
 
 # Import auth routes (essential)
 try:
@@ -201,44 +201,35 @@ except ImportError as e:
     # Auth routes are essential, so we should raise an error
     raise SystemExit(f"Critical error: Auth routes are required but could not be imported: {e}")
 
-# Import GPS routes
+# Import simplified service routing
 try:
-    from routes.gps_direct import router as gps_router
-    app.include_router(gps_router)
-    logger.info("✅ GPS routes configured")
+    from routes.service_routing import service_router
+    app.include_router(service_router)
+    logger.info("✅ Simplified service routing configured")
+    logger.info("    • /management/* -> Management service block")
+    logger.info("    • /maintenance/* -> Maintenance service block")
+    logger.info("    • /gps/* -> GPS service block")
+    logger.info("    • /trips/* -> Trip planning service block")
 except ImportError as e:
-    logger.warning(f"⚠️  GPS routes could not be imported: {e}")
-    # GPS routes are optional, service can continue without them
-
-# Import consolidated routes (includes debug functionality)
-try:
-    from routes.consolidated import consolidated_router
-    app.include_router(consolidated_router)
-    logger.info("✅ Consolidated routes configured (includes debug, API endpoints)")
-except ImportError as e:
-    logger.warning(f"⚠️  Consolidated routes could not be imported: {e}")
-    logger.info("Service will continue with individual routes")
+    logger.error(f"❌ Failed to import service routing: {e}")
+    logger.warning("⚠️  Falling back to direct routes...")
     
-    # Try to import individual API routes as fallback
+    # Fallback to direct routes if service routing fails
     try:
-        from routes.api.vehicles import router as vehicles_router
-        from routes.api.drivers import router as drivers_router
-        from routes.api.assignments import router as assignments_router
-        app.include_router(vehicles_router)
-        app.include_router(drivers_router)
-        app.include_router(assignments_router)
-        logger.info("✅ Individual API routes configured as fallback")
-    except ImportError as fallback_error:
-        logger.warning(f"⚠️  Individual API routes also failed: {fallback_error}")
+        from routes.gps_direct import router as gps_router
+        app.include_router(gps_router)
+        logger.info("✅ Direct GPS routes configured as fallback")
+    except ImportError as gps_error:
+        logger.warning(f"⚠️  Direct GPS routes also failed: {gps_error}")
 
-# Import maintenance routes
-try:
-    from routes.maintenance import router as maintenance_router
-    app.include_router(maintenance_router)
-    logger.info("✅ Maintenance routes configured")
-except ImportError as e:
-    logger.warning(f"⚠️  Maintenance routes could not be imported: {e}")
-    # Maintenance routes are optional, service can continue without them
+# Import debug routes if in development
+if config.environment.value == "development":
+    try:
+        from routes.debug import router as debug_router
+        app.include_router(debug_router)
+        logger.info("✅ Debug routes configured for development")
+    except ImportError as e:
+        logger.warning(f"⚠️  Debug routes could not be imported: {e}")
 
 # Add a simple test route to verify routing works
 @app.get("/test-auth")
@@ -310,11 +301,17 @@ async def root():
         "status": "running",
         "timestamp": datetime.utcnow().isoformat(),
         "environment": config.environment.value,
+        "routing": {
+            "management": "/management/* -> Management service block",
+            "maintenance": "/maintenance/* -> Maintenance service block", 
+            "gps": "/gps/* -> GPS service block",
+            "trips": "/trips/* -> Trip planning service block"
+        },
         "endpoints": {
             "health": "/health",
             "docs": "/docs" if config.environment.value != "production" else "disabled",
             "auth": "/auth",
-            "gps": "/gps",
+            "services": "/services",
             "debug": "/debug" if config.environment.value != "production" else "disabled"
         }
     }

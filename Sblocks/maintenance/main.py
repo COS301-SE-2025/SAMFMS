@@ -118,11 +118,11 @@ app.add_middleware(
 )
 
 
-# Include routers with enhanced error handling and versioned prefix
-app.include_router(maintenance_records_router, prefix="/api/v1", tags=["maintenance_records"])
-app.include_router(licenses_router, prefix="/api/v1", tags=["licenses"])
-app.include_router(analytics_router, prefix="/api/v1", tags=["analytics"])
-app.include_router(notifications_router, prefix="/api/v1", tags=["notifications"])
+# Include routers with enhanced error handling
+app.include_router(maintenance_records_router, tags=["maintenance_records"])
+app.include_router(licenses_router, tags=["licenses"])
+app.include_router(analytics_router, tags=["analytics"])
+app.include_router(notifications_router, tags=["notifications"])
 
 
 

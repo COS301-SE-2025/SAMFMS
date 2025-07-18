@@ -3,101 +3,145 @@ Maintenance Records API Routes
 """
 
 import logging
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Query, Depends
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, Query, Path, Request
 
 from schemas.requests import (
     CreateMaintenanceRecordRequest,
     UpdateMaintenanceRecordRequest,
     MaintenanceQueryParams
 )
-from schemas.responses import (
-    DataResponse,
-    ListResponse,
-    ErrorResponse
-)
+from schemas.responses import ResponseBuilder
 from services.maintenance_service import maintenance_records_service
+from api.dependencies import (
+    get_current_user,
+    require_permission,
+    get_pagination_params,
+    validate_object_id,
+    get_request_id,
+    RequestTimer,
+    validate_date_range
+)
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/maintenance/records", tags=["maintenance_records"])
+router = APIRouter(prefix="/records", tags=["maintenance_records"])
 
 
-@router.post("/", response_model=DataResponse)
-async def create_maintenance_record(request: CreateMaintenanceRecordRequest):
+@router.post("/")
+async def create_maintenance_record(
+    request: Request,
+    maintenance_request: CreateMaintenanceRecordRequest,
+    current_user = Depends(require_permission("maintenance:create"))
+):
     """Create a new maintenance record"""
-    try:
-        data = request.dict()
-        record = await maintenance_records_service.create_maintenance_record(data)
-        
-        return DataResponse(
-            success=True,
-            message="Maintenance record created successfully",
-            data=record
-        )
-        
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error creating maintenance record: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    request_id = await get_request_id(request)
+    
+    with RequestTimer() as timer:
+        try:
+            logger.info(f"Maintenance record creation requested by user {current_user.get('user_id')}")
+            
+            data = maintenance_request.dict()
+            record = await maintenance_records_service.create_maintenance_record(
+                data, 
+                current_user["user_id"]
+            )
+            
+            return ResponseBuilder.success(
+                data={"record": record},
+                message="Maintenance record created successfully",
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+            
+        except ValueError as e:
+            logger.warning(f"Maintenance record creation validation error: {e}")
+            return ResponseBuilder.error(
+                error="ValidationError",
+                message=str(e),
+                details={"field_errors": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+        except Exception as e:
+            logger.error(f"Error creating maintenance record: {e}")
+            return ResponseBuilder.error(
+                error="MaintenanceRecordCreationError",
+                message="Failed to create maintenance record",
+                details={"error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
 
 
-@router.get("/", response_model=ListResponse)
+@router.get("/")
 async def get_maintenance_records(
+    request: Request,
     vehicle_id: Optional[str] = Query(None, description="Filter by vehicle ID"),
     status: Optional[str] = Query(None, description="Filter by status"),
     maintenance_type: Optional[str] = Query(None, description="Filter by maintenance type"),
     priority: Optional[str] = Query(None, description="Filter by priority"),
-    scheduled_from: Optional[datetime] = Query(None, description="Filter by scheduled date from"),
-    scheduled_to: Optional[datetime] = Query(None, description="Filter by scheduled date to"),
+    scheduled_from: Optional[str] = Query(None, description="Filter by scheduled date from (ISO format)"),
+    scheduled_to: Optional[str] = Query(None, description="Filter by scheduled date to (ISO format)"),
     vendor_id: Optional[str] = Query(None, description="Filter by vendor"),
     technician_id: Optional[str] = Query(None, description="Filter by technician"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Number of records to return"),
-    sort_by: str = Query("scheduled_date", description="Field to sort by"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order")
+    pagination = Depends(get_pagination_params),
+    current_user = Depends(require_permission("maintenance:read"))
 ):
     """Get maintenance records with filtering and pagination"""
-    try:
-        # Build query parameters
-        query_params = {}
-        if vehicle_id:
-            query_params["vehicle_id"] = vehicle_id
-        if status:
-            query_params["status"] = status
-        if maintenance_type:
-            query_params["maintenance_type"] = maintenance_type
-        if priority:
-            query_params["priority"] = priority
-        if vendor_id:
-            query_params["vendor_id"] = vendor_id
-        if technician_id:
-            query_params["technician_id"] = technician_id
-        if scheduled_from:
-            query_params["scheduled_from"] = scheduled_from.isoformat()
-        if scheduled_to:
-            query_params["scheduled_to"] = scheduled_to.isoformat()
+    request_id = await get_request_id(request)
+    
+    with RequestTimer() as timer:
+        try:
+            logger.info(f"Maintenance records list requested by user {current_user.get('user_id')}")
             
-        records = await maintenance_records_service.search_maintenance_records(
-            query=query_params,
-            skip=skip,
-            limit=limit,
-            sort_by=sort_by,
-            sort_order=sort_order
-        )
-        
-        return ListResponse(
-            success=True,
-            message="Maintenance records retrieved successfully",
-            data=records,
-            total=len(records),
-            skip=skip,
-            limit=limit
-        )
-        
-    except Exception as e:
+            # Validate date range if provided
+            if scheduled_from or scheduled_to:
+                validate_date_range(scheduled_from, scheduled_to)
+            
+            # Build query parameters
+            query_params = {}
+            if vehicle_id:
+                validate_object_id(vehicle_id, "vehicle ID")
+                query_params["vehicle_id"] = vehicle_id
+            if status:
+                query_params["status"] = status
+            if maintenance_type:
+                query_params["maintenance_type"] = maintenance_type
+            if priority:
+                query_params["priority"] = priority
+            if vendor_id:
+                validate_object_id(vendor_id, "vendor ID")
+                query_params["vendor_id"] = vendor_id
+            if technician_id:
+                validate_object_id(technician_id, "technician ID")
+                query_params["technician_id"] = technician_id
+            if scheduled_from:
+                query_params["scheduled_from"] = scheduled_from
+            if scheduled_to:
+                query_params["scheduled_to"] = scheduled_to
+                
+            records = await maintenance_records_service.search_maintenance_records(
+                query=query_params,
+                pagination=pagination
+            )
+            
+            return ResponseBuilder.success(
+                data=records,
+                message="Maintenance records retrieved successfully",
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+            
+        except ValueError as e:
+            return ResponseBuilder.error(
+                error="ValidationError",
+                message=str(e),
+                details={"field_errors": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+        except Exception as e:
         logger.error(f"Error retrieving maintenance records: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 

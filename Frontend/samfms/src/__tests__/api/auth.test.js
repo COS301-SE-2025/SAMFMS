@@ -2,13 +2,13 @@
  * Authentication API Tests
  * Tests for auth.js API functions
  */
-import { 
-  login, 
-  signup, 
-  logout, 
-  refreshAuthToken, 
-  getCurrentUser, 
-  getToken, 
+import {
+  login,
+  signup,
+  logout,
+  refreshAuthToken,
+  getCurrentUser,
+  getToken,
   isAuthenticated,
   authFetch,
   changePassword,
@@ -27,7 +27,7 @@ import {
   checkUserExistence,
   updateUserProfile,
   uploadProfilePicture,
-  AUTH_API
+  AUTH_API,
 } from '../../backend/api/auth';
 import { getCookie, setCookie, eraseCookie } from '../../lib/cookies';
 
@@ -64,7 +64,7 @@ describe('Authentication API', () => {
 
     test('getCurrentUser should return user from cookies', () => {
       const mockUser = { id: 1, email: 'test@example.com' };
-      getCookie.mockImplementation((key) => {
+      getCookie.mockImplementation(key => {
         if (key === 'user') return JSON.stringify(mockUser);
         if (key === 'permissions') return JSON.stringify(['read', 'write']);
         if (key === 'preferences') return JSON.stringify({ theme: 'dark' });
@@ -100,8 +100,8 @@ describe('Authentication API', () => {
           user: { id: 1, email: 'test@example.com' },
           token: 'mock-token',
           permissions: ['read', 'write'],
-          preferences: { theme: 'dark' }
-        }
+          preferences: { theme: 'dark' },
+        },
       };
 
       global.mockFetch(mockResponse);
@@ -130,7 +130,7 @@ describe('Authentication API', () => {
       global.mockFetchError(mockError);
 
       const credentials = { email: 'test@example.com', password: 'wrong-password' };
-      
+
       await expect(login(credentials)).rejects.toThrow('Invalid credentials');
     });
   });
@@ -141,8 +141,8 @@ describe('Authentication API', () => {
         success: true,
         data: {
           user: { id: 1, email: 'test@example.com' },
-          token: 'mock-token'
-        }
+          token: 'mock-token',
+        },
       };
 
       global.mockFetch(mockResponse);
@@ -151,7 +151,7 @@ describe('Authentication API', () => {
         email: 'test@example.com',
         password: 'password',
         firstName: 'Test',
-        lastName: 'User'
+        lastName: 'User',
       };
 
       const result = await signup(signupData);
@@ -178,7 +178,7 @@ describe('Authentication API', () => {
         email: 'existing@example.com',
         password: 'password',
         firstName: 'Test',
-        lastName: 'User'
+        lastName: 'User',
       };
 
       await expect(signup(signupData)).rejects.toThrow('Email already exists');
@@ -198,7 +198,7 @@ describe('Authentication API', () => {
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
-            'Authorization': 'Bearer mock-token',
+            Authorization: 'Bearer mock-token',
           }),
         })
       );
@@ -221,7 +221,7 @@ describe('Authentication API', () => {
         expect.stringContaining('/api/test'),
         expect.objectContaining({
           headers: expect.objectContaining({
-            'Authorization': 'Bearer mock-token',
+            Authorization: 'Bearer mock-token',
           }),
         })
       );
@@ -244,7 +244,7 @@ describe('Authentication API', () => {
 
       const passwordData = {
         currentPassword: 'old-password',
-        newPassword: 'new-password'
+        newPassword: 'new-password',
       };
 
       const result = await changePassword(passwordData);
@@ -255,7 +255,7 @@ describe('Authentication API', () => {
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer mock-token',
+            Authorization: 'Bearer mock-token',
           }),
           body: JSON.stringify(passwordData),
         })
@@ -271,8 +271,8 @@ describe('Authentication API', () => {
         success: true,
         data: [
           { id: 1, email: 'user1@example.com' },
-          { id: 2, email: 'user2@example.com' }
-        ]
+          { id: 2, email: 'user2@example.com' },
+        ],
       };
 
       global.mockFetch(mockResponse);
@@ -284,7 +284,7 @@ describe('Authentication API', () => {
         expect.stringContaining('/auth/users'),
         expect.objectContaining({
           headers: expect.objectContaining({
-            'Authorization': 'Bearer mock-token',
+            Authorization: 'Bearer mock-token',
           }),
         })
       );
@@ -295,7 +295,7 @@ describe('Authentication API', () => {
     test('should create user manually', async () => {
       const mockResponse = {
         success: true,
-        data: { id: 1, email: 'new@example.com' }
+        data: { id: 1, email: 'new@example.com' },
       };
 
       global.mockFetch(mockResponse);
@@ -305,7 +305,7 @@ describe('Authentication API', () => {
         email: 'new@example.com',
         firstName: 'New',
         lastName: 'User',
-        role: 'user'
+        role: 'user',
       };
 
       const result = await createUserManually(userData);
@@ -316,7 +316,7 @@ describe('Authentication API', () => {
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer mock-token',
+            Authorization: 'Bearer mock-token',
           }),
           body: JSON.stringify(userData),
         })
@@ -346,7 +346,7 @@ describe('Authentication API', () => {
     test('should get roles successfully', async () => {
       const mockResponse = {
         success: true,
-        data: ['admin', 'user', 'manager']
+        data: ['admin', 'user', 'manager'],
       };
 
       global.mockFetch(mockResponse);
@@ -358,7 +358,7 @@ describe('Authentication API', () => {
         expect.stringContaining('/auth/roles'),
         expect.objectContaining({
           headers: expect.objectContaining({
-            'Authorization': 'Bearer mock-token',
+            Authorization: 'Bearer mock-token',
           }),
         })
       );
@@ -379,7 +379,7 @@ describe('Authentication API', () => {
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer mock-token',
+            Authorization: 'Bearer mock-token',
           }),
           body: JSON.stringify({ permission: 'read', resource: 'vehicles' }),
         })
@@ -389,7 +389,7 @@ describe('Authentication API', () => {
     });
 
     test('hasPermission should return boolean', () => {
-      getCookie.mockImplementation((key) => {
+      getCookie.mockImplementation(key => {
         if (key === 'permissions') return JSON.stringify(['read', 'write']);
         return null;
       });
@@ -399,7 +399,7 @@ describe('Authentication API', () => {
     });
 
     test('hasRole should return boolean', () => {
-      getCookie.mockImplementation((key) => {
+      getCookie.mockImplementation(key => {
         if (key === 'user') return JSON.stringify({ roles: ['admin', 'user'] });
         return null;
       });
@@ -409,7 +409,7 @@ describe('Authentication API', () => {
     });
 
     test('hasAnyRole should return boolean', () => {
-      getCookie.mockImplementation((key) => {
+      getCookie.mockImplementation(key => {
         if (key === 'user') return JSON.stringify({ roles: ['admin', 'user'] });
         return null;
       });
@@ -423,7 +423,7 @@ describe('Authentication API', () => {
     test('should update user profile', async () => {
       const mockResponse = {
         success: true,
-        data: { id: 1, firstName: 'Updated', lastName: 'User' }
+        data: { id: 1, firstName: 'Updated', lastName: 'User' },
       };
 
       global.mockFetch(mockResponse);
@@ -431,7 +431,7 @@ describe('Authentication API', () => {
 
       const profileData = {
         firstName: 'Updated',
-        lastName: 'User'
+        lastName: 'User',
       };
 
       const result = await updateUserProfile(profileData);
@@ -442,7 +442,7 @@ describe('Authentication API', () => {
           method: 'PUT',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer mock-token',
+            Authorization: 'Bearer mock-token',
           }),
           body: JSON.stringify(profileData),
         })
@@ -454,7 +454,7 @@ describe('Authentication API', () => {
     test('should upload profile picture', async () => {
       const mockResponse = {
         success: true,
-        data: { profilePictureUrl: 'https://example.com/picture.jpg' }
+        data: { profilePictureUrl: 'https://example.com/picture.jpg' },
       };
 
       global.mockFetch(mockResponse);
@@ -470,7 +470,7 @@ describe('Authentication API', () => {
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
-            'Authorization': 'Bearer mock-token',
+            Authorization: 'Bearer mock-token',
           }),
           body: formData,
         })
@@ -484,7 +484,7 @@ describe('Authentication API', () => {
     test('should refresh authentication token', async () => {
       const mockResponse = {
         success: true,
-        data: { token: 'new-token' }
+        data: { token: 'new-token' },
       };
 
       global.mockFetch(mockResponse);
@@ -497,7 +497,7 @@ describe('Authentication API', () => {
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
-            'Authorization': 'Bearer old-token',
+            Authorization: 'Bearer old-token',
           }),
         })
       );

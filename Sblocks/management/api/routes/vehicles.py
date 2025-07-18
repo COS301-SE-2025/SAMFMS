@@ -1,8 +1,8 @@
 """
 Vehicle Management Routes for Management Service
 """
-from fastapi import APIRouter, HTTPException, Depends, Query, Path
-from typing import Optional, List, Dict, Any
+from fastapi import APIRouter, Depends, Query, Path, Request
+from typing import Optional
 import logging
 
 from repositories.repositories import VehicleRepository
@@ -17,7 +17,6 @@ from api.dependencies import (
     RequestTimer
 )
 from schemas.responses import ResponseBuilder
-from api.exception_handlers import BusinessLogicError
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -28,7 +27,7 @@ vehicle_service = VehicleService()
 
 @router.get("/vehicles")
 async def get_vehicles(
-    request,
+    request: Request,
     department: Optional[str] = Query(None, description="Filter by department"),
     status: Optional[str] = Query(None, description="Filter by status"),
     vehicle_type: Optional[str] = Query(None, description="Filter by vehicle type"),
@@ -58,7 +57,13 @@ async def get_vehicles(
             
         except Exception as e:
             logger.error(f"Error getting vehicles: {e}")
-            raise BusinessLogicError("Failed to retrieve vehicles")
+            return ResponseBuilder.error(
+                error="VehicleRetrievalError",
+                message="Failed to retrieve vehicles",
+                details={"error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
 
 
 @router.post("/vehicles")
@@ -88,10 +93,22 @@ async def create_vehicle(
             
         except ValueError as e:
             logger.warning(f"Vehicle creation validation error: {e}")
-            raise HTTPException(status_code=400, detail=str(e))
+            return ResponseBuilder.error(
+                error="ValidationError",
+                message=str(e),
+                details={"field_errors": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
         except Exception as e:
             logger.error(f"Error creating vehicle: {e}")
-            raise BusinessLogicError("Failed to create vehicle")
+            return ResponseBuilder.error(
+                error="VehicleCreationError",
+                message="Failed to create vehicle",
+                details={"error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
 
 
 @router.get("/vehicles/{vehicle_id}")
@@ -110,7 +127,13 @@ async def get_vehicle(
             vehicle = await vehicle_service.get_vehicle_by_id(vehicle_id)
             
             if not vehicle:
-                raise HTTPException(status_code=404, detail="Vehicle not found")
+                return ResponseBuilder.error(
+                    error="VehicleNotFound",
+                    message="Vehicle not found",
+                    details={"vehicle_id": vehicle_id},
+                    request_id=request_id,
+                    execution_time_ms=timer.execution_time_ms
+                ).model_dump()
             
             return ResponseBuilder.success(
                 data={"vehicle": vehicle},
@@ -119,11 +142,15 @@ async def get_vehicle(
                 execution_time_ms=timer.execution_time_ms
             ).model_dump()
             
-        except HTTPException:
-            raise
         except Exception as e:
             logger.error(f"Error getting vehicle {vehicle_id}: {e}")
-            raise BusinessLogicError("Failed to retrieve vehicle")
+            return ResponseBuilder.error(
+                error="VehicleRetrievalError",
+                message="Failed to retrieve vehicle",
+                details={"vehicle_id": vehicle_id, "error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
 
 
 @router.put("/vehicles/{vehicle_id}")
@@ -155,10 +182,22 @@ async def update_vehicle(
             
         except ValueError as e:
             logger.warning(f"Vehicle update validation error: {e}")
-            raise HTTPException(status_code=400, detail=str(e))
+            return ResponseBuilder.error(
+                error="ValidationError",
+                message=str(e),
+                details={"field_errors": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
         except Exception as e:
             logger.error(f"Error updating vehicle {vehicle_id}: {e}")
-            raise BusinessLogicError("Failed to update vehicle")
+            return ResponseBuilder.error(
+                error="VehicleUpdateError",
+                message="Failed to update vehicle",
+                details={"vehicle_id": vehicle_id, "error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
 
 
 @router.delete("/vehicles/{vehicle_id}")
@@ -180,7 +219,13 @@ async def delete_vehicle(
             )
             
             if not success:
-                raise HTTPException(status_code=404, detail="Vehicle not found")
+                return ResponseBuilder.error(
+                    error="VehicleNotFound",
+                    message="Vehicle not found",
+                    details={"vehicle_id": vehicle_id},
+                    request_id=request_id,
+                    execution_time_ms=timer.execution_time_ms
+                ).model_dump()
             
             return ResponseBuilder.success(
                 data={"vehicle_id": vehicle_id},
@@ -189,11 +234,15 @@ async def delete_vehicle(
                 execution_time_ms=timer.execution_time_ms
             ).model_dump()
             
-        except HTTPException:
-            raise
         except Exception as e:
             logger.error(f"Error deleting vehicle {vehicle_id}: {e}")
-            raise BusinessLogicError("Failed to delete vehicle")
+            return ResponseBuilder.error(
+                error="VehicleDeletionError",
+                message="Failed to delete vehicle",
+                details={"vehicle_id": vehicle_id, "error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
 
 
 @router.get("/vehicles/search")
@@ -221,7 +270,13 @@ async def search_vehicles(
             
         except Exception as e:
             logger.error(f"Error searching vehicles: {e}")
-            raise BusinessLogicError("Failed to search vehicles")
+            return ResponseBuilder.error(
+                error="VehicleSearchError",
+                message="Failed to search vehicles",
+                details={"query": q, "error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
 
 
 @router.get("/vehicles/{vehicle_id}/assignments")
@@ -252,7 +307,13 @@ async def get_vehicle_assignments(
             
         except Exception as e:
             logger.error(f"Error getting vehicle assignments for {vehicle_id}: {e}")
-            raise BusinessLogicError("Failed to retrieve vehicle assignments")
+            return ResponseBuilder.error(
+                error="VehicleAssignmentRetrievalError",
+                message="Failed to retrieve vehicle assignments",
+                details={"vehicle_id": vehicle_id, "error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
 
 
 @router.get("/vehicles/{vehicle_id}/usage")
@@ -285,4 +346,10 @@ async def get_vehicle_usage(
             
         except Exception as e:
             logger.error(f"Error getting vehicle usage for {vehicle_id}: {e}")
-            raise BusinessLogicError("Failed to retrieve vehicle usage statistics")
+            return ResponseBuilder.error(
+                error="VehicleUsageRetrievalError",
+                message="Failed to retrieve vehicle usage statistics",
+                details={"vehicle_id": vehicle_id, "error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
