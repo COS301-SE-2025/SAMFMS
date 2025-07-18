@@ -51,8 +51,14 @@ async def lifespan(app: FastAPI):
         await db_manager.create_indexes()
         logger.info("✅ Database connected and indexes created")
 
-        # Start RabbitMQ consumer
-        await maintenance_service_request_consumer.start_consuming()
+        # Connect and start RabbitMQ consumer
+        await maintenance_service_request_consumer.connect()
+        logger.info("✅ RabbitMQ connected")
+        
+        # Start consuming in the background
+        consumer_task = asyncio.create_task(maintenance_service_request_consumer.start_consuming())
+        # Keep reference to prevent garbage collection
+        app.state.consumer_task = consumer_task
         logger.info("✅ RabbitMQ consumer started")
 
         # Start background jobs
@@ -93,11 +99,14 @@ app = FastAPI(
     title="SAMFMS Maintenance Service",
     version="1.0.0",
     description="Comprehensive maintenance management service for SAMFMS fleet management system",
-    lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json"
 )
+
+# Store start time for uptime calculation
+app.state.start_time = datetime.now(timezone.utc)
+metrics_middleware.app = app
 
 
 # Add enhanced middleware in correct order
@@ -279,6 +288,16 @@ if __name__ == "__main__":
     log_level = os.getenv("LOG_LEVEL", "info").lower()
     
     logger.info(f"Starting Maintenance Service on {host}:{port}")
+    
+    # Start services manually before running uvicorn
+    from startup import initialize_services
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(initialize_services())
+    except Exception as e:
+        logger.error(f"Failed to initialize services: {e}")
+        exit(1)
     
     uvicorn.run(
         "main:app",

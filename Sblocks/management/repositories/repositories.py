@@ -4,11 +4,95 @@ Repository implementations for Management service entities
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 import logging
+import motor.motor_asyncio
+import os
 
 from .base import BaseRepository
 from schemas.entities import VehicleAssignment, VehicleUsageLog, Driver, AnalyticsSnapshot
 
 logger = logging.getLogger(__name__)
+
+
+class SecurityUserRepository:
+    """Repository for security users (drivers from security database)"""
+    
+    def __init__(self):
+        # Connect to security database
+        self.mongo_url = os.getenv("MONGO_URL", "mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017")
+        self.client = motor.motor_asyncio.AsyncIOMotorClient(self.mongo_url)
+        self.db = self.client.samfms_security
+        self.collection = self.db.security_users
+    
+    async def get_drivers(self, skip: int = 0, limit: int = 100) -> List[Dict[str, Any]]:
+        """Get all users with driver role"""
+        try:
+            cursor = self.collection.find(
+                {"role": "driver"},
+                {"password": 0}  # Exclude password field for security
+            ).skip(skip).limit(limit).sort("full_name", 1)
+            
+            drivers = await cursor.to_list(length=limit)
+            
+            # Convert ObjectId to string for JSON serialization
+            for driver in drivers:
+                if "_id" in driver:
+                    driver["_id"] = str(driver["_id"])
+                    
+            return drivers
+            
+        except Exception as e:
+            logger.error(f"Error getting drivers from security database: {e}")
+            raise
+    
+    async def get_driver_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific driver by ID"""
+        try:
+            from bson import ObjectId
+            if not ObjectId.is_valid(user_id):
+                return None
+                
+            driver = await self.collection.find_one(
+                {"_id": ObjectId(user_id), "role": "driver"},
+                {"password": 0}  # Exclude password field for security
+            )
+            
+            if driver:
+                driver["_id"] = str(driver["_id"])
+                
+            return driver
+            
+        except Exception as e:
+            logger.error(f"Error getting driver {user_id} from security database: {e}")
+            raise
+    
+    async def get_active_drivers(self) -> List[Dict[str, Any]]:
+        """Get all active drivers"""
+        try:
+            cursor = self.collection.find(
+                {"role": "driver", "is_active": True},
+                {"password": 0}  # Exclude password field for security
+            ).sort("full_name", 1)
+            
+            drivers = await cursor.to_list(length=None)
+            
+            # Convert ObjectId to string for JSON serialization
+            for driver in drivers:
+                if "_id" in driver:
+                    driver["_id"] = str(driver["_id"])
+                    
+            return drivers
+            
+        except Exception as e:
+            logger.error(f"Error getting active drivers from security database: {e}")
+            raise
+    
+    async def count_drivers(self) -> int:
+        """Count total drivers"""
+        try:
+            return await self.collection.count_documents({"role": "driver"})
+        except Exception as e:
+            logger.error(f"Error counting drivers: {e}")
+            raise
 
 
 class VehicleRepository(BaseRepository):
