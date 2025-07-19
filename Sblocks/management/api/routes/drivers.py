@@ -1,6 +1,4 @@
-"""
-Driver routes
-"""
+
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
 import logging
@@ -25,7 +23,7 @@ async def get_drivers(
     pagination = Depends(get_pagination_params),
     current_user = Depends(require_permission("drivers:read"))
 ):
-    """Get drivers with optional filters"""
+    
     try:
         if department:
             drivers = await driver_service.get_drivers_by_department(department)
@@ -58,7 +56,7 @@ async def create_driver(
     driver_request: DriverCreateRequest,
     current_user = Depends(require_permission("drivers:create"))
 ):
-    """Create new driver"""
+    
     try:
         driver = await driver_service.create_driver(
             driver_request, 
@@ -79,7 +77,7 @@ async def get_driver(
     driver_id: str,
     current_user = Depends(require_permission("drivers:read"))
 ):
-    """Get specific driver"""
+    
     try:
         validate_object_id(driver_id, "driver ID")
         
@@ -105,7 +103,7 @@ async def update_driver(
     driver_updates: DriverUpdateRequest,
     current_user = Depends(require_permission("drivers:update"))
 ):
-    """Update driver"""
+    
     try:
         validate_object_id(driver_id, "driver ID")
         
@@ -129,13 +127,13 @@ async def delete_driver(
     driver_id: str,
     current_user = Depends(require_permission("drivers:delete"))
 ):
-    """Delete (deactivate) driver"""
+    
     try:
         validate_object_id(driver_id, "driver ID")
         
         from schemas.requests import DriverUpdateRequest
         
-        # Instead of deleting, deactivate the driver
+        
         await driver_service.update_driver(
             driver_id,
             DriverUpdateRequest(status="inactive"),
@@ -157,7 +155,7 @@ async def assign_vehicle_to_driver(
     vehicle_id: str,
     current_user = Depends(require_permission("drivers:assign_vehicle"))
 ):
-    """Assign vehicle to driver"""
+    
     try:
         validate_object_id(driver_id, "driver ID")
         
@@ -181,7 +179,7 @@ async def unassign_vehicle_from_driver(
     driver_id: str,
     current_user = Depends(require_permission("drivers:assign_vehicle"))
 ):
-    """Remove vehicle assignment from driver"""
+    
     try:
         validate_object_id(driver_id, "driver ID")
         
@@ -205,7 +203,7 @@ async def search_drivers(
     limit: int = Query(50, le=100),
     current_user = Depends(require_permission("drivers:read"))
 ):
-    """Search drivers by name, employee ID, or email"""
+    
     try:
         drivers = await driver_service.search_drivers(query, limit)
         return {"drivers": drivers, "total": len(drivers)}

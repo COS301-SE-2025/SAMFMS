@@ -1,6 +1,4 @@
-"""
-Event consumer for Management service with enhanced reliability and error handling
-"""
+
 import aio_pika
 import asyncio
 import json
@@ -16,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class EventConsumer:
-    """Event consumer for RabbitMQ with enhanced reliability"""
+    
     
     def __init__(self):
         self.connection: Optional[aio_pika.Connection] = None
@@ -28,12 +26,12 @@ class EventConsumer:
         self.handlers: Dict[str, Callable] = {}
         self.dead_letter_queue: Optional[aio_pika.Queue] = None
         self.max_retry_attempts = 3
-        self.retry_delay = 2.0  # seconds
+        self.retry_delay = 2.0  
         self.is_consuming = False
         self.enable_dead_letter_queue = os.getenv("ENABLE_DLQ", "true").lower() == "true"
         
     async def connect(self):
-        """Connect to RabbitMQ with retry logic"""
+        
         max_retries = 3
         for attempt in range(max_retries):
             try:
@@ -54,12 +52,12 @@ class EventConsumer:
             except Exception as e:
                 logger.error(f"Failed to connect to RabbitMQ (attempt {attempt + 1}/{max_retries}): {e}")
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                    await asyncio.sleep(2 ** attempt)  
                     continue
                 return False
     
     async def disconnect(self):
-        """Disconnect from RabbitMQ with proper cleanup"""
+        
         self.is_consuming = False
         
         try:
@@ -78,12 +76,12 @@ class EventConsumer:
             self.dead_letter_queue = None
     
     def register_handler(self, event_pattern: str, handler: Callable):
-        """Register event handler"""
+        
         self.handlers[event_pattern] = handler
         logger.info(f"Registered handler for {event_pattern}")
     
     async def start_consuming(self):
-        """Start consuming events with proper error handling and graceful queue management"""
+        
         if not self.connection:
             logger.error("Not connected to RabbitMQ")
             return
@@ -93,20 +91,20 @@ class EventConsumer:
             return
         
         try:
-            # Setup dead letter queue first (if enabled)
+            
             if self.enable_dead_letter_queue:
                 await self._setup_dead_letter_queue()
             else:
                 logger.info("Dead letter queue disabled via configuration")
             
-            # Try to declare queue with dead letter exchange, fallback if it fails
+            
             queue_name = "management_service_events"
             queue = await self._declare_queue_with_fallback(queue_name)
             
-            # Bind to relevant exchanges and routing keys
+            
             await self._setup_bindings(queue)
             
-            # Start consuming with proper error handling
+            
             await queue.consume(self._handle_message_with_retry, no_ack=False)
             
             self.is_consuming = True
@@ -118,8 +116,8 @@ class EventConsumer:
             raise
     
     async def _setup_bindings(self, queue: aio_pika.Queue):
-        """Setup queue bindings to exchanges"""
-        # Bind to vehicle events from Vehicles service
+        
+        
         vehicles_exchange = await self.channel.declare_exchange(
             "vehicle_events",
             aio_pika.ExchangeType.TOPIC,
@@ -131,7 +129,7 @@ class EventConsumer:
         await queue.bind(vehicles_exchange, "vehicle.deleted")
         await queue.bind(vehicles_exchange, "vehicle.status_changed")
         
-        # Bind to user events from Security service
+        
         security_exchange = await self.channel.declare_exchange(
             "security_events",
             aio_pika.ExchangeType.TOPIC,
@@ -145,22 +143,22 @@ class EventConsumer:
         logger.info("Setup event bindings")
     
     async def _setup_dead_letter_queue(self):
-        """Setup dead letter queue for failed messages with error handling"""
+        
         try:
-            # Declare dead letter exchange
+            
             dlx = await self.channel.declare_exchange(
                 "management_dlx",
                 aio_pika.ExchangeType.DIRECT,
                 durable=True
             )
             
-            # Declare dead letter queue
+            
             self.dead_letter_queue = await self.channel.declare_queue(
                 "management_dlq",
                 durable=True
             )
             
-            # Bind DLQ to DLX
+            
             await self.dead_letter_queue.bind(dlx, "failed")
             
             logger.info("Setup dead letter queue successfully")
@@ -171,7 +169,7 @@ class EventConsumer:
             self.dead_letter_queue = None
     
     async def _handle_message_with_retry(self, message: aio_pika.IncomingMessage):
-        """Handle incoming message with retry logic"""
+        
         retry_count = message.headers.get("x-retry-count", 0) if message.headers else 0
         
         async with message.process(requeue=False):
@@ -182,22 +180,22 @@ class EventConsumer:
                 logger.error(f"Error handling message (attempt {retry_count + 1}): {e}")
                 logger.error(f"Traceback: {traceback.format_exc()}")
                 
-                # Retry logic
+                
                 if retry_count < self.max_retry_attempts:
                     await self._retry_message(message, retry_count + 1, str(e))
                 else:
                     await self._send_to_dead_letter_queue(message, str(e))
                 
-                # Re-raise to nack the message
+                
                 raise
     
     async def _retry_message(self, message: aio_pika.IncomingMessage, retry_count: int, error: str):
-        """Retry a failed message"""
+        
         try:
-            # Calculate delay with exponential backoff
+            
             delay = self.retry_delay * (2 ** (retry_count - 1))
             
-            # Create new message with retry headers
+            
             new_headers = dict(message.headers) if message.headers else {}
             new_headers.update({
                 "x-retry-count": retry_count,
@@ -205,10 +203,10 @@ class EventConsumer:
                 "x-retry-timestamp": datetime.utcnow().isoformat()
             })
             
-            # Schedule retry after delay
+            
             await asyncio.sleep(delay)
             
-            # Re-publish message to original queue
+            
             await self.channel.default_exchange.publish(
                 aio_pika.Message(
                     message.body,
@@ -224,15 +222,15 @@ class EventConsumer:
             logger.error(f"Failed to retry message: {e}")
     
     async def _send_to_dead_letter_queue(self, message: aio_pika.IncomingMessage, error: str):
-        """Send failed message to dead letter queue or log if DLQ unavailable"""
+        
         try:
             if not self.dead_letter_queue:
                 logger.error(f"Dead letter queue not available, logging failed message: {error}")
-                logger.error(f"Failed message body: {message.body[:500]}...")  # Log first 500 chars
+                logger.error(f"Failed message body: {message.body[:500]}...")  
                 logger.error(f"Failed message routing key: {message.routing_key}")
                 return
             
-            # Create DLQ message with failure information
+            
             dlq_headers = dict(message.headers) if message.headers else {}
             dlq_headers.update({
                 "x-failed-timestamp": datetime.utcnow().isoformat(),
@@ -247,42 +245,42 @@ class EventConsumer:
                 delivery_mode=aio_pika.DeliveryMode.PERSISTENT
             )
             
-            # Try to publish to dead letter exchange
+            
             try:
                 dlx = await self.channel.get_exchange("management_dlx")
                 await dlx.publish(dlq_message, routing_key="failed")
                 logger.error(f"Sent message to dead letter queue: {error}")
             except Exception as dlx_error:
                 logger.error(f"Failed to publish to dead letter exchange: {dlx_error}")
-                # Fallback to logging
+                
                 logger.error(f"Failed message (DLX failed): {error}")
                 logger.error(f"Message body: {message.body[:500]}")
             
         except Exception as e:
             logger.error(f"Critical error in dead letter queue handling: {e}")
-            # Final fallback - just log the failure
+            
             logger.error(f"Failed message (DLQ error): {error}")
             logger.error(f"Message routing key: {message.routing_key}")
             logger.error(f"Message body: {message.body[:500]}")
     
     async def _handle_message(self, message: aio_pika.IncomingMessage):
-        """Handle incoming message with enhanced error context"""
+        
         try:
-            # Parse message
+            
             body = json.loads(message.body.decode())
             routing_key = message.routing_key
             event_type = message.headers.get("event_type", routing_key) if message.headers else routing_key
             
             logger.info(f"Processing event: {event_type} (routing_key: {routing_key})")
             
-            # Validate message structure
+            
             if not isinstance(body, dict):
                 raise ValueError(f"Invalid message body format: expected dict, got {type(body)}")
             
-            # Find and execute handler
+            
             handler = self._find_handler(routing_key)
             if handler:
-                # Add request context for better tracing
+                
                 start_time = datetime.utcnow()
                 await handler(body, routing_key, message.headers or {})
                 duration = (datetime.utcnow() - start_time).total_seconds()
@@ -290,7 +288,7 @@ class EventConsumer:
                 logger.info(f"Successfully processed event {event_type} in {duration:.3f}s")
             else:
                 logger.warning(f"No handler found for event: {routing_key}")
-                # Don't raise error for missing handlers - just log and ack
+                
             
         except json.JSONDecodeError as e:
             logger.error(f"Failed to decode message JSON: {e}")
@@ -301,12 +299,12 @@ class EventConsumer:
             raise
     
     def _find_handler(self, routing_key: str) -> Callable:
-        """Find handler for routing key"""
-        # Exact match first
+        
+        
         if routing_key in self.handlers:
             return self.handlers[routing_key]
         
-        # Pattern matching
+        
         for pattern, handler in self.handlers.items():
             if self._pattern_match(pattern, routing_key):
                 return handler
@@ -314,7 +312,7 @@ class EventConsumer:
         return None
     
     def _pattern_match(self, pattern: str, routing_key: str) -> bool:
-        """Simple pattern matching for routing keys"""
+        
         pattern_parts = pattern.split(".")
         key_parts = routing_key.split(".")
         
@@ -328,21 +326,21 @@ class EventConsumer:
         return True
     
     async def _declare_queue_with_fallback(self, queue_name: str):
-        """Declare queue with graceful fallback for existing queues"""
         
-        # First, try to connect to existing queue without modification
+        
+        
         try:
             queue = await self.channel.declare_queue(queue_name, passive=True)
             logger.info(f"Connected to existing queue {queue_name}")
             return queue
         except Exception:
-            # Queue doesn't exist or we can't access it passively, try to declare it
+            
             pass
         
-        # Define queue arguments based on DLQ availability
+        
         if self.enable_dead_letter_queue and self.dead_letter_queue:
             queue_args = {
-                "x-message-ttl": 300000,  # 5 minutes TTL
+                "x-message-ttl": 300000,  
                 "x-max-length": 1000,
                 "x-overflow": "drop-head",
                 "x-dead-letter-exchange": "management_dlx",
@@ -351,13 +349,13 @@ class EventConsumer:
             logger.info("Attempting to declare queue with dead letter exchange")
         else:
             queue_args = {
-                "x-message-ttl": 300000,  # 5 minutes TTL
+                "x-message-ttl": 300000,  
                 "x-max-length": 1000,
                 "x-overflow": "drop-head"
             }
             logger.info("Attempting to declare queue without dead letter exchange")
         
-        # Try to declare queue with desired arguments
+        
         try:
             queue = await self.channel.declare_queue(
                 queue_name,
@@ -371,12 +369,12 @@ class EventConsumer:
             if "PRECONDITION_FAILED" in str(e) and "inequivalent arg" in str(e):
                 logger.warning(f"Queue {queue_name} exists with different arguments: {e}")
                 
-                # Recreate channel if it was closed
+                
                 if "Channel closed" in str(e) or "ChannelInvalidStateError" in str(e) or "RPC timeout" in str(e):
                     logger.info("Recreating channel after precondition failure")
                     await self._recreate_channel()
                 
-                # Simply connect to the existing queue as-is
+                
                 try:
                     queue = await self.channel.declare_queue(queue_name, passive=True)
                     logger.info(f"Connected to existing queue {queue_name} with its current configuration")
@@ -384,7 +382,7 @@ class EventConsumer:
                 except Exception as passive_error:
                     logger.error(f"Failed to connect to existing queue: {passive_error}")
                     
-                    # Final attempt: just declare without arguments and let RabbitMQ handle it
+                    
                     try:
                         queue = await self.channel.declare_queue(queue_name, durable=True)
                         logger.info(f"Connected to queue {queue_name} with default declaration")
@@ -398,7 +396,7 @@ class EventConsumer:
                 raise
     
     async def _recreate_channel(self):
-        """Recreate the channel after it's been closed"""
+        
         try:
             if self.channel and not self.channel.is_closed:
                 await self.channel.close()
@@ -412,18 +410,18 @@ class EventConsumer:
             raise
 
 
-# Event handlers
+
 class ManagementEventHandlers:
-    """Event handlers for Management service with enhanced error handling"""
+    
     
     def __init__(self):
-        # Lazy import to avoid circular dependencies
+        
         self.analytics_service = None
         self.assignment_repo = None
         self.driver_repo = None
     
     def _get_analytics_service(self):
-        """Lazy load analytics service to avoid circular imports"""
+        
         if self.analytics_service is None:
             try:
                 from ..services.analytics_service import analytics_service
@@ -433,7 +431,7 @@ class ManagementEventHandlers:
         return self.analytics_service
     
     def _get_assignment_repo(self):
-        """Lazy load assignment repository"""
+        
         if self.assignment_repo is None:
             try:
                 from ..repositories.repositories import VehicleAssignmentRepository
@@ -443,7 +441,7 @@ class ManagementEventHandlers:
         return self.assignment_repo
     
     def _get_driver_repo(self):
-        """Lazy load driver repository"""
+        
         if self.driver_repo is None:
             try:
                 from ..repositories.repositories import DriverRepository
@@ -453,7 +451,7 @@ class ManagementEventHandlers:
         return self.driver_repo
     
     async def _safe_refresh_analytics(self, reason: str):
-        """Safely refresh analytics cache with error handling"""
+        
         try:
             analytics_service = self._get_analytics_service()
             if analytics_service:
@@ -463,7 +461,7 @@ class ManagementEventHandlers:
             logger.error(f"Failed to refresh analytics ({reason}): {e}")
     
     async def handle_vehicle_created(self, data: Dict[str, Any], routing_key: str, headers: Dict[str, Any]):
-        """Handle vehicle created event with validation"""
+        
         try:
             vehicle_id = data.get('vehicle_id')
             if not vehicle_id:
@@ -471,13 +469,13 @@ class ManagementEventHandlers:
             
             logger.info(f"Processing vehicle created event: {vehicle_id}")
             
-            # Validate required fields
+            
             required_fields = ['vehicle_id', 'status']
             missing_fields = [field for field in required_fields if field not in data]
             if missing_fields:
                 logger.warning(f"Missing fields in vehicle created event: {missing_fields}")
             
-            # Refresh analytics cache since fleet composition changed
+            
             await self._safe_refresh_analytics(f"vehicle created: {vehicle_id}")
             
             logger.info(f"Successfully processed vehicle created event: {vehicle_id}")
@@ -488,7 +486,7 @@ class ManagementEventHandlers:
             raise
     
     async def handle_vehicle_updated(self, data: Dict[str, Any], routing_key: str, headers: Dict[str, Any]):
-        """Handle vehicle updated event with enhanced processing"""
+        
         try:
             vehicle_id = data.get('vehicle_id')
             if not vehicle_id:
@@ -496,7 +494,7 @@ class ManagementEventHandlers:
             
             logger.info(f"Processing vehicle updated event: {vehicle_id}")
             
-            # Check if status changed - might affect analytics
+            
             changes = data.get("changes", {})
             if "status" in changes:
                 old_status = changes["status"].get("old")
@@ -505,7 +503,7 @@ class ManagementEventHandlers:
                 
                 await self._safe_refresh_analytics(f"vehicle status changed: {vehicle_id}")
             
-            # Handle other significant changes
+            
             significant_changes = ["department", "type", "capacity"]
             if any(field in changes for field in significant_changes):
                 await self._safe_refresh_analytics(f"vehicle configuration changed: {vehicle_id}")
@@ -518,7 +516,7 @@ class ManagementEventHandlers:
             raise
     
     async def handle_vehicle_deleted(self, data: Dict[str, Any], routing_key: str, headers: Dict[str, Any]):
-        """Handle vehicle deleted event with comprehensive cleanup"""
+        
         try:
             vehicle_id = data.get('vehicle_id')
             if not vehicle_id:
@@ -526,11 +524,11 @@ class ManagementEventHandlers:
             
             logger.info(f"Processing vehicle deleted event: {vehicle_id}")
             
-            # Clean up assignments for deleted vehicle
+            
             assignment_repo = self._get_assignment_repo()
             if assignment_repo:
                 try:
-                    # Cancel active assignments
+                    
                     updated_count = await assignment_repo.update_many(
                         {"vehicle_id": vehicle_id, "status": "active"},
                         {
@@ -546,9 +544,9 @@ class ManagementEventHandlers:
                     
                 except Exception as e:
                     logger.error(f"Failed to cancel assignments for vehicle {vehicle_id}: {e}")
-                    # Don't raise - continue with other cleanup
+                    
             
-            # Refresh analytics
+            
             await self._safe_refresh_analytics(f"vehicle deleted: {vehicle_id}")
             
             logger.info(f"Successfully processed vehicle deleted event: {vehicle_id}")
@@ -559,7 +557,7 @@ class ManagementEventHandlers:
             raise
     
     async def handle_user_created(self, data: Dict[str, Any], routing_key: str, headers: Dict[str, Any]):
-        """Handle user created event with driver integration"""
+        
         try:
             user_id = data.get('user_id')
             if not user_id:
@@ -567,21 +565,21 @@ class ManagementEventHandlers:
             
             logger.info(f"Processing user created event: {user_id}")
             
-            # Validate user data
+            
             required_fields = ['user_id', 'email']
             missing_fields = [field for field in required_fields if field not in data]
             if missing_fields:
                 logger.warning(f"Missing fields in user created event: {missing_fields}")
             
-            # If user has driver role, we might need to create driver record
+            
             user_role = data.get("role")
             if user_role == "driver":
                 logger.info(f"New driver user created: {user_id}")
                 
-                # TODO: Consider auto-creating driver record based on user data
-                # This would require additional validation and business logic
                 
-                # For now, just log for manual follow-up
+                
+                
+                
                 logger.info(f"Driver user {user_id} may need driver record creation")
             
             logger.info(f"Successfully processed user created event: {user_id}")
@@ -592,7 +590,7 @@ class ManagementEventHandlers:
             raise
     
     async def handle_user_role_changed(self, data: Dict[str, Any], routing_key: str, headers: Dict[str, Any]):
-        """Handle user role changed event with driver status management"""
+        
         try:
             user_id = data.get('user_id')
             old_role = data.get('old_role')
@@ -603,9 +601,9 @@ class ManagementEventHandlers:
             
             logger.info(f"Processing user role change: {user_id} from {old_role} to {new_role}")
             
-            # Update driver status if role changed to/from driver
+            
             if old_role == "driver" and new_role != "driver":
-                # User is no longer a driver - deactivate driver record
+                
                 driver_repo = self._get_driver_repo()
                 if driver_repo:
                     try:
@@ -624,10 +622,10 @@ class ManagementEventHandlers:
                             logger.warning(f"No driver record found for user {user_id}")
                     except Exception as e:
                         logger.error(f"Failed to deactivate driver record for user {user_id}: {e}")
-                        # Don't raise - this is a side effect operation
+                        
             
             elif old_role != "driver" and new_role == "driver":
-                # User became a driver - log for potential driver record creation
+                
                 logger.info(f"User {user_id} became a driver - may need driver record creation")
             
             logger.info(f"Successfully processed user role change event: {user_id}")
@@ -638,13 +636,13 @@ class ManagementEventHandlers:
             raise
 
 
-# Global consumer instance
+
 event_consumer = EventConsumer()
 event_handlers = ManagementEventHandlers()
 
 
 async def setup_event_handlers():
-    """Setup event handlers"""
+    
     event_consumer.register_handler("vehicle.created", event_handlers.handle_vehicle_created)
     event_consumer.register_handler("vehicle.updated", event_handlers.handle_vehicle_updated)
     event_consumer.register_handler("vehicle.deleted", event_handlers.handle_vehicle_deleted)

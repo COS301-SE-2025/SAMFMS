@@ -1,6 +1,4 @@
-"""
-Standardized response schemas for Management service
-"""
+
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 from datetime import datetime
@@ -8,14 +6,14 @@ from enum import Enum
 
 
 class ResponseStatus(str, Enum):
-    """Response status enumeration"""
+    
     SUCCESS = "success"
     ERROR = "error"
     WARNING = "warning"
 
 
 class PaginationMeta(BaseModel):
-    """Pagination metadata"""
+    
     current_page: int = Field(..., description="Current page number")
     total_pages: int = Field(..., description="Total number of pages")
     page_size: int = Field(..., description="Number of items per page")
@@ -25,7 +23,7 @@ class PaginationMeta(BaseModel):
 
 
 class ResponseMeta(BaseModel):
-    """Response metadata"""
+    
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Response timestamp")
     request_id: Optional[str] = Field(None, description="Request ID for tracing")
     execution_time_ms: Optional[float] = Field(None, description="Execution time in milliseconds")
@@ -34,7 +32,7 @@ class ResponseMeta(BaseModel):
 
 
 class StandardResponse(BaseModel):
-    """Standard API response wrapper"""
+    
     status: ResponseStatus = Field(..., description="Response status")
     data: Optional[Any] = Field(None, description="Response data")
     message: Optional[str] = Field(None, description="Response message")
@@ -43,7 +41,7 @@ class StandardResponse(BaseModel):
 
 
 class ErrorResponse(BaseModel):
-    """Error response schema"""
+    
     status: ResponseStatus = Field(default=ResponseStatus.ERROR, description="Response status")
     error: str = Field(..., description="Error type")
     message: str = Field(..., description="Error message")
@@ -53,27 +51,27 @@ class ErrorResponse(BaseModel):
 
 
 class ValidationErrorResponse(ErrorResponse):
-    """Validation error response schema"""
+    
     validation_errors: List[Dict[str, Any]] = Field(..., description="List of validation errors")
 
 
 class SuccessResponse(StandardResponse):
-    """Success response schema"""
+    
     status: ResponseStatus = Field(default=ResponseStatus.SUCCESS, description="Response status")
 
 
 class ListResponse(SuccessResponse):
-    """List response with pagination"""
+    
     data: List[Any] = Field(..., description="List of items")
     
     @property
     def total_items(self) -> int:
-        """Get total items from pagination metadata"""
+        
         return self.meta.pagination.total_items if self.meta.pagination else len(self.data)
 
 
 class HealthCheckResponse(BaseModel):
-    """Health check response schema"""
+    
     status: str = Field(..., description="Overall health status")
     service: str = Field(..., description="Service name")
     version: str = Field(..., description="Service version")
@@ -83,13 +81,13 @@ class HealthCheckResponse(BaseModel):
 
 
 class EventInfoResponse(BaseModel):
-    """Event system information response"""
+    
     event_system: Dict[str, Any] = Field(..., description="Event system status and configuration")
 
 
-# Response builder utilities
+
 class ResponseBuilder:
-    """Utility class for building standardized responses"""
+    
     
     @staticmethod
     def success(
@@ -99,7 +97,7 @@ class ResponseBuilder:
         execution_time_ms: Optional[float] = None,
         pagination: Optional[PaginationMeta] = None
     ) -> StandardResponse:
-        """Build a success response"""
+        
         meta = ResponseMeta(
             request_id=request_id,
             execution_time_ms=execution_time_ms,
@@ -121,7 +119,7 @@ class ResponseBuilder:
         request_id: Optional[str] = None,
         trace_id: Optional[str] = None
     ) -> ErrorResponse:
-        """Build an error response"""
+        
         meta = ResponseMeta(request_id=request_id)
         
         return ErrorResponse(
@@ -138,7 +136,7 @@ class ResponseBuilder:
         validation_errors: List[Dict[str, Any]],
         request_id: Optional[str] = None
     ) -> ValidationErrorResponse:
-        """Build a validation error response"""
+        
         meta = ResponseMeta(request_id=request_id)
         
         return ValidationErrorResponse(
@@ -158,7 +156,7 @@ class ResponseBuilder:
         request_id: Optional[str] = None,
         execution_time_ms: Optional[float] = None
     ) -> ListResponse:
-        """Build a paginated list response"""
+        
         total_pages = (total_items + page_size - 1) // page_size
         
         pagination = PaginationMeta(

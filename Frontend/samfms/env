@@ -1,0 +1,111 @@
+# SAMFMS Environment Configuration
+# Copy this file to .env and configure the values
+# For specific environments, use .env.development or .env.production
+
+# === QUICK SETUP ===
+# For development: cp .env.development .env
+# For production:  cp .env.production .env && python validate-config.py --env production
+
+# === PORT CONFIGURATION ===
+# Port range: 21000-21050 (allocated for this project)
+# Infrastructure Services (reduced port usage)
+RABBITMQ_PORT=21000
+RABBITMQ_MANAGEMENT_PORT=21001
+REDIS_EXTERNAL_PORT=21002
+
+# MongoDB - Single instance with multiple databases (recommended)
+MONGODB_PORT=21003
+MONGODB_DATABASE_PREFIX=samfms
+
+# Application Services (consolidated)
+CORE_PORT=21004
+GPS_SERVICE_PORT=21005
+SERVICE_STARTUP_DELAY=15
+TRIP_PLANNING_SERVICE_PORT=21006
+VEHICLE_MAINTENANCE_SERVICE_PORT=21007
+UTILITIES_SERVICE_PORT=21008
+SECURITY_SERVICE_PORT=21009
+MANAGEMENT_SERVICE_PORT=21010
+MICRO_FRONTEND_SERVICE_PORT=21011
+
+# Data Blocks
+USERS_DBLOCK_PORT=21012
+VEHICLES_DBLOCK_PORT=21013
+GPS_DBLOCK_PORT=21014
+
+# Frontend & Nginx
+FRONTEND_PORT=21015
+NGINX_HTTP_PORT=21016  
+NGINX_HTTPS_PORT=21017
+
+# === INTERNAL SERVICE CONFIGURATION ===
+CORE_INTERNAL_PORT=8000
+
+# === RABBITMQ CONFIGURATION ===
+RABBITMQ_HOST=rabbitmq
+RABBITMQ_URL=amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/
+RABBITMQ_USERNAME=samfms_rabbit
+RABBITMQ_PASSWORD=RabbitPass2025!
+# RabbitMQ startup and health check timeouts
+RABBITMQ_STARTUP_TIMEOUT=60
+RABBITMQ_HEALTH_CHECK_INTERVAL=5
+
+# === REDIS CONFIGURATION ===
+REDIS_HOST=redis
+REDIS_PORT=6379
+
+# === DATABASE CONFIGURATION ===
+MONGODB_HOST=mongodb
+MONGODB_URL=mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017
+# SECURITY: Change these credentials in production!
+MONGODB_USERNAME=samfms_admin
+MONGODB_PASSWORD=SafeMongoPass2025!SecureDB@SAMFMS
+
+# Database names for different services (using single MongoDB instance)
+DATABASE_CORE=samfms_core
+DATABASE_GPS=samfms_gps
+DATABASE_TRIP_PLANNING=samfms_trip_planning
+DATABASE_VEHICLE_MAINTENANCE=samfms_vehicle_maintenance
+DATABASE_SECURITY=samfms_security
+DATABASE_USERS=samfms_users
+DATABASE_VEHICLES=samfms_vehicles
+DATABASE_MANAGEMENT=samfms_management
+
+# === SECURITY CONFIGURATION ===
+# CRITICAL: Change these in production!
+JWT_SECRET_KEY=CHANGE_THIS_SECRET_KEY_IN_PRODUCTION_MIN_32_CHARS
+ACCESS_TOKEN_EXPIRE_MINUTES=15
+REFRESH_TOKEN_EXPIRE_DAYS=7
+LOGIN_ATTEMPT_LIMIT=5
+
+# === EMAIL CONFIGURATION ===
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+FROM_EMAIL=your-email@gmail.com
+
+# === FRONTEND CONFIGURATION ===
+REACT_APP_CORE_PORT=21004
+REACT_APP_CORE_INTERNAL_PORT=8000
+REACT_APP_DOCKER=false
+REACT_APP_API_BASE_URL=https://localhost:21017/api
+REACT_APP_DOMAIN=localhost
+CORE_SERVICE_URL=http://localhost:21004
+
+# === ENVIRONMENT ===
+ENVIRONMENT=production
+DEBUG=false
+LOG_LEVEL=INFO
+
+# === SERVICE STARTUP CONFIGURATION ===
+# Add delays to prevent race conditions during startup
+SERVICE_STARTUP_DELAY=10
+RABBITMQ_CONNECTION_RETRY_ATTEMPTS=30
+RABBITMQ_CONNECTION_RETRY_DELAY=2
+
+# Traccar Configuration
+TRACCAR_ADMIN_USER=herrie732@gmail.com
+TRACCAR_ADMIN_PASS=Pass@1233
+TRACCAR_API_URL=http://196.29.59.165:8082/api
+TRACCAR_SIMULATION_HOST=http://196.29.59.165:5055

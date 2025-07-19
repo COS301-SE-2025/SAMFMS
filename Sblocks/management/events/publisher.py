@@ -1,6 +1,4 @@
-"""
-Event-driven RabbitMQ publisher for Management service
-"""
+
 import aio_pika
 import asyncio
 import json
@@ -15,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class EventPublisher:
-    """Event publisher for RabbitMQ"""
+    
     
     def __init__(self):
         self.connection: Optional[aio_pika.Connection] = None
@@ -28,7 +26,7 @@ class EventPublisher:
         self.exchange: Optional[aio_pika.Exchange] = None
         
     async def connect(self):
-        """Connect to RabbitMQ"""
+        
         try:
             self.connection = await aio_pika.connect_robust(
                 self.rabbitmq_url,
@@ -41,7 +39,7 @@ class EventPublisher:
             self.channel = await self.connection.channel()
             await self.channel.set_qos(prefetch_count=100)
             
-            # Declare exchange
+            
             self.exchange = await self.channel.declare_exchange(
                 self.exchange_name,
                 aio_pika.ExchangeType.TOPIC,
@@ -56,26 +54,26 @@ class EventPublisher:
             return False
     
     async def disconnect(self):
-        """Disconnect from RabbitMQ"""
+        
         if self.connection and not self.connection.is_closed:
             await self.connection.close()
             logger.info("Disconnected from RabbitMQ")
     
     async def publish_event(self, event: BaseEvent, routing_key: str = None) -> bool:
-        """Publish an event"""
+        
         if not self.exchange:
             logger.error("Not connected to RabbitMQ")
             return False
         
         try:
-            # Generate routing key if not provided
+            
             if not routing_key:
                 routing_key = f"management.{event.event_type.value}"
             
-            # Serialize event
+            
             message_body = event.model_dump_json()
             
-            # Create message
+            
             message = aio_pika.Message(
                 message_body.encode(),
                 content_type="application/json",
@@ -88,7 +86,7 @@ class EventPublisher:
                 }
             )
             
-            # Publish message
+            
             await self.exchange.publish(message, routing_key=routing_key)
             
             logger.info(f"Published event {event.event_type.value} with routing key {routing_key}")
@@ -98,9 +96,9 @@ class EventPublisher:
             logger.error(f"Failed to publish event {event.event_type.value}: {e}")
             return False
     
-    # Vehicle event publishers
+    
     async def publish_vehicle_created(self, vehicle_data: Dict[str, Any], user_id: str = None) -> bool:
-        """Publish vehicle created event"""
+        
         from .events import VehicleEvent
         
         event = VehicleEvent(
@@ -115,7 +113,7 @@ class EventPublisher:
         return await self.publish_event(event, "vehicle.created")
     
     async def publish_vehicle_updated(self, vehicle_data: Dict[str, Any], user_id: str = None, changes: Dict[str, Any] = None) -> bool:
-        """Publish vehicle updated event"""
+        
         from .events import VehicleEvent
         
         event = VehicleEvent(
@@ -133,7 +131,7 @@ class EventPublisher:
         return await self.publish_event(event, "vehicle.updated")
     
     async def publish_vehicle_deleted(self, vehicle_data: Dict[str, Any], user_id: str = None) -> bool:
-        """Publish vehicle deleted event"""
+        
         from .events import VehicleEvent
         
         event = VehicleEvent(
@@ -148,7 +146,7 @@ class EventPublisher:
         return await self.publish_event(event, "vehicle.deleted")
     
     async def publish_driver_created(self, driver_data: Dict[str, Any], user_id: str = None) -> bool:
-        """Publish driver created event"""
+        
         from .events import DriverEvent
         
         event = DriverEvent(
@@ -162,9 +160,9 @@ class EventPublisher:
         
         return await self.publish_event(event, "driver.created")
     
-    # Specific event publishers
+    
     async def publish_assignment_created(self, assignment_data: Dict[str, Any], user_id: str = None) -> bool:
-        """Publish assignment created event"""
+        
         from .events import AssignmentEvent
         
         event = AssignmentEvent(
@@ -181,7 +179,7 @@ class EventPublisher:
         return await self.publish_event(event, "management.assignment.created")
     
     async def publish_assignment_completed(self, assignment_data: Dict[str, Any], user_id: str = None) -> bool:
-        """Publish assignment completed event"""
+        
         from .events import AssignmentEvent
         
         event = AssignmentEvent(
@@ -198,7 +196,7 @@ class EventPublisher:
         return await self.publish_event(event, "management.assignment.completed")
     
     async def publish_trip_started(self, trip_data: Dict[str, Any], user_id: str = None) -> bool:
-        """Publish trip started event"""
+        
         from .events import TripEvent
         
         event = TripEvent(
@@ -214,7 +212,7 @@ class EventPublisher:
         return await self.publish_event(event, "management.trip.started")
     
     async def publish_trip_ended(self, trip_data: Dict[str, Any], user_id: str = None) -> bool:
-        """Publish trip ended event"""
+        
         from .events import TripEvent
         
         event = TripEvent(
@@ -230,7 +228,7 @@ class EventPublisher:
         return await self.publish_event(event, "management.trip.ended")
     
     async def publish_driver_created(self, driver_data: Dict[str, Any], user_id: str = None) -> bool:
-        """Publish driver created event"""
+        
         from .events import DriverEvent
         
         event = DriverEvent(
@@ -244,7 +242,7 @@ class EventPublisher:
         return await self.publish_event(event, "management.driver.created")
     
     async def publish_analytics_refreshed(self, metric_type: str, data: Dict[str, Any] = None) -> bool:
-        """Publish analytics refreshed event"""
+        
         from .events import AnalyticsEvent
         
         event = AnalyticsEvent(
@@ -256,7 +254,7 @@ class EventPublisher:
         return await self.publish_event(event, f"management.analytics.{metric_type}")
     
     async def publish_service_started(self, version: str = "1.0.0", data: Dict[str, Any] = None) -> bool:
-        """Publish service started event"""
+        
         from .events import ServiceEvent
         
         event = ServiceEvent(
@@ -269,7 +267,7 @@ class EventPublisher:
         return await self.publish_event(event, "management.service.started")
     
     async def publish_service_stopped(self, version: str = "1.0.0", data: Dict[str, Any] = None) -> bool:
-        """Publish service stopped event"""
+        
         from .events import ServiceEvent
         
         event = ServiceEvent(
@@ -282,5 +280,5 @@ class EventPublisher:
         return await self.publish_event(event, "management.service.stopped")
 
 
-# Global publisher instance
+
 event_publisher = EventPublisher()

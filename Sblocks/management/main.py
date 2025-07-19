@@ -1,6 +1,4 @@
-"""
-Enhanced main application with improved error handling and monitoring
-"""
+
 import asyncio
 import logging
 import os
@@ -12,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-# Import new organized modules
+
 from repositories.database import db_manager
 from events.publisher import event_publisher
 from events.consumer import event_consumer, setup_event_handlers
@@ -23,7 +21,7 @@ from api.routes.assignments import router as assignments_router
 from api.routes.drivers import router as drivers_router
 from api.routes.vehicles import router as vehicles_router
 
-# Import enhanced middleware and exception handlers
+
 from middleware import (
     RequestContextMiddleware, LoggingMiddleware, SecurityHeadersMiddleware,
     MetricsMiddleware, RateLimitMiddleware, HealthCheckMiddleware
@@ -34,27 +32,27 @@ from api.exception_handlers import (
 )
 from schemas.responses import ResponseBuilder
 
-# Setup logging
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# Global metrics middleware instance for health checks
+
 metrics_middleware = MetricsMiddleware(None)
 
-# Service discovery client
+
 service_discovery_client = None
 
 async def register_with_core_service():
-    """Register this service with Core's service discovery"""
+    
     global service_discovery_client
     try:
         import aiohttp
         import json
         
-        # Try to register with Core service discovery
+        
         core_host = os.getenv("CORE_HOST", "core")
         core_port = int(os.getenv("CORE_PORT", "8000"))
         
@@ -97,61 +95,61 @@ async def register_with_core_service():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan manager"""
-    logger.info("🚀 Management Service Starting Up...")
+    
+    logger.info("Management Service Starting Up...")
     
     try:
-        # Connect to database with error handling
-        logger.info("🔗 Connecting to database...")
+        
+        logger.info("Connecting to database...")
         try:
             await db_manager.connect()
-            logger.info("✅ Database connected successfully")
+            logger.info("Database connected successfully")
         except Exception as e:
-            logger.error(f"❌ Database connection failed: {e}")
+            logger.error(f"Database connection failed: {e}")
             raise DatabaseConnectionError(f"Failed to connect to database: {e}")
         
-        # Connect to RabbitMQ for event publishing
+        
         logger.info("🔗 Connecting to RabbitMQ for event publishing...")
         try:
             publisher_connected = await event_publisher.connect()
             if publisher_connected:
-                logger.info("✅ Event publisher connected successfully")
+                logger.info("Event publisher connected successfully")
             else:
-                logger.warning("⚠️ Event publisher connection failed - continuing without events")
+                logger.warning("Event publisher connection failed - continuing without events")
         except Exception as e:
-            logger.error(f"❌ Event publisher connection error: {e}")
+            logger.error(f"Event publisher connection error: {e}")
             publisher_connected = False
         
-        # Setup and start event consumer
-        logger.info("🔗 Setting up event consumer...")
+        
+        logger.info("Setting up event consumer...")
         try:
             consumer_connected = await event_consumer.connect()
             if consumer_connected:
                 await setup_event_handlers()
-                # Start consuming in background
+                
                 asyncio.create_task(event_consumer.start_consuming())
-                logger.info("✅ Event consumer started successfully")
+                logger.info("Event consumer started successfully")
             else:
-                logger.warning("⚠️ Event consumer connection failed - continuing without event consumption")
+                logger.warning("Event consumer connection failed - continuing without event consumption")
         except Exception as e:
-            logger.error(f"❌ Event consumer setup error: {e}")
+            logger.error(f"Event consumer setup error: {e}")
             consumer_connected = False
         
-        # Setup and start service request consumer
-        logger.info("🔗 Setting up service request consumer...")
+        
+        logger.info("Setting up service request consumer...")
         try:
             request_consumer_connected = await service_request_consumer.connect()
             if request_consumer_connected:
-                # Start consuming service requests in background
+                
                 asyncio.create_task(service_request_consumer.start_consuming())
-                logger.info("✅ Service request consumer started successfully")
+                logger.info("Service request consumer started successfully")
             else:
-                logger.warning("⚠️ Service request consumer connection failed - Core communication disabled")
+                logger.warning("Service request consumer connection failed - Core communication disabled")
         except Exception as e:
-            logger.error(f"❌ Service request consumer setup error: {e}")
+            logger.error(f"Service request consumer setup error: {e}")
             request_consumer_connected = False
         
-        # Publish service started event with enhanced error handling
+        
         if publisher_connected:
             try:
                 await event_publisher.publish_service_started(
@@ -175,45 +173,45 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.warning(f"Failed to publish service started event: {e}")
         
-        # Register with Core's service discovery
+        
         await register_with_core_service()
         
-        # Register with Core service discovery
+        
         logger.info("🔍 Registering with Core service discovery...")
         registration_success = await register_with_core_service()
         if registration_success:
-            logger.info("✅ Service discovery registration completed")
+            logger.info("Service discovery registration completed")
         else:
-            logger.warning("⚠️ Continuing without Core service discovery registration")
+            logger.warning("Continuing without Core service discovery registration")
         
-        # Schedule background tasks
+        
         asyncio.create_task(enhanced_background_tasks())
         
-        logger.info("🎉 Management Service Startup Completed Successfully")
+        logger.info("Management Service Startup Completed Successfully")
         
         yield
         
     except Exception as e:
-        logger.error(f"💥 CRITICAL ERROR DURING STARTUP: {e}")
+        logger.error(f"CRITICAL ERROR DURING STARTUP: {e}")
         raise
     
     finally:
-        # Cleanup on shutdown
-        logger.info("🛑 Management Service Shutting Down...")
         
-        # Publish service stopped event
+        logger.info("Management Service Shutting Down...")
+        
+        
         try:
             if event_publisher.connection and not event_publisher.connection.is_closed:
                 await event_publisher.publish_service_stopped(version="2.0.0")
         except Exception as e:
             logger.error(f"Error publishing shutdown event: {e}")
         
-        # Close connections
+        
         try:
             await event_publisher.disconnect()
             await event_consumer.disconnect()
             await db_manager.disconnect()
-            logger.info("✅ All connections closed successfully")
+            logger.info("All connections closed successfully")
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")
         
@@ -221,18 +219,18 @@ async def lifespan(app: FastAPI):
 
 
 async def enhanced_background_tasks():
-    """Enhanced background tasks with better error handling and monitoring"""
-    logger.info("🔄 Starting enhanced background tasks")
+    
+    logger.info("Starting enhanced background tasks")
     
     while True:
         try:
-            # Clean up expired analytics cache every 10 minutes
+            
             logger.debug("Running analytics cache cleanup")
             await analytics_service.cleanup_expired_cache()
             
-            await asyncio.sleep(600)  # 10 minutes
+            await asyncio.sleep(600)  
             
-            # Refresh critical analytics every 30 minutes
+            
             logger.debug("Refreshing critical analytics")
             try:
                 await analytics_service.get_fleet_utilization(use_cache=False)
@@ -240,28 +238,28 @@ async def enhanced_background_tasks():
             except Exception as e:
                 logger.error(f"Failed to refresh critical analytics: {e}")
             
-            await asyncio.sleep(1200)  # 20 more minutes = 30 total
+            await asyncio.sleep(1200)  
             
-            # Health metrics logging every 5 minutes
+            
             try:
                 metrics = metrics_middleware.get_metrics()
                 logger.info(f"Service metrics: {metrics}")
             except Exception as e:
                 logger.error(f"Failed to collect metrics: {e}")
             
-            await asyncio.sleep(300)  # 5 minutes
+            await asyncio.sleep(300)  
             
         except Exception as e:
             logger.error(f"Error in background tasks: {e}")
-            await asyncio.sleep(60)  # Wait 1 minute before retrying
+            await asyncio.sleep(60)  
 
 
 async def background_tasks():
-    """Original background tasks for compatibility"""
+    
     await enhanced_background_tasks()
 
 
-# Create FastAPI application with enhanced configuration
+
 app = FastAPI(
     title="Management Service",
     version="2.1.0",
@@ -272,31 +270,31 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
-# Add exception handlers
+
 for exception_type, handler in EXCEPTION_HANDLERS.items():
     app.add_exception_handler(exception_type, handler)
 
-# Add enhanced middleware in correct order
+
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(MetricsMiddleware)
-app.add_middleware(RateLimitMiddleware, requests_per_minute=120)  # 2 requests per second
+app.add_middleware(RateLimitMiddleware, requests_per_minute=120)  
 app.add_middleware(HealthCheckMiddleware)
 app.add_middleware(LoggingMiddleware, include_request_body=False, include_response_body=False)
 app.add_middleware(SecurityHeadersMiddleware, enable_hsts=True)
 
-# Add CORS middleware
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Store metrics middleware reference globally
+
 metrics_middleware.app = app
 
-# Include routers with enhanced error handling
+
 app.include_router(analytics_router, prefix="/api/v1", tags=["analytics"])
 app.include_router(assignments_router, prefix="/api/v1", tags=["assignments"])
 app.include_router(drivers_router, prefix="/api/v1", tags=["drivers"])
@@ -305,7 +303,7 @@ app.include_router(vehicles_router, prefix="/api/v1", tags=["vehicles"])
 
 @app.get("/")
 async def root():
-    """Enhanced service information endpoint"""
+    
     uptime_seconds = (datetime.now(timezone.utc) - datetime.now(timezone.utc)).total_seconds()
     
     return ResponseBuilder.success(
@@ -336,35 +334,35 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Comprehensive health check with detailed component status"""
+    
     try:
-        # Check database
+        
         db_healthy = await db_manager.health_check()
         
-        # Check event publisher
+        
         publisher_healthy = (
             event_publisher.connection is not None and 
             not event_publisher.connection.is_closed
         )
         
-        # Check event consumer
+        
         consumer_healthy = (
             event_consumer.connection is not None and 
             not event_consumer.connection.is_closed and
             event_consumer.is_consuming
         )
         
-        # Overall status determination
-        critical_components = [db_healthy]  # Database is critical
-        optional_components = [publisher_healthy, consumer_healthy]  # Events are optional
+        
+        critical_components = [db_healthy]  
+        optional_components = [publisher_healthy, consumer_healthy]  
         
         if all(critical_components):
             if all(optional_components):
                 overall_status = "healthy"
             else:
-                overall_status = "degraded"  # Some optional services down
+                overall_status = "degraded"  
         else:
-            overall_status = "unhealthy"  # Critical services down
+            overall_status = "unhealthy"  
         
         uptime_seconds = getattr(app.state, 'start_time', datetime.now(timezone.utc))
         if isinstance(uptime_seconds, datetime):
@@ -409,7 +407,7 @@ async def health_check():
 
 @app.get("/metrics")
 async def get_service_metrics():
-    """Get service performance metrics"""
+    
     try:
         metrics = metrics_middleware.get_metrics()
         
@@ -417,6 +415,7 @@ async def get_service_metrics():
             data=metrics,
             message="Service metrics retrieved successfully"
         ).model_dump()
+
         
     except Exception as e:
         logger.error(f"Metrics collection error: {e}")
@@ -429,7 +428,7 @@ async def get_service_metrics():
 
 @app.get("/info/events")
 async def event_info():
-    """Enhanced information about event system status"""
+    
     try:
         event_data = {
             "event_system": {

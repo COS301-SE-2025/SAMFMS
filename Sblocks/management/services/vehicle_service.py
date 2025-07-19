@@ -1,6 +1,4 @@
-"""
-Vehicle management service with enhanced business logic
-"""
+
 import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -13,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class VehicleService:
-    """Service for vehicle management business logic"""
+    
     
     def __init__(self):
         self.vehicle_repo = VehicleRepository()
@@ -26,9 +24,9 @@ class VehicleService:
         vehicle_type: Optional[str] = None,
         pagination: Dict[str, Any] = None
     ) -> Dict[str, Any]:
-        """Get vehicles with optional filters"""
+        
         try:
-            # Build filter query
+            
             filter_query = {}
             if department:
                 filter_query["department"] = department
@@ -37,11 +35,11 @@ class VehicleService:
             if vehicle_type:
                 filter_query["type"] = vehicle_type
             
-            # Default pagination if not provided
+            
             if not pagination:
                 pagination = {"skip": 0, "limit": 50}
             
-            # Get vehicles
+            
             vehicles = await self.vehicle_repo.find(
                 filter_query=filter_query,
                 skip=pagination["skip"],
@@ -49,7 +47,7 @@ class VehicleService:
                 sort=[("registration_number", 1)]
             )
             
-            # Convert datetime objects to ISO format for JSON serialization
+            
             if vehicles:
                 for vehicle in vehicles:
                     if isinstance(vehicle, dict):
@@ -57,7 +55,7 @@ class VehicleService:
                             if isinstance(value, datetime):
                                 vehicle[key] = value.isoformat()
             
-            # Get total count
+            
             total = await self.vehicle_repo.count(filter_query)
             total_pages = (total + pagination["limit"] - 1) // pagination["limit"]
             
@@ -76,22 +74,22 @@ class VehicleService:
             raise
     
     async def create_vehicle(self, vehicle_request: VehicleCreateRequest, created_by: str) -> Dict[str, Any]:
-        """Create new vehicle with validation"""
+        
         try:
-            # Determine the registration number (use license_plate if registration_number not provided)
+            
             reg_number = vehicle_request.registration_number or vehicle_request.license_plate
             if not reg_number:
                 raise ValueError("Either registration_number or license_plate must be provided")
             
-            # Check if registration number already exists
+            
             existing = await self.vehicle_repo.get_by_registration_number(reg_number)
             if existing:
                 raise ValueError(f"Vehicle with registration number {reg_number} already exists")
             
-            # Convert to dict and add metadata
+            
             vehicle_data = vehicle_request.model_dump()
             
-            # Ensure registration_number is set
+            
             vehicle_data["registration_number"] = reg_number
             if not vehicle_data.get("license_plate"):
                 vehicle_data["license_plate"] = reg_number
@@ -100,18 +98,18 @@ class VehicleService:
             vehicle_data["created_at"] = datetime.utcnow()
             vehicle_data["updated_at"] = datetime.utcnow()
             
-            # Set default status if not provided
+            
             if "status" not in vehicle_data:
                 vehicle_data["status"] = "available"
             
-            # Create vehicle
+            
             vehicle_id = await self.vehicle_repo.create(vehicle_data)
             vehicle = await self.vehicle_repo.get_by_id(vehicle_id)
             
-            # Publish event
+            
             await event_publisher.publish_vehicle_created(vehicle, created_by)
             
-            # Convert datetime objects to ISO format for JSON serialization
+            
             if vehicle and isinstance(vehicle, dict):
                 for key, value in vehicle.items():
                     if isinstance(value, datetime):
@@ -128,7 +126,7 @@ class VehicleService:
             raise
     
     async def get_vehicle_by_id(self, vehicle_id: str) -> Optional[Dict[str, Any]]:
-        """Get vehicle by ID"""
+        
         try:
             vehicle = await self.vehicle_repo.get_by_id(vehicle_id)
             return vehicle
@@ -137,27 +135,27 @@ class VehicleService:
             raise
     
     async def update_vehicle(self, vehicle_id: str, updates: VehicleUpdateRequest, updated_by: str) -> Dict[str, Any]:
-        """Update vehicle with validation"""
+        
         try:
-            # Check if vehicle exists
+            
             existing_vehicle = await self.vehicle_repo.get_by_id(vehicle_id)
             if not existing_vehicle:
                 raise ValueError("Vehicle not found")
             
-            # Convert updates to dict, excluding None values
+            
             update_data = {k: v for k, v in updates.model_dump().items() if v is not None}
             
-            # Validate unique fields if being updated
+            
             if "registration_number" in update_data:
                 existing_reg = await self.vehicle_repo.get_by_registration_number(update_data["registration_number"])
                 if existing_reg and existing_reg["_id"] != vehicle_id:
                     raise ValueError(f"Registration number {update_data['registration_number']} already in use")
             
-            # Add metadata
+            
             update_data["updated_by"] = updated_by
             update_data["updated_at"] = datetime.utcnow()
             
-            # Track changes for event
+            
             changes = {}
             for key, new_value in update_data.items():
                 if key in existing_vehicle and existing_vehicle[key] != new_value:
@@ -166,15 +164,15 @@ class VehicleService:
                         "new": new_value
                     }
             
-            # Update vehicle
+            
             success = await self.vehicle_repo.update(vehicle_id, update_data)
             if not success:
                 raise ValueError("Failed to update vehicle")
             
-            # Get updated vehicle
+            
             updated_vehicle = await self.vehicle_repo.get_by_id(vehicle_id)
             
-            # Publish event if there were meaningful changes
+            
             if changes:
                 await event_publisher.publish_vehicle_updated(
                     updated_vehicle, 
@@ -193,24 +191,24 @@ class VehicleService:
             raise
     
     async def delete_vehicle(self, vehicle_id: str, deleted_by: str) -> bool:
-        """Delete vehicle with proper cleanup"""
+        
         try:
-            # Check if vehicle exists
+            
             existing_vehicle = await self.vehicle_repo.get_by_id(vehicle_id)
             if not existing_vehicle:
                 return False
             
-            # Check for active assignments
+            
             active_assignments = await self.assignment_repo.get_by_vehicle_id(vehicle_id, status="active")
             if active_assignments:
                 raise ValueError("Cannot delete vehicle with active assignments")
             
-            # Delete vehicle
+            
             success = await self.vehicle_repo.delete(vehicle_id)
             if not success:
                 return False
             
-            # Publish event
+            
             await event_publisher.publish_vehicle_deleted(existing_vehicle, deleted_by)
             
             logger.info(f"Deleted vehicle: {vehicle_id}")
@@ -224,13 +222,13 @@ class VehicleService:
             raise
     
     async def search_vehicles(self, query: str, pagination: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Search vehicles by various criteria"""
+        
         try:
-            # Default pagination if not provided
+            
             if not pagination:
                 pagination = {"skip": 0, "limit": 50}
             
-            # Build search filter
+            
             search_filter = {
                 "$or": [
                     {"registration_number": {"$regex": query, "$options": "i"}},
@@ -241,7 +239,7 @@ class VehicleService:
                 ]
             }
             
-            # Get vehicles
+            
             vehicles = await self.vehicle_repo.find(
                 filter_query=search_filter,
                 skip=pagination["skip"],
@@ -249,7 +247,7 @@ class VehicleService:
                 sort=[("registration_number", 1)]
             )
             
-            # Get total count
+            
             total = await self.vehicle_repo.count(search_filter)
             total_pages = (total + pagination["limit"] - 1) // pagination["limit"]
             
@@ -269,7 +267,7 @@ class VehicleService:
             raise
     
     async def get_vehicle_assignments(self, vehicle_id: str, status: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Get assignments for a specific vehicle"""
+        
         try:
             assignments = await self.assignment_repo.get_by_vehicle_id(vehicle_id, status=status)
             return assignments
@@ -283,14 +281,14 @@ class VehicleService:
         start_date: Optional[str] = None, 
         end_date: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Get usage statistics for a specific vehicle"""
+        
         try:
-            # This would integrate with VehicleUsageLogRepository
-            # For now, return basic structure
+            
+            
             from repositories.repositories import VehicleUsageLogRepository
             usage_repo = VehicleUsageLogRepository()
             
-            # Build date filter
+            
             date_filter = {"vehicle_id": vehicle_id}
             if start_date or end_date:
                 date_range = {}
@@ -300,13 +298,13 @@ class VehicleService:
                     date_range["$lte"] = datetime.fromisoformat(end_date)
                 date_filter["created_at"] = date_range
             
-            # Get usage logs
+            
             usage_logs = await usage_repo.find(
                 filter_query=date_filter,
                 sort=[("created_at", -1)]
             )
             
-            # Calculate statistics
+            
             total_distance = sum(log.get("distance", 0) for log in usage_logs)
             total_fuel = sum(log.get("fuel_consumed", 0) for log in usage_logs)
             trip_count = len(usage_logs)
@@ -321,7 +319,7 @@ class VehicleService:
                 "trip_count": trip_count,
                 "avg_distance_per_trip": round(avg_distance_per_trip, 2),
                 "fuel_efficiency": round(fuel_efficiency, 2),
-                "usage_logs": usage_logs[:10],  # Return last 10 logs
+                "usage_logs": usage_logs[:10],  
                 "date_range": {
                     "start_date": start_date,
                     "end_date": end_date

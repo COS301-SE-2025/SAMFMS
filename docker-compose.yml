@@ -223,6 +223,8 @@ services:
     build: ./Sblocks/management
     ports:
       - '${MANAGEMENT_SERVICE_PORT:-21010}:8000'
+    volumes:
+      - ./Sblocks/management:/app
     environment:
       - MANAGEMENT_PORT=8000
       - MANAGEMENT_HOST=management
@@ -238,6 +240,7 @@ services:
       - SERVICE_STARTUP_DELAY=${SERVICE_STARTUP_DELAY:-10}
       - RABBITMQ_CONNECTION_RETRY_ATTEMPTS=${RABBITMQ_CONNECTION_RETRY_ATTEMPTS:-30}
       - RABBITMQ_CONNECTION_RETRY_DELAY=${RABBITMQ_CONNECTION_RETRY_DELAY:-2}
+      - PYTHONUNBUFFERED=1
     depends_on:
       mongodb:
         condition: service_healthy

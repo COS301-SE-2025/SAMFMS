@@ -1,6 +1,4 @@
-"""
-Global exception handlers for Management service
-"""
+
 import logging
 import traceback
 from datetime import datetime
@@ -18,11 +16,11 @@ logger = logging.getLogger(__name__)
 
 
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Global exception handler for unhandled exceptions"""
+    
     try:
         request_id = await get_request_id(request)
         
-        # Log the full exception
+        
         logger.error(
             f"Unhandled exception in {request.method} {request.url}: {exc}",
             extra={
@@ -33,7 +31,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
             }
         )
         
-        # Build error response
+        
         error_response = ResponseBuilder.error(
             error="InternalServerError",
             message="An internal server error occurred",
@@ -51,7 +49,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         )
         
     except Exception as handler_exc:
-        # Fallback if even the error handler fails
+        
         logger.critical(f"Exception handler failed: {handler_exc}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -65,17 +63,17 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
-    """Handler for HTTP exceptions"""
+    
     try:
         request_id = await get_request_id(request)
         
-        # Log based on status code severity
+        
         if exc.status_code >= 500:
             logger.error(f"HTTP {exc.status_code} in {request.method} {request.url}: {exc.detail}")
         elif exc.status_code >= 400:
             logger.warning(f"HTTP {exc.status_code} in {request.method} {request.url}: {exc.detail}")
         
-        # Build error response
+        
         error_response = ResponseBuilder.error(
             error="HTTPException",
             message=exc.detail,
@@ -100,17 +98,17 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
-    """Handler for request validation errors"""
+    
     try:
         request_id = await get_request_id(request)
         
-        # Log validation errors
+        
         logger.warning(
             f"Validation error in {request.method} {request.url}: {exc.errors()}",
             extra={"request_id": request_id}
         )
         
-        # Build validation error response
+        
         validation_errors = []
         for error in exc.errors():
             validation_errors.append({
@@ -140,7 +138,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 async def starlette_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-    """Handler for Starlette HTTP exceptions"""
+    
     try:
         request_id = await get_request_id(request)
         
@@ -170,22 +168,22 @@ async def starlette_exception_handler(request: Request, exc: StarletteHTTPExcept
 
 
 class DatabaseConnectionError(Exception):
-    """Custom exception for database connection issues"""
+    
     pass
 
 
 class EventPublishError(Exception):
-    """Custom exception for event publishing failures"""
+    
     pass
 
 
 class BusinessLogicError(Exception):
-    """Custom exception for business logic violations"""
+    
     pass
 
 
 async def database_exception_handler(request: Request, exc: DatabaseConnectionError) -> JSONResponse:
-    """Handler for database connection errors"""
+    
     try:
         request_id = await get_request_id(request)
         
@@ -212,7 +210,7 @@ async def database_exception_handler(request: Request, exc: DatabaseConnectionEr
 
 
 async def event_publish_exception_handler(request: Request, exc: EventPublishError) -> JSONResponse:
-    """Handler for event publishing errors"""
+    
     try:
         request_id = await get_request_id(request)
         
@@ -239,7 +237,7 @@ async def event_publish_exception_handler(request: Request, exc: EventPublishErr
 
 
 async def business_logic_exception_handler(request: Request, exc: BusinessLogicError) -> JSONResponse:
-    """Handler for business logic errors"""
+    
     try:
         request_id = await get_request_id(request)
         
@@ -265,7 +263,7 @@ async def business_logic_exception_handler(request: Request, exc: BusinessLogicE
         )
 
 
-# Exception handler registry
+
 EXCEPTION_HANDLERS = {
     Exception: global_exception_handler,
     HTTPException: http_exception_handler,

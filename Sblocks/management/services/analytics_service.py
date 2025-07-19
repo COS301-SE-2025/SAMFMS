@@ -1,6 +1,4 @@
-"""
-Optimized Analytics Service with caching and background processing
-"""
+
 import asyncio
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
@@ -17,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class AnalyticsService:
-    """Optimized analytics service with caching"""
+    
     
     def __init__(self):
         self.assignment_repo = VehicleAssignmentRepository()
@@ -25,17 +23,17 @@ class AnalyticsService:
         self.driver_repo = DriverRepository()
         self.analytics_repo = AnalyticsRepository()
         
-        # Cache TTL in minutes
+        
         self.cache_ttl = {
-            "fleet_utilization": 10,  # 10 minutes
-            "vehicle_usage": 15,      # 15 minutes
-            "assignment_metrics": 5,   # 5 minutes
-            "driver_performance": 30,  # 30 minutes
-            "cost_analytics": 60      # 1 hour
+            "fleet_utilization": 10,  
+            "vehicle_usage": 15,      
+            "assignment_metrics": 5,   
+            "driver_performance": 30,  
+            "cost_analytics": 60      
         }
     
     async def get_fleet_utilization(self, use_cache: bool = True) -> Dict[str, Any]:
-        """Get fleet utilization metrics"""
+        
         metric_type = "fleet_utilization"
         
         if use_cache:
@@ -46,7 +44,7 @@ class AnalyticsService:
         
         logger.info(f"Calculating fresh {metric_type}")
         
-        # Get assignment metrics
+        
         assignment_metrics = await self.assignment_repo.get_assignment_metrics()
         status_breakdown = assignment_metrics.get("status_breakdown", {})
         
@@ -67,7 +65,7 @@ class AnalyticsService:
             "generated_at": datetime.utcnow().isoformat()
         }
         
-        # Cache the result
+        
         await self.analytics_repo.cache_metric(
             metric_type, 
             data, 
@@ -77,7 +75,7 @@ class AnalyticsService:
         return data
     
     async def get_vehicle_usage_analytics(self, use_cache: bool = True) -> Dict[str, Any]:
-        """Get vehicle usage analytics"""
+        
         metric_type = "vehicle_usage"
         
         if use_cache:
@@ -88,10 +86,10 @@ class AnalyticsService:
         
         logger.info(f"Calculating fresh {metric_type}")
         
-        # Get usage statistics
+        
         usage_stats = await self.usage_repo.get_vehicle_usage_stats()
         
-        # Calculate aggregate metrics
+        
         total_distance = sum(stat.get("total_distance", 0) for stat in usage_stats)
         total_fuel = sum(stat.get("total_fuel", 0) for stat in usage_stats)
         total_trips = sum(stat.get("trip_count", 0) for stat in usage_stats)
@@ -116,7 +114,7 @@ class AnalyticsService:
             "generated_at": datetime.utcnow().isoformat()
         }
         
-        # Cache the result
+        
         await self.analytics_repo.cache_metric(
             metric_type, 
             data, 
@@ -126,7 +124,7 @@ class AnalyticsService:
         return data
     
     async def get_assignment_metrics(self, use_cache: bool = True) -> Dict[str, Any]:
-        """Get assignment metrics"""
+        
         metric_type = "assignment_metrics"
         
         if use_cache:
@@ -137,13 +135,13 @@ class AnalyticsService:
         
         logger.info(f"Calculating fresh {metric_type}")
         
-        # Get assignment metrics from repository
+        
         metrics = await self.assignment_repo.get_assignment_metrics()
         
-        # Add timestamp
+        
         metrics["generated_at"] = datetime.utcnow().isoformat()
         
-        # Cache the result
+        
         await self.analytics_repo.cache_metric(
             metric_type, 
             metrics, 
@@ -153,7 +151,7 @@ class AnalyticsService:
         return metrics
     
     async def get_driver_performance(self, use_cache: bool = True) -> Dict[str, Any]:
-        """Get driver performance analytics"""
+        
         metric_type = "driver_performance"
         
         if use_cache:
@@ -164,14 +162,14 @@ class AnalyticsService:
         
         logger.info(f"Calculating fresh {metric_type}")
         
-        # Get driver performance stats
+        
         performance_stats = await self.usage_repo.get_driver_performance_stats()
         
-        # Get driver counts by status
+        
         active_drivers = await self.driver_repo.count({"status": "active"})
         total_drivers = await self.driver_repo.count({})
         
-        # Calculate aggregate metrics
+        
         total_distance = sum(stat.get("total_distance", 0) for stat in performance_stats)
         total_trips = sum(stat.get("trip_count", 0) for stat in performance_stats)
         
@@ -194,7 +192,7 @@ class AnalyticsService:
             "generated_at": datetime.utcnow().isoformat()
         }
         
-        # Cache the result
+        
         await self.analytics_repo.cache_metric(
             metric_type, 
             data, 
@@ -204,9 +202,9 @@ class AnalyticsService:
         return data
     
     async def get_dashboard_summary(self, use_cache: bool = True) -> Dict[str, Any]:
-        """Get dashboard summary with key metrics"""
+        
         try:
-            # Get all key metrics concurrently
+            
             fleet_util, vehicle_usage, assignment_metrics, driver_perf = await asyncio.gather(
                 self.get_fleet_utilization(use_cache),
                 self.get_vehicle_usage_analytics(use_cache),
@@ -215,7 +213,7 @@ class AnalyticsService:
                 return_exceptions=True
             )
             
-            # Handle any exceptions
+            
             if isinstance(fleet_util, Exception):
                 logger.error(f"Fleet utilization error: {fleet_util}")
                 fleet_util = {}
@@ -245,7 +243,7 @@ class AnalyticsService:
             raise
     
     async def refresh_all_cache(self):
-        """Refresh all cached analytics"""
+        
         logger.info("Refreshing all analytics cache")
         
         try:
@@ -262,7 +260,7 @@ class AnalyticsService:
             logger.error(f"Error refreshing analytics cache: {e}")
     
     async def cleanup_expired_cache(self):
-        """Clean up expired cache entries"""
+        
         try:
             deleted_count = await self.analytics_repo.cleanup_expired()
             if deleted_count > 0:
@@ -271,5 +269,5 @@ class AnalyticsService:
             logger.error(f"Error cleaning up expired cache: {e}")
 
 
-# Global analytics service instance
+
 analytics_service = AnalyticsService()

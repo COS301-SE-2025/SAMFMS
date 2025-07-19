@@ -1,6 +1,4 @@
-"""
-Enhanced Analytics Routes with standardized responses and improved error handling
-"""
+
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from typing import Optional
 import logging
@@ -21,7 +19,7 @@ async def get_dashboard_analytics(
     use_cache: bool = Query(True, description="Use cached data if available"),
     current_user = Depends(require_permission("analytics:read"))
 ):
-    """Get comprehensive dashboard analytics with enhanced response format"""
+    
     request_id = await get_request_id(request)
     
     with RequestTimer() as timer:
@@ -48,7 +46,7 @@ async def get_fleet_utilization(
     use_cache: bool = Query(True, description="Use cached data if available"),
     current_user = Depends(require_permission("analytics:read"))
 ):
-    """Get fleet utilization metrics with enhanced error handling"""
+    
     request_id = await get_request_id(request)
     
     with RequestTimer() as timer:
@@ -75,7 +73,7 @@ async def get_vehicle_usage_analytics(
     use_cache: bool = Query(True, description="Use cached data if available"),
     current_user = Depends(require_permission("analytics:read"))
 ):
-    """Get vehicle usage analytics with enhanced monitoring"""
+    
     request_id = await get_request_id(request)
     
     with RequestTimer() as timer:
@@ -102,7 +100,7 @@ async def get_assignment_metrics(
     use_cache: bool = Query(True, description="Use cached data if available"),
     current_user = Depends(require_permission("analytics:read"))
 ):
-    """Get assignment metrics with standardized response"""
+    
     request_id = await get_request_id(request)
     
     with RequestTimer() as timer:
@@ -129,7 +127,7 @@ async def get_driver_performance(
     use_cache: bool = Query(True, description="Use cached data if available"),
     current_user = Depends(require_permission("analytics:read"))
 ):
-    """Get driver performance analytics with comprehensive error handling"""
+    
     request_id = await get_request_id(request)
     
     with RequestTimer() as timer:
@@ -155,7 +153,7 @@ async def refresh_analytics_cache(
     request: Request,
     current_user = Depends(require_permission("analytics:admin"))
 ):
-    """Manually refresh analytics cache with audit logging"""
+    
     request_id = await get_request_id(request)
     
     with RequestTimer() as timer:
@@ -184,7 +182,7 @@ async def clear_analytics_cache(
     request: Request,
     current_user = Depends(require_permission("analytics:admin"))
 ):
-    """Clear expired analytics cache entries with enhanced logging"""
+    
     request_id = await get_request_id(request)
     
     with RequestTimer() as timer:

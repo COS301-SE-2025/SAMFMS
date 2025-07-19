@@ -1,6 +1,4 @@
-"""
-Core domain entities for Management service
-"""
+
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, List
 from datetime import datetime
@@ -25,14 +23,14 @@ class PyObjectId(ObjectId):
 
 
 class AssignmentStatus(str, Enum):
-    """Vehicle assignment status"""
+    
     ACTIVE = "active"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 
 
 class AssignmentType(str, Enum):
-    """Types of vehicle assignments"""
+    
     TRIP = "trip"
     LONG_TERM = "long_term"
     MAINTENANCE = "maintenance"
@@ -40,7 +38,7 @@ class AssignmentType(str, Enum):
 
 
 class DriverStatus(str, Enum):
-    """Driver status enumeration"""
+    
     ACTIVE = "active"
     INACTIVE = "inactive"
     SUSPENDED = "suspended"
@@ -48,22 +46,22 @@ class DriverStatus(str, Enum):
 
 
 class LicenseClass(str, Enum):
-    """South African license classes"""
-    A = "A"    # Motorcycles
-    A1 = "A1"  # Light motorcycles
-    B = "B"    # Light motor vehicles
-    C = "C"    # Heavy motor vehicles
-    C1 = "C1"  # Medium heavy motor vehicles
-    EB = "EB"  # Light motor vehicle with trailer
-    EC = "EC"  # Heavy motor vehicle with trailer
-    EC1 = "EC1" # Medium heavy motor vehicle with trailer
+    
+    A = "A"    
+    A1 = "A1"  
+    B = "B"    
+    C = "C"    
+    C1 = "C1"  
+    EB = "EB"  
+    EC = "EC"  
+    EC1 = "EC1" 
 
 
-# Core Entities
+
 class VehicleAssignment(BaseModel):
-    """Vehicle assignment entity"""
+    
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
-    vehicle_id: str  # Reference to vehicle in Vehicles Dblock
+    vehicle_id: str  
     driver_id: str
     assignment_type: AssignmentType
     status: AssignmentStatus = AssignmentStatus.ACTIVE
@@ -85,7 +83,7 @@ class VehicleAssignment(BaseModel):
 
 
 class VehicleUsageLog(BaseModel):
-    """Vehicle usage tracking entity"""
+    
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     vehicle_id: str
     driver_id: str
@@ -108,10 +106,10 @@ class VehicleUsageLog(BaseModel):
 
 
 class Driver(BaseModel):
-    """Driver entity"""
+    
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     employee_id: str
-    user_id: Optional[str] = None  # Link to security service user
+    user_id: Optional[str] = None  
     first_name: str
     last_name: str
     email: str
@@ -135,9 +133,9 @@ class Driver(BaseModel):
 
 
 class AnalyticsSnapshot(BaseModel):
-    """Cached analytics data entity"""
+    
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
-    metric_type: str  # fleet_utilization, vehicle_usage, etc.
+    metric_type: str  
     data: Dict
     generated_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: datetime
@@ -149,11 +147,11 @@ class AnalyticsSnapshot(BaseModel):
 
 
 class AuditLog(BaseModel):
-    """Audit trail entity"""
+    
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
-    entity_type: str  # assignment, usage, driver
+    entity_type: str  
     entity_id: str
-    action: str  # create, update, delete
+    action: str  
     user_id: str
     changes: Optional[Dict] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
