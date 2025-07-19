@@ -1,0 +1,475 @@
+{
+  "v": 6,
+  "id": "cmd7c3h5e0imo8lh3nb804pze",
+  "name": "SAMFMS API Testing Collection",
+  "folders": [
+    {
+      "v": 1,
+      "id": "fld_auth",
+      "name": "Authentication",
+      "folders": [],
+      "requests": ["req_login", "req_register", "req_refresh_token", "req_logout"]
+    },
+    {
+      "v": 1,
+      "id": "fld_maintenance",
+      "name": "Maintenance Service",
+      "folders": [],
+      "requests": [
+        "req_maintenance_health",
+        "req_get_maintenance_records",
+        "req_create_maintenance_record",
+        "req_update_maintenance_record",
+        "req_get_licenses",
+        "req_create_license",
+        "req_analytics_overview",
+        "req_maintenance_notifications"
+      ]
+    },
+    {
+      "v": 1,
+      "id": "fld_core",
+      "name": "Core Service",
+      "folders": [],
+      "requests": ["req_core_health", "req_core_info"]
+    }
+  ],
+  "requests": [
+    {
+      "v": "11",
+      "id": "req_login",
+      "endpoint": "http://localhost:21004/auth/login",
+      "name": "Login",
+      "params": [],
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json",
+          "active": true
+        }
+      ],
+      "method": "POST",
+      "auth": {
+        "authType": "none",
+        "authActive": false
+      },
+      "preRequestScript": "",
+      "testScript": "pw.test(\"Login successful\", () => {\n  pw.expect(pw.response.status).toBe(200);\n  const token = pw.response.body.access_token;\n  pw.env.set(\"AUTH_TOKEN\", token);\n  pw.expect(token).toBeTruthy();\n});",
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"email\": \"mvanheerdentuks@gmail.com\",\n  \"password\": \"Password2@\"\n}"
+      },
+      "requestVariables": [],
+      "responses": {}
+    },
+    {
+      "v": "11",
+      "id": "req_register",
+      "endpoint": "http://localhost:21004/auth/register",
+      "name": "Register New User",
+      "params": [],
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json",
+          "active": true
+        }
+      ],
+      "method": "POST",
+      "auth": {
+        "authType": "none",
+        "authActive": false
+      },
+      "preRequestScript": "",
+      "testScript": "pw.test(\"Registration response\", () => {\n  pw.expect([200, 201, 400, 409]).toContain(pw.response.status);\n});",
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"TestPassword123!\",\n  \"first_name\": \"Test\",\n  \"last_name\": \"User\",\n  \"role\": \"user\"\n}"
+      },
+      "requestVariables": [],
+      "responses": {}
+    },
+    {
+      "v": "11",
+      "id": "req_refresh_token",
+      "endpoint": "http://localhost:21004/auth/refresh",
+      "name": "Refresh Token",
+      "params": [],
+      "headers": [
+        {
+          "key": "Authorization",
+          "value": "Bearer <<AUTH_TOKEN>>",
+          "active": true
+        }
+      ],
+      "method": "POST",
+      "auth": {
+        "authType": "bearer",
+        "authActive": true,
+        "token": "<<AUTH_TOKEN>>"
+      },
+      "preRequestScript": "",
+      "testScript": "pw.test(\"Token refresh\", () => {\n  pw.expect([200, 401]).toContain(pw.response.status);\n});",
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {}
+    },
+    {
+      "v": "11",
+      "id": "req_logout",
+      "endpoint": "http://localhost:21004/auth/logout",
+      "name": "Logout",
+      "params": [],
+      "headers": [
+        {
+          "key": "Authorization",
+          "value": "Bearer <<AUTH_TOKEN>>",
+          "active": true
+        }
+      ],
+      "method": "POST",
+      "auth": {
+        "authType": "bearer",
+        "authActive": true,
+        "token": "<<AUTH_TOKEN>>"
+      },
+      "preRequestScript": "",
+      "testScript": "pw.test(\"Logout successful\", () => {\n  pw.expect([200, 204]).toContain(pw.response.status);\n});",
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {}
+    },
+    {
+      "v": "11",
+      "id": "req_core_health",
+      "endpoint": "http://localhost:21004/health",
+      "name": "Core Service Health",
+      "params": [],
+      "headers": [],
+      "method": "GET",
+      "auth": {
+        "authType": "none",
+        "authActive": false
+      },
+      "preRequestScript": "",
+      "testScript": "pw.test(\"Core service is healthy\", () => {\n  pw.expect(pw.response.status).toBe(200);\n  pw.expect(pw.response.body.status).toBe(\"healthy\");\n});",
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {}
+    },
+    {
+      "v": "11",
+      "id": "req_core_info",
+      "endpoint": "http://localhost:21004/info",
+      "name": "Core Service Info",
+      "params": [],
+      "headers": [],
+      "method": "GET",
+      "auth": {
+        "authType": "none",
+        "authActive": false
+      },
+      "preRequestScript": "",
+      "testScript": "pw.test(\"Core service info\", () => {\n  pw.expect(pw.response.status).toBe(200);\n  pw.expect(pw.response.body.service).toBe(\"samfms-core\");\n});",
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {}
+    },
+    {
+      "v": "11",
+      "id": "req_maintenance_health",
+      "endpoint": "http://localhost:21007/health",
+      "name": "Maintenance Service Health",
+      "params": [],
+      "headers": [],
+      "method": "GET",
+      "auth": {
+        "authType": "none",
+        "authActive": false
+      },
+      "preRequestScript": "",
+      "testScript": "pw.test(\"Maintenance service is healthy\", () => {\n  pw.expect(pw.response.status).toBe(200);\n  pw.expect(pw.response.body.status).toBe(\"running\");\n});",
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {}
+    },
+    {
+      "v": "11",
+      "id": "req_get_maintenance_records",
+      "endpoint": "http://localhost:21007/maintenance-records",
+      "name": "Get Maintenance Records",
+      "params": [
+        {
+          "key": "skip",
+          "value": "0",
+          "active": false
+        },
+        {
+          "key": "limit",
+          "value": "10",
+          "active": false
+        },
+        {
+          "key": "status",
+          "value": "pending",
+          "active": false
+        }
+      ],
+      "headers": [
+        {
+          "key": "Authorization",
+          "value": "Bearer <<AUTH_TOKEN>>",
+          "active": true
+        }
+      ],
+      "method": "GET",
+      "auth": {
+        "authType": "bearer",
+        "authActive": true,
+        "token": "<<AUTH_TOKEN>>"
+      },
+      "preRequestScript": "",
+      "testScript": "pw.test(\"Get maintenance records\", () => {\n  pw.expect([200, 401]).toContain(pw.response.status);\n  if (pw.response.status === 200) {\n    pw.expect(Array.isArray(pw.response.body.items)).toBe(true);\n  }\n});",
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {}
+    },
+    {
+      "v": "11",
+      "id": "req_create_maintenance_record",
+      "endpoint": "http://localhost:21007/maintenance-records",
+      "name": "Create Maintenance Record",
+      "params": [],
+      "headers": [
+        {
+          "key": "Authorization",
+          "value": "Bearer <<AUTH_TOKEN>>",
+          "active": true
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/json",
+          "active": true
+        }
+      ],
+      "method": "POST",
+      "auth": {
+        "authType": "bearer",
+        "authActive": true,
+        "token": "<<AUTH_TOKEN>>"
+      },
+      "preRequestScript": "",
+      "testScript": "pw.test(\"Create maintenance record\", () => {\n  pw.expect([201, 400, 401]).toContain(pw.response.status);\n});",
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"vehicle_id\": \"test-vehicle-123\",\n  \"maintenance_type\": \"routine\",\n  \"description\": \"Regular oil change and inspection\",\n  \"scheduled_date\": \"2025-07-25T10:00:00Z\",\n  \"estimated_cost\": 150.00,\n  \"priority\": \"medium\"\n}"
+      },
+      "requestVariables": [],
+      "responses": {}
+    },
+    {
+      "v": "11",
+      "id": "req_update_maintenance_record",
+      "endpoint": "http://localhost:21007/maintenance-records/test-record-id",
+      "name": "Update Maintenance Record",
+      "params": [],
+      "headers": [
+        {
+          "key": "Authorization",
+          "value": "Bearer <<AUTH_TOKEN>>",
+          "active": true
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/json",
+          "active": true
+        }
+      ],
+      "method": "PUT",
+      "auth": {
+        "authType": "bearer",
+        "authActive": true,
+        "token": "<<AUTH_TOKEN>>"
+      },
+      "preRequestScript": "",
+      "testScript": "pw.test(\"Update maintenance record\", () => {\n  pw.expect([200, 404, 401]).toContain(pw.response.status);\n});",
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"status\": \"completed\",\n  \"completion_date\": \"2025-07-18T14:30:00Z\",\n  \"actual_cost\": 175.00,\n  \"notes\": \"Maintenance completed successfully. Minor additional work required.\"\n}"
+      },
+      "requestVariables": [],
+      "responses": {}
+    },
+    {
+      "v": "11",
+      "id": "req_get_licenses",
+      "endpoint": "http://localhost:21007/licenses",
+      "name": "Get Vehicle Licenses",
+      "params": [
+        {
+          "key": "skip",
+          "value": "0",
+          "active": false
+        },
+        {
+          "key": "limit",
+          "value": "10",
+          "active": false
+        }
+      ],
+      "headers": [
+        {
+          "key": "Authorization",
+          "value": "Bearer <<AUTH_TOKEN>>",
+          "active": true
+        }
+      ],
+      "method": "GET",
+      "auth": {
+        "authType": "bearer",
+        "authActive": true,
+        "token": "<<AUTH_TOKEN>>"
+      },
+      "preRequestScript": "",
+      "testScript": "pw.test(\"Get licenses\", () => {\n  pw.expect([200, 401]).toContain(pw.response.status);\n  if (pw.response.status === 200) {\n    pw.expect(Array.isArray(pw.response.body.items)).toBe(true);\n  }\n});",
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {}
+    },
+    {
+      "v": "11",
+      "id": "req_create_license",
+      "endpoint": "http://localhost:21007/licenses",
+      "name": "Create License Record",
+      "params": [],
+      "headers": [
+        {
+          "key": "Authorization",
+          "value": "Bearer <<AUTH_TOKEN>>",
+          "active": true
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/json",
+          "active": true
+        }
+      ],
+      "method": "POST",
+      "auth": {
+        "authType": "bearer",
+        "authActive": true,
+        "token": "<<AUTH_TOKEN>>"
+      },
+      "preRequestScript": "",
+      "testScript": "pw.test(\"Create license\", () => {\n  pw.expect([201, 400, 401]).toContain(pw.response.status);\n});",
+      "body": {
+        "contentType": "application/json",
+        "body": "{\n  \"vehicle_id\": \"test-vehicle-123\",\n  \"license_type\": \"vehicle_registration\",\n  \"license_number\": \"ABC123GP\",\n  \"issue_date\": \"2025-01-15T00:00:00Z\",\n  \"expiry_date\": \"2026-01-15T00:00:00Z\",\n  \"issuing_authority\": \"Department of Transport - Gauteng\"\n}"
+      },
+      "requestVariables": [],
+      "responses": {}
+    },
+    {
+      "v": "11",
+      "id": "req_analytics_overview",
+      "endpoint": "http://localhost:21007/analytics/overview",
+      "name": "Analytics Overview",
+      "params": [],
+      "headers": [
+        {
+          "key": "Authorization",
+          "value": "Bearer <<AUTH_TOKEN>>",
+          "active": true
+        }
+      ],
+      "method": "GET",
+      "auth": {
+        "authType": "bearer",
+        "authActive": true,
+        "token": "<<AUTH_TOKEN>>"
+      },
+      "preRequestScript": "",
+      "testScript": "pw.test(\"Analytics overview\", () => {\n  pw.expect([200, 401]).toContain(pw.response.status);\n  if (pw.response.status === 200) {\n    pw.expect(pw.response.body.total_records).toBeDefined();\n  }\n});",
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {}
+    },
+    {
+      "v": "11",
+      "id": "req_maintenance_notifications",
+      "endpoint": "http://localhost:21007/notifications",
+      "name": "Get Maintenance Notifications",
+      "params": [],
+      "headers": [
+        {
+          "key": "Authorization",
+          "value": "Bearer <<AUTH_TOKEN>>",
+          "active": true
+        }
+      ],
+      "method": "GET",
+      "auth": {
+        "authType": "bearer",
+        "authActive": true,
+        "token": "<<AUTH_TOKEN>>"
+      },
+      "preRequestScript": "",
+      "testScript": "pw.test(\"Get notifications\", () => {\n  pw.expect([200, 401]).toContain(pw.response.status);\n  if (pw.response.status === 200) {\n    pw.expect(Array.isArray(pw.response.body.notifications)).toBe(true);\n  }\n});",
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {}
+    }
+  ],
+  "auth": {
+    "authType": "none",
+    "authActive": false
+  },
+  "headers": [],
+  "environments": [
+    {
+      "name": "SAMFMS Development",
+      "variables": [
+        {
+          "key": "BASE_URL_CORE",
+          "value": "http://localhost:21004"
+        },
+        {
+          "key": "BASE_URL_MAINTENANCE",
+          "value": "http://localhost:21007"
+        },
+        {
+          "key": "AUTH_TOKEN",
+          "value": ""
+        }
+      ]
+    }
+  ],
+  "_ref_id": "coll_md7dbyih_6e5607f2-a243-4197-824a-956ab49d55ac"
+}

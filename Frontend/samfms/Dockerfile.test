@@ -1,0 +1,33 @@
+# Frontend API Testing with Docker
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy source code
+COPY . .
+
+# Install test dependencies
+RUN npm install --save-dev \
+    jest \
+    @testing-library/react \
+    @testing-library/jest-dom \
+    @testing-library/user-event \
+    jest-environment-jsdom
+
+# Set environment variables for testing
+ENV NODE_ENV=test
+ENV REACT_APP_API_BASE_URL=http://core-test:8004
+ENV REACT_APP_WS_TARGET=ws://core-test:8004
+
+# Expose port for potential dev server
+EXPOSE 3000
+
+# Default command for testing
+CMD ["npm", "test"]

@@ -198,7 +198,7 @@ class VehicleService:
             # Check if vehicle exists
             existing_vehicle = await self.vehicle_repo.get_by_id(vehicle_id)
             if not existing_vehicle:
-                return False
+                raise ValueError(f"Vehicle with ID {vehicle_id} not found")
             
             # Check for active assignments
             active_assignments = await self.assignment_repo.get_by_vehicle_id(vehicle_id, status="active")

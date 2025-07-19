@@ -399,3 +399,6 @@ class MaintenanceAnalyticsService:
 
 # Global service instance
 maintenance_analytics_service = MaintenanceAnalyticsService()
+
+# Alias for backward compatibility
+analytics_service = maintenance_analytics_service

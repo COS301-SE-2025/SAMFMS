@@ -22,8 +22,8 @@ class DatabaseManager:
                 return
             
             try:
-                mongo_uri = os.getenv("MONGODB_URL", "mongodb://mongodb_core:27017")
-                database_name = os.getenv("DATABASE_NAME", "mcore")
+                mongo_uri = os.getenv("MONGODB_URL", "mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017")
+                database_name = os.getenv("DATABASE_NAME", "samfms_core")
                 
                 logger.info(f"Connecting to MongoDB: {mongo_uri}")
                 

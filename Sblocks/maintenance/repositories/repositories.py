@@ -321,3 +321,7 @@ class MaintenanceNotificationsRepository(BaseRepository):
             "is_read": True,
             "read_at": datetime.utcnow()
         })
+
+
+# Aliases for backward compatibility
+MaintenanceRecordRepository = MaintenanceRecordsRepository

@@ -11,7 +11,7 @@ import logging
 from .base import security, handle_service_request
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api", tags=["Drivers"])
+router = APIRouter(tags=["Drivers"])
 
 @router.get("/drivers")
 async def get_drivers(

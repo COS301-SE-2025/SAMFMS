@@ -122,8 +122,8 @@ class CoreConfig:
         config.host = os.getenv('HOST', '0.0.0.0')
         
         # Database configuration
-        config.database.url = os.getenv('MONGODB_URL', 'mongodb://mongodb_core:27017')
-        config.database.name = os.getenv('DATABASE_NAME', 'mcore')
+        config.database.url = os.getenv('MONGODB_URL', 'mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017')
+        config.database.name = os.getenv('DATABASE_NAME', 'samfms_core')
         config.database.max_pool_size = int(os.getenv('DB_MAX_POOL_SIZE', '50'))
         config.database.min_pool_size = int(os.getenv('DB_MIN_POOL_SIZE', '10'))
         

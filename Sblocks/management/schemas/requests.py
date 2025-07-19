@@ -173,6 +173,29 @@ class VehicleUsageEndRequest(BaseModel):
     odometer_end: Optional[float] = None
 
 
+class AssignmentCreateRequest(BaseModel):
+    """Request to create new assignment"""
+    vehicle_id: str = Field(..., description="Vehicle ID to assign")
+    driver_id: str = Field(..., description="Driver ID to assign")
+    assignment_type: AssignmentType = Field(..., description="Type of assignment")
+    start_date: datetime = Field(..., description="Assignment start date")
+    end_date: Optional[datetime] = Field(None, description="Assignment end date")
+    purpose: Optional[str] = Field(None, description="Purpose of assignment")
+    route: Optional[Dict] = Field(None, description="Route information")
+    notes: Optional[str] = Field(None, description="Additional notes")
+
+
+class AssignmentUpdateRequest(BaseModel):
+    """Request to update existing assignment"""
+    assignment_type: Optional[AssignmentType] = Field(None, description="Type of assignment")
+    status: Optional[AssignmentStatus] = Field(None, description="Assignment status")
+    start_date: Optional[datetime] = Field(None, description="Assignment start date")
+    end_date: Optional[datetime] = Field(None, description="Assignment end date")
+    purpose: Optional[str] = Field(None, description="Purpose of assignment")
+    route: Optional[Dict] = Field(None, description="Route information")
+    notes: Optional[str] = Field(None, description="Additional notes")
+
+
 # Driver Request Schemas
 class DriverCreateRequest(BaseModel):
     """Request to create new driver"""

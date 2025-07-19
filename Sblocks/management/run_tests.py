@@ -65,7 +65,7 @@ def main():
         base_cmd.append("-v")
     
     if args.coverage:
-        base_cmd.extend(["--cov=.", "--cov-report=html", "--cov-report=term"])
+        base_cmd.extend(["--cov=.", "--cov-report=html", "--cov-report=term", "--cov-report=xml"])
     
     # Determine what to run
     if args.file:
@@ -86,17 +86,21 @@ def main():
             sys.exit(1)
             
     elif args.unit:
-        # Run unit tests only
-        cmd = base_cmd + ["-m", "unit"]
+        # Run unit tests, optionally filtered by vehicle marker
+        cmd = base_cmd.copy()
         if args.vehicle:
-            cmd.extend(["and", "vehicle"])
+            cmd.extend(["-m", "unit and vehicle"])
+        else:
+            cmd.extend(["-m", "unit"])
         run_command(cmd, "Unit tests")
         
     elif args.integration:
-        # Run integration tests only
-        cmd = base_cmd + ["-m", "integration"]
+        # Run integration tests, optionally filtered by vehicle marker
+        cmd = base_cmd.copy()
         if args.vehicle:
-            cmd.extend(["and", "vehicle"])
+            cmd.extend(["-m", "integration and vehicle"])
+        else:
+            cmd.extend(["-m", "integration"])
         run_command(cmd, "Integration tests")
         
     elif args.vehicle:

@@ -40,8 +40,12 @@ class RequestRouter:
             "/api/v1/drivers/*": "management",
             "/api/vehicle-assignments": "management",
             "/api/vehicle-assignments/*": "management",
+            "/api/assignments": "management",
+            "/api/assignments/*": "management",
             "/api/v1/assignments": "management",
             "/api/v1/assignments/*": "management",
+            "/api/v1/vehicle-assignments": "management",
+            "/api/v1/vehicle-assignments/*": "management",
             "/api/vehicle-usage": "management",
             "/api/vehicle-usage/*": "management",
             "/api/analytics": "management",
@@ -53,6 +57,7 @@ class RequestRouter:
             "/api/tracking/*": "gps", 
             "/api/trips/*": "trip_planning",
             "/api/trip-planning/*": "trip_planning",
+            "/api/maintenance": "vehicle_maintenance",
             "/api/maintenance/*": "vehicle_maintenance",
             "/api/vehicle-maintenance/*": "vehicle_maintenance"
         }

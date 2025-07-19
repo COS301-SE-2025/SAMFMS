@@ -12,7 +12,6 @@
 
 // Legacy endpoint constants for backward compatibility
 import { API_URL } from './api/auth';
-import { buildApiUrl } from '../config/apiConfig';
 
 // Re-export all authentication-related functionality
 export {

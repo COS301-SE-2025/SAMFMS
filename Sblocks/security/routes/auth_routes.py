@@ -45,7 +45,7 @@ async def get_current_user_secure(token: HTTPAuthorizationCredentials = Depends(
 async def signup(user_data: SignupRequest):
     """Register a new user"""
     try:
-        return await AuthService.signup_user(user_data.dict())
+        return await AuthService.signup_user(user_data.model_dump())
     except Exception as e:
         logger.error(f"Signup error: {e}")
         raise HTTPException(

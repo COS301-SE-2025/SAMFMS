@@ -28,6 +28,10 @@ class BaseRepository(ABC, Generic[T]):
     async def create(self, entity: Dict[str, Any]) -> str:
         """Create new entity"""
         try:
+            # Ensure database connection is available
+            if not db_manager._client or not db_manager._db:
+                await db_manager.connect()
+                
             entity["created_at"] = datetime.utcnow()
             entity["updated_at"] = datetime.utcnow()
             

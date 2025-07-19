@@ -40,8 +40,18 @@ class DatabaseManager:
                     w="majority"
                 )
                 
-                # Test connection
-                await self._client.admin.command('ping')
+                # Test connection with retry logic
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        await self._client.admin.command('ping')
+                        break
+                    except Exception as ping_error:
+                        if attempt == max_retries - 1:
+                            raise
+                        logger.warning(f"Database ping failed (attempt {attempt + 1}/{max_retries}): {ping_error}")
+                        await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                
                 self._db = self._client[self.database_name]
                 
                 # Create indexes with error handling
@@ -55,6 +65,14 @@ class DatabaseManager:
                 
             except Exception as e:
                 logger.error(f"Failed to connect to MongoDB: {e}")
+                # Clean up on failure
+                if self._client:
+                    try:
+                        self._client.close()
+                    except:
+                        pass
+                    self._client = None
+                    self._db = None
                 raise
     
     async def disconnect(self):

@@ -11,7 +11,7 @@ import logging
 from .base import security, handle_service_request
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api", tags=["Analytics"])
+router = APIRouter(tags=["Analytics"])
 
 @router.get("/analytics/dashboard")
 async def get_dashboard_analytics(

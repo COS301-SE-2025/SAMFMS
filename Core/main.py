@@ -87,15 +87,20 @@ async def lifespan(app: FastAPI):
             logger.info("🐰 Initializing RabbitMQ...")
             from rabbitmq.consumer import consume_messages
             from rabbitmq.admin import create_exchange
+            import aio_pika
             
-            # Create exchange if needed
-            await create_exchange()
+            # Create exchanges if needed
+            await create_exchange("service_requests", aio_pika.ExchangeType.DIRECT)
+            await create_exchange("core_responses", aio_pika.ExchangeType.DIRECT)
             
-            # Start background message consumption
-            asyncio.create_task(consume_messages())
-            logger.info("✅ RabbitMQ initialized")
+            # Start background message consumption for service responses
+            consumer_task = asyncio.create_task(consume_messages("core_responses"))
+            # Keep a reference to prevent garbage collection
+            app.state.consumer_task = consumer_task
+            logger.info("✅ RabbitMQ initialized with service response consumer")
         except Exception as e:
             logger.warning(f"⚠️  RabbitMQ initialization failed: {e}")
+            logger.exception("RabbitMQ initialization error details:")
             # Continue without RabbitMQ for now
         
         # 5. Initialize startup services (includes response manager)
@@ -138,7 +143,18 @@ async def lifespan(app: FastAPI):
         logger.info("🔍 Shutting down service discovery...")
         await shutdown_service_discovery()
         
-        # 2. Close database connections
+        # 2. Stop RabbitMQ consumer
+        if hasattr(app.state, 'consumer_task'):
+            logger.info("🐰 Stopping RabbitMQ consumer...")
+            try:
+                app.state.consumer_task.cancel()
+                await app.state.consumer_task
+            except asyncio.CancelledError:
+                logger.info("RabbitMQ consumer stopped")
+            except Exception as e:
+                logger.warning(f"Error stopping RabbitMQ consumer: {e}")
+        
+        # 3. Close database connections
         if hasattr(app.state, 'db_manager'):
             logger.info("📊 Closing database connections...")
             await app.state.db_manager.close()
@@ -172,8 +188,13 @@ origins = [
 if config.environment.value == "development":
     origins.extend([
         "http://localhost:*",
-        "http://127.0.0.1:*"
+        "http://127.0.0.1:*",
+        "https://hoppscotch.io",     # Hoppscotch web app
+        "http://localhost:3100",     # Hoppscotch local
+        "http://127.0.0.1:3100"      # Hoppscotch local alternative
     ])
+    # For development, allow all origins for API testing
+    origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -184,7 +205,7 @@ app.add_middleware(
 )
 
 # Setup API routes
-logger.info("🛣️  Setting up API routes...")
+logger.info("🛣️  Setting up simplified service routing...")
 
 # Import auth routes (essential)
 try:
@@ -193,31 +214,48 @@ try:
     logger.info("✅ Auth routes configured")
 except ImportError as e:
     logger.error(f"❌ Failed to import auth routes: {e}")
+    # Auth routes are essential, so we should raise an error
+    raise SystemExit(f"Critical error: Auth routes are required but could not be imported: {e}")
 
-# Import GPS routes
+# Import simplified service routing
 try:
-    from routes.gps_direct import router as gps_router
-    app.include_router(gps_router)
-    logger.info("✅ GPS routes configured")
+    from routes.service_routing import service_router
+    app.include_router(service_router)
+    logger.info("✅ Simplified service routing configured")
+    logger.info("    • /management/* -> Management service block")
+    logger.info("    • /maintenance/* -> Maintenance service block")
+    logger.info("    • /gps/* -> GPS service block")
+    logger.info("    • /trips/* -> Trip planning service block")
 except ImportError as e:
-    logger.warning(f"⚠️  GPS routes could not be imported: {e}")
+    logger.error(f"❌ Failed to import service routing: {e}")
+    logger.warning("⚠️  Falling back to direct routes...")
+    
+    # Fallback to direct routes if service routing fails
+    try:
+        from routes.gps_direct import router as gps_router
+        app.include_router(gps_router)
+        logger.info("✅ Direct GPS routes configured as fallback")
+    except ImportError as gps_error:
+        logger.warning(f"⚠️  Direct GPS routes also failed: {gps_error}")
 
-# Import consolidated routes (includes debug functionality)
+# Import direct vehicle routes for frontend compatibility
 try:
-    from routes.consolidated import consolidated_router
-    app.include_router(consolidated_router)
-    logger.info("✅ Consolidated routes configured (includes debug, API endpoints)")
+    from routes.api import api_router
+    app.include_router(api_router)
+    logger.info("✅ Direct vehicle routes configured for frontend compatibility")
+    logger.info("    • /vehicles/* -> Vehicle management routes")
 except ImportError as e:
-    logger.warning(f"⚠️  Consolidated routes could not be imported: {e}")
-    logger.info("Service will continue with individual routes")
+    logger.error(f"❌ Failed to import direct vehicle routes: {e}")
+    logger.warning("⚠️  Frontend vehicle routes will not be available")
 
-# Import maintenance routes
-try:
-    from routes.maintenance import router as maintenance_router
-    app.include_router(maintenance_router)
-    logger.info("✅ Maintenance routes configured")
-except ImportError as e:
-    logger.warning(f"⚠️  Maintenance routes could not be imported: {e}")
+# Import debug routes if in development
+if config.environment.value == "development":
+    try:
+        from routes.debug import router as debug_router
+        app.include_router(debug_router)
+        logger.info("✅ Debug routes configured for development")
+    except ImportError as e:
+        logger.warning(f"⚠️  Debug routes could not be imported: {e}")
 
 # Add a simple test route to verify routing works
 @app.get("/test-auth")
@@ -289,11 +327,17 @@ async def root():
         "status": "running",
         "timestamp": datetime.utcnow().isoformat(),
         "environment": config.environment.value,
+        "routing": {
+            "management": "/management/* -> Management service block",
+            "maintenance": "/maintenance/* -> Maintenance service block", 
+            "gps": "/gps/* -> GPS service block",
+            "trips": "/trips/* -> Trip planning service block"
+        },
         "endpoints": {
             "health": "/health",
             "docs": "/docs" if config.environment.value != "production" else "disabled",
             "auth": "/auth",
-            "gps": "/gps",
+            "services": "/services",
             "debug": "/debug" if config.environment.value != "production" else "disabled"
         }
     }
