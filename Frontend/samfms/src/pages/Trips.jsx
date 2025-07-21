@@ -1,7 +1,8 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import VehicleStatistics from '../components/trips/VehicleStatistics';
 import MapDisplay from '../components/trips/MapDisplay';
 import VehicleList from '../components/trips/VehicleList';
+import { createTrip } from '../backend/api/tripplanning';
 
 // Custom hook for location autocomplete using Nominatim (OpenStreetMap)
 const useLocationAutocomplete = () => {
@@ -86,14 +87,14 @@ const useLocationAutocomplete = () => {
     }
   };
 
-  return {suggestions, isLoading, searchLocation};
+  return { suggestions, isLoading, searchLocation };
 };
 
 // Location Autocomplete Component
-const LocationAutocomplete = ({value, onChange, placeholder, className, required}) => {
+const LocationAutocomplete = ({ value, onChange, placeholder, className, required }) => {
   const [inputValue, setInputValue] = useState(value || '');
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const {suggestions, isLoading, searchLocation} = useLocationAutocomplete();
+  const { suggestions, isLoading, searchLocation } = useLocationAutocomplete();
   const debounceRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -289,25 +290,25 @@ const Trips = () => {
     }
 
     try {
-      // Here you would make an API call to your backend to create the trip
       const tripData = {
-        ...tripForm,
-        scheduledDateTime: `${tripForm.scheduledDate}T${tripForm.scheduledTime}`,
-        status: 'scheduled',
-        coordinates: locationCoords // Include coordinates for mapping
+        // Fill with your form data
+        name: tripForm.notes || "New Trip",
+        vehicle_id: tripForm.vehicleId,
+        start_location: tripForm.startLocation,
+        end_location: tripForm.endLocation,
+        start_time: `${tripForm.scheduledDate}T${tripForm.scheduledTime}`,
+        // Add other fields as needed
       };
 
-      console.log('Creating trip:', tripData);
+      const response = await createTrip(tripData);
 
-      // Replace with actual API call
-      // const response = await fetch('/api/trips', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(tripData)
-      // });
-
-      alert('Trip scheduled successfully!');
-      handleCloseModal();
+      if (response && response.status === "success") {
+        alert('Trip scheduled successfully!');
+        handleCloseModal();
+        // Optionally refresh trip list here
+      } else {
+        alert('Failed to schedule trip: ' + (response?.error || 'Unknown error'));
+      }
     } catch (error) {
       console.error('Error scheduling trip:', error);
       alert('Failed to schedule trip. Please try again.');

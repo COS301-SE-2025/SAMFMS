@@ -71,7 +71,8 @@ class VehicleMessageConsumer:
                 'vehicle.assignment_updated',
                 'vehicle.usage_recorded',
                 'vehicle.status_updated',
-                'vehicle.maintenance_due'
+                'vehicle.maintenance_due',
+                'vehicle.newtrip',
             ]
             
             for routing_key in routing_keys:
@@ -102,6 +103,8 @@ class VehicleMessageConsumer:
                 self.handle_vehicle_updated(event)
             elif event.event_type == 'vehicle.deleted':
                 self.handle_vehicle_deleted(event)
+            elif event.event_type == "vehicle.newtrip":
+                self.handle_vehicle_trip(event)
             elif event.event_type == 'assignment_created':
                 self.handle_assignment_created(event)
             elif event.event_type == 'assignment_updated':
@@ -122,6 +125,11 @@ class VehicleMessageConsumer:
             logger.error(f"Error processing vehicle event: {e}")
             # Reject message and don't requeue to prevent infinite loops
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+    def handle_vehicle_trip(self, event: VehicleEventMessage):
+        try:
+            logger.info(f"Vehicle {event.vehicle_id} for new trip event received")
+        except Exception as e:
+            logger.info(f"Error handling vehicle trip: {e}")
     def handle_vehicle_created(self, event: VehicleEventMessage):
         """Handle vehicle creation event"""
         try:
