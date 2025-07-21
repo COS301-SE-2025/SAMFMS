@@ -82,18 +82,16 @@ async def lifespan(app: FastAPI):
         auth_service = await get_auth_service()
         logger.info("✅ Authentication service initialized")
         
-        # 4. Initialize RabbitMQ (if needed)
+        # 4. Initialize RabbitMQ (if needed) - NOTE: Response consumer now handled by request_router
         try:
             logger.info("🐰 Initializing RabbitMQ...")
-            from rabbitmq.consumer import consume_messages
             from rabbitmq.admin import create_exchange
             
-            # Create exchange if needed
-            await create_exchange()
+            # Create exchange if needed (fixed parameters)
+            await create_exchange("service_requests", "direct")
+            await create_exchange("service_responses", "direct")
             
-            # Start background message consumption for service responses
-            asyncio.create_task(consume_messages("core_responses"))
-            logger.info("✅ RabbitMQ initialized with service response consumer")
+            logger.info("✅ RabbitMQ exchanges initialized")
         except Exception as e:
             logger.warning(f"⚠️  RabbitMQ initialization failed: {e}")
             # Continue without RabbitMQ for now

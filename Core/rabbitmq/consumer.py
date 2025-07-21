@@ -60,10 +60,10 @@ async def consume_messages(queue_name: str = "core_responses"):
         connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
         channel = await connection.channel()
         
-        # Declare response exchange and queue for Core service
-        response_exchange = await channel.declare_exchange("core_responses", aio_pika.ExchangeType.DIRECT, durable=True)
+        # Declare response exchange and queue for Core service (updated to match Management service)
+        response_exchange = await channel.declare_exchange("service_responses", aio_pika.ExchangeType.DIRECT, durable=True)
         queue = await channel.declare_queue(queue_name, durable=True)
-        await queue.bind(response_exchange, routing_key="core.response")
+        await queue.bind(response_exchange, routing_key="core.responses")
         
         await queue.consume(handle_message)
         logger.info(f"Started consuming service responses from queue: {queue_name}")

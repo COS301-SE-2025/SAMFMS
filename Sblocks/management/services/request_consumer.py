@@ -67,10 +67,11 @@ class ServiceRequestConsumer:
                 durable=True
             )
             
-            # Bind to management routing key
-            await self.queue.bind(self.exchange, "management")
+            # Bind to management routing key (must match Core service routing pattern)
+            await self.queue.bind(self.exchange, "management.requests")
             
             logger.info(f"Connected to RabbitMQ. Queue: {self.queue_name}")
+            return True
             
         except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
@@ -144,7 +145,9 @@ class ServiceRequestConsumer:
         """Route request to appropriate handler based on method name"""
         try:
             # Route to appropriate handler based on endpoint pattern
-            if "/vehicles" in endpoint:
+            if "/health" in endpoint:
+                return await self._handle_health_request(method, user_context)
+            elif "/vehicles" in endpoint:
                 return await self._handle_vehicles_request(method, user_context)
             elif "/drivers" in endpoint:
                 return await self._handle_drivers_request(method, user_context)
@@ -158,6 +161,15 @@ class ServiceRequestConsumer:
         except Exception as e:
             logger.error(f"Error routing request for {endpoint}: {e}")
             raise
+    
+    async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle health check requests"""
+        return {
+            "status": "healthy",
+            "service": "management",
+            "timestamp": datetime.now().isoformat(),
+            "message": "Management service is operational"
+        }
     
     async def _handle_vehicles_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle vehicles-related requests"""

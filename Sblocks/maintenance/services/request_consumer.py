@@ -78,9 +78,9 @@ class ServiceRequestConsumer:
             )
             logger.info(f"✅ Created/connected to {self.config.QUEUE_NAMES['maintenance']} queue")
             
-            # Bind queue to exchange with routing key
-            await queue.bind(exchange, routing_key="maintenance")
-            logger.info(f"✅ Queue bound to {self.config.EXCHANGE_NAMES['requests']} exchange with routing key 'maintenance'")
+            # Bind queue to exchange with routing key (must match Core service routing pattern)
+            await queue.bind(exchange, routing_key="maintenance.requests")
+            logger.info(f"✅ Queue bound to {self.config.EXCHANGE_NAMES['requests']} exchange with routing key 'maintenance.requests'")
             
             logger.info("✅ Maintenance service queue setup complete")
             return queue

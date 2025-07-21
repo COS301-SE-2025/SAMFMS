@@ -22,17 +22,17 @@ logger = logging.getLogger(__name__)
 # Create the service routing router
 service_router = APIRouter()
 
-# Define service block mappings
+# Define service block mappings (updated to match actual service configurations)
 SERVICE_BLOCKS = {
     "management": {
-        "exchange": "management_exchange",
-        "queue": "management_queue",
-        "routing_key": "management.request"
+        "exchange": "service_requests",
+        "queue": "management.requests",
+        "routing_key": "management.requests"
     },
     "maintenance": {
-        "exchange": "maintenance_exchange", 
-        "queue": "maintenance_queue",
-        "routing_key": "maintenance.request"
+        "exchange": "service_requests", 
+        "queue": "maintenance.requests",
+        "routing_key": "maintenance.requests"
     },
     "gps": {
         "exchange": "gps_exchange",
@@ -79,14 +79,15 @@ async def route_to_service_block(
     # Generate unique request ID for correlation
     request_id = str(uuid.uuid4())
     
-    # Prepare message for service block
+    # Prepare message for service block (updated to match service expectations)
     message = {
-        "request_id": request_id,
+        "correlation_id": request_id,  # Use correlation_id instead of request_id
         "method": method,
-        "path": path,
+        "endpoint": path,  # Use endpoint instead of path
         "headers": dict(headers),
         "body": body.decode('utf-8') if body else None,
-        "query_params": query_params or {},
+        "data": query_params or {},  # Use data instead of query_params
+        "user_context": {},  # Add empty user_context for now
         "timestamp": datetime.utcnow().isoformat(),
         "source": "core-gateway"
     }
@@ -129,7 +130,8 @@ async def handle_service_response(message_data: Dict[str, Any]):
     Args:
         message_data: Response message from service block
     """
-    request_id = message_data.get("request_id")
+    # Try both correlation_id and request_id for backward compatibility
+    request_id = message_data.get("correlation_id") or message_data.get("request_id")
     
     if request_id and request_id in pending_responses:
         future = pending_responses[request_id]
