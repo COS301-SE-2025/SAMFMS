@@ -8,10 +8,12 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query, Path, Request
 
 from api.dependencies import (
-    validate_date_range,
-    require_permission,
     RequestTimer,
-    get_current_user,
+    require_permission,
+    validate_date_range,
+    require_permissions,
+    get_request_timer,
+    get_authenticated_user,
     get_pagination_params,
     validate_object_id,
     get_request_id
@@ -27,49 +29,49 @@ from schemas.requests import (
 from schemas.responses import ResponseBuilder
 from services.maintenance_service import maintenance_records_service
 
-router = APIRouter()
+router = APIRouter(prefix="/records", tags=["maintenance_records"])
 logger = logging.getLogger(__name__)
 
 @router.post("/")
 async def create_maintenance_record(
     request: Request,
     maintenance_request: CreateMaintenanceRecordRequest,
-    user: dict = Depends(get_current_user),
-    _: None = Depends(require_permission("maintenance.records.create"))
+    user: dict = Depends(get_authenticated_user),
+    _: None = Depends(require_permissions(["maintenance.records.create"])),
+    timer: object = Depends(get_request_timer)
 ):
     """Create a new maintenance record"""
     request_id = await get_request_id(request)
     
-    with RequestTimer() as timer:
-        try:
-            data = maintenance_request.dict()
-            data["created_by"] = user["user_id"]
-            data["updated_by"] = user["user_id"]
-            
-            record = await maintenance_records_service.create_maintenance_record(data)
-            
-            return ResponseBuilder.success(
-                data=record,
-                message="Maintenance record created successfully",
-                request_id=request_id,
-                execution_time_ms=timer.execution_time_ms
-            )
-            
-        except ValueError as e:
-            return ResponseBuilder.error(
-                message=str(e),
-                status_code=400,
-                request_id=request_id,
-                execution_time_ms=timer.execution_time_ms
-            )
-        except Exception as e:
-            logger.error(f"Error creating maintenance record: {e}")
-            return ResponseBuilder.error(
-                message="Internal server error",
-                status_code=500,
-                request_id=request_id,
-                execution_time_ms=timer.execution_time_ms
-            )
+    try:
+        data = maintenance_request.dict()
+        data["created_by"] = user["user_id"]
+        data["updated_by"] = user["user_id"]
+        
+        record = await maintenance_records_service.create_maintenance_record(data)
+        
+        return ResponseBuilder.success(
+            data=record,
+            message="Maintenance record created successfully",
+            request_id=request_id,
+            execution_time=timer.elapsed
+        )
+        
+    except ValueError as e:
+        return ResponseBuilder.error(
+            message=str(e),
+            status_code=400,
+            request_id=request_id,
+            execution_time=timer.elapsed
+        )
+    except Exception as e:
+        logger.error(f"Error creating maintenance record: {e}")
+        return ResponseBuilder.error(
+            message="Internal server error",
+            status_code=500,
+            request_id=request_id,
+            execution_time=timer.elapsed
+        )
 
 
 @router.get("/")

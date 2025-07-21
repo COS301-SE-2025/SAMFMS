@@ -30,20 +30,51 @@ export const createDriver = async driverData => {
 
 /**
  * Get list of drivers with optional filters
- * Uses the management block drivers endpoint
+ * Uses the auth/users endpoint and filters for users with driver role
  * @param {Object} params - Query parameters (skip, limit, status_filter, department_filter)
  * @returns {Promise<Object>} Drivers list with pagination info
  */
 export const getDrivers = async (params = {}) => {
   try {
-    console.log('Fetching drivers using management block endpoint...');
+    console.log('Fetching drivers using auth/users endpoint...');
 
-    // Use the management block drivers endpoint
-    const response = await httpClient.get(DRIVER_ENDPOINTS.list, { params });
+    // Get all users from the auth service directly
+    const allUsers = await httpClient.get('/auth/users');
 
-    console.log(`Found ${response.drivers?.length || 0} drivers from management service`);
+    // Filter for users with 'driver' role
+    const drivers = allUsers.filter(user => user.role === 'driver');
 
-    return response;
+    console.log(`Found ${drivers.length} drivers out of ${allUsers.length} total users`);
+
+    // Apply optional filters if provided
+    let filteredDrivers = drivers;
+
+    if (params.status_filter) {
+      // Convert status filter to match auth service data structure
+      const isActiveFilter = params.status_filter.toLowerCase() === 'active';
+      filteredDrivers = filteredDrivers.filter(driver => driver.is_active === isActiveFilter);
+    }
+
+    if (params.department_filter) {
+      filteredDrivers = filteredDrivers.filter(
+        driver => driver.details?.department === params.department_filter
+      );
+    }
+
+    // Apply pagination if provided
+    const skip = parseInt(params.skip) || 0;
+    const limit = parseInt(params.limit) || filteredDrivers.length;
+
+    const paginatedDrivers = filteredDrivers.slice(skip, skip + limit);
+
+    // Return in the expected format with pagination info
+    return {
+      drivers: paginatedDrivers,
+      total: filteredDrivers.length,
+      skip: skip,
+      limit: limit,
+      has_more: skip + limit < filteredDrivers.length,
+    };
   } catch (error) {
     console.error('Error fetching drivers:', error);
     throw error;

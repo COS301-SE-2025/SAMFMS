@@ -3,6 +3,7 @@ Global exception handlers for Management service
 """
 import logging
 import traceback
+import json
 from datetime import datetime
 from typing import Any
 
@@ -13,6 +14,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from schemas.responses import ResponseBuilder, ErrorResponse
 from api.dependencies import get_request_id
+from config.rabbitmq_config import json_serializer
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +49,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=error_response.model_dump()
+            content=json.loads(json.dumps(error_response.model_dump(), default=json_serializer))
         )
         
     except Exception as handler_exc:
@@ -88,7 +90,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
         
         return JSONResponse(
             status_code=exc.status_code,
-            content=error_response.model_dump()
+            content=json.loads(json.dumps(error_response.model_dump(), default=json_serializer))
         )
         
     except Exception as handler_exc:
@@ -128,7 +130,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content=error_response.model_dump()
+            content=json.loads(json.dumps(error_response.model_dump(), default=json_serializer))
         )
         
     except Exception as handler_exc:
@@ -158,7 +160,7 @@ async def starlette_exception_handler(request: Request, exc: StarletteHTTPExcept
         
         return JSONResponse(
             status_code=exc.status_code,
-            content=error_response.model_dump()
+            content=json.loads(json.dumps(error_response.model_dump(), default=json_serializer))
         )
         
     except Exception as handler_exc:
@@ -200,7 +202,7 @@ async def database_exception_handler(request: Request, exc: DatabaseConnectionEr
         
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content=error_response.model_dump()
+            content=json.loads(json.dumps(error_response.model_dump(), default=json_serializer))
         )
         
     except Exception as handler_exc:
@@ -227,7 +229,7 @@ async def event_publish_exception_handler(request: Request, exc: EventPublishErr
         
         return JSONResponse(
             status_code=status.HTTP_207_MULTI_STATUS,
-            content=error_response.model_dump()
+            content=json.loads(json.dumps(error_response.model_dump(), default=json_serializer))
         )
         
     except Exception as handler_exc:
@@ -254,7 +256,7 @@ async def business_logic_exception_handler(request: Request, exc: BusinessLogicE
         
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content=error_response.model_dump()
+            content=json.loads(json.dumps(error_response.model_dump(), default=json_serializer))
         )
         
     except Exception as handler_exc:

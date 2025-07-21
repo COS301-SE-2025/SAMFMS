@@ -10,6 +10,8 @@ import os
 from datetime import datetime
 
 from .events import BaseEvent, EventType
+# Import standardized config
+from config.rabbitmq_config import RabbitMQConfig
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +22,9 @@ class EventPublisher:
     def __init__(self):
         self.connection: Optional[aio_pika.Connection] = None
         self.channel: Optional[aio_pika.Channel] = None
-        self.rabbitmq_url = os.getenv(
-            "RABBITMQ_URL", 
-            "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/"
-        )
+        # Use standardized config
+        self.config = RabbitMQConfig()
+        self.rabbitmq_url = self.config.get_rabbitmq_url()
         self.exchange_name = "management_events"
         self.exchange: Optional[aio_pika.Exchange] = None
         
@@ -32,8 +33,8 @@ class EventPublisher:
         try:
             self.connection = await aio_pika.connect_robust(
                 self.rabbitmq_url,
-                heartbeat=600,
-                blocked_connection_timeout=300,
+                heartbeat=self.config.CONNECTION_PARAMS["heartbeat"],
+                blocked_connection_timeout=self.config.CONNECTION_PARAMS["blocked_connection_timeout"],
                 connection_attempts=3,
                 retry_delay=2
             )

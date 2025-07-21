@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 import traceback
 
 from .events import VehicleEvent, UserEvent
+# Import standardized config
+from config.rabbitmq_config import RabbitMQConfig
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +23,9 @@ class EventConsumer:
     def __init__(self):
         self.connection: Optional[aio_pika.Connection] = None
         self.channel: Optional[aio_pika.Channel] = None
-        self.rabbitmq_url = os.getenv(
-            "RABBITMQ_URL", 
-            "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/"
-        )
+        # Use standardized config
+        self.config = RabbitMQConfig()
+        self.rabbitmq_url = self.config.get_rabbitmq_url()
         self.handlers: Dict[str, Callable] = {}
         self.dead_letter_queue: Optional[aio_pika.Queue] = None
         self.max_retry_attempts = 3
@@ -41,11 +42,11 @@ class EventConsumer:
             try:
                 logger.info(f"Attempting to connect to RabbitMQ (attempt {attempt + 1}/{max_retries})")
                 
-                # Use more robust connection settings
+                # Use standardized connection settings
                 self.connection = await aio_pika.connect_robust(
                     self.rabbitmq_url,
-                    heartbeat=300,  # Reduced heartbeat
-                    blocked_connection_timeout=120,  # Reduced timeout
+                    heartbeat=self.config.CONNECTION_PARAMS["heartbeat"],
+                    blocked_connection_timeout=self.config.CONNECTION_PARAMS["blocked_connection_timeout"],
                     connection_attempts=3,
                     retry_delay=1.0
                 )
@@ -118,16 +119,9 @@ class EventConsumer:
             return
         
         try:
-            # Setup dead letter queue first (if enabled)
-            if self.enable_dead_letter_queue:
-                try:
-                    await self._setup_dead_letter_queue()
-                except Exception as dlq_error:
-                    logger.warning(f"Failed to setup dead letter queue: {dlq_error}")
-                    logger.info("Continuing without dead letter queue")
-                    self.enable_dead_letter_queue = False
-            else:
-                logger.info("Dead letter queue disabled via configuration")
+            # Temporarily disable dead letter queue to avoid timeout issues
+            logger.info("Dead letter queue disabled to avoid timeout issues")
+            self.enable_dead_letter_queue = False
             
             # Try to declare queue with better error handling
             queue_name = "management_service_events"
@@ -373,30 +367,30 @@ class EventConsumer:
             # Queue doesn't exist or we can't access it passively, try to declare it
             pass
         
-        # Define queue arguments based on DLQ availability
+        # Define simplified queue arguments to avoid timeout issues
         if self.enable_dead_letter_queue and self.dead_letter_queue:
             queue_args = {
                 "x-message-ttl": 300000,  # 5 minutes TTL
-                "x-max-length": 1000,
-                "x-overflow": "drop-head",
                 "x-dead-letter-exchange": "management_dlx",
                 "x-dead-letter-routing-key": "failed"
             }
             logger.info("Attempting to declare queue with dead letter exchange")
         else:
             queue_args = {
-                "x-message-ttl": 300000,  # 5 minutes TTL
-                "x-max-length": 1000,
-                "x-overflow": "drop-head"
+                "x-message-ttl": 300000  # Only TTL to minimize conflicts
             }
-            logger.info("Attempting to declare queue without dead letter exchange")
+            logger.info("Attempting to declare queue with minimal arguments")
         
         # Try to declare queue with desired arguments
         try:
-            queue = await self.channel.declare_queue(
-                queue_name,
-                durable=True,
-                arguments=queue_args
+            # Use a timeout for the queue declaration
+            queue = await asyncio.wait_for(
+                self.channel.declare_queue(
+                    queue_name,
+                    durable=True,
+                    arguments=queue_args
+                ),
+                timeout=10.0  # 10 second timeout
             )
             logger.info(f"Successfully declared queue {queue_name}")
             return queue
@@ -412,7 +406,10 @@ class EventConsumer:
                 
                 # Simply connect to the existing queue as-is
                 try:
-                    queue = await self.channel.declare_queue(queue_name, passive=True)
+                    queue = await asyncio.wait_for(
+                        self.channel.declare_queue(queue_name, passive=True),
+                        timeout=10.0
+                    )
                     logger.info(f"Connected to existing queue {queue_name} with its current configuration")
                     return queue
                 except Exception as passive_error:
@@ -420,7 +417,10 @@ class EventConsumer:
                     
                     # Final attempt: just declare without arguments and let RabbitMQ handle it
                     try:
-                        queue = await self.channel.declare_queue(queue_name, durable=True)
+                        queue = await asyncio.wait_for(
+                            self.channel.declare_queue(queue_name, durable=True),
+                            timeout=10.0
+                        )
                         logger.info(f"Connected to queue {queue_name} with default declaration")
                         return queue
                     except Exception as final_error:

@@ -354,3 +354,42 @@ def get_test_endpoints() -> Dict[str, Any]:
 def get_docker_compose_env() -> Dict[str, str]:
     """Get Docker Compose environment variables for testing"""
     return DOCKER_COMPOSE_TEST_ENV
+
+def get_test_config() -> Dict[str, Any]:
+    """Get test configuration settings"""
+    return TEST_CONFIG
+
+def get_test_fixtures() -> Dict[str, Any]:
+    """Get test fixtures and sample data"""
+    return {
+        "users": [
+            {
+                "id": "test_user_1",
+                "username": "testuser1",
+                "email": "test1@example.com",
+                "role": "admin",
+                "is_active": True
+            }
+        ],
+        "vehicles": [
+            {
+                "id": "test_vehicle_1",
+                "make": "Toyota",
+                "model": "Camry",
+                "year": 2022,
+                "license_plate": "TEST001",
+                "vin": "1HGBH41JXMN109186",
+                "status": "active"
+            }
+        ],
+        "drivers": [
+            {
+                "id": "test_driver_1",
+                "name": "John Doe",
+                "license_number": "DL123456789",
+                "email": "john.doe@example.com",
+                "phone": "+1234567890",
+                "status": "active"
+            }
+        ]
+    }

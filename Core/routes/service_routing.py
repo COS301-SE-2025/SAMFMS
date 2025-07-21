@@ -25,24 +25,24 @@ service_router = APIRouter()
 # Define service block mappings
 SERVICE_BLOCKS = {
     "management": {
-        "exchange": "service_requests",
+        "exchange": "management_exchange",
         "queue": "management_queue",
-        "routing_key": "management.requests"
+        "routing_key": "management.request"
     },
     "maintenance": {
-        "exchange": "service_requests", 
+        "exchange": "maintenance_exchange", 
         "queue": "maintenance_queue",
-        "routing_key": "maintenance.requests"
+        "routing_key": "maintenance.request"
     },
     "gps": {
-        "exchange": "service_requests",
+        "exchange": "gps_exchange",
         "queue": "gps_queue", 
-        "routing_key": "gps.requests"
+        "routing_key": "gps.request"
     },
     "trips": {
-        "exchange": "service_requests",
+        "exchange": "trip_planning_exchange",
         "queue": "trip_planning_queue",
-        "routing_key": "trips.requests"
+        "routing_key": "trips.request"
     }
 }
 
@@ -81,12 +81,12 @@ async def route_to_service_block(
     
     # Prepare message for service block
     message = {
-        "correlation_id": request_id,
+        "request_id": request_id,
         "method": method,
-        "endpoint": path,
-        "data": query_params or {},
-        "user_context": dict(headers),
+        "path": path,
+        "headers": dict(headers),
         "body": body.decode('utf-8') if body else None,
+        "query_params": query_params or {},
         "timestamp": datetime.utcnow().isoformat(),
         "source": "core-gateway"
     }
@@ -129,15 +129,15 @@ async def handle_service_response(message_data: Dict[str, Any]):
     Args:
         message_data: Response message from service block
     """
-    correlation_id = message_data.get("correlation_id")
+    request_id = message_data.get("request_id")
     
-    if correlation_id and correlation_id in pending_responses:
-        future = pending_responses[correlation_id]
+    if request_id and request_id in pending_responses:
+        future = pending_responses[request_id]
         if not future.done():
             future.set_result(message_data)
-            logger.info(f"Received response for correlation {correlation_id}")
+            logger.info(f"Received response for request {request_id}")
     else:
-        logger.warning(f"Received response for unknown correlation ID: {correlation_id}")
+        logger.warning(f"Received response for unknown request ID: {request_id}")
 
 # Route handlers for each service block
 
@@ -173,7 +173,7 @@ async def management_route(request: Request, path: str = ""):
         
         # Return response from service block
         return JSONResponse(
-            content=response.get("data", {}),
+            content=response.get("body", {}),
             status_code=response.get("status_code", 200),
             headers=response.get("headers", {})
         )
@@ -216,7 +216,7 @@ async def maintenance_route(request: Request, path: str = ""):
         
         # Return response from service block
         return JSONResponse(
-            content=response.get("data", {}),
+            content=response.get("body", {}),
             status_code=response.get("status_code", 200),
             headers=response.get("headers", {})
         )
@@ -259,7 +259,7 @@ async def gps_route(request: Request, path: str = ""):
         
         # Return response from service block
         return JSONResponse(
-            content=response.get("data", {}),
+            content=response.get("body", {}),
             status_code=response.get("status_code", 200),
             headers=response.get("headers", {})
         )
@@ -302,7 +302,7 @@ async def trips_route(request: Request, path: str = ""):
         
         # Return response from service block
         return JSONResponse(
-            content=response.get("data", {}),
+            content=response.get("body", {}),
             status_code=response.get("status_code", 200),
             headers=response.get("headers", {})
         )

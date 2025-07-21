@@ -61,7 +61,7 @@ RUN mkdir -p /project
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-EXPOSE 8000 27017
+EXPOSE 8000
 
 # Set environment variables for better compatibility
 ENV OPENBLAS_CORETYPE=generic

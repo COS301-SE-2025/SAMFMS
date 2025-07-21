@@ -415,6 +415,65 @@ async def health_check():
         ).model_dump()
 
 
+@app.get("/docs")
+async def api_documentation():
+    """Management Service API Documentation"""
+    return ResponseBuilder.success(
+        data={
+            "service": "SAMFMS Management Service",
+            "version": "2.1.0", 
+            "description": "Vehicle, Driver, and Analytics Management for SAMFMS Fleet Management System",
+            "base_url": "/management",
+            "endpoints": {
+                "vehicle_management": {
+                    "GET /vehicles": "List all vehicles",
+                    "GET /vehicles/{id}": "Get specific vehicle",
+                    "POST /vehicles": "Create new vehicle",
+                    "PUT /vehicles/{id}": "Update vehicle", 
+                    "DELETE /vehicles/{id}": "Delete vehicle",
+                    "GET /vehicles/search?query={query}": "Search vehicles"
+                },
+                "driver_management": {
+                    "GET /drivers": "List active drivers",
+                    "GET /drivers/{id}": "Get specific driver",
+                    "POST /drivers": "Create new driver",
+                    "PUT /drivers/{id}": "Update driver",
+                    "DELETE /drivers/{id}": "Delete driver"
+                },
+                "vehicle_assignments": {
+                    "GET /assignments": "List assignments",
+                    "GET /vehicle-assignments": "Vehicle assignment data", 
+                    "POST /assignments": "Create assignment",
+                    "PUT /assignments/{id}": "Update assignment"
+                },
+                "analytics": {
+                    "GET /analytics": "General analytics data",
+                    "GET /analytics/dashboard": "Dashboard analytics",
+                    "GET /analytics/fleet-utilization": "Fleet utilization metrics",
+                    "GET /analytics/driver-performance": "Driver performance metrics",
+                    "GET /analytics/maintenance-costs": "Maintenance cost analysis",
+                    "GET /analytics/fuel-consumption": "Fuel consumption data"
+                },
+                "service_endpoints": {
+                    "GET /": "Service information",
+                    "GET /health": "Health check",
+                    "GET /metrics": "Service metrics",
+                    "GET /docs": "API documentation"
+                }
+            },
+            "features": [
+                "Event-driven architecture",
+                "Optimized analytics with caching",
+                "Repository pattern",
+                "Background task processing",
+                "Enhanced error handling",
+                "Standardized responses"
+            ]
+        },
+        message="Management Service API documentation"
+    ).model_dump()
+
+
 @app.get("/metrics")
 async def get_service_metrics():
     """Get service performance metrics"""

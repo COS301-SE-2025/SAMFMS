@@ -4,7 +4,7 @@ Driver management service
 import logging
 from typing import Dict, Any, List, Optional
 
-from repositories.repositories import DriverRepository, SecurityUserRepository
+from repositories.repositories import DriverRepository
 from events.publisher import event_publisher
 from schemas.requests import DriverCreateRequest, DriverUpdateRequest
 
@@ -16,78 +16,6 @@ class DriverService:
     
     def __init__(self):
         self.driver_repo = DriverRepository()
-        self.security_user_repo = SecurityUserRepository()
-    
-    async def get_active_drivers(self) -> List[Dict[str, Any]]:
-        """Get all active drivers from security database"""
-        try:
-            drivers = await self.security_user_repo.get_active_drivers()
-            
-            # Transform the data to match expected format
-            result = {
-                "drivers": drivers,
-                "total": len(drivers),
-                "page": 1,
-                "page_size": len(drivers),
-                "total_pages": 1
-            }
-            
-            return result
-        except Exception as e:
-            logger.error(f"Error getting active drivers: {e}")
-            raise
-    
-    async def get_drivers(self, department: str = None, status: str = None, vehicle_type: str = None, pagination: Dict[str, int] = None) -> Dict[str, Any]:
-        """Get drivers with optional filters"""
-        try:
-            if pagination is None:
-                pagination = {"skip": 0, "limit": 50}
-                
-            # Get drivers from security database
-            drivers = await self.security_user_repo.get_drivers(
-                skip=pagination.get("skip", 0),
-                limit=pagination.get("limit", 50)
-            )
-            
-            # Apply filters if provided
-            if status:
-                if status.lower() == "active":
-                    drivers = [d for d in drivers if d.get("is_active", False)]
-                elif status.lower() == "inactive":
-                    drivers = [d for d in drivers if not d.get("is_active", False)]
-            
-            if department:
-                drivers = [d for d in drivers if d.get("details", {}).get("department") == department]
-            
-            # Get total count
-            total = await self.security_user_repo.count_drivers()
-            
-            result = {
-                "drivers": drivers,
-                "total": total,
-                "page": (pagination.get("skip", 0) // pagination.get("limit", 50)) + 1,
-                "page_size": pagination.get("limit", 50),
-                "total_pages": (total + pagination.get("limit", 50) - 1) // pagination.get("limit", 50),
-                "pagination": {
-                    "skip": pagination.get("skip", 0),
-                    "limit": pagination.get("limit", 50),
-                    "has_more": pagination.get("skip", 0) + len(drivers) < total
-                }
-            }
-            
-            return result
-        except Exception as e:
-            logger.error(f"Error getting drivers: {e}")
-            raise
-    
-    async def get_driver_by_id(self, driver_id: str) -> Optional[Dict[str, Any]]:
-        """Get driver by ID from security database"""
-        try:
-            driver = await self.security_user_repo.get_driver_by_id(driver_id)
-            return driver
-        except Exception as e:
-            logger.error(f"Error getting driver {driver_id}: {e}")
-            raise
     
     async def create_driver(self, driver_request: DriverCreateRequest, created_by: str) -> Dict[str, Any]:
         """Create new driver with validation"""
@@ -241,10 +169,9 @@ class DriverService:
             raise
     
     async def get_active_drivers(self) -> List[Dict[str, Any]]:
-        """Get all active drivers from security database"""
+        """Get all active drivers"""
         try:
-            drivers = await self.security_user_repo.get_active_drivers()
-            return drivers
+            return await self.driver_repo.get_active_drivers()
         except Exception as e:
             logger.error(f"Error getting active drivers: {e}")
             raise

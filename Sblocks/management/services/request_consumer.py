@@ -1,6 +1,6 @@
 """
 Service Request Consumer for Management Service
-Handles requests from Core service via RabbitMQ
+Handles requests from Core service via RabbitMQ with standardized patterns
 """
 
 import asyncio
@@ -12,364 +12,287 @@ from typing import Dict, Any
 import aio_pika
 from aio_pika.abc import AbstractIncomingMessage
 
+# Import standardized RabbitMQ config
+from config.rabbitmq_config import RabbitMQConfig, json_serializer
+
 from api.routes.vehicles import router as vehicles_router
 from api.routes.drivers import router as drivers_router
 from api.routes.analytics import router as analytics_router
 
 logger = logging.getLogger(__name__)
 
-def json_serializer(obj):
-    """JSON serializer for objects not serializable by default json code"""
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    elif hasattr(obj, '__dict__'):
-        return obj.__dict__
-    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
-
 class ServiceRequestConsumer:
-    """Handles service requests from Core via RabbitMQ"""
+    """Handles service requests from Core via RabbitMQ with standardized patterns"""
     
     def __init__(self):
         self.connection = None
         self.channel = None
+        self.exchange = None
+        self.queue = None
+        # Use standardized config
+        self.config = RabbitMQConfig()
+        self.queue_name = self.config.QUEUE_NAMES["management"]
+        self.exchange_name = self.config.EXCHANGE_NAMES["requests"]
+        self.response_exchange_name = self.config.EXCHANGE_NAMES["responses"]
+        # Request deduplication
+        self.processed_requests = set()
         self.is_consuming = False
-        self.rabbitmq_url = os.getenv(
-            "RABBITMQ_URL", 
-            "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/"
-        )
         
     async def connect(self):
-        """Connect to RabbitMQ with improved error handling"""
+        """Establish connection to RabbitMQ using standardized config"""
         try:
-            # Use the same connection parameters as event consumer
             self.connection = await aio_pika.connect_robust(
-                self.rabbitmq_url,
-                heartbeat=300,  # Reduced heartbeat
-                blocked_connection_timeout=120,  # Reduced timeout
-                connection_attempts=3,
-                retry_delay=1.0
+                url=self.config.get_rabbitmq_url(),
+                heartbeat=self.config.CONNECTION_PARAMS["heartbeat"],
+                blocked_connection_timeout=self.config.CONNECTION_PARAMS["blocked_connection_timeout"]
+            )
+            self.channel = await self.connection.channel()
+            
+            # Declare exchanges
+            self.exchange = await self.channel.declare_exchange(
+                self.exchange_name,
+                aio_pika.ExchangeType.DIRECT,
+                durable=True
             )
             
-            self.channel = await self.connection.channel(
-                publisher_confirms=True,
-                on_return_raises=False
+            self.response_exchange = await self.channel.declare_exchange(
+                self.response_exchange_name, 
+                aio_pika.ExchangeType.DIRECT,
+                durable=True
             )
-            await self.channel.set_qos(prefetch_count=5)
             
-            logger.info("✅ Service request consumer connected to RabbitMQ")
-            return True
+            # Declare and bind queue
+            self.queue = await self.channel.declare_queue(
+                self.queue_name,
+                durable=True
+            )
+            
+            # Bind to management routing key
+            await self.queue.bind(self.exchange, "management")
+            
+            logger.info(f"Connected to RabbitMQ. Queue: {self.queue_name}")
             
         except Exception as e:
-            logger.error(f"❌ Failed to connect service request consumer: {e}")
-            return False
+            logger.error(f"Failed to connect to RabbitMQ: {e}")
+            raise
     
     async def setup_queues(self):
-        """Setup queues and exchanges for service requests"""
-        try:
-            # Declare service_requests exchange
-            exchange = await self.channel.declare_exchange(
-                "service_requests", 
-                aio_pika.ExchangeType.DIRECT, 
-                durable=True
-            )
-            
-            # Declare management.requests queue
-            queue = await self.channel.declare_queue(
-                "management.requests", 
-                durable=True
-            )
-            
-            # Bind queue to exchange
-            await queue.bind(exchange, routing_key="management.requests")
-            
-            logger.info("Service request queues and exchanges setup complete")
-            return queue
-            
-        except Exception as e:
-            logger.error(f"Failed to setup service request queues: {e}")
-            raise
+        """Setup queues and exchanges (already done in connect)"""
+        # Queue setup is now handled in connect method
+        return self.queue
     
     async def start_consuming(self):
-        """Start consuming service requests"""
+        """Start consuming requests"""
         try:
-            if self.is_consuming:
-                logger.warning("Service request consumer already consuming")
-                return
+            if not self.connection or self.connection.is_closed:
+                await self.connect()
                 
-            queue = await self.setup_queues()
+            await self.queue.consume(self.handle_request, no_ack=False)
+            logger.info(f"Started consuming from {self.queue_name}")
             
-            # Start consuming
-            await queue.consume(self._handle_request_message, no_ack=False)
-            self.is_consuming = True
-            
-            logger.info("Started consuming service requests from management.requests queue")
-            
-            # Keep consuming
-            while self.is_consuming:
-                await asyncio.sleep(1)
-                
         except Exception as e:
-            logger.error(f"Error in service request consumption: {e}")
-            self.is_consuming = False
+            logger.error(f"Error starting consumer: {e}")
             raise
     
-    async def _handle_request_message(self, message: AbstractIncomingMessage):
-        """Handle incoming service request message"""
+    async def handle_request(self, message: AbstractIncomingMessage):
+        """Handle incoming request message using standardized pattern"""
+        request_id = None
         try:
             async with message.process(requeue=False):
-                # Parse message
+                # Parse message body
                 request_data = json.loads(message.body.decode())
-                correlation_id = request_data.get("correlation_id")
-                endpoint = request_data.get("endpoint")
+                
+                # Extract request details
+                request_id = request_data.get("correlation_id")
                 method = request_data.get("method")
-                data = request_data.get("data", {})
-                body = request_data.get("body")
                 user_context = request_data.get("user_context", {})
+                endpoint = request_data.get("endpoint", "")
                 
-                logger.info(f"Processing service request {correlation_id}: {method} {endpoint}")
+                # Check for duplicate requests
+                if request_id in self.processed_requests:
+                    logger.warning(f"Duplicate request ignored: {request_id}")
+                    return
+                    
+                self.processed_requests.add(request_id)
                 
-                # Process the request
-                response = await self._process_request(endpoint, method, data, body, user_context)
+                logger.info(f"Processing request {request_id}: {method} {endpoint}")
                 
-                # Send response back to Core
-                await self._send_response(correlation_id, response)
+                # Route and process request
+                response_data = await self._route_request(method, user_context, endpoint)
                 
-                logger.info(f"Service request {correlation_id} processed successfully")
+                # Send successful response
+                response = {
+                    "status": "success",
+                    "data": response_data,
+                    "timestamp": datetime.now().isoformat()
+                }
                 
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in service request: {e}")
+                await self._send_response(request_id, response)
+                logger.info(f"Request {request_id} completed successfully")
+                
         except Exception as e:
-            logger.error(f"Error processing service request: {e}")
-            # Try to send error response if we have correlation_id
-            try:
-                request_data = json.loads(message.body.decode())
-                correlation_id = request_data.get("correlation_id")
-                if correlation_id:
-                    await self._send_error_response(correlation_id, str(e))
-            except:
-                pass
+            logger.error(f"Error processing request {request_id}: {e}")
+            if request_id:
+                error_response = {
+                    "status": "error",
+                    "error": str(e),
+                    "timestamp": datetime.now().isoformat()
+                }
+                await self._send_response(request_id, error_response)
     
-    async def _process_request(self, endpoint: str, method: str, data: Dict[str, Any], body: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Process the actual service request"""
+    async def _route_request(self, method: str, user_context: Dict[str, Any], endpoint: str = "") -> Dict[str, Any]:
+        """Route request to appropriate handler based on method name"""
         try:
-            # Core is already sending /api/v1/vehicles, so we don't need to map
-            # Just route based on the endpoint pattern
-            
-            # Route to appropriate handler based on endpoint
+            # Route to appropriate handler based on endpoint pattern
             if "/vehicles" in endpoint:
-                return await self._handle_vehicles_request(endpoint, method, data, body, user_context)
+                return await self._handle_vehicles_request(method, user_context)
             elif "/drivers" in endpoint:
-                return await self._handle_drivers_request(endpoint, method, data, body, user_context)
+                return await self._handle_drivers_request(method, user_context)
             elif "/assignments" in endpoint or "/vehicle-assignments" in endpoint:
-                return await self._handle_assignments_request(endpoint, method, data, body, user_context)
+                return await self._handle_assignments_request(method, user_context)
             elif "/analytics" in endpoint:
-                return await self._handle_analytics_request(endpoint, method, data, body, user_context)
+                return await self._handle_analytics_request(method, user_context)
             else:
                 raise ValueError(f"Unknown endpoint: {endpoint}")
                 
         except Exception as e:
-            logger.error(f"Error processing request for {endpoint}: {e}")
+            logger.error(f"Error routing request for {endpoint}: {e}")
             raise
     
-    async def _handle_vehicles_request(self, endpoint: str, method: str, data: Dict[str, Any], body: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_vehicles_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle vehicles-related requests"""
         # Import and create service instance
         from services.vehicle_service import VehicleService
         from schemas.requests import VehicleCreateRequest, VehicleUpdateRequest
         vehicle_service = VehicleService()
         
-        # Support various vehicles endpoint formats
-        if method == "GET":
-            if endpoint in ["/vehicles", "/api/vehicles", "/api/v1/vehicles"] or endpoint.endswith("/vehicles"):
-                # Extract query parameters from data
-                department = data.get("department")
-                status = data.get("status")
-                vehicle_type = data.get("vehicle_type")
-                
-                # Create pagination object
-                pagination = {
-                    "skip": int(data.get("skip", 0)),
-                    "limit": int(data.get("limit", 50))
-                }
-                
-                return await vehicle_service.get_vehicles(
-                    department=department,
-                    status=status,
-                    vehicle_type=vehicle_type,
-                    pagination=pagination
-                )
-            elif "/vehicles/" in endpoint and not endpoint.endswith("/vehicles"):
-                vehicle_id = endpoint.split("/")[-1]
-                return await vehicle_service.get_vehicle_by_id(vehicle_id)
-            elif "/vehicles/search" in endpoint:
-                query = data.get("q", "")
-                pagination = {
-                    "skip": int(data.get("skip", 0)),
-                    "limit": int(data.get("limit", 50))
-                }
-                return await vehicle_service.search_vehicles(query, pagination)
-        elif method == "POST":
-            if endpoint in ["/vehicles", "/api/vehicles", "/api/v1/vehicles"] or endpoint.endswith("/vehicles"):
-                # For POST requests, the body contains the JSON data
-                import json
-                try:
-                    # Try to parse the body as JSON
-                    body_data = json.loads(body) if body else {}
-                    # Convert dict to VehicleCreateRequest object
-                    vehicle_request = VehicleCreateRequest(**body_data)
-                    # Extract created_by from user_context
-                    created_by = user_context.get("user_id", "unknown")
-                    return await vehicle_service.create_vehicle(vehicle_request, created_by)
-                except json.JSONDecodeError:
-                    # If body is not valid JSON, try using data field
-                    vehicle_request = VehicleCreateRequest(**data)
-                    created_by = user_context.get("user_id", "unknown")
-                    return await vehicle_service.create_vehicle(vehicle_request, created_by)
-        elif method == "PUT":
-            if "/vehicles/" in endpoint:
-                vehicle_id = endpoint.split("/")[-1]
-                # Convert dict to VehicleUpdateRequest object
-                vehicle_update_request = VehicleUpdateRequest(**data)
-                # Extract updated_by from user_context
-                updated_by = user_context.get("user_id", "unknown")
-                return await vehicle_service.update_vehicle(vehicle_id, vehicle_update_request, updated_by)
-        elif method == "DELETE":
-            if "/vehicles/" in endpoint:
-                vehicle_id = endpoint.split("/")[-1]
-                # Extract deleted_by from user_context
-                deleted_by = user_context.get("user_id", "unknown")
-                return await vehicle_service.delete_vehicle(vehicle_id, deleted_by)
+        # Extract data and endpoint from user_context
+        data = user_context.get("data", {})
+        endpoint = user_context.get("endpoint", "")
         
-        raise ValueError(f"Unsupported vehicles operation: {method} {endpoint}")
+        # Support both /api/vehicles and /api/v1/vehicles endpoints
+        if method == "get_vehicles":
+            return await vehicle_service.get_vehicles()
+        elif method == "get_vehicle_by_id":
+            vehicle_id = user_context.get("vehicle_id")
+            return await vehicle_service.get_vehicle_by_id(vehicle_id)
+        elif method == "search_vehicles":
+            query = user_context.get("query", "")
+            return await vehicle_service.search_vehicles(query)
+        elif method == "create_vehicle":
+            # Convert dict to VehicleCreateRequest object
+            vehicle_request = VehicleCreateRequest(**data)
+            # Extract created_by from user_context
+            created_by = user_context.get("user_id", "unknown")
+            return await vehicle_service.create_vehicle(vehicle_request, created_by)
+        elif method == "update_vehicle":
+            vehicle_id = user_context.get("vehicle_id")
+            # Convert dict to VehicleUpdateRequest object
+            vehicle_update_request = VehicleUpdateRequest(**data)
+            # Extract updated_by from user_context
+            updated_by = user_context.get("user_id", "unknown")
+            return await vehicle_service.update_vehicle(vehicle_id, vehicle_update_request, updated_by)
+        elif method == "delete_vehicle":
+            vehicle_id = user_context.get("vehicle_id")
+            # Extract deleted_by from user_context
+            deleted_by = user_context.get("user_id", "unknown")
+            return await vehicle_service.delete_vehicle(vehicle_id, deleted_by)
+        
+        raise ValueError(f"Unsupported vehicles operation: {method}")
     
-    async def _handle_drivers_request(self, endpoint: str, method: str, data: Dict[str, Any], body: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_drivers_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle drivers-related requests"""
         from services.driver_service import DriverService
         driver_service = DriverService()
         
-        if method == "GET":
-            if endpoint in ["/drivers", "/api/drivers", "/api/v1/drivers"] or endpoint.endswith("/drivers"):
-                return await driver_service.get_active_drivers()
-            elif "/drivers/" in endpoint:
-                driver_id = endpoint.split("/")[-1]
-                return await driver_service.get_driver_by_id(driver_id)
-        elif method == "POST":
-            if endpoint in ["/drivers", "/api/drivers", "/api/v1/drivers"] or endpoint.endswith("/drivers"):
-                # Extract created_by from user_context
-                created_by = user_context.get("user_id", "unknown")
-                return await driver_service.create_driver(data, created_by)
-        elif method == "PUT":
-            if "/drivers/" in endpoint:
-                driver_id = endpoint.split("/")[-1]
-                # Extract updated_by from user_context
-                updated_by = user_context.get("user_id", "unknown")
-                return await driver_service.update_driver(driver_id, data, updated_by)
-        elif method == "DELETE":
-            if "/drivers/" in endpoint:
-                driver_id = endpoint.split("/")[-1]
-                return await driver_service.delete_driver(driver_id)
+        # Extract data from user_context
+        data = user_context.get("data", {})
         
-        raise ValueError(f"Unsupported drivers operation: {method} {endpoint}")
+        if method == "get_active_drivers":
+            return await driver_service.get_active_drivers()
+        elif method == "get_driver_by_id":
+            driver_id = user_context.get("driver_id")
+            return await driver_service.get_driver_by_id(driver_id)
+        elif method == "create_driver":
+            # Extract created_by from user_context
+            created_by = user_context.get("user_id", "unknown")
+            return await driver_service.create_driver(data, created_by)
+        elif method == "update_driver":
+            driver_id = user_context.get("driver_id")
+            # Extract updated_by from user_context
+            updated_by = user_context.get("user_id", "unknown")
+            return await driver_service.update_driver(driver_id, data, updated_by)
+        elif method == "delete_driver":
+            driver_id = user_context.get("driver_id")
+            return await driver_service.delete_driver(driver_id)
+        
+        raise ValueError(f"Unsupported drivers operation: {method}")
     
-    async def _handle_assignments_request(self, endpoint: str, method: str, data: Dict[str, Any], body: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_assignments_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle assignments-related requests"""
         # Assignment service not implemented yet
         return {
             "message": "Assignment service not yet implemented",
-            "endpoint": endpoint,
             "method": method
         }
     
-    async def _handle_analytics_request(self, endpoint: str, method: str, data: Dict[str, Any], body: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_analytics_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle analytics-related requests"""
         from services.analytics_service import analytics_service
         
-        if method == "GET":
-            use_cache = data.get("use_cache", True)
-            
-            if endpoint == "/api/v1/analytics":
-                return await analytics_service.get_analytics_data(data)
-            elif endpoint == "/api/v1/analytics/dashboard":
-                return await analytics_service.get_dashboard_analytics(use_cache=use_cache)
-            elif endpoint == "/api/v1/analytics/fleet-utilization":
-                return await analytics_service.get_fleet_utilization(use_cache=use_cache)
-            elif endpoint == "/api/v1/analytics/vehicle-usage":
-                return await analytics_service.get_vehicle_usage(use_cache=use_cache)
-            elif endpoint == "/api/v1/analytics/assignment-metrics":
-                return await analytics_service.get_assignment_metrics(use_cache=use_cache)
-            elif endpoint == "/api/v1/analytics/driver-performance":
-                return await analytics_service.get_driver_performance(use_cache=use_cache)
-            elif endpoint == "/api/v1/analytics/cost-analysis":
-                return await analytics_service.get_cost_analysis(use_cache=use_cache)
+        # Extract data from user_context
+        data = user_context.get("data", {})
+        use_cache = data.get("use_cache", True)
         
-        raise ValueError(f"Unsupported analytics operation: {method} {endpoint}")
+        if method == "get_analytics_data":
+            return await analytics_service.get_analytics_data(data)
+        elif method == "get_dashboard_analytics":
+            return await analytics_service.get_dashboard_analytics(use_cache=use_cache)
+        elif method == "get_fleet_utilization":
+            return await analytics_service.get_fleet_utilization(use_cache=use_cache)
+        elif method == "get_driver_performance":
+            return await analytics_service.get_driver_performance(use_cache=use_cache)
+        elif method == "get_maintenance_costs":
+            return await analytics_service.get_maintenance_costs(use_cache=use_cache)
+        elif method == "get_fuel_consumption":
+            return await analytics_service.get_fuel_consumption(use_cache=use_cache)
+        
+        raise ValueError(f"Unsupported analytics operation: {method}")
     
     async def _send_response(self, correlation_id: str, response_data: Dict[str, Any]):
-        """Send response back to Core via RabbitMQ"""
+        """Send response back to Core via RabbitMQ using standardized config"""
         try:
             # Prepare response message
             response_msg = {
                 "correlation_id": correlation_id,
-                "status": "success",
+                "status": "success", 
                 "data": response_data,
-                "timestamp": asyncio.get_event_loop().time()
+                "timestamp": datetime.now().isoformat()
             }
             
-            # Declare core_responses exchange
-            exchange = await self.channel.declare_exchange(
-                "core_responses", 
-                aio_pika.ExchangeType.DIRECT, 
-                durable=True
-            )
-            
-            # Send response to core.responses queue using custom serializer
+            # Send response using standardized response exchange
             message = aio_pika.Message(
                 json.dumps(response_msg, default=json_serializer).encode(),
-                delivery_mode=aio_pika.DeliveryMode.PERSISTENT
+                correlation_id=correlation_id
             )
             
-            await exchange.publish(message, routing_key="core.response")
+            await self.response_exchange.publish(
+                message, 
+                routing_key=self.config.ROUTING_KEYS["core_responses"]
+            )
             
-            logger.debug(f"Sent response for correlation_id: {correlation_id}")
+            logger.info(f"Response sent for correlation_id: {correlation_id}")
             
         except Exception as e:
-            logger.error(f"Error sending response for {correlation_id}: {e}")
+            logger.error(f"Failed to send response for {correlation_id}: {e}")
             raise
-    
-    async def _send_error_response(self, correlation_id: str, error_message: str):
-        """Send error response back to Core"""
-        try:
-            response_msg = {
-                "correlation_id": correlation_id,
-                "status": "error",
-                "error": error_message,
-                "timestamp": asyncio.get_event_loop().time()
-            }
-            
-            exchange = await self.channel.declare_exchange(
-                "core_responses", 
-                aio_pika.ExchangeType.DIRECT, 
-                durable=True
-            )
-            
-            message = aio_pika.Message(
-                json.dumps(response_msg).encode(),
-                delivery_mode=aio_pika.DeliveryMode.PERSISTENT
-            )
-            
-            await exchange.publish(message, routing_key="core.response")
-            
-            logger.debug(f"Sent error response for correlation_id: {correlation_id}")
-            
-        except Exception as e:
-            logger.error(f"Error sending error response for {correlation_id}: {e}")
     
     async def stop_consuming(self):
         """Stop consuming messages"""
         self.is_consuming = False
         if self.connection and not self.connection.is_closed:
             await self.connection.close()
-        logger.info("Service request consumer stopped")
+        logger.info("Management service request consumer stopped")
 
 # Global instance
 service_request_consumer = ServiceRequestConsumer()

@@ -87,20 +87,15 @@ async def lifespan(app: FastAPI):
             logger.info("🐰 Initializing RabbitMQ...")
             from rabbitmq.consumer import consume_messages
             from rabbitmq.admin import create_exchange
-            import aio_pika
             
-            # Create exchanges if needed
-            await create_exchange("service_requests", aio_pika.ExchangeType.DIRECT)
-            await create_exchange("core_responses", aio_pika.ExchangeType.DIRECT)
+            # Create exchange if needed
+            await create_exchange()
             
             # Start background message consumption for service responses
-            consumer_task = asyncio.create_task(consume_messages("core_responses"))
-            # Keep a reference to prevent garbage collection
-            app.state.consumer_task = consumer_task
+            asyncio.create_task(consume_messages("core_responses"))
             logger.info("✅ RabbitMQ initialized with service response consumer")
         except Exception as e:
             logger.warning(f"⚠️  RabbitMQ initialization failed: {e}")
-            logger.exception("RabbitMQ initialization error details:")
             # Continue without RabbitMQ for now
         
         # 5. Initialize startup services (includes response manager)
@@ -143,18 +138,7 @@ async def lifespan(app: FastAPI):
         logger.info("🔍 Shutting down service discovery...")
         await shutdown_service_discovery()
         
-        # 2. Stop RabbitMQ consumer
-        if hasattr(app.state, 'consumer_task'):
-            logger.info("🐰 Stopping RabbitMQ consumer...")
-            try:
-                app.state.consumer_task.cancel()
-                await app.state.consumer_task
-            except asyncio.CancelledError:
-                logger.info("RabbitMQ consumer stopped")
-            except Exception as e:
-                logger.warning(f"Error stopping RabbitMQ consumer: {e}")
-        
-        # 3. Close database connections
+        # 2. Close database connections
         if hasattr(app.state, 'db_manager'):
             logger.info("📊 Closing database connections...")
             await app.state.db_manager.close()
@@ -237,16 +221,6 @@ except ImportError as e:
         logger.info("✅ Direct GPS routes configured as fallback")
     except ImportError as gps_error:
         logger.warning(f"⚠️  Direct GPS routes also failed: {gps_error}")
-
-# Import direct vehicle routes for frontend compatibility
-try:
-    from routes.api import api_router
-    app.include_router(api_router)
-    logger.info("✅ Direct vehicle routes configured for frontend compatibility")
-    logger.info("    • /vehicles/* -> Vehicle management routes")
-except ImportError as e:
-    logger.error(f"❌ Failed to import direct vehicle routes: {e}")
-    logger.warning("⚠️  Frontend vehicle routes will not be available")
 
 # Import debug routes if in development
 if config.environment.value == "development":
@@ -369,6 +343,52 @@ async def service_info():
         info["uptime_seconds"] = (datetime.utcnow() - app.state.startup_time).total_seconds()
     
     return info
+
+@app.get("/docs")
+async def api_documentation():
+    """Core Service API Documentation"""
+    return {
+        "service": "SAMFMS Core Service",
+        "version": "1.0.0",
+        "description": "API Gateway and Request Router for SAMFMS Fleet Management System",
+        "endpoints": {
+            "core_endpoints": {
+                "GET /": "Service information",
+                "GET /health": "Health check with component status",
+                "GET /info": "Detailed service information", 
+                "GET /docs": "API documentation",
+                "GET /test-auth": "Authentication test endpoint"
+            },
+            "gateway_routes": {
+                "description": "Core acts as an API gateway, routing requests to appropriate services",
+                "routing_pattern": "/{service}/* → routes to {service} block",
+                "available_services": {
+                    "/management/*": "Management Service - Vehicles, Drivers, Analytics",
+                    "/maintenance/*": "Maintenance Service - Records, Licenses, Notifications", 
+                    "/gps/*": "GPS Service - Location Tracking",
+                    "/trips/*": "Trip Planning Service - Route Planning"
+                }
+            },
+            "authentication": {
+                "description": "JWT-based authentication",
+                "token_header": "Authorization: Bearer <token>",
+                "token_expiry": "30 minutes"
+            },
+            "message_format": {
+                "requests": {
+                    "correlation_id": "uuid-string",
+                    "method": "method_name",
+                    "user_context": {"user_id": "string", "data": "object"}
+                },
+                "responses": {
+                    "correlation_id": "uuid-string", 
+                    "status": "success|error",
+                    "data": "object",
+                    "timestamp": "ISO-8601"
+                }
+            }
+        }
+    }
 
 if __name__ == "__main__":
     uvicorn.run(

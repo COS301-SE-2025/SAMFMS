@@ -29,54 +29,31 @@ class RequestRouter:
     def __init__(self):
         self.response_manager = ResponseCorrelationManager()
         self.routing_map = {
-            # Management service endpoints (both v1 and legacy paths)
-            "/api/vehicles": "management",
-            "/api/vehicles/*": "management",
-            "/api/v1/vehicles": "management",
-            "/api/v1/vehicles/*": "management",
-            "/api/drivers": "management",
-            "/api/drivers/*": "management",
-            "/api/v1/drivers": "management", 
-            "/api/v1/drivers/*": "management",
-            "/api/vehicle-assignments": "management",
-            "/api/vehicle-assignments/*": "management",
-            "/api/assignments": "management",
-            "/api/assignments/*": "management",
-            "/api/v1/assignments": "management",
-            "/api/v1/assignments/*": "management",
-            "/api/v1/vehicle-assignments": "management",
-            "/api/v1/vehicle-assignments/*": "management",
-            "/api/vehicle-usage": "management",
-            "/api/vehicle-usage/*": "management",
-            "/api/analytics": "management",
-            "/api/analytics/*": "management",
-            "/api/v1/analytics": "management",
-            "/api/v1/analytics/*": "management",
-            # Other services
-            "/api/gps/*": "gps",
-            "/api/tracking/*": "gps", 
-            "/api/trips/*": "trip_planning",
-            "/api/trip-planning/*": "trip_planning",
-            "/api/maintenance": "vehicle_maintenance",
-            "/api/maintenance/*": "vehicle_maintenance",
-            "/api/vehicle-maintenance/*": "vehicle_maintenance"
+            # Management Service Routes - simplified
+            "/management": "management",
+            "/management/*": "management",
+            
+            # Maintenance Service Routes - simplified 
+            "/maintenance": "maintenance",
+            "/maintenance/*": "maintenance",
+            
+            # GPS Service Routes - simplified
+            "/gps": "gps",
+            "/gps/*": "gps",
+            
+            # Trip Planning Service Routes - simplified
+            "/trips": "trip_planning", 
+            "/trips/*": "trip_planning",
+            # Vehicle maintenance routed to maintenance service (consolidated)
+            "/api/vehicle-maintenance": "maintenance",
+            "/api/vehicle-maintenance/*": "maintenance"
         }
 
     def normalize_endpoint(self, endpoint: str) -> str:
         """Normalize endpoints for routing consistency"""
-        # Convert /api/analytics/* to /api/v1/analytics/* for management service
-        if endpoint.startswith("/api/analytics/"):
-            return endpoint.replace("/api/analytics/", "/api/v1/analytics/")
-        
-        # Convert other endpoints to v1 API format for consistency
-        if endpoint.startswith("/api/vehicles"):
-            return endpoint.replace("/api/vehicles", "/api/v1/vehicles")
-        elif endpoint.startswith("/api/drivers"):
-            return endpoint.replace("/api/drivers", "/api/v1/drivers")
-        elif endpoint.startswith("/api/vehicle-assignments"):
-            return endpoint.replace("/api/vehicle-assignments", "/api/v1/vehicle-assignments")
-        elif endpoint.startswith("/api/vehicle-usage"):
-            return endpoint.replace("/api/vehicle-usage", "/api/v1/vehicle-usage")
+        # Remove /api prefix if present for simplified routing
+        if endpoint.startswith("/api/"):
+            endpoint = endpoint[4:]  # Remove "/api"
             
         return endpoint
 

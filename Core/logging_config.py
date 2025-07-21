@@ -178,21 +178,6 @@ def setup_logging(
                 'handlers': ['console'],
                 'propagate': False,
             },
-            'pymongo': {
-                'level': 'WARNING',
-                'handlers': ['console'],
-                'propagate': False,
-            },
-            'aiormq': {
-                'level': 'WARNING',
-                'handlers': ['console'],
-                'propagate': False,
-            },
-            'aiormq.connection': {
-                'level': 'WARNING',
-                'handlers': ['console'],
-                'propagate': False,
-            },
         },
         'root': {
             'level': log_level,

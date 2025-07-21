@@ -19,7 +19,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from schemas.responses import ResponseBuilder
 
 from repositories.database import db_manager
-from services.request_consumer import maintenance_service_request_consumer
+from services.request_consumer import service_request_consumer
 from services.background_jobs import background_jobs
 from api.routes.maintenance_records import router as maintenance_records_router
 from api.routes.licenses import router as licenses_router
@@ -52,11 +52,11 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Database connected and indexes created")
 
         # Connect and start RabbitMQ consumer
-        await maintenance_service_request_consumer.connect()
+        await service_request_consumer.connect()
         logger.info("✅ RabbitMQ connected")
         
         # Start consuming in the background
-        consumer_task = asyncio.create_task(maintenance_service_request_consumer.start_consuming())
+        consumer_task = asyncio.create_task(service_request_consumer.start_consuming())
         # Keep reference to prevent garbage collection
         app.state.consumer_task = consumer_task
         logger.info("✅ RabbitMQ consumer started")
@@ -81,8 +81,8 @@ async def lifespan(app: FastAPI):
         await background_jobs.stop_background_jobs()
         logger.info("✅ Background jobs stopped")
 
-        await maintenance_service_request_consumer.stop_consuming()
-        await maintenance_service_request_consumer.disconnect()
+        await service_request_consumer.stop_consuming()
+        await service_request_consumer.disconnect()
         logger.info("✅ RabbitMQ consumer stopped")
 
         await db_manager.disconnect()
@@ -115,7 +115,7 @@ app.add_middleware(MetricsMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=120)
 app.add_middleware(HealthCheckMiddleware)
 app.add_middleware(LoggingMiddleware, include_request_body=False, include_response_body=False)
-app.add_middleware(SecurityHeadersMiddleware, enable_hsts=True)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Add CORS middleware
 app.add_middleware(
@@ -166,7 +166,7 @@ async def health_check():
             logger.error(f"Database health check failed: {e}")
 
         # Check RabbitMQ consumer
-        rabbitmq_healthy = maintenance_service_request_consumer.is_consuming
+        rabbitmq_healthy = service_request_consumer.is_consuming
 
         # Check background jobs
         jobs_healthy = getattr(background_jobs, 'is_running', False)
@@ -242,6 +242,63 @@ async def get_service_metrics():
         ).model_dump()
 
 
+@app.get("/docs")
+async def api_documentation():
+    """Maintenance Service API Documentation"""
+    return ResponseBuilder.success(
+        data={
+            "service": "SAMFMS Maintenance Service",
+            "version": "1.0.0",
+            "description": "Maintenance Records, License Management, and Analytics for SAMFMS Fleet Management System", 
+            "base_url": "/maintenance",
+            "endpoints": {
+                "maintenance_records": {
+                    "GET /records": "List maintenance records",
+                    "GET /records/{id}": "Get specific record",
+                    "POST /records": "Create maintenance record",
+                    "PUT /records/{id}": "Update record",
+                    "DELETE /records/{id}": "Delete record",
+                    "GET /records/vehicle/{vehicle_id}": "Get records for vehicle"
+                },
+                "license_management": {
+                    "GET /licenses": "List licenses",
+                    "GET /licenses/{id}": "Get specific license",
+                    "POST /licenses": "Create license",
+                    "PUT /licenses/{id}": "Update license", 
+                    "DELETE /licenses/{id}": "Delete license",
+                    "GET /licenses/expiring": "Get expiring licenses"
+                },
+                "maintenance_analytics": {
+                    "GET /analytics": "General maintenance analytics",
+                    "GET /analytics/vehicle/{vehicle_id}": "Vehicle-specific analytics",
+                    "GET /analytics/costs": "Cost analysis",
+                    "GET /analytics/trends": "Maintenance trends"
+                },
+                "notifications": {
+                    "GET /notifications": "List notifications",
+                    "POST /notifications": "Create notification",
+                    "PUT /notifications/{id}": "Update notification"
+                },
+                "service_endpoints": {
+                    "GET /": "Service information",
+                    "GET /health": "Health check", 
+                    "GET /metrics": "Service metrics",
+                    "GET /docs": "API documentation"
+                }
+            },
+            "features": [
+                "Comprehensive maintenance tracking",
+                "License expiration monitoring",
+                "Cost analysis and reporting",
+                "Automated notifications",
+                "Background job processing",
+                "Enhanced error handling"
+            ]
+        },
+        message="Maintenance Service API documentation"
+    ).model_dump()
+
+
 
 # Exception handlers using ResponseBuilder for consistency
 @app.exception_handler(RequestValidationError)
@@ -284,7 +341,7 @@ if __name__ == "__main__":
     
     # Get configuration from environment
     host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("MAINTENANCE_SERVICE_PORT", "21007"))  # Use MAINTENANCE_PORT from environment
+    port = int(os.getenv("MAINTENANCE_PORT", "8000"))  # Use MAINTENANCE_PORT from environment
     log_level = os.getenv("LOG_LEVEL", "info").lower()
     
     logger.info(f"Starting Maintenance Service on {host}:{port}")

@@ -64,6 +64,9 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         logger.error(f"Authentication error: {e}")
         raise HTTPException(status_code=500, detail="Authentication failed")
 
+# Alias for consistency with route imports
+get_authenticated_user = get_current_user
+
 def require_permission(permission: str):
     """
     Decorator factory for requiring specific permissions
@@ -96,6 +99,22 @@ def require_permission(permission: str):
                 detail=f"Permission denied: {permission} required"
             )
         return current_user
+    
+    return permission_dependency
+
+def require_permissions(permissions: list):
+    """
+    Decorator factory for requiring multiple permissions (any one of them)
+    """
+    async def permission_dependency(current_user: Dict[str, Any] = Depends(get_current_user)):
+        user_permissions = current_user.get('permissions', [])
+        has_permission = any(perm in user_permissions for perm in permissions)
+        if not has_permission:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Permission denied: One of {permissions} required"
+            )
+        return None  # Return None as expected by routes
     
     return permission_dependency
 
@@ -139,6 +158,7 @@ class RequestTimer:
     def __init__(self):
         self.start_time = None
         self.execution_time_ms = None
+        self.request_id = str(uuid.uuid4())
     
     def __enter__(self):
         self.start_time = datetime.now(timezone.utc)
@@ -148,6 +168,20 @@ class RequestTimer:
         if self.start_time:
             end_time = datetime.now(timezone.utc)
             self.execution_time_ms = int((end_time - self.start_time).total_seconds() * 1000)
+    
+    @property
+    def elapsed(self):
+        """Get elapsed time in milliseconds"""
+        if self.start_time:
+            current_time = datetime.now(timezone.utc)
+            return int((current_time - self.start_time).total_seconds() * 1000)
+        return 0
+
+async def get_request_timer() -> RequestTimer:
+    """Get a request timer instance"""
+    timer = RequestTimer()
+    timer.__enter__()
+    return timer
 
 async def get_user_context(request: Request) -> Dict[str, Any]:
     """Get user context from request"""
