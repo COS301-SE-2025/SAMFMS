@@ -146,13 +146,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if self.enable_hsts and request.url.scheme == "https":
             response.headers["Strict-Transport-Security"] = f"max-age={self.hsts_max_age}; includeSubDomains"
         
-        # Content Security Policy (basic)
+        # Content Security Policy (with Swagger UI support)
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
-            "style-src 'self' 'unsafe-inline'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
             "img-src 'self' data: https:; "
-            "font-src 'self'; "
+            "font-src 'self' https://cdn.jsdelivr.net; "
             "connect-src 'self'"
         )
         

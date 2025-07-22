@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # Import new organized modules
@@ -276,14 +277,14 @@ app = FastAPI(
     version="2.1.0",
     description="Enhanced Vehicle Management Service with Event-Driven Architecture and Comprehensive Error Handling",
     lifespan=lifespan,
-    docs_url="/docs",
+    docs_url="/swagger",  # Changed to avoid conflict with custom /docs endpoint
     redoc_url="/redoc",
     openapi_url="/openapi.json"
 )
 
-# Add exception handlers
-for exception_type, handler in EXCEPTION_HANDLERS.items():
-    app.add_exception_handler(exception_type, handler)
+# Store start time for uptime calculation  
+app.state.start_time = datetime.now(timezone.utc)
+metrics_middleware.app = app
 
 # Add enhanced middleware in correct order
 app.add_middleware(RequestContextMiddleware)
@@ -291,7 +292,7 @@ app.add_middleware(MetricsMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=120)  # 2 requests per second
 app.add_middleware(HealthCheckMiddleware)
 app.add_middleware(LoggingMiddleware, include_request_body=False, include_response_body=False)
-app.add_middleware(SecurityHeadersMiddleware, enable_hsts=True)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Add CORS middleware
 app.add_middleware(
@@ -301,9 +302,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Store metrics middleware reference globally
-metrics_middleware.app = app
 
 # Include routers with enhanced error handling
 app.include_router(analytics_router, tags=["analytics"])
@@ -417,61 +415,9 @@ async def health_check():
 
 @app.get("/docs")
 async def api_documentation():
-    """Management Service API Documentation"""
-    return ResponseBuilder.success(
-        data={
-            "service": "SAMFMS Management Service",
-            "version": "2.1.0", 
-            "description": "Vehicle, Driver, and Analytics Management for SAMFMS Fleet Management System",
-            "base_url": "/management",
-            "endpoints": {
-                "vehicle_management": {
-                    "GET /vehicles": "List all vehicles",
-                    "GET /vehicles/{id}": "Get specific vehicle",
-                    "POST /vehicles": "Create new vehicle",
-                    "PUT /vehicles/{id}": "Update vehicle", 
-                    "DELETE /vehicles/{id}": "Delete vehicle",
-                    "GET /vehicles/search?query={query}": "Search vehicles"
-                },
-                "driver_management": {
-                    "GET /drivers": "List active drivers",
-                    "GET /drivers/{id}": "Get specific driver",
-                    "POST /drivers": "Create new driver",
-                    "PUT /drivers/{id}": "Update driver",
-                    "DELETE /drivers/{id}": "Delete driver"
-                },
-                "vehicle_assignments": {
-                    "GET /assignments": "List assignments",
-                    "GET /vehicle-assignments": "Vehicle assignment data", 
-                    "POST /assignments": "Create assignment",
-                    "PUT /assignments/{id}": "Update assignment"
-                },
-                "analytics": {
-                    "GET /analytics": "General analytics data",
-                    "GET /analytics/dashboard": "Dashboard analytics",
-                    "GET /analytics/fleet-utilization": "Fleet utilization metrics",
-                    "GET /analytics/driver-performance": "Driver performance metrics",
-                    "GET /analytics/maintenance-costs": "Maintenance cost analysis",
-                    "GET /analytics/fuel-consumption": "Fuel consumption data"
-                },
-                "service_endpoints": {
-                    "GET /": "Service information",
-                    "GET /health": "Health check",
-                    "GET /metrics": "Service metrics",
-                    "GET /docs": "API documentation"
-                }
-            },
-            "features": [
-                "Event-driven architecture",
-                "Optimized analytics with caching",
-                "Repository pattern",
-                "Background task processing",
-                "Enhanced error handling",
-                "Standardized responses"
-            ]
-        },
-        message="Management Service API documentation"
-    ).model_dump()
+    """Redirect to Swagger UI for interactive API documentation"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/swagger")
 
 
 @app.get("/metrics")
