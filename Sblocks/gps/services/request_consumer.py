@@ -6,115 +6,147 @@ import asyncio
 import json
 import logging
 from typing import Dict, Any, Optional
+from datetime import datetime
 import os
+from aio_pika.abc import AbstractIncomingMessage
+
+# Import standardized RabbitMQ config
+from config.rabbitmq_config import RabbitMQConfig, json_serializer
+
+from api.routes.geofences import router as geofences_router
+from api.routes.locations import router as locations_router
+from api.routes.places import router as places_router
+from api.routes.tracking import router as tracking_router
 
 logger = logging.getLogger(__name__)
 
 
 class ServiceRequestConsumer:
-    """Consumer for handling service requests from Core"""
+    """Handles service requests from Core via RabbitMQ with standardized patterns"""
     
     def __init__(self):
-        self.connection: Optional[aio_pika.Connection] = None
-        self.channel: Optional[aio_pika.Channel] = None
-        self.rabbitmq_url = os.getenv(
-            "RABBITMQ_URL", 
-            "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/"
-        )
+        self.connection = None
+        self.channel = None
+        self.exchange = None
+        self.queue = None
+        # Use standardized config
+        self.config = RabbitMQConfig()
+        self.queue_name = self.config.QUEUE_NAMES["gps"]
+        self.exchange_name = self.config.EXCHANGE_NAMES["requests"]
+        self.response_exchange_name = self.config.EXCHANGE_NAMES["responses"]
+        # Request deduplication
+        self.processed_requests = set()
         self.is_consuming = False
     
     async def connect(self):
-        """Connect to RabbitMQ"""
+        """Establish connection to RabbitMQ using standardized config"""
         try:
             self.connection = await aio_pika.connect_robust(
-                self.rabbitmq_url,
-                heartbeat=600,
-                blocked_connection_timeout=300,
-                connection_attempts=3,
-                retry_delay=2.0
+                url=self.config.get_rabbitmq_url(),
+                heartbeat=self.config.CONNECTION_PARAMS["heartbeat"],
+                blocked_connection_timeout=self.config.CONNECTION_PARAMS["blocked_connection_timeout"]
             )
-            
             self.channel = await self.connection.channel()
-            await self.channel.set_qos(prefetch_count=10)
-            
-            logger.info("Connected to RabbitMQ for service requests")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to connect to RabbitMQ for service requests: {e}")
-            return False
-    
-    async def disconnect(self):
-        """Disconnect from RabbitMQ"""
-        self.is_consuming = False
-        
-        try:
-            if self.channel and not self.channel.is_closed:
-                await self.channel.close()
-                
-            if self.connection and not self.connection.is_closed:
-                await self.connection.close()
-                logger.info("Disconnected from RabbitMQ service request consumer")
-        except Exception as e:
-            logger.error(f"Error during service request consumer disconnect: {e}")
-        finally:
-            self.connection = None
-            self.channel = None
-    
-    async def start_consuming(self):
-        """Start consuming service requests"""
-        if not self.connection:
-            logger.error("Not connected to RabbitMQ")
-            return
-        
-        if self.is_consuming:
-            logger.warning("Already consuming service requests")
-            return
-        
-        try:
-            # Declare queue for GPS service requests
-            queue = await self.channel.declare_queue(
-                "gps_service_requests",
+
+            # Declare exchanges
+            self.exchange = await self.channel.declare_exchange(
+                self.exchange_name,
+                aio_pika.ExchangeType.DIRECT,
+                durable=True
+            )
+
+            self.response_exchange = await self.channel.declare_exchange(
+                self.response_exchange_name,
+                aio_pika.ExchangeType.DIRECT,
+                durable=True
+            )
+
+            # Declare and bind queue
+            self.queue = await self.channel.declare_queue(
+                self.queue_name,
                 durable=True
             )
             
-            # Start consuming
-            self.is_consuming = True
-            await queue.consume(self._handle_service_request)
+            # Bind to management routing key (must match Core service routing pattern)
+            await self.queue.bind(self.exchange, "gps.requests")
+
+            logger.info(f"Connected to RabbitMQ. Queue: {self.queue_name}")
+            return True
             
-            logger.info("Started consuming service requests")
-            
-            # Keep consuming
-            while self.is_consuming:
-                await asyncio.sleep(1)
-                
         except Exception as e:
-            logger.error(f"Error starting service request consumption: {e}")
-            self.is_consuming = False
+            logger.error(f"Failed to connect to RabbitMQ: {e}")
+            raise
     
-    async def _handle_service_request(self, message: aio_pika.IncomingMessage):
-        """Handle incoming service request"""
-        async with message.process():
-            try:
-                # Parse message
+    async def start_consuming(self):
+        """Start consuming requests"""
+        try:
+            if not self.connection or self.connection.is_closed:
+                await self.connect()
+                
+            await self.queue.consume(self.handle_request, no_ack=False)
+            logger.info(f"Started consuming from {self.queue_name}")
+            
+        except Exception as e:
+            logger.error(f"Error starting consumer: {e}")
+            raise
+    
+    async def handle_request(self, message: AbstractIncomingMessage):
+        """Handle incoming request message using standardized pattern"""
+        request_id = None
+        try:
+            async with message.process(requeue=False):
+                # Parse message body
                 request_data = json.loads(message.body.decode())
-                request_type = request_data.get("type")
                 
-                logger.info(f"Received service request: {request_type}")
+                # Extract request details
+                request_id = request_data.get("correlation_id")
+                method = request_data.get("method")
+                user_context = request_data.get("user_context", {})
+                endpoint = request_data.get("endpoint", "")
                 
-                # Route to appropriate handler
-                if request_type == "get_vehicle_location":
-                    await self._handle_get_vehicle_location(request_data)
-                elif request_type == "get_vehicle_locations":
-                    await self._handle_get_vehicle_locations(request_data)
-                elif request_type == "health_check":
-                    await self._handle_health_check(request_data)
-                else:
-                    logger.warning(f"Unknown service request type: {request_type}")
+                # Check for duplicate requests
+                if request_id in self.processed_requests:
+                    logger.warning(f"Duplicate request ignored: {request_id}")
+                    return
+                    
+                self.processed_requests.add(request_id)
                 
-            except Exception as e:
-                logger.error(f"Error processing service request: {e}")
+                logger.info(f"Processing request {request_id}: {method} {endpoint}")
+                
+                # Route and process request
+                response_data = await self._route_request(method, user_context, endpoint)
+                
+                # Send successful response
+                response = {
+                    "status": "success",
+                    "data": response_data,
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                await self._send_response(request_id, response)
+                logger.info(f"Request {request_id} completed successfully")
+        except Exception as e:
+            logger.error(f"Error processing request {request_id}: {e}")
+            if request_id:
+                error_response = {
+                    "status": "error",
+                    "error": str(e),
+                    "timestamp": datetime.now().isoformat()
+                }
+                await self._send_response(request_id, error_response)
     
+    async def _route_request(self, method: str, user_context: Dict[str, Any], endpoint: str = "") -> Dict[str, Any]:
+        """Route request to appropriate handler based on method name"""
+        try:
+            # Route to appropriate handler based on enpoint pattern
+            if "/health" in endpoint:
+                return await self._handle_health_check(method, user_context)
+            else:
+                raise ValueError(f"Unknown endpoint: {endpoint}")
+        except Exception as e:
+            logger.error(f"Error routing request for {endpoint}: {e}")
+            raise
+
     async def _handle_get_vehicle_location(self, request_data: Dict[str, Any]):
         """Handle get vehicle location request"""
         try:
@@ -155,26 +187,47 @@ class ServiceRequestConsumer:
             logger.error(f"Error handling get_vehicle_locations: {e}")
     
     async def _handle_health_check(self, request_data: Dict[str, Any]):
-        """Handle health check request"""
+        """Handle health check requests"""
+        return {
+            "status": "healthy",
+            "service": "management",
+            "timestamp": datetime.now().isoformat(),
+            "message": "Management service is operational"
+        }
+    
+    async def _send_response(self, correlation_id: str, response_data: Dict[str, Any]):
+        """Send response back to Core via RabbitMQ using standardized config"""
         try:
-            from repositories.database import db_manager
-            
-            db_healthy = await db_manager.health_check()
-            
-            response = {
-                "request_id": request_data.get("request_id"),
-                "success": True,
-                "data": {
-                    "service": "gps",
-                    "healthy": db_healthy,
-                    "timestamp": "2025-01-16T00:00:00Z"  # Use proper timestamp
-                }
+            # Prepare response message
+            response_msg = {
+                "correlation_id": correlation_id,
+                "status": "success", 
+                "data": response_data,
+                "timestamp": datetime.now().isoformat()
             }
             
-            logger.info("Handled health_check request")
+            # Send response using standardized response exchange
+            message = aio_pika.Message(
+                json.dumps(response_msg, default=json_serializer).encode(),
+                correlation_id=correlation_id
+            )
+            
+            await self.response_exchange.publish(
+                message, 
+                routing_key=self.config.ROUTING_KEYS["core_responses"]
+            )
+            
+            logger.debug(f"Response sent for correlation_id: {correlation_id}")
             
         except Exception as e:
-            logger.error(f"Error handling health_check: {e}")
+            logger.error(f"Failed to send response for {correlation_id}: {e}")
+            raise
+    async def stop_consuming(self):
+        """Stop consuming messages"""
+        self.is_consuming = False
+        if self.connection and not self.connection.is_closed:
+            await self.connection.close()
+        logger.info("GPS service request consumer stopped")
 
 
 # Global service request consumer instance
