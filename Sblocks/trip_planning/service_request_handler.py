@@ -11,6 +11,9 @@ from typing import Dict, Any
 from datetime import datetime
 import aio_pika
 
+from Direct_Vehicle_DBlock.producer import request_active_trips
+
+
 logger = logging.getLogger(__name__)
 
 class TripPlanningRequestHandler:
@@ -135,33 +138,9 @@ class TripPlanningRequestHandler:
     async def _get_trips(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle GET /api/trips"""
         try:
-            # Mock trip data
-            trips = [
-                {
-                    "id": "trip_001",
-                    "name": "Johannesburg to Cape Town",
-                    "driver_id": "driver_001",
-                    "vehicle_id": "vehicle_001",
-                    "start_location": "Johannesburg",
-                    "end_location": "Cape Town",
-                    "start_time": "2025-06-20T08:00:00Z",
-                    "end_time": "2025-06-20T18:00:00Z",
-                    "status": "planned",
-                    "distance": 1400
-                },
-                {
-                    "id": "trip_002",
-                    "name": "Durban to Pretoria",
-                    "driver_id": "driver_002", 
-                    "vehicle_id": "vehicle_002",
-                    "start_location": "Durban",
-                    "end_location": "Pretoria",
-                    "start_time": "2025-06-20T06:00:00Z",
-                    "end_time": "2025-06-20T14:00:00Z",
-                    "status": "in_progress",
-                    "distance": 560
-                }
-            ]
+            # Used to get the active trips from vehicle DBLock 
+            response = await request_active_trips(user_context)
+            trips = response.get("trips", [])
             
             # Filter by user role
             if user_context.get("role") == "driver":
@@ -171,7 +150,7 @@ class TripPlanningRequestHandler:
             return {"trips": trips, "count": len(trips)}
             
         except Exception as e:
-            logger.error(f"Error getting trips: {e}")
+            logger.error(f"Error getting trips from DBlock: {e}")
             raise
     
     async def _create_trip(self, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:

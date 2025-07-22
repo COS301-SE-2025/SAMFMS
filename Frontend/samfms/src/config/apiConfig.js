@@ -170,6 +170,7 @@ export const API_ENDPOINTS = {
     HEALTH: '/trips/health',
     ROOT: '/trips/',
     CREATE: '/trips/trips',
+    ACTIVE: '/trips/trips/active',
   },
 
   // Maintenance

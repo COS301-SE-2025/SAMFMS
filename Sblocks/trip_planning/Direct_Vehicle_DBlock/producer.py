@@ -20,3 +20,20 @@ async def request_vehicle_status(vehicle_id: str):
         return response
     except asyncio.TimeoutError:
         return {"error": "Timeout waiting for vehicle DBlock response"}
+
+async def request_active_trips(user_context: Dict[str, Any]):
+    message = {
+        "action": "get_active_trips",
+        "user_context": user_context
+    }
+    future = rpc_client.send_request(
+        exchange="trip_vehicle_comm",
+        routing_key="trip.to.vehicle.trips",
+        message=message
+    )
+    try:
+        response = await asyncio.wait_for(future, timeout=10)
+        return response
+    except asyncio.TimeoutError:
+        return {"error": "Timeout waiting for vehicle DBlock response"}
+
