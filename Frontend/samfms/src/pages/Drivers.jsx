@@ -8,7 +8,12 @@ import VehicleAssignmentModal from '../components/drivers/VehicleAssignmentModal
 import AddDriverModal from '../components/drivers/AddDriverModal';
 import EditDriverModal from '../components/drivers/EditDriverModal';
 import DataVisualization from '../components/drivers/DataVisualization';
-import { getDrivers, deleteDriver, searchDrivers } from '../backend/API';
+
+import {
+  getDrivers,
+  deleteDriver,
+  searchDrivers,
+} from '../backend/api/drivers'
 
 const Drivers = () => {
   const [drivers, setDrivers] = useState([]);

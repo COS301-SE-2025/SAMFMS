@@ -107,22 +107,22 @@ export const API_ENDPOINTS = {
 
   // Vehicle Management
   VEHICLES: {
-    LIST: '/api/vehicles',
-    CREATE: '/api/vehicles',
-    GET: id => `/api/vehicles/${id}`,
-    UPDATE: id => `/api/vehicles/${id}`,
-    DELETE: id => `/api/vehicles/${id}`,
+    LIST: '/vehicles',
+    CREATE: '/vehicles',
+    GET: id => `/vehicles/${id}`,
+    UPDATE: id => `/vehicles/${id}`,
+    DELETE: id => `/vehicles/${id}`,
     SEARCH: query => `/api/vehicles/search/${query}`,
   },
 
   // Driver Management
   DRIVERS: {
-    LIST: '/api/vehicles/drivers',
-    CREATE: '/api/vehicles/drivers',
-    GET: id => `/api/vehicles/drivers/${id}`,
-    UPDATE: id => `/api/vehicles/drivers/${id}`,
-    DELETE: id => `/api/vehicles/drivers/${id}`,
-    SEARCH: query => `/api/vehicles/drivers/search/${query}`,
+    LIST: '/management/vehicles/drivers',
+    CREATE: '/management/vehicles/drivers',
+    GET: id => `/management/vehicles/drivers/${id}`,
+    UPDATE: id => `/management/vehicles/drivers/${id}`,
+    DELETE: id => `/management/vehicles/drivers/${id}`,
+    SEARCH: query => `/management/vehicles/drivers/search/${query}`,
   },
 
   // Vehicle Assignments
@@ -181,9 +181,9 @@ export const API_ENDPOINTS = {
       DELETE: id => `/api/maintenance/vendors/${id}`,
     },
     ANALYTICS: {
-      DASHBOARD: '/api/maintenance/analytics/dashboard',
-      COSTS: '/api/maintenance/analytics/costs',
-      OVERVIEW: '/api/maintenance/analytics',
+      DASHBOARD: '/maintenance/analytics/dashboard',
+      COSTS: '/maintenance/analytics/costs',
+      OVERVIEW: '/maintenance/analytics',
     },
     NOTIFICATIONS: {
       LIST: '/api/maintenance/notifications',
@@ -194,16 +194,18 @@ export const API_ENDPOINTS = {
 
   // Analytics (updated for management service)
   ANALYTICS: {
-    DASHBOARD: '/api/analytics/dashboard',
-    FLEET_UTILIZATION: '/api/analytics/fleet-utilization',
-    VEHICLE_USAGE: '/api/analytics/vehicle-usage',
-    ASSIGNMENT_METRICS: '/api/analytics/assignment-metrics',
-    MAINTENANCE: '/api/analytics/maintenance',
-    DRIVER_PERFORMANCE: '/api/analytics/driver-performance',
-    COSTS: '/api/analytics/costs',
-    STATUS_BREAKDOWN: '/api/analytics/status-breakdown',
-    INCIDENTS: '/api/analytics/incidents',
-    DEPARTMENT_LOCATION: '/api/analytics/department-location',
+    DASHBOARD: '/management/analytics/dashboard',
+    FLEET_UTILIZATION: '/management/analytics/fleet-utilization',
+    VEHICLE_USAGE: '/management/analytics/vehicle-usage',
+    ASSIGNMENT_METRICS: '/management/analytics/assignment-metrics',
+    // MAINTENANCE: '/management/analytics/maintenance',
+    DRIVER_PERFORMANCE: '/management/analytics/driver-performance',
+    // COSTS: '/management/analytics/costs',
+    // STATUS_BREAKDOWN: '/management/analytics/status-breakdown',
+    // INCIDENTS: '/management/analytics/incidents',
+    // DEPARTMENT_LOCATION: '/management/analytics/department-location',
+    REFRESH: '/management/analytics/refresh',
+    DELETE: '/management/analytics/delete'
   },
 
   // WebSocket

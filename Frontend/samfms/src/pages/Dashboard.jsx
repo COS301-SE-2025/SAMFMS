@@ -9,7 +9,7 @@ import {
 import StatusBreakdownPieChart from '../components/analytics/StatusBreakdownPieChart';
 import AssignmentMetricsCard from '../components/analytics/AssignmentMetricsCard';
 import { getStatusBreakdown } from '../backend/api/analytics';
-import { getVehicles } from '../backend/API';
+import { getVehicles } from '../backend/api/vehicles';
 
 // Mock data for the dashboard
 const mockData = {

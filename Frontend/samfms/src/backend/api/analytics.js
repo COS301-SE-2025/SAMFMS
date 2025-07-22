@@ -68,6 +68,7 @@ export const getVehicleUsage = async (useCache = true) => {
 
 export const getAssignmentMetrics = async (useCache = true) => {
   try {
+    console.log('Access getAssignmentMetrics from Dashboard')
     const url = `${ANALYTICS_API.assignmentMetrics}?use_cache=${useCache}`;
     const response = await authFetch(url);
     return await handleResponse(response, 'Failed to fetch assignment metrics');
