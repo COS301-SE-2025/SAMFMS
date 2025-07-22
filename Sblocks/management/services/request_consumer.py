@@ -116,7 +116,7 @@ class ServiceRequestConsumer:
                     
                 self.processed_requests.add(request_id)
                 
-                logger.info(f"Processing request {request_id}: {method} {endpoint}")
+                logger.debug(f"Processing request {request_id}: {method} {endpoint}")
                 
                 # Route and process request
                 response_data = await self._route_request(method, user_context, endpoint)
@@ -136,7 +136,10 @@ class ServiceRequestConsumer:
             if request_id:
                 error_response = {
                     "status": "error",
-                    "error": str(e),
+                    "error": {
+                        "message": str(e),
+                        "type": type(e).__name__
+                    },
                     "timestamp": datetime.now().isoformat()
                 }
                 await self._send_response(request_id, error_response)
@@ -144,17 +147,42 @@ class ServiceRequestConsumer:
     async def _route_request(self, method: str, user_context: Dict[str, Any], endpoint: str = "") -> Dict[str, Any]:
         """Route request to appropriate handler based on method name"""
         try:
+            # Validate inputs
+            if not method or not isinstance(method, str):
+                raise ValueError("Invalid HTTP method")
+            
+            if not isinstance(user_context, dict):
+                raise ValueError("Invalid user context")
+            
+            if not isinstance(endpoint, str):
+                raise ValueError("Invalid endpoint")
+            
+            # Normalize endpoint path
+            endpoint = endpoint.strip().lstrip('/').rstrip('/')
+            
+            # Add endpoint to user_context for handlers to use
+            user_context["endpoint"] = endpoint
+            
+            logger.debug(f"Routing {method} request to endpoint: {endpoint}")
+            
             # Route to appropriate handler based on endpoint pattern
-            if "/health" in endpoint:
+            if endpoint == "health" or endpoint == "":
+                # Health check endpoint
                 return await self._handle_health_request(method, user_context)
-            elif "/vehicles" in endpoint:
+            elif "vehicles" in endpoint or endpoint == "vehicles":
                 return await self._handle_vehicles_request(method, user_context)
-            elif "/drivers" in endpoint:
+            elif "drivers" in endpoint:
                 return await self._handle_drivers_request(method, user_context)
-            elif "/assignments" in endpoint or "/vehicle-assignments" in endpoint:
+            elif "assignments" in endpoint or "vehicle-assignments" in endpoint:
                 return await self._handle_assignments_request(method, user_context)
-            elif "/analytics" in endpoint:
+            elif "analytics" in endpoint:
                 return await self._handle_analytics_request(method, user_context)
+            elif "status" in endpoint or endpoint == "status":
+                return await self._handle_status_request(method, user_context)
+            elif "docs" in endpoint or "openapi" in endpoint:
+                return await self._handle_docs_request(method, user_context)
+            elif "metrics" in endpoint:
+                return await self._handle_metrics_request(method, user_context)
             else:
                 raise ValueError(f"Unknown endpoint: {endpoint}")
                 
@@ -162,55 +190,62 @@ class ServiceRequestConsumer:
             logger.error(f"Error routing request for {endpoint}: {e}")
             raise
     
-    async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle health check requests"""
-        return {
-            "status": "healthy",
-            "service": "management",
-            "timestamp": datetime.now().isoformat(),
-            "message": "Management service is operational"
-        }
-    
     async def _handle_vehicles_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle vehicles-related requests"""
-        # Import and create service instance
-        from services.vehicle_service import VehicleService
-        from schemas.requests import VehicleCreateRequest, VehicleUpdateRequest
-        vehicle_service = VehicleService()
-        
-        # Extract data and endpoint from user_context
-        data = user_context.get("data", {})
-        endpoint = user_context.get("endpoint", "")
-        
-        # Support both /api/vehicles and /api/v1/vehicles endpoints
-        if method == "get_vehicles":
-            return await vehicle_service.get_vehicles()
-        elif method == "get_vehicle_by_id":
-            vehicle_id = user_context.get("vehicle_id")
-            return await vehicle_service.get_vehicle_by_id(vehicle_id)
-        elif method == "search_vehicles":
-            query = user_context.get("query", "")
-            return await vehicle_service.search_vehicles(query)
-        elif method == "create_vehicle":
-            # Convert dict to VehicleCreateRequest object
-            vehicle_request = VehicleCreateRequest(**data)
-            # Extract created_by from user_context
-            created_by = user_context.get("user_id", "unknown")
-            return await vehicle_service.create_vehicle(vehicle_request, created_by)
-        elif method == "update_vehicle":
-            vehicle_id = user_context.get("vehicle_id")
-            # Convert dict to VehicleUpdateRequest object
-            vehicle_update_request = VehicleUpdateRequest(**data)
-            # Extract updated_by from user_context
-            updated_by = user_context.get("user_id", "unknown")
-            return await vehicle_service.update_vehicle(vehicle_id, vehicle_update_request, updated_by)
-        elif method == "delete_vehicle":
-            vehicle_id = user_context.get("vehicle_id")
-            # Extract deleted_by from user_context
-            deleted_by = user_context.get("user_id", "unknown")
-            return await vehicle_service.delete_vehicle(vehicle_id, deleted_by)
-        
-        raise ValueError(f"Unsupported vehicles operation: {method}")
+        try:
+            # Import and create service instance
+            from services.vehicle_service import VehicleService
+            from schemas.requests import VehicleCreateRequest, VehicleUpdateRequest
+            vehicle_service = VehicleService()
+            
+            # Extract data and endpoint from user_context
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            # Handle HTTP methods properly
+            if method == "GET":
+                # Check if it's a search or specific vehicle request
+                if "search" in endpoint:
+                    query = data.get("query", "")
+                    return await vehicle_service.search_vehicles(query)
+                elif endpoint.count('/') > 0 and endpoint.split('/')[-1]:  # vehicles/{id} pattern
+                    vehicle_id = endpoint.split('/')[-1]
+                    if not vehicle_id or vehicle_id == "vehicles":
+                        return await vehicle_service.get_vehicles()
+                    return await vehicle_service.get_vehicle_by_id(vehicle_id)
+                else:
+                    return await vehicle_service.get_vehicles()
+            elif method == "POST":
+                if not data:
+                    raise ValueError("Request data is required for POST operation")
+                # Convert dict to VehicleCreateRequest object
+                vehicle_request = VehicleCreateRequest(**data)
+                # Extract created_by from user_context
+                created_by = user_context.get("user_id", "unknown")
+                return await vehicle_service.create_vehicle(vehicle_request, created_by)
+            elif method == "PUT":
+                vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not vehicle_id:
+                    raise ValueError("Vehicle ID is required for PUT operation")
+                if not data:
+                    raise ValueError("Request data is required for PUT operation")
+                # Convert dict to VehicleUpdateRequest object
+                vehicle_update_request = VehicleUpdateRequest(**data)
+                # Extract updated_by from user_context
+                updated_by = user_context.get("user_id", "unknown")
+                return await vehicle_service.update_vehicle(vehicle_id, vehicle_update_request, updated_by)
+            elif method == "DELETE":
+                vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not vehicle_id:
+                    raise ValueError("Vehicle ID is required for DELETE operation")
+                # Extract deleted_by from user_context
+                deleted_by = user_context.get("user_id", "unknown")
+                return await vehicle_service.delete_vehicle(vehicle_id, deleted_by)
+            else:
+                raise ValueError(f"Unsupported HTTP method for vehicles: {method}")
+        except Exception as e:
+            logger.error(f"Error handling vehicles request {method} {endpoint}: {e}")
+            raise
     
     async def _handle_drivers_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle drivers-related requests"""
@@ -271,6 +306,59 @@ class ServiceRequestConsumer:
         
         raise ValueError(f"Unsupported analytics operation: {method}")
     
+    async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle health check requests"""
+        if method == "GET":
+            return {
+                "status": "healthy",
+                "service": "management",
+                "timestamp": datetime.now().isoformat(),
+                "version": "1.0.0"
+            }
+        else:
+            raise ValueError(f"Unsupported method for health endpoint: {method}")
+    
+    async def _handle_status_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle status requests"""
+        if method == "GET":
+            return {
+                "status": "operational",
+                "service": "management",
+                "uptime": "unknown",  # Could implement actual uptime tracking
+                "connections": {
+                    "database": "connected",
+                    "rabbitmq": "connected"
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            raise ValueError(f"Unsupported method for status endpoint: {method}")
+    
+    async def _handle_docs_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle documentation requests"""
+        if method == "GET":
+            return {
+                "message": "API documentation available at /docs",
+                "openapi_url": "/openapi.json",
+                "service": "management"
+            }
+        else:
+            raise ValueError(f"Unsupported method for docs endpoint: {method}")
+    
+    async def _handle_metrics_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle metrics requests"""
+        if method == "GET":
+            return {
+                "metrics": {
+                    "requests_processed": len(self.processed_requests),
+                    "service_status": "healthy",
+                    "last_request_time": datetime.now().isoformat()
+                },
+                "service": "management"
+            }
+        else:
+            raise ValueError(f"Unsupported method for metrics endpoint: {method}")
+    
     async def _send_response(self, correlation_id: str, response_data: Dict[str, Any]):
         """Send response back to Core via RabbitMQ using standardized config"""
         try:
@@ -293,7 +381,7 @@ class ServiceRequestConsumer:
                 routing_key=self.config.ROUTING_KEYS["core_responses"]
             )
             
-            logger.info(f"Response sent for correlation_id: {correlation_id}")
+            logger.debug(f"Response sent for correlation_id: {correlation_id}")
             
         except Exception as e:
             logger.error(f"Failed to send response for {correlation_id}: {e}")

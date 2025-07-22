@@ -13,7 +13,11 @@ async def handle_message(message: aio_pika.IncomingMessage):
     async with message.process():
         data = json.loads(message.body.decode())
         
-        if data.get('type') == 'service_status':
+        # Check if this is a service response (has correlation_id)
+        if data.get('correlation_id'):
+            # Handle service block responses
+            await handle_service_response(data)
+        elif data.get('type') == 'service_status':
             if data.get('service') == 'security' and data.get('status') == 'up':
                 logger.info(f"Security Sblock is up and running - Message received at {data.get('timestamp')}")
             else:
@@ -21,7 +25,7 @@ async def handle_message(message: aio_pika.IncomingMessage):
         elif data.get('type') == 'service_presence':
             db.get_collection("service_presence").insert_one({"service":data.get('service')})
         elif data.get('type') == 'service_response':
-            # Handle service block responses
+            # Handle service block responses (legacy format)
             await handle_service_response(data)
         else:
             logger.info(f"Message Received: {data}")
@@ -52,7 +56,7 @@ async def wait_for_rabbitmq(max_retries: int = 30, delay: int = 2):
                 raise
     return False
 
-async def consume_messages(queue_name: str = "core_responses"):
+async def consume_messages(queue_name: str = "core.responses"):
     """Enhanced message consumer for service routing responses"""
     await wait_for_rabbitmq()
     
@@ -60,7 +64,7 @@ async def consume_messages(queue_name: str = "core_responses"):
         connection = await aio_pika.connect_robust(admin.RABBITMQ_URL)
         channel = await connection.channel()
         
-        # Declare response exchange and queue for Core service (updated to match Management service)
+        # Declare response exchange and queue for Core service
         response_exchange = await channel.declare_exchange("service_responses", aio_pika.ExchangeType.DIRECT, durable=True)
         queue = await channel.declare_queue(queue_name, durable=True)
         await queue.bind(response_exchange, routing_key="core.responses")

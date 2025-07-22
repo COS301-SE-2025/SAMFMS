@@ -17,6 +17,9 @@ class TripPlanningRequestHandler:
     """Handles RabbitMQ request/response pattern for Trip Planning service"""
     
     def __init__(self):
+        self.connection = None
+        self.channel = None
+        self.response_exchange = None
         self.endpoint_handlers = {
             "/api/trips": {
                 "GET": self._get_trips,
@@ -33,11 +36,19 @@ class TripPlanningRequestHandler:
     async def initialize(self):
         """Initialize request handler and start consuming"""
         try:
+            # Set up persistent connection for responses
+            await self._setup_response_connection()
             await self._setup_request_consumption()
             logger.info("Trip Planning service request handler initialized")
         except Exception as e:
             logger.error(f"Failed to initialize Trip Planning request handler: {e}")
             raise
+    
+    async def _setup_response_connection(self):
+        """Set up persistent connection for sending responses"""
+        self.connection = await aio_pika.connect_robust(os.getenv("RABBITMQ_URL", "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/"))
+        self.channel = await self.connection.channel()
+        self.response_exchange = await self.channel.declare_exchange("service_responses", aio_pika.ExchangeType.DIRECT, durable=True)
     
     async def _setup_request_consumption(self):
         """Set up RabbitMQ to consume requests from Core"""
@@ -80,7 +91,10 @@ class TripPlanningRequestHandler:
                 error_response = {
                     "correlation_id": request_data.get("correlation_id", "unknown"),
                     "status": "error", 
-                    "error": str(e),
+                    "error": {
+                        "message": str(e),
+                        "type": type(e).__name__
+                    },
                     "timestamp": datetime.utcnow().isoformat()
                 }
                 await self._send_response(error_response)
@@ -112,12 +126,7 @@ class TripPlanningRequestHandler:
     async def _send_response(self, response: Dict[str, Any]):
         """Send response back to Core via RabbitMQ"""
         try:
-            connection = await aio_pika.connect_robust(os.getenv("RABBITMQ_URL", "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/"))
-            channel = await connection.channel()
-            
-            exchange = await channel.declare_exchange("service_responses", aio_pika.ExchangeType.DIRECT)
-            
-            await exchange.publish(
+            await self.response_exchange.publish(
                 aio_pika.Message(
                     body=json.dumps(response).encode(),
                     content_type="application/json"
@@ -125,7 +134,6 @@ class TripPlanningRequestHandler:
                 routing_key="core.responses"
             )
             
-            await connection.close()
             logger.debug(f"Trip Planning response sent for correlation_id: {response.get('correlation_id')}")
             
         except Exception as e:

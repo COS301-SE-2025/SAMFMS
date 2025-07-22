@@ -28,7 +28,7 @@ class RabbitMQConfig:
     QUEUE_NAMES = {
         "management": "management.requests",
         "maintenance": "maintenance.requests",
-        "core": "core.responses"
+        "core": "core.response"
     }
     
     # Exchange names

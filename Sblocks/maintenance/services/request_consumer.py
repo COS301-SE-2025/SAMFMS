@@ -156,7 +156,7 @@ class ServiceRequestConsumer:
                     logger.warning(f"⚠️ Duplicate message detected: {correlation_id}")
                     return
                 
-                logger.info(f"🔄 Processing maintenance service request {correlation_id}: {method} {endpoint}")
+                logger.debug(f"🔄 Processing maintenance service request {correlation_id}: {method} {endpoint}")
                 
                 # Process the request
                 response = await self._process_request(endpoint, method, data, user_context)
@@ -171,7 +171,7 @@ class ServiceRequestConsumer:
                 if len(self.processed_messages) > 1000:
                     self.processed_messages = set(list(self.processed_messages)[-500:])
                 
-                logger.info(f"✅ Maintenance service request {correlation_id} processed successfully")
+                logger.debug(f"✅ Maintenance service request {correlation_id} processed successfully")
                 
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in maintenance service request: {e}")
@@ -501,7 +501,10 @@ class ServiceRequestConsumer:
             response_msg = {
                 "correlation_id": correlation_id,
                 "status": "error",
-                "error": error_message,
+                "error": {
+                    "message": error_message,
+                    "type": "ServiceError"
+                },
                 "timestamp": datetime.utcnow().isoformat()
             }
             

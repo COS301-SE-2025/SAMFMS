@@ -71,6 +71,13 @@ async def route_to_service_block(
     Returns:
         Dict containing the response from the service block
     """
+    # Validate inputs
+    if not service_name or not isinstance(service_name, str):
+        raise HTTPException(status_code=400, detail="Invalid service name")
+    
+    if not method or not isinstance(method, str):
+        raise HTTPException(status_code=400, detail="Invalid HTTP method")
+    
     if service_name not in SERVICE_BLOCKS:
         raise HTTPException(status_code=404, detail=f"Service block '{service_name}' not found")
     
@@ -79,11 +86,23 @@ async def route_to_service_block(
     # Generate unique request ID for correlation
     request_id = str(uuid.uuid4())
     
+    # Process and normalize the path
+    processed_path = path.lstrip('/').rstrip('/')
+    path_parts = [part for part in processed_path.split('/') if part]
+    
+    # Ensure consistent path format
+    if not path_parts:
+        processed_path = ''
+    else:
+        processed_path = '/'.join(path_parts)
+    
+    logger.debug(f"Processing request to {service_name} - Original path: {path}, Processed path: {processed_path}")
+    
     # Prepare message for service block (updated to match service expectations)
     message = {
         "correlation_id": request_id,  # Use correlation_id instead of request_id
         "method": method,
-        "endpoint": path,  # Use endpoint instead of path
+        "endpoint": processed_path,  # Use processed path
         "headers": dict(headers),
         "body": body.decode('utf-8') if body else None,
         "data": query_params or {},  # Use data instead of query_params
@@ -105,11 +124,22 @@ async def route_to_service_block(
             routing_key=service_config["routing_key"]
         )
         
-        logger.info(f"Sent request {request_id} to {service_name} service: {method} {path}")
+        logger.debug(f"Sent request {request_id} to {service_name} service: {method} {path}")
         
         # Wait for response with timeout
         try:
             response = await asyncio.wait_for(response_future, timeout=30.0)
+            
+            # Check if service returned an error
+            if response.get("status") == "error":
+                error_detail = response.get("error", {})
+                if isinstance(error_detail, dict):
+                    error_msg = error_detail.get("message", "Service error")
+                else:
+                    error_msg = str(error_detail)
+                logger.error(f"Service {service_name} returned error: {error_msg}")
+                raise HTTPException(status_code=500, detail=error_msg)
+            
             return response
         except asyncio.TimeoutError:
             logger.error(f"Timeout waiting for response from {service_name} service for request {request_id}")
@@ -137,7 +167,7 @@ async def handle_service_response(message_data: Dict[str, Any]):
         future = pending_responses[request_id]
         if not future.done():
             future.set_result(message_data)
-            logger.info(f"Received response for request {request_id}")
+            logger.debug(f"Received response for request {request_id}")
     else:
         logger.warning(f"Received response for unknown request ID: {request_id}")
 
@@ -174,10 +204,10 @@ async def management_route(request: Request, path: str = ""):
         )
         
         # Return response from service block
+        response_data = response.get("data", {})
         return JSONResponse(
-            content=response.get("body", {}),
-            status_code=response.get("status_code", 200),
-            headers=response.get("headers", {})
+            content=response_data,
+            status_code=200
         )
         
     except HTTPException:
