@@ -269,6 +269,118 @@ class AnalyticsService:
                 logger.info(f"Cleaned up {deleted_count} expired analytics cache entries")
         except Exception as e:
             logger.error(f"Error cleaning up expired cache: {e}")
+    
+    async def get_maintenance_costs(self, use_cache: bool = True) -> Dict[str, Any]:
+        """Get maintenance costs analytics"""
+        metric_type = "maintenance_costs"
+        
+        if use_cache:
+            cached = await self.analytics_repo.get_cached_metric(metric_type)
+            if cached:
+                logger.info(f"Returning cached {metric_type}")
+                return cached["data"]
+        
+        logger.info(f"Calculating fresh {metric_type}")
+        
+        # Mock maintenance costs data - this would be replaced with actual calculation
+        costs_data = {
+            "total_costs": 50000,
+            "monthly_costs": [
+                {"month": "Jan", "cost": 4200},
+                {"month": "Feb", "cost": 3800},
+                {"month": "Mar", "cost": 4600},
+                {"month": "Apr", "cost": 4100},
+                {"month": "May", "cost": 3900},
+                {"month": "Jun", "cost": 4300}
+            ],
+            "cost_categories": {
+                "routine_maintenance": 25000,
+                "repairs": 15000,
+                "parts": 10000
+            },
+            "average_cost_per_vehicle": 2500
+        }
+        
+        # Cache the results
+        await self.analytics_repo.cache_metric(
+            metric_type=metric_type,
+            data=costs_data,
+            ttl_minutes=self.cache_ttl["cost_analytics"]
+        )
+        
+        return costs_data
+    
+    async def get_fuel_consumption(self, use_cache: bool = True) -> Dict[str, Any]:
+        """Get fuel consumption analytics"""
+        metric_type = "fuel_consumption"
+        
+        if use_cache:
+            cached = await self.analytics_repo.get_cached_metric(metric_type)
+            if cached:
+                logger.info(f"Returning cached {metric_type}")
+                return cached["data"]
+        
+        logger.info(f"Calculating fresh {metric_type}")
+        
+        # Mock fuel consumption data - this would be replaced with actual calculation
+        fuel_data = {
+            "total_consumption": 12500,
+            "monthly_consumption": [
+                {"month": "Jan", "liters": 2100},
+                {"month": "Feb", "liters": 1950},
+                {"month": "Mar", "liters": 2250},
+                {"month": "Apr", "liters": 2050},
+                {"month": "May", "liters": 1980},
+                {"month": "Jun", "liters": 2170}
+            ],
+            "average_consumption_per_vehicle": 625,
+            "fuel_efficiency": {
+                "best_performing": {"vehicle_id": "V001", "efficiency": 8.5},
+                "worst_performing": {"vehicle_id": "V015", "efficiency": 12.2},
+                "fleet_average": 10.3
+            },
+            "total_cost": 15000
+        }
+        
+        # Cache the results
+        await self.analytics_repo.cache_metric(
+            metric_type=metric_type,
+            data=fuel_data,
+            ttl_minutes=self.cache_ttl["cost_analytics"]
+        )
+        
+        return fuel_data
+    
+    async def get_analytics_data(self, query_params: Dict[str, Any]) -> Dict[str, Any]:
+        """Get general analytics data based on query parameters"""
+        try:
+            # Extract query parameters
+            metric_type = query_params.get("type", "general")
+            use_cache = query_params.get("use_cache", True)
+            
+            # Route to specific analytics based on type
+            if metric_type == "dashboard":
+                return await self.get_dashboard_summary(use_cache=use_cache)
+            elif metric_type == "fleet_utilization":
+                return await self.get_fleet_utilization(use_cache=use_cache)
+            elif metric_type == "driver_performance":
+                return await self.get_driver_performance(use_cache=use_cache)
+            elif metric_type == "maintenance_costs":
+                return await self.get_maintenance_costs(use_cache=use_cache)
+            elif metric_type == "fuel_consumption":
+                return await self.get_fuel_consumption(use_cache=use_cache)
+            else:
+                # Return combined analytics data
+                return {
+                    "dashboard": await self.get_dashboard_summary(use_cache=use_cache),
+                    "fleet_utilization": await self.get_fleet_utilization(use_cache=use_cache),
+                    "driver_performance": await self.get_driver_performance(use_cache=use_cache),
+                    "maintenance_costs": await self.get_maintenance_costs(use_cache=use_cache),
+                    "fuel_consumption": await self.get_fuel_consumption(use_cache=use_cache)
+                }
+        except Exception as e:
+            logger.error(f"Error getting analytics data: {e}")
+            raise
 
 
 # Global analytics service instance

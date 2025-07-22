@@ -175,6 +175,44 @@ class DriverService:
         except Exception as e:
             logger.error(f"Error getting active drivers: {e}")
             raise
+    
+    async def get_driver_by_id(self, driver_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific driver by ID"""
+        try:
+            driver = await self.driver_repo.get_by_id(driver_id)
+            if not driver:
+                logger.warning(f"Driver not found: {driver_id}")
+                return None
+            return driver
+        except Exception as e:
+            logger.error(f"Error getting driver {driver_id}: {e}")
+            raise
+    
+    async def delete_driver(self, driver_id: str) -> bool:
+        """Delete a driver by ID"""
+        try:
+            # Check if driver exists
+            driver = await self.driver_repo.get_by_id(driver_id)
+            if not driver:
+                logger.warning(f"Driver not found for deletion: {driver_id}")
+                return False
+            
+            # Check if driver has active assignments
+            if driver.get("status") == "active":
+                logger.warning(f"Cannot delete active driver: {driver_id}")
+                raise ValueError("Cannot delete an active driver. Please deactivate first.")
+            
+            # Delete the driver
+            success = await self.driver_repo.delete(driver_id)
+            if success:
+                logger.info(f"Driver deleted successfully: {driver_id}")
+            else:
+                logger.error(f"Failed to delete driver: {driver_id}")
+            
+            return success
+        except Exception as e:
+            logger.error(f"Error deleting driver {driver_id}: {e}")
+            raise
 
 
 # Global service instance

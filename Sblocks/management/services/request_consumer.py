@@ -191,89 +191,212 @@ class ServiceRequestConsumer:
             raise
     
     async def _handle_vehicles_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle vehicles-related requests"""
+        """Handle vehicles-related requests by calling route logic"""
         try:
-            # Import and create service instance
-            from services.vehicle_service import VehicleService
+            # Import route handlers and extract their business logic
+            from api.routes.vehicles import vehicle_service
             from schemas.requests import VehicleCreateRequest, VehicleUpdateRequest
-            vehicle_service = VehicleService()
+            from schemas.responses import ResponseBuilder
             
             # Extract data and endpoint from user_context
             data = user_context.get("data", {})
             endpoint = user_context.get("endpoint", "")
             
-            # Handle HTTP methods properly
+            # Create mock user for service calls
+            current_user = {"user_id": user_context.get("user_id", "system")}
+            
+            # Handle HTTP methods and route to appropriate logic
             if method == "GET":
-                # Check if it's a search or specific vehicle request
+                # Parse endpoint for specific vehicle operations
                 if "search" in endpoint:
                     query = data.get("query", "")
-                    return await vehicle_service.search_vehicles(query)
-                elif endpoint.count('/') > 0 and endpoint.split('/')[-1]:  # vehicles/{id} pattern
+                    vehicles = await vehicle_service.search_vehicles(query)
+                elif endpoint.count('/') > 0 and endpoint.split('/')[-1] and endpoint.split('/')[-1] != "vehicles":
+                    # vehicles/{id} pattern
                     vehicle_id = endpoint.split('/')[-1]
-                    if not vehicle_id or vehicle_id == "vehicles":
-                        return await vehicle_service.get_vehicles()
-                    return await vehicle_service.get_vehicle_by_id(vehicle_id)
+                    vehicles = await vehicle_service.get_vehicle_by_id(vehicle_id)
                 else:
-                    return await vehicle_service.get_vehicles()
+                    # Get all vehicles with optional filters
+                    department = data.get("department")
+                    status = data.get("status") 
+                    vehicle_type = data.get("vehicle_type")
+                    pagination = data.get("pagination", {"skip": 0, "limit": 50})
+                    
+                    vehicles = await vehicle_service.get_vehicles(
+                        department=department,
+                        status=status,
+                        vehicle_type=vehicle_type,
+                        pagination=pagination
+                    )
+                
+                return ResponseBuilder.success(
+                    data=vehicles,
+                    message="Vehicles retrieved successfully"
+                ).model_dump()
+                
             elif method == "POST":
                 if not data:
                     raise ValueError("Request data is required for POST operation")
-                # Convert dict to VehicleCreateRequest object
+                
+                # Create vehicle
                 vehicle_request = VehicleCreateRequest(**data)
-                # Extract created_by from user_context
-                created_by = user_context.get("user_id", "unknown")
-                return await vehicle_service.create_vehicle(vehicle_request, created_by)
+                created_by = current_user["user_id"]
+                result = await vehicle_service.create_vehicle(vehicle_request, created_by)
+                
+                return ResponseBuilder.success(
+                    data=result,
+                    message="Vehicle created successfully"
+                ).model_dump()
+                
             elif method == "PUT":
                 vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
                 if not vehicle_id:
                     raise ValueError("Vehicle ID is required for PUT operation")
                 if not data:
                     raise ValueError("Request data is required for PUT operation")
-                # Convert dict to VehicleUpdateRequest object
+                
+                # Update vehicle
                 vehicle_update_request = VehicleUpdateRequest(**data)
-                # Extract updated_by from user_context
-                updated_by = user_context.get("user_id", "unknown")
-                return await vehicle_service.update_vehicle(vehicle_id, vehicle_update_request, updated_by)
+                updated_by = current_user["user_id"]
+                result = await vehicle_service.update_vehicle(vehicle_id, vehicle_update_request, updated_by)
+                
+                return ResponseBuilder.success(
+                    data=result,
+                    message="Vehicle updated successfully"
+                ).model_dump()
+                
             elif method == "DELETE":
                 vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
                 if not vehicle_id:
                     raise ValueError("Vehicle ID is required for DELETE operation")
-                # Extract deleted_by from user_context
-                deleted_by = user_context.get("user_id", "unknown")
-                return await vehicle_service.delete_vehicle(vehicle_id, deleted_by)
+                
+                # Delete vehicle
+                deleted_by = current_user["user_id"]
+                result = await vehicle_service.delete_vehicle(vehicle_id, deleted_by)
+                
+                return ResponseBuilder.success(
+                    data=result,
+                    message="Vehicle deleted successfully"
+                ).model_dump()
+                
             else:
                 raise ValueError(f"Unsupported HTTP method for vehicles: {method}")
+                
         except Exception as e:
             logger.error(f"Error handling vehicles request {method} {endpoint}: {e}")
-            raise
+            return ResponseBuilder.error(
+                error="VehicleRequestError",
+                message=f"Failed to process vehicle request: {str(e)}"
+            ).model_dump()
     
     async def _handle_drivers_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle drivers-related requests"""
-        from services.driver_service import DriverService
-        driver_service = DriverService()
-        
-        # Extract data from user_context
-        data = user_context.get("data", {})
-        
-        if method == "get_active_drivers":
-            return await driver_service.get_active_drivers()
-        elif method == "get_driver_by_id":
-            driver_id = user_context.get("driver_id")
-            return await driver_service.get_driver_by_id(driver_id)
-        elif method == "create_driver":
-            # Extract created_by from user_context
-            created_by = user_context.get("user_id", "unknown")
-            return await driver_service.create_driver(data, created_by)
-        elif method == "update_driver":
-            driver_id = user_context.get("driver_id")
-            # Extract updated_by from user_context
-            updated_by = user_context.get("user_id", "unknown")
-            return await driver_service.update_driver(driver_id, data, updated_by)
-        elif method == "delete_driver":
-            driver_id = user_context.get("driver_id")
-            return await driver_service.delete_driver(driver_id)
-        
-        raise ValueError(f"Unsupported drivers operation: {method}")
+        """Handle drivers-related requests by calling route logic"""
+        try:
+            # Import route logic
+            from services.driver_service import driver_service
+            from schemas.requests import DriverCreateRequest, DriverUpdateRequest
+            from schemas.responses import ResponseBuilder
+            from repositories.repositories import DriverRepository
+            
+            # Extract data and endpoint from user_context
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            # Create mock user for service calls
+            current_user = {"user_id": user_context.get("user_id", "system")}
+            
+            # Handle HTTP methods and route to appropriate logic
+            if method == "GET":
+                # Parse endpoint for specific driver operations
+                if "search" in endpoint:
+                    query = data.get("query", "")
+                    drivers = await driver_service.search_drivers(query)
+                elif endpoint.count('/') > 0 and endpoint.split('/')[-1] and endpoint.split('/')[-1] != "drivers":
+                    # drivers/{id} pattern
+                    driver_id = endpoint.split('/')[-1]
+                    drivers = await driver_service.get_driver_by_id(driver_id)
+                else:
+                    # Get drivers with optional filters (mimic route logic)
+                    department = data.get("department")
+                    status = data.get("status")
+                    pagination = data.get("pagination", {"skip": 0, "limit": 50})
+                    
+                    if department:
+                        drivers = await driver_service.get_drivers_by_department(department)
+                    elif status == "active":
+                        drivers = await driver_service.get_active_drivers()
+                    else:
+                        # Use repository for filtered queries
+                        driver_repo = DriverRepository()
+                        filter_query = {}
+                        if status:
+                            filter_query["status"] = status
+                        
+                        drivers = await driver_repo.find(
+                            filter_query=filter_query,
+                            skip=pagination["skip"],
+                            limit=pagination["limit"],
+                            sort=[("last_name", 1), ("first_name", 1)]
+                        )
+                
+                return ResponseBuilder.success(
+                    data=drivers,
+                    message="Drivers retrieved successfully"
+                ).model_dump()
+                
+            elif method == "POST":
+                if not data:
+                    raise ValueError("Request data is required for POST operation")
+                
+                # Create driver
+                driver_request = DriverCreateRequest(**data)
+                created_by = current_user["user_id"]
+                result = await driver_service.create_driver(driver_request, created_by)
+                
+                return ResponseBuilder.success(
+                    data=result,
+                    message="Driver created successfully"
+                ).model_dump()
+                
+            elif method == "PUT":
+                driver_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not driver_id:
+                    raise ValueError("Driver ID is required for PUT operation")
+                if not data:
+                    raise ValueError("Request data is required for PUT operation")
+                
+                # Update driver
+                driver_update_request = DriverUpdateRequest(**data)
+                updated_by = current_user["user_id"]
+                result = await driver_service.update_driver(driver_id, driver_update_request, updated_by)
+                
+                return ResponseBuilder.success(
+                    data=result,
+                    message="Driver updated successfully"
+                ).model_dump()
+                
+            elif method == "DELETE":
+                driver_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not driver_id:
+                    raise ValueError("Driver ID is required for DELETE operation")
+                
+                # Delete driver
+                result = await driver_service.delete_driver(driver_id)
+                
+                return ResponseBuilder.success(
+                    data=result,
+                    message="Driver deleted successfully"
+                ).model_dump()
+                
+            else:
+                raise ValueError(f"Unsupported HTTP method for drivers: {method}")
+                
+        except Exception as e:
+            logger.error(f"Error handling drivers request {method} {endpoint}: {e}")
+            return ResponseBuilder.error(
+                error="DriverRequestError",
+                message=f"Failed to process driver request: {str(e)}"
+            ).model_dump()
     
     async def _handle_assignments_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle assignments-related requests"""
@@ -284,27 +407,83 @@ class ServiceRequestConsumer:
         }
     
     async def _handle_analytics_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle analytics-related requests"""
-        from services.analytics_service import analytics_service
-        
-        # Extract data from user_context
-        data = user_context.get("data", {})
-        use_cache = data.get("use_cache", True)
-        
-        if method == "get_analytics_data":
-            return await analytics_service.get_analytics_data(data)
-        elif method == "get_dashboard_analytics":
-            return await analytics_service.get_dashboard_analytics(use_cache=use_cache)
-        elif method == "get_fleet_utilization":
-            return await analytics_service.get_fleet_utilization(use_cache=use_cache)
-        elif method == "get_driver_performance":
-            return await analytics_service.get_driver_performance(use_cache=use_cache)
-        elif method == "get_maintenance_costs":
-            return await analytics_service.get_maintenance_costs(use_cache=use_cache)
-        elif method == "get_fuel_consumption":
-            return await analytics_service.get_fuel_consumption(use_cache=use_cache)
-        
-        raise ValueError(f"Unsupported analytics operation: {method}")
+        """Handle analytics-related requests by calling route logic"""
+        try:
+            # Import route logic
+            from services.analytics_service import analytics_service
+            from schemas.responses import ResponseBuilder
+            
+            # Extract data and endpoint from user_context
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            use_cache = data.get("use_cache", True)
+            
+            # Create mock user for service calls
+            current_user = {"user_id": user_context.get("user_id", "system")}
+            
+            # Handle HTTP methods and route to appropriate analytics logic
+            if method == "GET":
+                # Route based on specific analytics endpoint (mimic route structure)
+                if "dashboard" in endpoint:
+                    dashboard_data = await analytics_service.get_dashboard_summary(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=dashboard_data,
+                        message="Dashboard analytics retrieved successfully"
+                    ).model_dump()
+                    
+                elif "fleet-utilization" in endpoint or "fleet_utilization" in endpoint:
+                    utilization_data = await analytics_service.get_fleet_utilization(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=utilization_data,
+                        message="Fleet utilization data retrieved successfully"
+                    ).model_dump()
+                    
+                elif "driver-performance" in endpoint or "driver_performance" in endpoint:
+                    performance_data = await analytics_service.get_driver_performance(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=performance_data,
+                        message="Driver performance data retrieved successfully"
+                    ).model_dump()
+                    
+                elif "maintenance-costs" in endpoint or "maintenance_costs" in endpoint:
+                    costs_data = await analytics_service.get_maintenance_costs(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=costs_data,
+                        message="Maintenance costs data retrieved successfully"
+                    ).model_dump()
+                    
+                elif "fuel-consumption" in endpoint or "fuel_consumption" in endpoint:
+                    fuel_data = await analytics_service.get_fuel_consumption(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=fuel_data,
+                        message="Fuel consumption data retrieved successfully"
+                    ).model_dump()
+                    
+                else:
+                    # Default analytics data
+                    analytics_data = await analytics_service.get_analytics_data(data)
+                    return ResponseBuilder.success(
+                        data=analytics_data,
+                        message="Analytics data retrieved successfully"
+                    ).model_dump()
+                    
+            elif method == "POST":
+                # POST for custom analytics queries
+                analytics_data = await analytics_service.get_analytics_data(data)
+                return ResponseBuilder.success(
+                    data=analytics_data,
+                    message="Custom analytics query processed successfully"
+                ).model_dump()
+                
+            else:
+                raise ValueError(f"Unsupported HTTP method for analytics: {method}")
+                
+        except Exception as e:
+            logger.error(f"Error handling analytics request {method} {endpoint}: {e}")
+            return ResponseBuilder.error(
+                error="AnalyticsRequestError",
+                message=f"Failed to process analytics request: {str(e)}"
+            ).model_dump()
     
     async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle health check requests"""

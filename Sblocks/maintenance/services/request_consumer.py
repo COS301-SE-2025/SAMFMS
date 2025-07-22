@@ -1,6 +1,6 @@
 """
 Service Request Consumer for Maintenance Service
-Handles requests from Core service via RabbitMQ following standardized patterns
+Handles requests from Core service via RabbitMQ with standardized patterns
 """
 
 import asyncio
@@ -12,16 +12,10 @@ from typing import Dict, Any
 import aio_pika
 from aio_pika.abc import AbstractIncomingMessage
 
-# Import local RabbitMQ config
+# Import standardized RabbitMQ config
 from config.rabbitmq_config import RabbitMQConfig, json_serializer
 
-from services.maintenance_service import maintenance_records_service
-from services.license_service import license_service
-from services.analytics_service import maintenance_analytics_service
-from services.notification_service import notification_service
-
 logger = logging.getLogger(__name__)
-
 
 class ServiceRequestConsumer:
     """Handles service requests from Core via RabbitMQ with standardized patterns"""
@@ -29,219 +23,215 @@ class ServiceRequestConsumer:
     def __init__(self):
         self.connection = None
         self.channel = None
+        self.exchange = None
+        self.queue = None
+        # Use standardized config
+        self.config = RabbitMQConfig()
+        self.queue_name = self.config.QUEUE_NAMES["maintenance"]
+        self.exchange_name = self.config.EXCHANGE_NAMES["requests"]
+        self.response_exchange_name = self.config.EXCHANGE_NAMES["responses"]
+        # Request deduplication
+        self.processed_requests = set()
         self.is_consuming = False
-        self.request_timeout = int(os.getenv("REQUEST_TIMEOUT", "30"))
-        self.max_retries = int(os.getenv("MAX_REQUEST_RETRIES", "3"))
-        self.processed_messages = set()  # For deduplication
-        self.config = RabbitMQConfig()  # Initialize config
         
     async def connect(self):
-        """Connect to RabbitMQ with improved error handling and standardized config"""
+        """Establish connection to RabbitMQ using standardized config"""
         try:
             self.connection = await aio_pika.connect_robust(
-                RabbitMQConfig.RABBITMQ_URL,
-                heartbeat=RabbitMQConfig.HEARTBEAT,
-                blocked_connection_timeout=RabbitMQConfig.BLOCKED_CONNECTION_TIMEOUT
+                url=self.config.get_rabbitmq_url(),
+                heartbeat=self.config.CONNECTION_PARAMS["heartbeat"],
+                blocked_connection_timeout=self.config.CONNECTION_PARAMS["blocked_connection_timeout"]
+            )
+            self.channel = await self.connection.channel()
+            
+            # Declare exchanges
+            self.exchange = await self.channel.declare_exchange(
+                self.exchange_name,
+                aio_pika.ExchangeType.DIRECT,
+                durable=True
             )
             
-            self.channel = await self.connection.channel()
-            await self.channel.set_qos(prefetch_count=RabbitMQConfig.PREFETCH_COUNT)
+            self.response_exchange = await self.channel.declare_exchange(
+                self.response_exchange_name, 
+                aio_pika.ExchangeType.DIRECT,
+                durable=True
+            )
             
-            logger.info("✅ Maintenance service request consumer connected to RabbitMQ")
+            # Declare and bind queue
+            self.queue = await self.channel.declare_queue(
+                self.queue_name,
+                durable=True
+            )
+            
+            # Bind to maintenance routing key (must match Core service routing pattern)
+            await self.queue.bind(self.exchange, "maintenance.requests")
+            
+            logger.info(f"Connected to RabbitMQ. Queue: {self.queue_name}")
             return True
             
         except Exception as e:
-            logger.error(f"❌ Failed to connect maintenance service request consumer: {e}")
-            return False
-            
-    async def disconnect(self):
-        """Disconnect from RabbitMQ"""
-        if self.connection and not self.connection.is_closed:
-            await self.connection.close()
-            logger.info("Disconnected from RabbitMQ")
-            
-    async def setup_queues(self):
-        """Setup queues for service requests with proper exchange declaration and binding"""
-        try:
-            # Declare exchange using new config structure
-            exchange = await self.channel.declare_exchange(
-                self.config.EXCHANGE_NAMES["requests"], 
-                aio_pika.ExchangeType.DIRECT, 
-                durable=True
-            )
-            logger.info("✅ Service requests exchange declared/connected")
-            
-            # Declare queue with consistent naming
-            queue = await self.channel.declare_queue(
-                self.config.QUEUE_NAMES["maintenance"], 
-                durable=True
-            )
-            logger.info(f"✅ Created/connected to {self.config.QUEUE_NAMES['maintenance']} queue")
-            
-            # Bind queue to exchange with routing key (must match Core service routing pattern)
-            await queue.bind(exchange, routing_key="maintenance.requests")
-            logger.info(f"✅ Queue bound to {self.config.EXCHANGE_NAMES['requests']} exchange with routing key 'maintenance.requests'")
-            
-            logger.info("✅ Maintenance service queue setup complete")
-            return queue
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to setup queue: {e}")
+            logger.error(f"Failed to connect to RabbitMQ: {e}")
             raise
     
+    async def setup_queues(self):
+        """Setup queues and exchanges (already done in connect)"""
+        # Queue setup is now handled in connect method
+        return self.queue
+    
     async def start_consuming(self):
-        """Start consuming service requests"""
+        """Start consuming requests"""
         try:
             if not self.connection or self.connection.is_closed:
                 await self.connect()
                 
-            # Setup queues and exchanges
-            queue = await self.setup_queues()
+            await self.queue.consume(self.handle_request, no_ack=False)
+            logger.info(f"Started consuming from {self.queue_name}")
             
-            # Start consuming
-            await queue.consume(self._handle_request_message, no_ack=False)
-            self.is_consuming = True
-            
-            logger.info("Started consuming service requests from maintenance.requests queue")
-            
-            # Keep consuming
-            while self.is_consuming:
-                await asyncio.sleep(1)
-                
         except Exception as e:
-            logger.error(f"Error in maintenance service request consumption: {e}")
-            self.is_consuming = False
+            logger.error(f"Error starting consumer: {e}")
             raise
-            
-    async def stop_consuming(self):
-        """Stop consuming requests"""
-        self.is_consuming = False
-        if self.channel:
-            await self.channel.close()
-        logger.info("Stopped consuming maintenance service requests")
-        
-    async def _handle_request_message(self, message: AbstractIncomingMessage):
-        """Handle incoming service request message with deduplication and validation"""
+    
+    async def handle_request(self, message: AbstractIncomingMessage):
+        """Handle incoming request message using standardized pattern"""
+        request_id = None
         try:
             async with message.process(requeue=False):
-                # Parse message
+                # Parse message body
                 request_data = json.loads(message.body.decode())
                 
-                # Support both old (request_id, path) and new (correlation_id, endpoint) formats
-                correlation_id = request_data.get("correlation_id") or request_data.get("request_id")
-                endpoint = request_data.get("endpoint") or request_data.get("path")
+                # Extract request details
+                request_id = request_data.get("correlation_id")
                 method = request_data.get("method")
-                data = request_data.get("data") or {}
                 user_context = request_data.get("user_context", {})
+                endpoint = request_data.get("endpoint", "")
                 
-                # Handle body data for legacy format
-                if "body" in request_data:
-                    body_data = request_data.get("body")
-                    if body_data:
-                        try:
-                            data = json.loads(body_data) if isinstance(body_data, str) else body_data
-                        except json.JSONDecodeError:
-                            logger.warning(f"Could not parse body data: {body_data}")
-                
-                # Add query params to data for legacy format
-                if "query_params" in request_data:
-                    data.update(request_data.get("query_params", {}))
-                
-                # Validate request
-                if not self._validate_request(correlation_id, endpoint, method):
+                # Check for duplicate requests
+                if request_id in self.processed_requests:
+                    logger.warning(f"Duplicate request ignored: {request_id}")
                     return
+                    
+                self.processed_requests.add(request_id)
                 
-                # Check for duplicates
-                if correlation_id in self.processed_messages:
-                    logger.warning(f"⚠️ Duplicate message detected: {correlation_id}")
-                    return
+                logger.debug(f"Processing request {request_id}: {method} {endpoint}")
                 
-                logger.debug(f"🔄 Processing maintenance service request {correlation_id}: {method} {endpoint}")
+                # Route and process request
+                response_data = await self._route_request(method, user_context, endpoint)
                 
-                # Process the request
-                response = await self._process_request(endpoint, method, data, user_context)
-                
-                # Send response back to Core
-                await self._send_response(correlation_id, response)
-                
-                # Mark as processed
-                self.processed_messages.add(correlation_id)
-                
-                # Cleanup old processed messages (keep last 1000)
-                if len(self.processed_messages) > 1000:
-                    self.processed_messages = set(list(self.processed_messages)[-500:])
-                
-                logger.debug(f"✅ Maintenance service request {correlation_id} processed successfully")
-                
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in maintenance service request: {e}")
-        except Exception as e:
-            logger.error(f"Error processing maintenance service request: {e}")
-            # Try to send error response if we have correlation_id
-            try:
-                request_data = json.loads(message.body.decode())
-                correlation_id = request_data.get("correlation_id") or request_data.get("request_id")
-                if correlation_id:
-                    await self._send_error_response(correlation_id, str(e))
-            except:
-                pass
-                
-    def _validate_request(self, correlation_id: str, endpoint: str, method: str) -> bool:
-        """Validate request data format"""
-        if not correlation_id:
-            logger.error("❌ Missing correlation_id in request")
-            return False
-        if not endpoint:
-            logger.error("❌ Missing endpoint in request")
-            return False
-        if not method:
-            logger.error("❌ Missing method in request")
-            return False
-        return True
-                
-    async def _process_request(self, endpoint: str, method: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Process request and route to appropriate service method"""
-        try:
-            # Maintenance records endpoints
-            if endpoint.startswith("/maintenance/records"):
-                return await self._handle_maintenance_records_request(method, endpoint, data, user_context)
-            
-            # License records endpoints  
-            elif endpoint.startswith("/maintenance/licenses"):
-                return await self._handle_license_request(method, endpoint, data, user_context)
-            
-            # Analytics endpoints
-            elif endpoint.startswith("/maintenance/analytics"):
-                return await self._handle_analytics_request(method, endpoint, data, user_context)
-            
-            # Notification endpoints
-            elif endpoint.startswith("/maintenance/notifications"):
-                return await self._handle_notification_request(method, endpoint, data, user_context)
-            
-            # Vendor endpoints
-            elif endpoint.startswith("/maintenance/vendors"):
-                return await self._handle_vendor_request(method, endpoint, data, user_context)
-            
-            else:
-                return {
-                    "success": False,
-                    "message": f"Unknown endpoint: {endpoint}",
-                    "error_code": "UNKNOWN_ENDPOINT"
+                # Send successful response
+                response = {
+                    "status": "success",
+                    "data": response_data,
+                    "timestamp": datetime.now().isoformat()
                 }
                 
+                await self._send_response(request_id, response)
+                logger.info(f"Request {request_id} completed successfully")
+                
         except Exception as e:
-            logger.error(f"Error processing maintenance request: {e}")
-            return {
-                "success": False,
-                "message": f"Error processing request: {str(e)}",
-                "error_code": "PROCESSING_ERROR"
-            }
-            
-    async def _handle_maintenance_records_request(self, method: str, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle maintenance records requests"""
+            logger.error(f"Error processing request {request_id}: {e}")
+            if request_id:
+                error_response = {
+                    "status": "error",
+                    "error": {
+                        "message": str(e),
+                        "type": type(e).__name__
+                    },
+                    "timestamp": datetime.now().isoformat()
+                }
+                await self._send_response(request_id, error_response)
+    
+    async def _route_request(self, method: str, user_context: Dict[str, Any], endpoint: str = "") -> Dict[str, Any]:
+        """Route request to appropriate handler based on endpoint pattern"""
         try:
+            # Validate inputs
+            if not method or not isinstance(method, str):
+                raise ValueError("Invalid HTTP method")
+            
+            if not isinstance(user_context, dict):
+                raise ValueError("Invalid user context")
+            
+            if not isinstance(endpoint, str):
+                raise ValueError("Invalid endpoint")
+            
+            # Normalize endpoint path
+            endpoint = endpoint.strip().lstrip('/').rstrip('/')
+            
+            # Add endpoint to user_context for handlers to use
+            user_context["endpoint"] = endpoint
+            
+            logger.debug(f"Routing {method} request to endpoint: {endpoint}")
+            
+            # Route to appropriate handler based on endpoint pattern
+            if endpoint == "health" or endpoint == "":
+                # Health check endpoint
+                return await self._handle_health_request(method, user_context)
+            elif "maintenance/records" in endpoint or endpoint == "maintenance/records":
+                return await self._handle_maintenance_records_request(method, user_context)
+            elif "maintenance/licenses" in endpoint:
+                return await self._handle_license_request(method, user_context)
+            elif "maintenance/analytics" in endpoint:
+                return await self._handle_analytics_request(method, user_context)
+            elif "maintenance/notifications" in endpoint:
+                return await self._handle_notification_request(method, user_context)
+            elif "maintenance/vendors" in endpoint:
+                return await self._handle_vendor_request(method, user_context)
+            elif "status" in endpoint or endpoint == "status":
+                return await self._handle_status_request(method, user_context)
+            elif "docs" in endpoint or "openapi" in endpoint:
+                return await self._handle_docs_request(method, user_context)
+            elif "metrics" in endpoint:
+                return await self._handle_metrics_request(method, user_context)
+            else:
+                raise ValueError(f"Unknown endpoint: {endpoint}")
+                
+        except Exception as e:
+            logger.error(f"Error routing request for {endpoint}: {e}")
+            raise
+    
+    async def _handle_maintenance_records_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle maintenance records requests by calling route logic"""
+        try:
+            # Import route logic
+            from services.maintenance_service import maintenance_records_service
+            from schemas.responses import ResponseBuilder
+            
+            # Extract data and endpoint from user_context
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            # Create mock user for service calls
+            current_user = {"user_id": user_context.get("user_id", "system")}
+            
+            # Handle HTTP methods and route to appropriate logic
             if method == "GET":
-                if endpoint == "/maintenance/records":
+                if "overdue" in endpoint:
+                    records = await maintenance_records_service.get_overdue_maintenance()
+                    return ResponseBuilder.success(
+                        data=records,
+                        message="Overdue maintenance retrieved successfully"
+                    ).model_dump()
+                elif "upcoming" in endpoint:
+                    days_ahead = data.get("days", 7)
+                    records = await maintenance_records_service.get_upcoming_maintenance(days_ahead)
+                    return ResponseBuilder.success(
+                        data=records,
+                        message="Upcoming maintenance retrieved successfully"
+                    ).model_dump()
+                elif endpoint.count('/') > 0 and endpoint.split('/')[-1] and endpoint.split('/')[-1] not in ["records", "maintenance"]:
+                    # maintenance/records/{id} pattern
+                    record_id = endpoint.split('/')[-1]
+                    record = await maintenance_records_service.get_maintenance_record(record_id)
+                    if record:
+                        return ResponseBuilder.success(
+                            data=record,
+                            message="Maintenance record retrieved successfully"
+                        ).model_dump()
+                    else:
+                        return ResponseBuilder.error(
+                            error="NotFound",
+                            message="Maintenance record not found"
+                        ).model_dump()
+                else:
                     # List maintenance records with filters
                     records = await maintenance_records_service.search_maintenance_records(
                         query=data,
@@ -250,54 +240,66 @@ class ServiceRequestConsumer:
                         sort_by=data.get("sort_by", "scheduled_date"),
                         sort_order=data.get("sort_order", "desc")
                     )
-                    return {"success": True, "message": "Maintenance records retrieved", "data": records}
-                
-                elif "/records/" in endpoint:
-                    # Get specific maintenance record
-                    record_id = endpoint.split("/records/")[-1]
-                    record = await maintenance_records_service.get_maintenance_record(record_id)
-                    if record:
-                        return {"success": True, "message": "Maintenance record retrieved", "data": record}
-                    else:
-                        return {"success": False, "message": "Maintenance record not found", "error_code": "NOT_FOUND"}
-                
-                elif endpoint == "/maintenance/records/overdue":
-                    records = await maintenance_records_service.get_overdue_maintenance()
-                    return {"success": True, "message": "Overdue maintenance retrieved", "data": records}
-                
-                elif endpoint == "/maintenance/records/upcoming":
-                    days_ahead = data.get("days", 7)
-                    records = await maintenance_records_service.get_upcoming_maintenance(days_ahead)
-                    return {"success": True, "message": "Upcoming maintenance retrieved", "data": records}
-                
-            elif method == "POST":
-                if endpoint == "/maintenance/records":
-                    record = await maintenance_records_service.create_maintenance_record(data)
-                    return {"success": True, "message": "Maintenance record created", "data": record}
+                    return ResponseBuilder.success(
+                        data=records,
+                        message="Maintenance records retrieved successfully"
+                    ).model_dump()
                     
+            elif method == "POST":
+                if not data:
+                    raise ValueError("Request data is required for POST operation")
+                
+                record = await maintenance_records_service.create_maintenance_record(data)
+                return ResponseBuilder.success(
+                    data=record,
+                    message="Maintenance record created successfully"
+                ).model_dump()
+                
             elif method == "PUT":
-                if "/records/" in endpoint:
-                    record_id = endpoint.split("/records/")[-1]
-                    record = await maintenance_records_service.update_maintenance_record(record_id, data)
-                    if record:
-                        return {"success": True, "message": "Maintenance record updated", "data": record}
-                    else:
-                        return {"success": False, "message": "Maintenance record not found", "error_code": "NOT_FOUND"}
-                        
+                record_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not record_id:
+                    raise ValueError("Record ID is required for PUT operation")
+                if not data:
+                    raise ValueError("Request data is required for PUT operation")
+                
+                record = await maintenance_records_service.update_maintenance_record(record_id, data)
+                if record:
+                    return ResponseBuilder.success(
+                        data=record,
+                        message="Maintenance record updated successfully"
+                    ).model_dump()
+                else:
+                    return ResponseBuilder.error(
+                        error="NotFound",
+                        message="Maintenance record not found"
+                    ).model_dump()
+                    
             elif method == "DELETE":
-                if "/records/" in endpoint:
-                    record_id = endpoint.split("/records/")[-1]
-                    success = await maintenance_records_service.delete_maintenance_record(record_id)
-                    if success:
-                        return {"success": True, "message": "Maintenance record deleted"}
-                    else:
-                        return {"success": False, "message": "Maintenance record not found", "error_code": "NOT_FOUND"}
-            
-            return {"success": False, "message": "Invalid maintenance records request", "error_code": "INVALID_REQUEST"}
-            
+                record_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not record_id:
+                    raise ValueError("Record ID is required for DELETE operation")
+                
+                success = await maintenance_records_service.delete_maintenance_record(record_id)
+                if success:
+                    return ResponseBuilder.success(
+                        data={"deleted": True},
+                        message="Maintenance record deleted successfully"
+                    ).model_dump()
+                else:
+                    return ResponseBuilder.error(
+                        error="NotFound",
+                        message="Maintenance record not found"
+                    ).model_dump()
+                    
+            else:
+                raise ValueError(f"Unsupported HTTP method for maintenance records: {method}")
+                
         except Exception as e:
-            logger.error(f"Error handling maintenance records request: {e}")
-            raise
+            logger.error(f"Error handling maintenance records request {method} {endpoint}: {e}")
+            return ResponseBuilder.error(
+                error="MaintenanceRecordsRequestError",
+                message=f"Failed to process maintenance records request: {str(e)}"
+            ).model_dump()
             
     async def _handle_license_request(self, method: str, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle license requests"""
@@ -526,6 +528,91 @@ class ServiceRequestConsumer:
             
         except Exception as e:
             logger.error(f"❌ Error sending error response for {correlation_id}: {e}")
+
+    async def _handle_license_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle license-related requests"""
+        # License service not implemented yet
+        return {
+            "message": "License service not yet implemented",
+            "method": method
+        }
+    
+    async def _handle_analytics_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle analytics-related requests"""
+        # Analytics service not implemented yet
+        return {
+            "message": "Analytics service not yet implemented",
+            "method": method
+        }
+    
+    async def _handle_notification_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle notification-related requests"""
+        # Notification service not implemented yet
+        return {
+            "message": "Notification service not yet implemented",
+            "method": method
+        }
+    
+    async def _handle_vendor_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle vendor-related requests"""
+        # Vendor service not implemented yet
+        return {
+            "message": "Vendor service not yet implemented",
+            "method": method
+        }
+    
+    async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle health check requests"""
+        if method == "GET":
+            return {
+                "status": "healthy",
+                "service": "maintenance",
+                "timestamp": datetime.now().isoformat(),
+                "version": "1.0.0"
+            }
+        else:
+            raise ValueError(f"Unsupported method for health endpoint: {method}")
+    
+    async def _handle_status_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle status requests"""
+        if method == "GET":
+            return {
+                "status": "operational",
+                "service": "maintenance",
+                "uptime": "unknown",  # Could implement actual uptime tracking
+                "connections": {
+                    "database": "connected",
+                    "rabbitmq": "connected"
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            raise ValueError(f"Unsupported method for status endpoint: {method}")
+    
+    async def _handle_docs_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle documentation requests"""
+        if method == "GET":
+            return {
+                "message": "API documentation available at /docs",
+                "openapi_url": "/openapi.json",
+                "service": "maintenance"
+            }
+        else:
+            raise ValueError(f"Unsupported method for docs endpoint: {method}")
+    
+    async def _handle_metrics_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle metrics requests"""
+        if method == "GET":
+            return {
+                "metrics": {
+                    "requests_processed": len(self.processed_requests),
+                    "service_status": "healthy",
+                    "last_request_time": datetime.now().isoformat()
+                },
+                "service": "maintenance"
+            }
+        else:
+            raise ValueError(f"Unsupported method for metrics endpoint: {method}")
 
 
 # Global service instance
