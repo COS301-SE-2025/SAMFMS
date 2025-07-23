@@ -1,5 +1,5 @@
 """
-Database configuration and connection management for GPS service
+Database configuration and connection management for GPS service with analytics support
 """
 import motor.motor_asyncio
 import asyncio
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
-    """Centralized database connection manager for GPS service"""
+    """Centralized database connection manager for GPS service with analytics support"""
     
     def __init__(self):
         self._client: Optional[motor.motor_asyncio.AsyncIOMotorClient] = None
@@ -76,9 +76,9 @@ class DatabaseManager:
         return self._db
     
     async def _create_indexes(self):
-        """Create necessary indexes for GPS collections"""
+        """Create necessary indexes for GPS collections including analytics support"""
         try:
-            # Vehicle locations collection indexes
+            # Vehicle locations collection indexes (enhanced for analytics)
             locations_collection = self._db.vehicle_locations
             await locations_collection.create_index([
                 ("vehicle_id", 1),
@@ -94,8 +94,18 @@ class DatabaseManager:
                 ("vehicle_id", 1),
                 ("created_at", -1)
             ])
+            # New indexes for analytics
+            await locations_collection.create_index([
+                ("vehicle_id", 1),
+                ("date", 1)  # For daily analytics
+            ])
+            await locations_collection.create_index([
+                ("vehicle_id", 1),
+                ("engine_status", 1),
+                ("timestamp", 1)  # For idle time calculations
+            ])
             
-            # Location history collection indexes
+            # Location history collection indexes (enhanced for analytics)
             history_collection = self._db.location_history
             await history_collection.create_index([
                 ("vehicle_id", 1),
@@ -106,6 +116,16 @@ class DatabaseManager:
             ])
             await history_collection.create_index([
                 ("timestamp", 1)  # For TTL and cleanup
+            ])
+            # New indexes for analytics
+            await history_collection.create_index([
+                ("vehicle_id", 1),
+                ("date", 1)  # For daily analytics
+            ])
+            await history_collection.create_index([
+                ("vehicle_id", 1),
+                ("movement_status", 1),
+                ("timestamp", 1)  # For movement analysis
             ])
             
             # Geofences collection indexes
@@ -151,7 +171,7 @@ class DatabaseManager:
                 ("created_by", 1)
             ])
             
-            # Tracking sessions collection indexes
+            # Tracking sessions collection indexes (enhanced for analytics)
             tracking_sessions_collection = self._db.tracking_sessions
             await tracking_sessions_collection.create_index([
                 ("vehicle_id", 1),
@@ -164,8 +184,45 @@ class DatabaseManager:
                 ("user_id", 1),
                 ("started_at", -1)
             ])
+            # New indexes for analytics
+            await tracking_sessions_collection.create_index([
+                ("vehicle_id", 1),
+                ("date", 1)  # For daily session analytics
+            ])
+            await tracking_sessions_collection.create_index([
+                ("ended_at", -1)  # For completed sessions
+            ])
             
-            logger.info("Database indexes created successfully")
+            # NEW: Vehicle analytics collection for pre-computed daily summaries
+            analytics_collection = self._db.vehicle_analytics
+            await analytics_collection.create_index([
+                ("vehicle_id", 1),
+                ("date", 1)
+            ], unique=True)  # One record per vehicle per day
+            await analytics_collection.create_index([
+                ("date", -1)
+            ])
+            await analytics_collection.create_index([
+                ("vehicle_id", 1),
+                ("date", -1)
+            ])
+            
+            # NEW: Fuel events collection for tracking fuel changes
+            fuel_events_collection = self._db.fuel_events
+            await fuel_events_collection.create_index([
+                ("vehicle_id", 1),
+                ("timestamp", -1)
+            ])
+            await fuel_events_collection.create_index([
+                ("vehicle_id", 1),
+                ("date", 1)
+            ])
+            await fuel_events_collection.create_index([
+                ("event_type", 1),  # "refuel", "consumption"
+                ("timestamp", -1)
+            ])
+            
+            logger.info("Database indexes created successfully with analytics support")
             
         except Exception as e:
             logger.error(f"Error creating indexes: {e}")
@@ -180,6 +237,65 @@ class DatabaseManager:
             return True
         except Exception:
             return False
+
+    # NEW: Analytics helper methods
+    async def get_daily_analytics(self, vehicle_id: str = None, date: str = None):
+        """Get pre-computed daily analytics for vehicles"""
+        try:
+            collection = self._db.vehicle_analytics
+            
+            # Build query
+            query = {}
+            if vehicle_id:
+                query["vehicle_id"] = vehicle_id
+            if date:
+                query["date"] = date
+            
+            cursor = collection.find(query).sort("date", -1)
+            return await cursor.to_list(length=None)
+            
+        except Exception as e:
+            logger.error(f"Error fetching daily analytics: {e}")
+            raise
+    
+    async def get_vehicle_tracking_data(self, vehicle_id: str, start_date: str, end_date: str):
+        """Get tracking data for analytics calculations"""
+        try:
+            collection = self._db.vehicle_locations
+            
+            query = {
+                "vehicle_id": vehicle_id,
+                "timestamp": {
+                    "$gte": start_date,
+                    "$lte": end_date
+                }
+            }
+            
+            cursor = collection.find(query).sort("timestamp", 1)
+            return await cursor.to_list(length=None)
+            
+        except Exception as e:
+            logger.error(f"Error fetching tracking data: {e}")
+            raise
+    
+    async def store_daily_analytics(self, analytics_data: dict):
+        """Store or update daily analytics summary"""
+        try:
+            collection = self._db.vehicle_analytics
+            
+            # Upsert daily analytics
+            await collection.replace_one(
+                {
+                    "vehicle_id": analytics_data["vehicle_id"],
+                    "date": analytics_data["date"]
+                },
+                analytics_data,
+                upsert=True
+            )
+            
+        except Exception as e:
+            logger.error(f"Error storing daily analytics: {e}")
+            raise
 
 
 # Global database manager instance

@@ -4,11 +4,83 @@ import VehicleList from '../components/trips/VehicleList';
 import TrackingMap from '../components/tracking/TrackingMap';
 import GeofenceManager from '../components/tracking/GeofenceManager';
 import LocationHistory from '../components/tracking/LocationHistory';
+import { listGeofences } from '../backend/api/geofences';
 
 const Tracking = () => {
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [geofences, setGeofences] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Load geofences from backend on component mount
+  useEffect(() => {
+    const loadGeofences = async () => {
+      try {
+        setLoading(true);
+        console.log('Fetching geofences...');
+        const response = await listGeofences();
+        console.log('Raw geofences response:', response);
+        console.log('Response data:', response.data);
+        
+        // Transform the response data to match your component's expected format
+        // Adjusted for backend response structure with geometry field
+        const transformedGeofences = response.data?.data?.map(geofence => {
+          // Parse geometry if it's a circle format
+          const parseGeometry = (geometry) => {
+            if (typeof geometry === 'string') {
+              // If geometry is in CIRCLE format
+              const match = geometry.match(/^CIRCLE\((-?\d+(\.\d+)?) (-?\d+(\.\d+)?),(\d+)\)$/);
+              if (match) {
+                const lng = parseFloat(match[1]);
+                const lat = parseFloat(match[3]);
+                const radius = parseFloat(match[5]);
+                return {
+                  coordinates: { lat, lng },
+                  radius,
+                };
+              }
+            } else if (geometry && geometry.coordinates) {
+              // If geometry is a GeoJSON-like object
+              return {
+                coordinates: { 
+                  lat: geometry.coordinates[1] || 0, 
+                  lng: geometry.coordinates[0] || 0 
+                },
+                radius: geometry.radius || 500,
+              };
+            }
+            return null;
+          };
+
+          const parsed = parseGeometry(geofence.geometry);
+          
+          return {
+            id: geofence.id,
+            name: geofence.name,
+            type: geofence.metadata?.functional_type || 'depot', // Use functional_type from metadata
+            status: geofence.is_active ? 'active' : 'inactive', // Convert boolean to status
+            coordinates: parsed ? parsed.coordinates : { lat: 0, lng: 0 },
+            radius: parsed ? parsed.radius : geofence.radius || 500,
+            geometry: geofence.geometry, // Keep original geometry
+            metadata: geofence.metadata
+          };
+        }) || [];
+
+        setGeofences(transformedGeofences);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to load geofences:', err);
+        setError('Failed to load geofences');
+        // Set empty array on error so the component still works
+        setGeofences([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadGeofences();
+  }, []); // Empty dependency array means this runs once on mount
 
   useEffect(() => {
     // Connect to your Core backend WebSocket endpoint
@@ -54,6 +126,17 @@ const Tracking = () => {
     setGeofences(updatedGeofences);
   };
 
+  // Show loading state if still loading geofences
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-lg">Loading geofences...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative container mx-auto px-4 py-8">
       {/* Background pattern */}
@@ -70,6 +153,14 @@ const Tracking = () => {
 
       <div className="relative z-10">
         <h1 className="text-3xl font-bold mb-6">Vehicle Tracking</h1>
+        
+        {/* Show error message if geofences failed to load */}
+        {error && (
+          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+        
         {/* Tracking Analytics Section - Moved to the top */}
         <div className="mb-6">
           <h2 className="text-xl font-semibold mb-4">Tracking Analytics</h2>
