@@ -107,12 +107,12 @@ export const API_ENDPOINTS = {
 
   // Vehicle Management
   VEHICLES: {
-    LIST: '/vehicles',
-    CREATE: '/vehicles',
-    GET: id => `/vehicles/${id}`,
-    UPDATE: id => `/vehicles/${id}`,
-    DELETE: id => `/vehicles/${id}`,
-    SEARCH: query => `/api/vehicles/search/${query}`,
+    LIST: '/management/vehicles',
+    CREATE: '/management/vehicles',
+    GET: id => `/management/vehicles/${id}`,
+    UPDATE: id => `/management/vehicles/${id}`,
+    DELETE: id => `/management/vehicles/${id}`,
+    SEARCH: query => `/management/vehicles/search/${query}`,
   },
 
   // Driver Management
