@@ -85,11 +85,26 @@ class ServiceRequestConsumer:
                 await self.connect()
                 
             await self.queue.consume(self.handle_request, no_ack=False)
+            self.is_consuming = True
             logger.info(f"Started consuming from {self.queue_name}")
             
         except Exception as e:
             logger.error(f"Error starting consumer: {e}")
             raise
+    
+    async def stop_consuming(self):
+        """Stop consuming messages"""
+        self.is_consuming = False
+        if self.connection and not self.connection.is_closed:
+            await self.connection.close()
+        logger.info("Maintenance service request consumer stopped")
+
+    async def disconnect(self):
+        """Disconnect from RabbitMQ"""
+        self.is_consuming = False
+        if self.connection and not self.connection.is_closed:
+            await self.connection.close()
+        logger.info("Maintenance service disconnected")
     
     async def handle_request(self, message: AbstractIncomingMessage):
         """Handle incoming request message using standardized pattern"""
@@ -104,6 +119,10 @@ class ServiceRequestConsumer:
                 method = request_data.get("method")
                 user_context = request_data.get("user_context", {})
                 endpoint = request_data.get("endpoint", "")
+                
+                # Extract data from top-level and add to user_context for handlers
+                data = request_data.get("data", {})
+                user_context["data"] = data
                 
                 # Check for duplicate requests
                 if request_id in self.processed_requests:
@@ -165,15 +184,15 @@ class ServiceRequestConsumer:
             if endpoint == "health" or endpoint == "":
                 # Health check endpoint
                 return await self._handle_health_request(method, user_context)
-            elif "maintenance/records" in endpoint or endpoint == "maintenance/records":
+            elif "records" in endpoint or endpoint == "/records":
                 return await self._handle_maintenance_records_request(method, user_context)
-            elif "maintenance/licenses" in endpoint:
+            elif "licenses" in endpoint:
                 return await self._handle_license_request(method, user_context)
-            elif "maintenance/analytics" in endpoint:
+            elif "analytics" in endpoint:
                 return await self._handle_analytics_request(method, user_context)
-            elif "maintenance/notifications" in endpoint:
+            elif "notifications" in endpoint:
                 return await self._handle_notification_request(method, user_context)
-            elif "maintenance/vendors" in endpoint:
+            elif "vendors" in endpoint:
                 return await self._handle_vendor_request(method, user_context)
             elif "status" in endpoint or endpoint == "status":
                 return await self._handle_status_request(method, user_context)
@@ -301,168 +320,203 @@ class ServiceRequestConsumer:
                 message=f"Failed to process maintenance records request: {str(e)}"
             ).model_dump()
             
-    async def _handle_license_request(self, method: str, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle license requests"""
+    async def _handle_license_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle license-related requests"""
         try:
+            # Extract data and endpoint from user_context
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
             if method == "GET":
-                if endpoint == "/maintenance/licenses":
-                    licenses = await license_service.search_licenses(
-                        query=data,
-                        skip=data.get("skip", 0),
-                        limit=data.get("limit", 100),
-                        sort_by=data.get("sort_by", "expiry_date"),
-                        sort_order=data.get("sort_order", "asc")
-                    )
-                    return {"success": True, "message": "Licenses retrieved", "data": licenses}
-                
-                elif "/licenses/" in endpoint:
-                    license_id = endpoint.split("/licenses/")[-1]
-                    license_record = await license_service.get_license_record(license_id)
-                    if license_record:
-                        return {"success": True, "message": "License retrieved", "data": license_record}
-                    else:
-                        return {"success": False, "message": "License not found", "error_code": "NOT_FOUND"}
-                
-                elif endpoint == "/maintenance/licenses/expiring":
-                    days_ahead = data.get("days", 30)
-                    licenses = await license_service.get_expiring_licenses(days_ahead)
-                    return {"success": True, "message": "Expiring licenses retrieved", "data": licenses}
-                
-                elif endpoint == "/maintenance/licenses/expired":
-                    licenses = await license_service.get_expired_licenses()
-                    return {"success": True, "message": "Expired licenses retrieved", "data": licenses}
-                    
+                if endpoint == "licenses" or "maintenance/licenses" in endpoint:
+                    # License service not implemented yet, return placeholder
+                    return {
+                        "success": True,
+                        "message": "License service not yet implemented - GET",
+                        "data": [],
+                        "method": method,
+                        "endpoint": endpoint
+                    }
+                else:
+                    return {
+                        "success": True,
+                        "message": "License service not yet implemented - GET specific",
+                        "data": {},
+                        "method": method,
+                        "endpoint": endpoint
+                    }
             elif method == "POST":
-                if endpoint == "/maintenance/licenses":
-                    license_record = await license_service.create_license_record(data)
-                    return {"success": True, "message": "License created", "data": license_record}
-                    
-            elif method == "PUT":
-                if "/licenses/" in endpoint:
-                    license_id = endpoint.split("/licenses/")[-1]
-                    license_record = await license_service.update_license_record(license_id, data)
-                    if license_record:
-                        return {"success": True, "message": "License updated", "data": license_record}
-                    else:
-                        return {"success": False, "message": "License not found", "error_code": "NOT_FOUND"}
-                        
-            elif method == "DELETE":
-                if "/licenses/" in endpoint:
-                    license_id = endpoint.split("/licenses/")[-1]
-                    success = await license_service.delete_license_record(license_id)
-                    if success:
-                        return {"success": True, "message": "License deleted"}
-                    else:
-                        return {"success": False, "message": "License not found", "error_code": "NOT_FOUND"}
-            
-            return {"success": False, "message": "Invalid license request", "error_code": "INVALID_REQUEST"}
-            
-        except Exception as e:
-            logger.error(f"Error handling license request: {e}")
-            raise
-            
-    async def _handle_analytics_request(self, method: str, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle analytics requests"""
-        try:
-            if method == "GET":
-                if endpoint == "/maintenance/analytics/dashboard":
-                    dashboard_data = await maintenance_analytics_service.get_maintenance_dashboard()
-                    return {"success": True, "message": "Dashboard data retrieved", "data": dashboard_data}
-                
-                elif endpoint == "/maintenance/analytics/costs":
-                    cost_analytics = await maintenance_analytics_service.get_cost_analytics(
-                        vehicle_id=data.get("vehicle_id"),
-                        start_date=data.get("start_date"),
-                        end_date=data.get("end_date"),
-                        group_by=data.get("group_by", "month")
-                    )
-                    return {"success": True, "message": "Cost analytics retrieved", "data": cost_analytics}
-                
-                elif endpoint == "/maintenance/analytics/trends":
-                    days = data.get("days", 90)
-                    trends = await maintenance_analytics_service.get_maintenance_trends(days)
-                    return {"success": True, "message": "Maintenance trends retrieved", "data": trends}
-                
-                elif endpoint == "/maintenance/analytics/vendors":
-                    vendor_analytics = await maintenance_analytics_service.get_vendor_analytics()
-                    return {"success": True, "message": "Vendor analytics retrieved", "data": vendor_analytics}
-                
-                elif endpoint == "/maintenance/analytics/licenses":
-                    license_analytics = await maintenance_analytics_service.get_license_analytics()
-                    return {"success": True, "message": "License analytics retrieved", "data": license_analytics}
-            
-            return {"success": False, "message": "Invalid analytics request", "error_code": "INVALID_REQUEST"}
-            
-        except Exception as e:
-            logger.error(f"Error handling analytics request: {e}")
-            raise
-            
-    async def _handle_notification_request(self, method: str, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle notification requests"""
-        try:
-            if method == "GET":
-                if endpoint == "/maintenance/notifications/pending":
-                    notifications = await notification_service.get_pending_notifications()
-                    return {"success": True, "message": "Pending notifications retrieved", "data": notifications}
-                
-                elif endpoint == "/maintenance/notifications/user":
-                    user_id = data.get("user_id")
-                    unread_only = data.get("unread_only", False)
-                    notifications = await notification_service.get_user_notifications(user_id, unread_only)
-                    return {"success": True, "message": "User notifications retrieved", "data": notifications}
-                    
-            elif method == "POST":
-                if endpoint == "/maintenance/notifications":
-                    notification = await notification_service.create_notification(data)
-                    return {"success": True, "message": "Notification created", "data": notification}
-                
-                elif endpoint == "/maintenance/notifications/process":
-                    sent_count = await notification_service.process_pending_notifications()
-                    return {"success": True, "message": f"Processed {sent_count} notifications", "data": {"sent_count": sent_count}}
-                    
-            elif method == "PUT":
-                if "/notifications/" in endpoint and endpoint.endswith("/read"):
-                    notification_id = endpoint.split("/notifications/")[1].split("/read")[0]
-                    success = await notification_service.mark_notification_read(notification_id)
-                    return {"success": True, "message": "Notification marked as read"}
-            
-            return {"success": False, "message": "Invalid notification request", "error_code": "INVALID_REQUEST"}
-            
-        except Exception as e:
-            logger.error(f"Error handling notification request: {e}")
-            raise
-            
-    async def _handle_vendor_request(self, method: str, endpoint: str, data: Dict[str, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle vendor requests (placeholder for future implementation)"""
-        return {"success": False, "message": "Vendor endpoints not yet implemented", "error_code": "NOT_IMPLEMENTED"}
-        
-    async def _process_request(self, endpoint: str, method: str, data: Dict[str, Any], query_params: Dict[str, Any]) -> Dict[str, Any]:
-        """Process the request and return response"""
-        try:
-            # Route to the appropriate handler based on endpoint
-            if endpoint.startswith("/maintenance/records") or endpoint.startswith("/records"):
-                return await self._handle_maintenance_records_request(method, endpoint, data, query_params)
-            elif endpoint.startswith("/maintenance/licenses") or endpoint.startswith("/licenses"):
-                return await self._handle_license_request(method, endpoint, data, query_params)
-            elif endpoint.startswith("/maintenance/analytics") or endpoint.startswith("/analytics"):
-                return await self._handle_analytics_request(method, endpoint, data, query_params)
-            elif endpoint.startswith("/maintenance/notifications") or endpoint.startswith("/notifications"):
-                return await self._handle_notification_request(method, endpoint, data, query_params)
-            elif endpoint.startswith("/maintenance/vendors") or endpoint.startswith("/vendors"):
-                return await self._handle_vendor_request(method, endpoint, data, query_params)
-            else:
                 return {
-                    "success": False,
-                    "message": f"Unknown endpoint: {endpoint}",
-                    "error_code": "UNKNOWN_ENDPOINT"
+                    "success": True,
+                    "message": "License service not yet implemented - POST",
+                    "data": {},
+                    "method": method
                 }
+            elif method == "PUT":
+                return {
+                    "success": True,
+                    "message": "License service not yet implemented - PUT",
+                    "data": {},
+                    "method": method
+                }
+            elif method == "DELETE":
+                return {
+                    "success": True,
+                    "message": "License service not yet implemented - DELETE",
+                    "data": {"deleted": True},
+                    "method": method
+                }
+            else:
+                raise ValueError(f"Unsupported HTTP method for licenses: {method}")
+                
         except Exception as e:
-            logger.error(f"Error processing maintenance request: {e}")
+            logger.error(f"Error handling license request {method} {endpoint}: {e}")
             return {
                 "success": False,
-                "message": f"Error processing request: {str(e)}",
-                "error_code": "PROCESSING_ERROR"
+                "message": f"Failed to process license request: {str(e)}",
+                "error_code": "LICENSE_REQUEST_ERROR"
             }
+    
+    async def _handle_analytics_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle analytics-related requests"""
+        try:
+            # Extract data and endpoint from user_context
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            if method == "GET":
+                return {
+                    "success": True,
+                    "message": "Analytics service not yet implemented",
+                    "data": {},
+                    "method": method,
+                    "endpoint": endpoint
+                }
+            else:
+                raise ValueError(f"Unsupported HTTP method for analytics: {method}")
+                
+        except Exception as e:
+            logger.error(f"Error handling analytics request {method} {endpoint}: {e}")
+            return {
+                "success": False,
+                "message": f"Failed to process analytics request: {str(e)}",
+                "error_code": "ANALYTICS_REQUEST_ERROR"
+            }
+    
+    async def _handle_notification_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle notification-related requests"""
+        try:
+            # Extract data and endpoint from user_context
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            if method == "GET":
+                return {
+                    "success": True,
+                    "message": "Notification service not yet implemented",
+                    "data": [],
+                    "method": method,
+                    "endpoint": endpoint
+                }
+            elif method == "POST":
+                return {
+                    "success": True,
+                    "message": "Notification service not yet implemented - POST",
+                    "data": {},
+                    "method": method
+                }
+            elif method == "PUT":
+                return {
+                    "success": True,
+                    "message": "Notification service not yet implemented - PUT",
+                    "data": {},
+                    "method": method
+                }
+            else:
+                raise ValueError(f"Unsupported HTTP method for notifications: {method}")
+                
+        except Exception as e:
+            logger.error(f"Error handling notification request {method} {endpoint}: {e}")
+            return {
+                "success": False,
+                "message": f"Failed to process notification request: {str(e)}",
+                "error_code": "NOTIFICATION_REQUEST_ERROR"
+            }
+    
+    async def _handle_vendor_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle vendor-related requests"""
+        try:
+            # Extract data and endpoint from user_context  
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            return {
+                "success": False,
+                "message": "Vendor endpoints not yet implemented",
+                "error_code": "NOT_IMPLEMENTED",
+                "method": method,
+                "endpoint": endpoint
+            }
+        except Exception as e:
+            logger.error(f"Error handling vendor request {method}: {e}")
+            return {
+                "success": False,
+                "message": f"Failed to process vendor request: {str(e)}",
+                "error_code": "VENDOR_REQUEST_ERROR"
+            }
+    
+    async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle health check requests"""
+        if method == "GET":
+            return {
+                "status": "healthy",
+                "service": "maintenance",
+                "timestamp": datetime.now().isoformat(),
+                "version": "1.0.0"
+            }
+        else:
+            raise ValueError(f"Unsupported method for health endpoint: {method}")
+    
+    async def _handle_status_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle status requests"""
+        if method == "GET":
+            return {
+                "status": "operational",
+                "service": "maintenance",
+                "uptime": "unknown",  # Could implement actual uptime tracking
+                "connections": {
+                    "database": "connected",
+                    "rabbitmq": "connected"
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            raise ValueError(f"Unsupported method for status endpoint: {method}")
+    
+    async def _handle_docs_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle documentation requests"""
+        if method == "GET":
+            return {
+                "message": "API documentation available at /docs",
+                "openapi_url": "/openapi.json",
+                "service": "maintenance"
+            }
+        else:
+            raise ValueError(f"Unsupported method for docs endpoint: {method}")
+    
+    async def _handle_metrics_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle metrics requests"""
+        if method == "GET":
+            return {
+                "metrics": {
+                    "requests_processed": len(self.processed_requests),
+                    "service_status": "healthy",
+                    "last_request_time": datetime.now().isoformat()
+                },
+                "service": "maintenance"
+            }
+        else:
+            raise ValueError(f"Unsupported method for metrics endpoint: {method}")
         
     async def _send_response(self, correlation_id: str, response_data: Dict[str, Any]):
         """Send response back to Core via RabbitMQ using standardized config"""
@@ -528,91 +582,6 @@ class ServiceRequestConsumer:
             
         except Exception as e:
             logger.error(f"❌ Error sending error response for {correlation_id}: {e}")
-
-    async def _handle_license_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle license-related requests"""
-        # License service not implemented yet
-        return {
-            "message": "License service not yet implemented",
-            "method": method
-        }
-    
-    async def _handle_analytics_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle analytics-related requests"""
-        # Analytics service not implemented yet
-        return {
-            "message": "Analytics service not yet implemented",
-            "method": method
-        }
-    
-    async def _handle_notification_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle notification-related requests"""
-        # Notification service not implemented yet
-        return {
-            "message": "Notification service not yet implemented",
-            "method": method
-        }
-    
-    async def _handle_vendor_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle vendor-related requests"""
-        # Vendor service not implemented yet
-        return {
-            "message": "Vendor service not yet implemented",
-            "method": method
-        }
-    
-    async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle health check requests"""
-        if method == "GET":
-            return {
-                "status": "healthy",
-                "service": "maintenance",
-                "timestamp": datetime.now().isoformat(),
-                "version": "1.0.0"
-            }
-        else:
-            raise ValueError(f"Unsupported method for health endpoint: {method}")
-    
-    async def _handle_status_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle status requests"""
-        if method == "GET":
-            return {
-                "status": "operational",
-                "service": "maintenance",
-                "uptime": "unknown",  # Could implement actual uptime tracking
-                "connections": {
-                    "database": "connected",
-                    "rabbitmq": "connected"
-                },
-                "timestamp": datetime.now().isoformat()
-            }
-        else:
-            raise ValueError(f"Unsupported method for status endpoint: {method}")
-    
-    async def _handle_docs_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle documentation requests"""
-        if method == "GET":
-            return {
-                "message": "API documentation available at /docs",
-                "openapi_url": "/openapi.json",
-                "service": "maintenance"
-            }
-        else:
-            raise ValueError(f"Unsupported method for docs endpoint: {method}")
-    
-    async def _handle_metrics_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle metrics requests"""
-        if method == "GET":
-            return {
-                "metrics": {
-                    "requests_processed": len(self.processed_requests),
-                    "service_status": "healthy",
-                    "last_request_time": datetime.now().isoformat()
-                },
-                "service": "maintenance"
-            }
-        else:
-            raise ValueError(f"Unsupported method for metrics endpoint: {method}")
 
 
 # Global service instance

@@ -35,14 +35,14 @@ SERVICE_BLOCKS = {
         "routing_key": "maintenance.requests"
     },
     "gps": {
-        "exchange": "gps_exchange",
-        "queue": "gps_queue", 
-        "routing_key": "gps.request"
+        "exchange": "service_requests",
+        "queue": "gps.requests",
+        "routing_key": "gps.requests"
     },
     "trips": {
-        "exchange": "trip_planning_exchange",
-        "queue": "trip_planning_queue",
-        "routing_key": "trips.request"
+        "exchange": "service_requests",
+        "queue": "trip_planning.requests",
+        "routing_key": "trip_planning.requests"
     }
 }
 
@@ -246,11 +246,11 @@ async def maintenance_route(request: Request, path: str = ""):
             query_params=query_params
         )
         
-        # Return response from service block
+        # Return response from service block - standardized format
+        response_data = response.get("data", {})
         return JSONResponse(
-            content=response.get("body", {}),
-            status_code=response.get("status_code", 200),
-            headers=response.get("headers", {})
+            content=response_data,
+            status_code=200
         )
         
     except HTTPException:
@@ -289,11 +289,11 @@ async def gps_route(request: Request, path: str = ""):
             query_params=query_params
         )
         
-        # Return response from service block
+        # Return response from service block - standardized format
+        response_data = response.get("data", {})
         return JSONResponse(
-            content=response.get("body", {}),
-            status_code=response.get("status_code", 200),
-            headers=response.get("headers", {})
+            content=response_data,
+            status_code=200
         )
         
     except HTTPException:

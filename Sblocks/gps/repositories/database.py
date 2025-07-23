@@ -58,7 +58,7 @@ class DatabaseManager:
                 
     async def disconnect(self):
         """Safely disconnect from database"""
-        if self._client:
+        if self._client is not None:
             self._client.close()
             self._client = None
             self._db = None
@@ -71,7 +71,7 @@ class DatabaseManager:
     @property
     def db(self):
         """Get database instance"""
-        if not self._db:
+        if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db
     
@@ -174,7 +174,7 @@ class DatabaseManager:
     async def health_check(self) -> bool:
         """Perform database health check"""
         try:
-            if not self._client:
+            if self._client is None:
                 return False
             await self._client.admin.command('ping')
             return True

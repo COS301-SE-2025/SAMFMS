@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.responses import JSONResponse
 
 # Import organized modules
 from repositories.database import db_manager
@@ -143,42 +144,52 @@ async def lifespan(app: FastAPI):
             request_consumer_connected = await service_request_consumer.connect()
             if request_consumer_connected:
                 # Start consuming service requests in background
-                asyncio.create_task(service_request_consumer.start_consuming())
+                consumer_task = asyncio.create_task(service_request_consumer.start_consuming())
+                # Keep reference to prevent garbage collection
+                app.state.consumer_task = consumer_task
                 logger.info("✅ Service request consumer started successfully")
             else:
                 logger.warning("⚠️ Service request consumer connection failed - Core communication disabled")
         except Exception as e:
             logger.error(f"❌ Service request consumer setup error: {e}")
-            request_consumer_connected = False
         
-        # Publish service started event
+        # Publish service started event with enhanced error handling
         if publisher_connected:
             try:
                 await event_publisher.publish_service_started(
                     version="1.0.0",
                     data={
-                        "location_tracking": True,
-                        "geofencing": True,
-                        "places_management": True,
-                        "features": [
-                            "real_time_location_tracking", 
-                            "location_history", 
-                            "geofencing",
+                        "service": "gps",
+                        "event_driven": True,
+                        "enhanced_features": [
+                            "location_tracking", 
+                            "geofencing", 
                             "places_management",
-                            "map_provider_agnostic",
-                            "leaflet_compatible"
+                            "real_time_tracking",
+                            "location_history",
+                            "event_driven_communication",
+                            "comprehensive_monitoring"
                         ]
                     }
                 )
+                logger.info("✅ Service started event published")
             except Exception as e:
                 logger.warning(f"Failed to publish service started event: {e}")
         
         # Register with Core's service discovery
         await register_with_core_service()
         
-        # Schedule background tasks
-        asyncio.create_task(enhanced_background_tasks())
+        # Schedule background tasks with a delay to ensure database is ready
+        async def start_background_tasks():
+            await asyncio.sleep(5)  # Wait 5 seconds for database to stabilize
+            await enhanced_background_tasks()
         
+        asyncio.create_task(start_background_tasks())
+        
+        # Store start time for uptime calculation
+        app.state.start_time = datetime.now(timezone.utc)
+        metrics_middleware.app = app
+
         logger.info("🎉 GPS Service Startup Completed Successfully")
         
         yield
@@ -189,13 +200,32 @@ async def lifespan(app: FastAPI):
     
     finally:
         # Cleanup on shutdown
-        logger.info("🔄 GPS Service Shutting Down...")
+        logger.info("� GPS Service Shutting Down...")
         try:
+            # Publish service stopped event
+            try:
+                await event_publisher.publish_service_stopped(
+                    version="1.0.0",
+                    data={"reason": "graceful_shutdown"}
+                )
+                logger.info("✅ Service stopped event published")
+            except Exception as e:
+                logger.warning(f"Failed to publish service stopped event: {e}")
+            
             await event_consumer.disconnect()
+            logger.info("✅ Event consumer disconnected")
+            
             await event_publisher.disconnect()
+            logger.info("✅ Event publisher disconnected")
+
+            await service_request_consumer.stop_consuming()
             await service_request_consumer.disconnect()
+            logger.info("✅ Service request consumer stopped")
+
             await db_manager.disconnect()
-            logger.info("✅ GPS Service shutdown completed")
+            logger.info("✅ Database disconnected")
+
+            logger.info("👋 GPS Service shutdown completed")
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
 
@@ -203,6 +233,12 @@ async def enhanced_background_tasks():
     """Enhanced background tasks for GPS service"""
     while True:
         try:
+            # Check if database is connected before running tasks
+            if not db_manager.is_connected():
+                logger.warning("Database not connected, skipping background tasks")
+                await asyncio.sleep(300)  # Wait 5 minutes before retry
+                continue
+                
             # Cleanup old location history (keep last 90 days)
             await location_service.cleanup_old_locations()
             
@@ -248,63 +284,220 @@ app.add_middleware(RequestContextMiddleware)
 for exception_type, handler in EXCEPTION_HANDLERS.items():
     app.add_exception_handler(exception_type, handler)
 
-# Include routers
-app.include_router(locations_router, prefix="/api", tags=["locations"])
-app.include_router(geofences_router, prefix="/api", tags=["geofences"])
-app.include_router(places_router, prefix="/api", tags=["places"])
-app.include_router(tracking_router, prefix="/api", tags=["tracking"])
+# Include routers with enhanced error handling
+app.include_router(locations_router, tags=["locations"])
+app.include_router(geofences_router, tags=["geofences"])
+app.include_router(places_router, tags=["places"])
+app.include_router(tracking_router, tags=["tracking"])
+
+@app.get("/")
+async def root():
+    """Enhanced service information endpoint"""
+    uptime_seconds = (datetime.now(timezone.utc) - getattr(app.state, 'start_time', datetime.now(timezone.utc))).total_seconds()
+    return ResponseBuilder.success(
+        data={
+            "service": "gps",
+            "version": "1.0.0",
+            "status": "operational",
+            "uptime_seconds": uptime_seconds,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        },
+        message="GPS Service is operational"
+    ).model_dump()
 
 @app.get("/health")
 async def health_check():
-    """Enhanced health check endpoint"""
+    """Comprehensive health check with detailed component status"""
     try:
-        # Check database connection
-        db_status = "healthy" if db_manager.is_connected() else "unhealthy"
-        
-        # Check RabbitMQ connections
-        publisher_status = "healthy" if event_publisher.is_connected() else "unhealthy"
-        consumer_status = "healthy" if event_consumer.is_connected() else "unhealthy"
-        
-        # Overall status
-        overall_status = "healthy" if all([
-            db_status == "healthy",
-            publisher_status == "healthy",
-            consumer_status == "healthy"
-        ]) else "degraded"
-        
-        return {
+        # Check database
+        db_healthy = False
+        try:
+            if db_manager.is_connected():
+                await db_manager.health_check()
+                db_healthy = True
+        except Exception as e:
+            logger.error(f"Database health check failed: {e}")
+
+        # Check RabbitMQ consumer
+        rabbitmq_healthy = service_request_consumer.is_consuming
+
+        # Check background tasks
+        jobs_healthy = True  # Simplified for now
+
+        # Overall status determination
+        critical_components = [db_healthy]
+        optional_components = [rabbitmq_healthy, jobs_healthy]
+
+        if all(critical_components):
+            if all(optional_components):
+                overall_status = "healthy"
+            else:
+                overall_status = "degraded"
+        else:
+            overall_status = "unhealthy"
+
+        uptime_seconds = (datetime.now(timezone.utc) - getattr(app.state, 'start_time', datetime.now(timezone.utc))).total_seconds()
+
+        health_data = {
             "status": overall_status,
             "service": "gps",
             "version": "1.0.0",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "uptime_seconds": uptime_seconds,
             "components": {
-                "database": db_status,
-                "event_publisher": publisher_status,
-                "event_consumer": consumer_status
-            },
-            "uptime_seconds": metrics_middleware.get_uptime_seconds()
-        }
-        
-    except Exception as e:
-        logger.error(f"Health check error: {e}")
-        return {
-            "status": "unhealthy",
-            "service": "gps",
-            "version": "1.0.0",
-            "timestamp": datetime.utcnow().isoformat(),
-            "error": str(e)
+                "database": {
+                    "status": "up" if db_healthy else "down",
+                    "critical": True
+                },
+                "rabbitmq_consumer": {
+                    "status": "up" if rabbitmq_healthy else "down",
+                    "critical": False,
+                    "consuming": rabbitmq_healthy
+                },
+                "background_jobs": {
+                    "status": "up" if jobs_healthy else "down",
+                    "critical": False,
+                    "running": jobs_healthy
+                }
+            }
         }
 
+        return ResponseBuilder.success(
+            data=health_data,
+            message=f"Service is {overall_status}"
+        ).model_dump()
+
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return ResponseBuilder.error(
+            error="HealthCheckError",
+            message="Health check failed",
+            details={"error": str(e)}
+        ).model_dump()
+
 @app.get("/metrics")
-async def get_metrics():
-    """Get service metrics"""
-    return {
-        "service": "gps",
-        "version": "1.0.0",
-        "metrics": metrics_middleware.get_metrics()
-    }
+async def get_service_metrics():
+    """Get service performance metrics"""
+    try:
+        metrics = metrics_middleware.get_metrics()
+        return ResponseBuilder.success(
+            data=metrics,
+            message="Service metrics retrieved successfully"
+        ).model_dump()
+    except Exception as e:
+        logger.error(f"Metrics collection error: {e}")
+        return ResponseBuilder.error(
+            error="MetricsError",
+            message="Failed to collect metrics",
+            details={"error": str(e)}
+        ).model_dump()
+
+@app.get("/docs")
+async def api_documentation():
+    """GPS Service API Documentation"""
+    return ResponseBuilder.success(
+        data={
+            "service": "SAMFMS GPS Service",
+            "version": "1.0.0",
+            "description": "Location Tracking, Geofencing, and Places Management for SAMFMS Fleet Management System",
+            "base_url": "/gps",
+            "endpoints": {
+                "locations": {
+                    "GET /locations": "List vehicle locations",
+                    "GET /locations/vehicle/{vehicle_id}": "Get specific vehicle location",
+                    "GET /locations/history": "Get location history",
+                    "POST /locations": "Update vehicle location"
+                },
+                "geofences": {
+                    "GET /geofences": "List geofences",
+                    "GET /geofences/{id}": "Get specific geofence",
+                    "POST /geofences": "Create geofence",
+                    "PUT /geofences/{id}": "Update geofence",
+                    "DELETE /geofences/{id}": "Delete geofence"
+                },
+                "places": {
+                    "GET /places": "List places",
+                    "GET /places/{id}": "Get specific place",
+                    "GET /places/search": "Search places",
+                    "POST /places": "Create place",
+                    "PUT /places/{id}": "Update place",
+                    "DELETE /places/{id}": "Delete place"
+                },
+                "tracking": {
+                    "GET /tracking/live": "Real-time tracking",
+                    "GET /tracking/route": "Vehicle route history",
+                    "POST /tracking": "Start vehicle tracking"
+                },
+                "service_endpoints": {
+                    "GET /": "Service information",
+                    "GET /health": "Health check",
+                    "GET /metrics": "Service metrics",
+                    "GET /docs": "API documentation"
+                }
+            },
+            "features": [
+                "Real-time location tracking",
+                "Location history management",
+                "Geofence creation and monitoring",
+                "Places and POI management",
+                "Route tracking and analysis",
+                "Event-driven communication",
+                "Enhanced error handling"
+            ]
+        },
+        message="GPS Service API documentation"
+    ).model_dump()
+
+
+# Exception handlers using ResponseBuilder for consistency
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.warning(f"Validation error for {request.url}: {exc}")
+    return JSONResponse(
+        status_code=422,
+        content=ResponseBuilder.error(
+            error="ValidationError",
+            message="Validation error",
+            details=exc.errors()
+        ).model_dump()
+    )
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    logger.warning(f"HTTP error {exc.status_code} for {request.url}: {exc.detail}")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=ResponseBuilder.error(
+            error=f"HTTP_{exc.status_code}",
+            message=exc.detail
+        ).model_dump()
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled error for {request.url}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content=ResponseBuilder.error(
+            error="INTERNAL_ERROR",
+            message="Internal server error"
+        ).model_dump()
+    )
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("GPS_PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    
+    # Get configuration from environment
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("GPS_PORT", "8000"))  # Use GPS_PORT from environment
+    log_level = os.getenv("LOG_LEVEL", "info").lower()
+    
+    logger.info(f"Starting GPS Service on {host}:{port}")
+    
+    uvicorn.run(
+        "main:app",
+        host=host,
+        port=port,
+        log_level=log_level,
+        reload=os.getenv("ENVIRONMENT", "production") == "development"
+    )

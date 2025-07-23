@@ -248,6 +248,16 @@ class LocationService:
     async def cleanup_old_locations(self, days_to_keep: int = 90):
         """Cleanup old location history (background task)"""
         try:
+            # Check database connectivity first
+            if not self.db.is_connected():
+                logger.warning("Database not connected, skipping location cleanup")
+                return
+            
+            # Additional safety check for database instance
+            if self.db._db is None:
+                logger.warning("Database instance not available, skipping location cleanup")
+                return
+                
             cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
             
             result = await self.db.db.location_history.delete_many(
@@ -263,6 +273,16 @@ class LocationService:
     async def validate_tracking_sessions(self):
         """Validate and cleanup stale tracking sessions (background task)"""
         try:
+            # Check database connectivity first
+            if not self.db.is_connected():
+                logger.warning("Database not connected, skipping session validation")
+                return
+            
+            # Additional safety check for database instance
+            if self.db._db is None:
+                logger.warning("Database instance not available, skipping session validation")
+                return
+                
             # End sessions that have been active for more than 24 hours without updates
             cutoff_time = datetime.utcnow() - timedelta(hours=24)
             
@@ -279,6 +299,158 @@ class LocationService:
                 
         except Exception as e:
             logger.error(f"Error validating tracking sessions: {e}")
+
+    async def get_vehicle_route(self, vehicle_id: str, start_time: Optional[datetime] = None, end_time: Optional[datetime] = None) -> Dict[str, Any]:
+        """Get vehicle route for a specific time period"""
+        try:
+            # Default to last 24 hours if no time range specified
+            if not end_time:
+                end_time = datetime.utcnow()
+            if not start_time:
+                start_time = end_time - timedelta(hours=24)
+            
+            query = {
+                "vehicle_id": vehicle_id,
+                "timestamp": {
+                    "$gte": start_time,
+                    "$lte": end_time
+                }
+            }
+            
+            # Get location history ordered by timestamp
+            locations = await self.db.db.location_history.find(query).sort("timestamp", 1).to_list(1000)
+            
+            if not locations:
+                return {
+                    "vehicle_id": vehicle_id,
+                    "route": [],
+                    "start_time": start_time.isoformat(),
+                    "end_time": end_time.isoformat(),
+                    "total_points": 0,
+                    "distance_km": 0
+                }
+            
+            # Calculate route information
+            route_points = []
+            total_distance = 0
+            
+            for i, location in enumerate(locations):
+                point = {
+                    "latitude": location["latitude"],
+                    "longitude": location["longitude"],
+                    "timestamp": location["timestamp"].isoformat(),
+                    "speed": location.get("speed"),
+                    "heading": location.get("heading")
+                }
+                route_points.append(point)
+                
+                # Calculate distance between consecutive points
+                if i > 0:
+                    prev_loc = locations[i-1]
+                    distance = self._calculate_distance(
+                        prev_loc["latitude"], prev_loc["longitude"],
+                        location["latitude"], location["longitude"]
+                    )
+                    total_distance += distance
+            
+            return {
+                "vehicle_id": vehicle_id,
+                "route": route_points,
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "total_points": len(route_points),
+                "distance_km": round(total_distance, 2)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting vehicle route for {vehicle_id}: {e}")
+            return {
+                "vehicle_id": vehicle_id,
+                "route": [],
+                "start_time": start_time.isoformat() if start_time else None,
+                "end_time": end_time.isoformat() if end_time else None,
+                "total_points": 0,
+                "distance_km": 0,
+                "error": str(e)
+            }
+
+    async def start_vehicle_tracking(self, vehicle_id: str) -> Dict[str, Any]:
+        """Start or resume tracking for a vehicle"""
+        try:
+            # Check if there's already an active tracking session
+            existing_session = await self.db.db.tracking_sessions.find_one({
+                "vehicle_id": vehicle_id,
+                "is_active": True
+            })
+            
+            if existing_session:
+                return {
+                    "vehicle_id": vehicle_id,
+                    "status": "already_active",
+                    "session_id": str(existing_session["_id"]),
+                    "started_at": existing_session["started_at"].isoformat(),
+                    "message": "Vehicle tracking is already active"
+                }
+            
+            # Create new tracking session
+            session_data = {
+                "vehicle_id": vehicle_id,
+                "started_at": datetime.utcnow(),
+                "is_active": True,
+                "last_update": datetime.utcnow(),
+                "total_distance": 0,
+                "total_points": 0
+            }
+            
+            result = await self.db.db.tracking_sessions.insert_one(session_data)
+            session_data["_id"] = str(result.inserted_id)
+            
+            # Publish tracking started event
+            try:
+                await event_publisher.publish_tracking_event(
+                    event_type="tracking_started",
+                    vehicle_id=vehicle_id,
+                    data={
+                        "session_id": session_data["_id"],
+                        "started_at": session_data["started_at"].isoformat()
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Failed to publish tracking started event: {e}")
+            
+            return {
+                "vehicle_id": vehicle_id,
+                "status": "started",
+                "session_id": session_data["_id"],
+                "started_at": session_data["started_at"].isoformat(),
+                "message": "Vehicle tracking started successfully"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error starting vehicle tracking for {vehicle_id}: {e}")
+            return {
+                "vehicle_id": vehicle_id,
+                "status": "error",
+                "message": f"Failed to start tracking: {str(e)}"
+            }
+
+    def _calculate_distance(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """Calculate distance between two coordinates using Haversine formula (returns km)"""
+        import math
+        
+        R = 6371  # Earth's radius in kilometers
+        
+        lat1_rad = math.radians(lat1)
+        lat2_rad = math.radians(lat2)
+        delta_lat = math.radians(lat2 - lat1)
+        delta_lon = math.radians(lon2 - lon1)
+        
+        a = (math.sin(delta_lat/2) * math.sin(delta_lat/2) + 
+             math.cos(lat1_rad) * math.cos(lat2_rad) * 
+             math.sin(delta_lon/2) * math.sin(delta_lon/2))
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        
+        return R * c
 
 
 # Global location service instance

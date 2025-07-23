@@ -86,6 +86,52 @@ class PlacesService:
         except Exception as e:
             logger.error(f"Error getting place: {e}")
             raise
+
+    async def get_place_by_id(self, place_id: str) -> Optional[Place]:
+        """Get a specific place by ID"""
+        try:
+            if not ObjectId.is_valid(place_id):
+                return None
+                
+            place_doc = await self.db.db.places.find_one(
+                {"_id": ObjectId(place_id)}
+            )
+            
+            if place_doc:
+                place_doc["_id"] = str(place_doc["_id"])
+                return Place(**place_doc)
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting place by ID {place_id}: {e}")
+            return None
+
+    async def get_places(
+        self,
+        place_type: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50
+    ) -> List[Place]:
+        """Get places with optional filtering"""
+        try:
+            query = {}
+            if place_type:
+                query["place_type"] = place_type
+            
+            cursor = self.db.db.places.find(query).sort(
+                "created_at", -1
+            ).skip(skip).limit(limit)
+            
+            places = []
+            async for doc in cursor:
+                doc["_id"] = str(doc["_id"])
+                places.append(Place(**doc))
+            
+            return places
+            
+        except Exception as e:
+            logger.error(f"Error getting places: {e}")
+            raise
     
     async def get_user_places(
         self,

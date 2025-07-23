@@ -19,6 +19,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from schemas.responses import ResponseBuilder
 
 from repositories.database import db_manager
+from events.publisher import event_publisher
+from events.consumer import event_consumer, setup_event_handlers
 from services.request_consumer import service_request_consumer
 from services.background_jobs import background_jobs
 from api.routes.maintenance_records import router as maintenance_records_router
@@ -43,24 +45,81 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan manager"""
+    """Application lifespan manager with event system support"""
     logger.info("🚀 Maintenance Service Starting Up...")
+    
     try:
-        # Initialize database
-        await db_manager.connect()
-        await db_manager.create_indexes()
-        logger.info("✅ Database connected and indexes created")
-
-        # Connect and start RabbitMQ consumer
-        await service_request_consumer.connect()
-        logger.info("✅ RabbitMQ connected")
+        # Connect to database with error handling
+        logger.info("🔗 Connecting to database...")
+        try:
+            await db_manager.connect()
+            await db_manager.create_indexes()
+            logger.info("✅ Database connected successfully")
+        except Exception as e:
+            logger.error(f"❌ Database connection failed: {e}")
+            raise Exception(f"Failed to connect to database: {e}")
         
-        # Start consuming in the background
-        consumer_task = asyncio.create_task(service_request_consumer.start_consuming())
-        # Keep reference to prevent garbage collection
-        app.state.consumer_task = consumer_task
-        logger.info("✅ RabbitMQ consumer started")
-
+        # Connect to RabbitMQ for event publishing
+        logger.info("🔗 Connecting to RabbitMQ for event publishing...")
+        try:
+            publisher_connected = await event_publisher.connect()
+            if publisher_connected:
+                logger.info("✅ Event publisher connected successfully")
+            else:
+                logger.warning("⚠️ Event publisher connection failed - continuing without events")
+        except Exception as e:
+            logger.error(f"❌ Event publisher connection error: {e}")
+            publisher_connected = False
+        
+        # Setup and start event consumer
+        logger.info("🔗 Setting up event consumer...")
+        try:
+            await event_consumer.connect()
+            setup_event_handlers()
+            # Start consuming in background without blocking startup
+            asyncio.create_task(event_consumer.start_consuming())
+            logger.info("✅ Event consumer setup completed")
+        except Exception as e:
+            logger.error(f"❌ Event consumer setup failed: {e}")
+            logger.warning("⚠️ Service will continue without event consumption")
+        
+        # Setup and start service request consumer
+        logger.info("🔗 Setting up service request consumer...")
+        try:
+            request_consumer_connected = await service_request_consumer.connect()
+            if request_consumer_connected:
+                # Start consuming service requests in background
+                consumer_task = asyncio.create_task(service_request_consumer.start_consuming())
+                # Keep reference to prevent garbage collection
+                app.state.consumer_task = consumer_task
+                logger.info("✅ Service request consumer started successfully")
+            else:
+                logger.warning("⚠️ Service request consumer connection failed - Core communication disabled")
+        except Exception as e:
+            logger.error(f"❌ Service request consumer setup error: {e}")
+        
+        # Publish service started event with enhanced error handling
+        if publisher_connected:
+            try:
+                await event_publisher.publish_service_started(
+                    version="1.0.0",
+                    data={
+                        "service": "maintenance",
+                        "event_driven": True,
+                        "enhanced_features": [
+                            "maintenance_records", 
+                            "license_management", 
+                            "notifications",
+                            "analytics",
+                            "event_driven_communication",
+                            "comprehensive_monitoring"
+                        ]
+                    }
+                )
+                logger.info("✅ Service started event published")
+            except Exception as e:
+                logger.warning(f"Failed to publish service started event: {e}")
+        
         # Start background jobs
         await background_jobs.start_background_jobs()
         logger.info("✅ Background jobs started")
@@ -78,12 +137,28 @@ async def lifespan(app: FastAPI):
 
     logger.info("🛑 Maintenance Service Shutting Down...")
     try:
+        # Publish service stopped event
+        try:
+            await event_publisher.publish_service_stopped(
+                version="1.0.0",
+                data={"reason": "graceful_shutdown"}
+            )
+            logger.info("✅ Service stopped event published")
+        except Exception as e:
+            logger.warning(f"Failed to publish service stopped event: {e}")
+        
         await background_jobs.stop_background_jobs()
         logger.info("✅ Background jobs stopped")
 
+        await event_consumer.disconnect()
+        logger.info("✅ Event consumer disconnected")
+        
+        await event_publisher.disconnect()
+        logger.info("✅ Event publisher disconnected")
+
         await service_request_consumer.stop_consuming()
         await service_request_consumer.disconnect()
-        logger.info("✅ RabbitMQ consumer stopped")
+        logger.info("✅ Service request consumer stopped")
 
         await db_manager.disconnect()
         logger.info("✅ Database disconnected")

@@ -79,6 +79,25 @@ class GeofenceService:
         except Exception as e:
             logger.error(f"Error getting geofence: {e}")
             raise
+
+    async def get_geofence_by_id(self, geofence_id: str) -> Optional[Geofence]:
+        """Get a specific geofence by ID"""
+        try:
+            if not ObjectId.is_valid(geofence_id):
+                return None
+                
+            geofence_doc = await self.db.db.geofences.find_one(
+                {"_id": ObjectId(geofence_id)}
+            )
+            
+            if geofence_doc:
+                geofence_doc["_id"] = str(geofence_doc["_id"])
+                return Geofence(**geofence_doc)
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting geofence by ID {geofence_id}: {e}")
+            return None
     
     async def get_geofences(
         self,
