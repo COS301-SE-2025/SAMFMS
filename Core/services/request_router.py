@@ -18,6 +18,8 @@ from rabbitmq.producer import publish_message
 from rabbitmq.admin import create_exchange
 import aio_pika
 from services.resilience import resilience_manager, request_tracer
+from services.circuit_breaker import circuit_breaker_manager, CircuitBreakerOpenError
+from services.distributed_tracer import distributed_tracer
 
 from utils.exceptions import ServiceUnavailableError, ServiceTimeoutError, AuthorizationError, ValidationError
 
@@ -44,9 +46,6 @@ class RequestRouter:
             # Trip Planning Service Routes - simplified
             "/trips": "trip_planning", 
             "/trips/*": "trip_planning",
-            # Vehicle maintenance routed to maintenance service (consolidated)
-            "/api/vehicle-maintenance": "maintenance",
-            "/api/vehicle-maintenance/*": "maintenance"
         }
 
     def normalize_endpoint(self, endpoint: str) -> str:
@@ -83,14 +82,21 @@ class RequestRouter:
     async def route_request(self, endpoint: str, method: str, data: Dict[Any, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Route request to appropriate service and wait for response with resilience"""
         try:
+            # Ensure response consumer is ready
+            await self.response_manager.wait_for_ready()
+            
             # Normalize endpoint for routing and downstream service
             normalized_endpoint = self.normalize_endpoint(endpoint)
             # Determine target service
             service = self.get_service_for_endpoint(endpoint)
+            
+            # Get circuit breaker for service
+            circuit_breaker = circuit_breaker_manager.get_breaker(service)
+            
             # Create correlation ID for tracking
             correlation_id = str(uuid.uuid4())
-            # Create trace context
-            trace_context = request_tracer.create_trace_context(
+            # Create trace context using distributed tracer
+            trace_context = distributed_tracer.create_trace_context(
                 correlation_id, user_context.get("user_id", "unknown")
             )
             # Prepare request message
@@ -105,21 +111,23 @@ class RequestRouter:
                 "trace_id": correlation_id
             }
             logger.info(f"Routing request {correlation_id} to service {service} for endpoint {normalized_endpoint}")
-            # Send request with resilience patterns
+            # Send request with resilience patterns and circuit breaker
             start_time = time.time()
             try:
-                response = await resilience_manager.call_service_with_resilience(
-                    service,
-                    lambda: self.send_request_and_wait(service, request_msg, correlation_id),
-                    retry_config={
-                        "max_retries": 2,  # Reduced retries for user-facing requests
-                        "base_delay": 0.5,
-                        "max_delay": 10.0
-                    }
+                response = await circuit_breaker.call(
+                    lambda: resilience_manager.call_service_with_resilience(
+                        service,
+                        lambda: self.send_request_and_wait(service, request_msg, correlation_id),
+                        retry_config={
+                            "max_retries": 2,  # Reduced retries for user-facing requests
+                            "base_delay": 0.5,
+                            "max_delay": 10.0
+                        }
+                    )
                 )
-                # Log successful service call
+                # Log successful service call with distributed tracer
                 duration = time.time() - start_time
-                request_tracer.log_service_call(
+                distributed_tracer.log_service_call(
                     correlation_id, service, f"{method} {normalized_endpoint}", duration, "success"
                 )
                 # Enhanced logging with performance metrics
@@ -127,21 +135,24 @@ class RequestRouter:
                 logger.info(f"Request {correlation_id} completed successfully in {elapsed_time:.3f}s")
                 # Record metrics for monitoring
                 self._record_request_metrics(service, method, normalized_endpoint, elapsed_time, "success")
-                # Add trace completion
-                request_tracer.complete_trace(correlation_id, {
+                # Complete trace with success
+                distributed_tracer.complete_trace(correlation_id, {
                     "status": "success",
                     "duration_ms": elapsed_time * 1000,
                     "response_size": len(str(response)) if response else 0
                 })
                 return response
+            except CircuitBreakerOpenError as e:
+                logger.error(f"Circuit breaker open for {service}: {e}")
+                raise HTTPException(status_code=503, detail=f"Service {service} is temporarily unavailable")
             except Exception as e:
-                # Log failed service call
+                # Log failed service call with distributed tracer
                 duration = time.time() - start_time
-                request_tracer.log_service_call(
+                distributed_tracer.log_service_call(
                     correlation_id, service, f"{method} {normalized_endpoint}", duration, "error", str(e)
                 )
                 # Complete trace with error
-                request_tracer.complete_trace(correlation_id, "error")
+                distributed_tracer.complete_trace(correlation_id, "error")
                 raise
         except ValueError as e:
             logger.error(f"Routing error: {e}")
@@ -207,6 +218,16 @@ class ResponseCorrelationManager:
     def __init__(self):
         self.pending_requests: Dict[str, asyncio.Future] = {}
         self.response_futures: Dict[str, asyncio.Future] = {}
+        self._ready = asyncio.Event()
+        self._consumer_task = None
+        
+    async def wait_for_ready(self, timeout: float = 30.0):
+        """Wait for response consumer to be ready"""
+        try:
+            await asyncio.wait_for(self._ready.wait(), timeout=timeout)
+        except asyncio.TimeoutError:
+            logger.error("Response consumer failed to initialize within timeout")
+            raise RuntimeError("Response consumer not ready")
         
     def register_pending_request(self, correlation_id: str) -> asyncio.Future:
         """Register a pending request and return future for response"""
@@ -215,7 +236,7 @@ class ResponseCorrelationManager:
         return future
     
     async def wait_for_response(self, correlation_id: str, timeout: int = 30) -> Dict[str, Any]:
-        """Wait for response with timeout"""
+        """Wait for response with timeout and cleanup"""
         future = self.response_futures.get(correlation_id)
         if not future:
             raise ValueError(f"No pending request found for correlation_id: {correlation_id}")
@@ -227,7 +248,7 @@ class ResponseCorrelationManager:
             logger.error(f"Response timeout for correlation_id: {correlation_id}")
             raise
         finally:
-            # Clean up
+            # Clean up to prevent memory leaks
             self.response_futures.pop(correlation_id, None)
     
     async def handle_response(self, response: Dict[str, Any]):
@@ -286,6 +307,9 @@ class ResponseCorrelationManager:
             # Start consuming
             await queue.consume(handle_response_message, consumer_tag="core-response-consumer")
             logger.info("Core service started consuming responses from service_responses exchange")
+            
+            # Signal that consumer is ready
+            self._ready.set()
             
             # Keep the connection alive with proper exception handling
             try:

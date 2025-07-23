@@ -31,9 +31,16 @@ class RabbitMQConfig:
         "socket_timeout": 15.0
     }
     
+    # Request processing timeouts
+    REQUEST_TIMEOUTS = {
+        "default_request_timeout": 25.0,  # Slightly less than Core's 30s timeout
+        "database_operation_timeout": 10.0,
+        "long_running_operation_timeout": 20.0
+    }
+    
+
     # Queue names (standardized)
     QUEUE_NAMES = {
-        "management": "management.requests",
         "maintenance": "maintenance.requests",
         "core": "core.responses"
     }

@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from datetime import datetime
 from typing import Dict, Any
 import aio_pika
@@ -14,6 +15,9 @@ from aio_pika.abc import AbstractIncomingMessage
 
 # Import standardized RabbitMQ config
 from config.rabbitmq_config import RabbitMQConfig, json_serializer
+
+# Import standardized error handling
+from schemas.error_responses import MaintenanceErrorBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +29,26 @@ class ServiceRequestConsumer:
         self.channel = None
         self.exchange = None
         self.queue = None
+        # Connection pooling for responses
+        self._response_connection = None
+        self._response_channel = None
+        self._response_exchange = None
         # Use standardized config
         self.config = RabbitMQConfig()
         self.queue_name = self.config.QUEUE_NAMES["maintenance"]
         self.exchange_name = self.config.EXCHANGE_NAMES["requests"]
         self.response_exchange_name = self.config.EXCHANGE_NAMES["responses"]
-        # Request deduplication
-        self.processed_requests = set()
+        # Enhanced request deduplication with timestamps
+        self.processed_requests = {}  # correlation_id -> timestamp
+        self.request_content_hashes = {}  # content_hash -> correlation_id
         self.is_consuming = False
+        
+        # Database connectivity caching
+        self._db_status_cache = {
+            "status": None,
+            "last_check": 0,
+            "cache_ttl": 30.0  # 30 seconds cache TTL
+        }
         
     async def connect(self):
         """Establish connection to RabbitMQ using standardized config"""
@@ -67,10 +83,38 @@ class ServiceRequestConsumer:
             await self.queue.bind(self.exchange, "maintenance.requests")
             
             logger.info(f"Connected to RabbitMQ. Queue: {self.queue_name}")
+            
+            # Setup dedicated response connection for better performance
+            await self._setup_response_connection()
+            
             return True
             
         except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
+            raise
+    
+    async def _setup_response_connection(self):
+        """Setup dedicated connection for responses to improve performance"""
+        try:
+            if not self._response_connection or self._response_connection.is_closed:
+                self._response_connection = await aio_pika.connect_robust(
+                    url=self.config.get_rabbitmq_url(),
+                    heartbeat=self.config.CONNECTION_PARAMS["heartbeat"],
+                    blocked_connection_timeout=self.config.CONNECTION_PARAMS["blocked_connection_timeout"]
+                )
+                self._response_channel = await self._response_connection.channel()
+                
+                # Declare response exchange
+                self._response_exchange = await self._response_channel.declare_exchange(
+                    self.response_exchange_name,
+                    aio_pika.ExchangeType.DIRECT,
+                    durable=True
+                )
+                
+                logger.info("Response connection established")
+                
+        except Exception as e:
+            logger.error(f"Failed to setup response connection: {e}")
             raise
     
     async def setup_queues(self):
@@ -86,24 +130,42 @@ class ServiceRequestConsumer:
                 
             await self.queue.consume(self.handle_request, no_ack=False)
             self.is_consuming = True
-            logger.info(f"Started consuming from {self.queue_name}")
+            
+            # Start cleanup task in background
+            asyncio.create_task(self._start_cleanup_task())
+            
+            logger.info(f"Started consuming from {self.queue_name} with cleanup task")
             
         except Exception as e:
             logger.error(f"Error starting consumer: {e}")
             raise
     
     async def stop_consuming(self):
-        """Stop consuming messages"""
+        """Stop consuming messages and close connections"""
         self.is_consuming = False
+        
+        # Close response connection
+        if self._response_connection and not self._response_connection.is_closed:
+            await self._response_connection.close()
+            
+        # Close main connection
         if self.connection and not self.connection.is_closed:
             await self.connection.close()
+            
         logger.info("Maintenance service request consumer stopped")
 
     async def disconnect(self):
         """Disconnect from RabbitMQ"""
         self.is_consuming = False
+        
+        # Close response connection
+        if self._response_connection and not self._response_connection.is_closed:
+            await self._response_connection.close()
+            
+        # Close main connection
         if self.connection and not self.connection.is_closed:
             await self.connection.close()
+            
         logger.info("Maintenance service disconnected")
     
     async def handle_request(self, message: AbstractIncomingMessage):
@@ -120,21 +182,60 @@ class ServiceRequestConsumer:
                 user_context = request_data.get("user_context", {})
                 endpoint = request_data.get("endpoint", "")
                 
+                logger.info(f"📨 Received request {request_id}: {method} {endpoint}")
+                
                 # Extract data from top-level and add to user_context for handlers
                 data = request_data.get("data", {})
                 user_context["data"] = data
                 
-                # Check for duplicate requests
+                # Enhanced duplicate request checking
+                import hashlib
+                import json as json_module
+                           
+                # Create content hash for deduplication
+                content_for_hash = {
+                    "method": method,
+                    "endpoint": endpoint,
+                    "data": data,
+                    "user_context": {k: v for k, v in user_context.items() if k != "data"}
+                }
+                content_hash = hashlib.md5(
+                    json_module.dumps(content_for_hash, sort_keys=True).encode()
+                ).hexdigest()
+
+                # Check for duplicate requests with timestamp tracking
+                current_time = time.time()
                 if request_id in self.processed_requests:
-                    logger.warning(f"Duplicate request ignored: {request_id}")
-                    return
+                    request_age = current_time - self.processed_requests[request_id]
+                    if request_age < 300:  # 5 minutes
+                        logger.warning(f"Duplicate request ignored (correlation_id): {request_id}")
+                        return
                     
-                self.processed_requests.add(request_id)
+                if content_hash in self.request_content_hashes:
+                    existing_correlation_id = self.request_content_hashes[content_hash]
+                    if existing_correlation_id in self.processed_requests:
+                        request_age = current_time - self.processed_requests[existing_correlation_id]
+                        if request_age < 60:  # 1 minute for content-based deduplication
+                            logger.warning(f"Duplicate request ignored (content hash): {request_id}")
+                            return
+                    
+                self.processed_requests[request_id] = current_time
+                self.request_content_hashes[content_hash] = request_id
                 
                 logger.debug(f"Processing request {request_id}: {method} {endpoint}")
                 
-                # Route and process request
-                response_data = await self._route_request(method, user_context, endpoint)
+                # Route and process request with timeout
+                import asyncio
+                try:
+                    logger.debug(f"🔄 Processing request {request_id}: {method} {endpoint}")
+                    response_data = await asyncio.wait_for(
+                        self._route_request(method, user_context, endpoint),
+                        timeout=self.config.REQUEST_TIMEOUTS.get("default_request_timeout", 25.0)
+                    )
+                    logger.debug(f"✅ Request {request_id} processed successfully")
+                except asyncio.TimeoutError:
+                    logger.error(f"⏰ Request {request_id} timed out")
+                    raise RuntimeError("Request processing timeout")
                 
                 # Send successful response
                 response = {
@@ -143,20 +244,19 @@ class ServiceRequestConsumer:
                     "timestamp": datetime.now().isoformat()
                 }
                 
+                logger.debug(f"📤 Sending response for {request_id}")
                 await self._send_response(request_id, response)
-                logger.info(f"Request {request_id} completed successfully")
-                
+                logger.info(f"✅ Request {request_id} completed successfully")
+
         except Exception as e:
             logger.error(f"Error processing request {request_id}: {e}")
             if request_id:
-                error_response = {
-                    "status": "error",
-                    "error": {
-                        "message": str(e),
-                        "type": type(e).__name__
-                    },
-                    "timestamp": datetime.now().isoformat()
-                }
+                # Use standardized error response format
+                error_response = MaintenanceErrorBuilder.internal_error(
+                    message=str(e),
+                    error_details={"error_type": type(e).__name__},
+                    correlation_id=request_id
+                )
                 await self._send_response(request_id, error_response)
     
     async def _route_request(self, method: str, user_context: Dict[str, Any], endpoint: str = "") -> Dict[str, Any]:
@@ -172,7 +272,7 @@ class ServiceRequestConsumer:
             if not isinstance(endpoint, str):
                 raise ValueError("Invalid endpoint")
             
-            # Normalize endpoint path
+            # Robust endpoint path normalization
             endpoint = endpoint.strip().lstrip('/').rstrip('/')
             
             # Add endpoint to user_context for handlers to use
@@ -210,6 +310,14 @@ class ServiceRequestConsumer:
     async def _handle_maintenance_records_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle maintenance records requests by calling route logic"""
         try:
+            # Check database connectivity first
+            from repositories.database import db_manager
+            if not await self._check_database_connectivity():
+                return ResponseBuilder.error(
+                    error="DatabaseUnavailable",
+                    message="Database service is currently unavailable"
+                ).model_dump()
+            
             # Import route logic
             from services.maintenance_service import maintenance_records_service
             from schemas.responses import ResponseBuilder
@@ -323,6 +431,14 @@ class ServiceRequestConsumer:
     async def _handle_license_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle license-related requests"""
         try:
+            # Check database connectivity first
+            if not await self._check_database_connectivity():
+                from schemas.responses import ResponseBuilder
+                return ResponseBuilder.error(
+                    error="DatabaseUnavailable",
+                    message="Database service is currently unavailable"
+                ).model_dump()
+            
             # Extract data and endpoint from user_context
             data = user_context.get("data", {})
             endpoint = user_context.get("endpoint", "")
@@ -371,15 +487,23 @@ class ServiceRequestConsumer:
                 
         except Exception as e:
             logger.error(f"Error handling license request {method} {endpoint}: {e}")
-            return {
-                "success": False,
-                "message": f"Failed to process license request: {str(e)}",
-                "error_code": "LICENSE_REQUEST_ERROR"
-            }
+            from schemas.responses import ResponseBuilder
+            return ResponseBuilder.error(
+                error="LicenseRequestError",
+                message=f"Failed to process license request: {str(e)}"
+            ).model_dump()
     
     async def _handle_analytics_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle analytics-related requests"""
         try:
+            # Check database connectivity first
+            if not await self._check_database_connectivity():
+                from schemas.responses import ResponseBuilder
+                return ResponseBuilder.error(
+                    error="DatabaseUnavailable",
+                    message="Database service is currently unavailable"
+                ).model_dump()
+            
             # Extract data and endpoint from user_context
             data = user_context.get("data", {})
             endpoint = user_context.get("endpoint", "")
@@ -397,15 +521,23 @@ class ServiceRequestConsumer:
                 
         except Exception as e:
             logger.error(f"Error handling analytics request {method} {endpoint}: {e}")
-            return {
-                "success": False,
-                "message": f"Failed to process analytics request: {str(e)}",
-                "error_code": "ANALYTICS_REQUEST_ERROR"
-            }
+            from schemas.responses import ResponseBuilder
+            return ResponseBuilder.error(
+                error="AnalyticsRequestError",
+                message=f"Failed to process analytics request: {str(e)}"
+            ).model_dump()
     
     async def _handle_notification_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle notification-related requests"""
         try:
+            # Check database connectivity first
+            if not await self._check_database_connectivity():
+                from schemas.responses import ResponseBuilder
+                return ResponseBuilder.error(
+                    error="DatabaseUnavailable",
+                    message="Database service is currently unavailable"
+                ).model_dump()
+            
             # Extract data and endpoint from user_context
             data = user_context.get("data", {})
             endpoint = user_context.get("endpoint", "")
@@ -437,19 +569,28 @@ class ServiceRequestConsumer:
                 
         except Exception as e:
             logger.error(f"Error handling notification request {method} {endpoint}: {e}")
-            return {
-                "success": False,
-                "message": f"Failed to process notification request: {str(e)}",
-                "error_code": "NOTIFICATION_REQUEST_ERROR"
-            }
+            from schemas.responses import ResponseBuilder
+            return ResponseBuilder.error(
+                error="NotificationRequestError",
+                message=f"Failed to process notification request: {str(e)}"
+            ).model_dump()
     
     async def _handle_vendor_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle vendor-related requests"""
         try:
-            # Extract data and endpoint from user_context  
+            # Check database connectivity first
+            if not await self._check_database_connectivity():
+                from schemas.responses import ResponseBuilder
+                return ResponseBuilder.error(
+                    error="DatabaseUnavailable",
+                    message="Database service is currently unavailable"
+                ).model_dump()
+            
+            # Extract data and endpoint from user_context
             data = user_context.get("data", {})
             endpoint = user_context.get("endpoint", "")
             
+            # Vendor endpoints not yet implemented - return placeholder
             return {
                 "success": False,
                 "message": "Vendor endpoints not yet implemented",
@@ -457,16 +598,18 @@ class ServiceRequestConsumer:
                 "method": method,
                 "endpoint": endpoint
             }
+            
         except Exception as e:
             logger.error(f"Error handling vendor request {method}: {e}")
-            return {
-                "success": False,
-                "message": f"Failed to process vendor request: {str(e)}",
-                "error_code": "VENDOR_REQUEST_ERROR"
-            }
+            from schemas.responses import ResponseBuilder
+            return ResponseBuilder.error(
+                error="VendorRequestError",
+                message=f"Failed to process vendor request: {str(e)}"
+            ).model_dump()
     
     async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle health check requests"""
+        logger.debug(f"Handling health request: {method}")
         if method == "GET":
             return {
                 "status": "healthy",
@@ -519,8 +662,9 @@ class ServiceRequestConsumer:
             raise ValueError(f"Unsupported method for metrics endpoint: {method}")
         
     async def _send_response(self, correlation_id: str, response_data: Dict[str, Any]):
-        """Send response back to Core via RabbitMQ using standardized config"""
+        """Send response back to Core via RabbitMQ using main connection to avoid event loop issues"""
         try:
+            # Use main connection and exchange to avoid event loop issues
             # Prepare response message
             response_msg = {
                 "correlation_id": correlation_id,
@@ -529,21 +673,18 @@ class ServiceRequestConsumer:
                 "timestamp": datetime.utcnow().isoformat()
             }
             
-            # Declare service_responses exchange
-            exchange = await self.channel.declare_exchange(
-                self.config.EXCHANGE_NAMES["responses"], 
-                aio_pika.ExchangeType.DIRECT, 
-                durable=True
-            )
-            
-            # Send response to core.responses queue using custom serializer
+            # Send response using main channel and exchange
             message = aio_pika.Message(
                 json.dumps(response_msg, default=json_serializer).encode(),
                 delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
-                content_type="application/json"
+                content_type="application/json",
+                headers={
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'source': 'maintenance_service'
+                }
             )
             
-            await exchange.publish(message, routing_key=self.config.ROUTING_KEYS["core_responses"])
+            await self.response_exchange.publish(message, routing_key=self.config.ROUTING_KEYS["core_responses"])
             
             logger.debug(f"📤 Sent response for correlation_id: {correlation_id}")
             
@@ -552,8 +693,9 @@ class ServiceRequestConsumer:
             raise
     
     async def _send_error_response(self, correlation_id: str, error_message: str):
-        """Send error response back to Core"""
+        """Send error response back to Core using main connection to avoid event loop issues"""
         try:
+            # Use main connection and exchange to avoid event loop issues
             response_msg = {
                 "correlation_id": correlation_id,
                 "status": "error",
@@ -564,25 +706,88 @@ class ServiceRequestConsumer:
                 "timestamp": datetime.utcnow().isoformat()
             }
             
-            exchange = await self.channel.declare_exchange(
-                self.config.EXCHANGE_NAMES["responses"], 
-                aio_pika.ExchangeType.DIRECT, 
-                durable=True
-            )
-            
             message = aio_pika.Message(
                 json.dumps(response_msg, default=json_serializer).encode(),
                 delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
-                content_type="application/json"
+                content_type="application/json",
+                headers={
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'source': 'maintenance_service'
+                }
             )
             
-            await exchange.publish(message, routing_key=self.config.ROUTING_KEYS["core_responses"])
+            await self.response_exchange.publish(message, routing_key=self.config.ROUTING_KEYS["core_responses"])
             
             logger.debug(f"📤 Sent error response for correlation_id: {correlation_id}")
             
         except Exception as e:
             logger.error(f"❌ Error sending error response for {correlation_id}: {e}")
-
+    
+    async def _check_database_connectivity(self) -> bool:
+        """Check database connectivity with caching to improve performance"""
+        current_time = time.time()
+        
+        # Check if we have a cached result that's still valid
+        if (self._db_status_cache["status"] is not None and 
+            current_time - self._db_status_cache["last_check"] < self._db_status_cache["cache_ttl"]):
+            return self._db_status_cache["status"]
+        
+        try:
+            from repositories.database import db_manager
+            
+            # Perform database health check with timeout
+            await asyncio.wait_for(
+                db_manager.client.admin.command('ping'),
+                timeout=5.0  # Quick timeout for health check
+            )
+            
+            # Cache successful result
+            self._db_status_cache.update({
+                "status": True,
+                "last_check": current_time
+            })
+            return True
+                
+        except Exception as e:
+            logger.warning(f"Database connectivity check failed: {e}")
+            # Cache failed result
+            self._db_status_cache.update({
+                "status": False,
+                "last_check": current_time
+            })
+            return False
+    
+    async def _cleanup_old_requests(self):
+        """Cleanup old request data to prevent memory leaks"""
+        try:
+            current_time = time.time()
+            cleanup_threshold = 3600  # 1 hour
+            
+            # Clean up old processed requests
+            old_requests = [
+                req_id for req_id, timestamp in self.processed_requests.items()
+                if current_time - timestamp > cleanup_threshold
+            ]
+            
+            for req_id in old_requests:
+                del self.processed_requests[req_id]
+            
+            if old_requests:
+                logger.info(f"🧹 Cleaned up {len(old_requests)} old processed requests")
+                
+        except Exception as e:
+            logger.error(f"❌ Error during request cleanup: {e}")
+    
+    async def _start_cleanup_task(self):
+        """Start periodic cleanup task"""
+        while self.is_consuming:
+            try:
+                await asyncio.sleep(1800)  # Run every 30 minutes
+                await self._cleanup_old_requests()
+            except Exception as e:
+                logger.error(f"❌ Error in cleanup task: {e}")
+                await asyncio.sleep(60)  # Wait 1 minute before retrying
+ 
 
 # Global service instance
 service_request_consumer = ServiceRequestConsumer()

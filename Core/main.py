@@ -201,6 +201,14 @@ except ImportError as e:
     # Auth routes are essential, so we should raise an error
     raise SystemExit(f"Critical error: Auth routes are required but could not be imported: {e}")
 
+# Import health check routes
+try:
+    from routes.health import health_router
+    app.include_router(health_router)
+    logger.info("✅ Health check routes configured")
+except ImportError as e:
+    logger.warning(f"⚠️ Failed to import health routes: {e}")
+
 # Import simplified service routing
 try:
     from routes.service_routing import service_router

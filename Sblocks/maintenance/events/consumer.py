@@ -23,57 +23,36 @@ class EventConsumer:
     def __init__(self):
         self.connection: Optional[aio_pika.Connection] = None
         self.channel: Optional[aio_pika.Channel] = None
-        # Use standardized config
-        self.config = RabbitMQConfig()
-        self.rabbitmq_url = self.config.get_rabbitmq_url()
+        self.rabbitmq_url = os.getenv("RABBITMQ_URL", "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/")
         self.handlers: Dict[str, Callable] = {}
         self.dead_letter_queue: Optional[aio_pika.Queue] = None
         self.max_retry_attempts = 3
         self.retry_delay = 2.0  # seconds
         self.is_consuming = False
-        self.enable_dead_letter_queue = os.getenv("ENABLE_DLQ", "true").lower() == "true"
         
     async def connect(self):
-        """Connect to RabbitMQ with retry logic and better error handling"""
-        max_retries = 5
-        base_delay = 2.0
+        """Connect to RabbitMQ"""
+        try:            
+            # Use standardized connection settings
+            self.connection = await aio_pika.connect_robust(
+                self.rabbitmq_url,
+                heartbeat=600,
+                blocked_connection_timeout=300,
+                connection_attempts=3,
+                retry_delay=1.0
+            )
+            
+            # Create channel with better settings
+            self.channel = await self.connection.channel()
+            await self.channel.set_qos(prefetch_count=10)
+            
+            logger.info("Successfully connected to RabbitMQ")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to connect to RabbitMQ (attempt {attempt + 1}): {e}")
+            return False
         
-        for attempt in range(max_retries):
-            try:
-                logger.info(f"Attempting to connect to RabbitMQ (attempt {attempt + 1}/{max_retries})")
-                
-                # Use standardized connection settings
-                self.connection = await aio_pika.connect_robust(
-                    self.rabbitmq_url,
-                    heartbeat=self.config.CONNECTION_PARAMS["heartbeat"],
-                    blocked_connection_timeout=self.config.CONNECTION_PARAMS["blocked_connection_timeout"],
-                    connection_attempts=3,
-                    retry_delay=1.0
-                )
-                
-                # Create channel with better settings
-                self.channel = await self.connection.channel(
-                    publisher_confirms=True,
-                    on_return_raises=False
-                )
-                
-                # Set QoS with lower prefetch to reduce memory usage
-                await self.channel.set_qos(prefetch_count=5)
-                
-                logger.info("Successfully connected to RabbitMQ")
-                return True
-                
-            except Exception as e:
-                logger.error(f"Failed to connect to RabbitMQ (attempt {attempt + 1}): {e}")
-                
-                if attempt < max_retries - 1:
-                    delay = base_delay * (2 ** attempt)  # Exponential backoff
-                    logger.info(f"Retrying in {delay} seconds...")
-                    await asyncio.sleep(delay)
-                else:
-                    logger.error("All RabbitMQ connection attempts failed")
-                    raise ConnectionError("Unable to connect to RabbitMQ after multiple attempts")
-    
     async def disconnect(self):
         """Disconnect from RabbitMQ with proper cleanup"""
         self.is_consuming = False
@@ -109,32 +88,73 @@ class EventConsumer:
             return
         
         try:
-            # Temporarily disable dead letter queue to avoid timeout issues
-            logger.info("Dead letter queue disabled to avoid timeout issues")
-            self.enable_dead_letter_queue = False
-            
-            # Try to declare queue with better error handling
-            queue_name = "maintenance_service_events"
-            queue = await self._declare_queue_with_fallback(queue_name)
-            
-            # Bind to relevant exchanges and routing keys
-            await self._setup_bindings(queue)
-            
-            # Start consuming with proper error handling
-            await queue.consume(self._handle_message_with_retry, no_ack=False)
-            
+            # Declare exchange
+            exchange = await self.channel.declare_exchange(
+                "maintenance_events",
+                aio_pika.ExchangeType.TOPIC,
+                durable=True
+            )
+            # Declare queue for this service
+            queue = await self.channel.declare_queue(
+                "gps_service_events",
+                durable=True
+            )
+            patterns = [
+                "management.*",  # Listen to management events
+                "core.*",        # Listen to core events
+                "vehicles.*",    # Listen to vehicle events
+                "users.*"        # Listen to user events
+            ]
+
+            for pattern in patterns:
+                await queue.bind(exchange, routing_key=pattern)
+
             self.is_consuming = True
-            logger.info("Started consuming events successfully")
-            
+            await queue.consume(self._handle_message)
+
+            logger.info("Started consuming events")
+
+            # Keep consuming
+            while self.is_consuming:
+                await asyncio.sleep(1)
+
         except Exception as e:
-            logger.error(f"Failed to start consuming events: {e}")
-            logger.error(f"Error traceback: {traceback.format_exc()}")
+            logger.error(f"Error starting consumption: {e}")
             self.is_consuming = False
-            
-            # Don't raise - allow service to continue without events
-            logger.warning("Service will continue without event consumption")
-            return
-    
+
+    async def _handle_message(self, message: aio_pika.IncomingMessage):
+        """Handle incoming message"""
+        async with message.process():
+            try:
+                # Parse message
+                body = json.loads(message.body.decode())
+                routing_key = message.routing_key
+                
+                logger.info(f"Received event with routing key: {routing_key}")
+                
+                # Find matching handler
+                for pattern, handler in self.handlers.items():
+                    if self._match_pattern(routing_key, pattern):
+                        try:
+                            await handler(body, routing_key)
+                        except Exception as e:
+                            logger.error(f"Error in handler for {pattern}: {e}")
+                            logger.error(traceback.format_exc())
+                
+            except Exception as e:
+                logger.error(f"Error processing message: {e}")
+                logger.error(traceback.format_exc())
+
+    def _match_pattern(self, routing_key: str, pattern: str) -> bool:
+        """Check if routing key matches pattern"""
+        # Simple pattern matching (can be enhanced)
+        if "*" in pattern:
+            prefix = pattern.replace("*", "")
+            return routing_key.startswith(prefix)
+        return routing_key == pattern
+
+
+
     async def _declare_queue_with_fallback(self, queue_name: str) -> aio_pika.Queue:
         """Declare queue with fallback to simple queue if DLQ fails"""
         try:
@@ -183,30 +203,9 @@ class EventConsumer:
             logger.info("Bound to security user events")
         except Exception as e:
             logger.warning(f"Failed to bind to security events: {e}")
-    
-    async def _handle_message_with_retry(self, message: aio_pika.IncomingMessage):
-        """Handle message with retry logic"""
-        async with message.process(requeue=False):
-            try:
-                # Decode message
-                body = json.loads(message.body.decode())
-                event_type = message.headers.get("event_type", "unknown")
-                
-                logger.debug(f"Received event: {event_type}")
-                
-                # Find and execute handler
-                handler = self._find_handler(event_type)
-                if handler:
-                    await handler(body)
-                    logger.debug(f"Successfully processed event: {event_type}")
-                else:
-                    logger.warning(f"No handler found for event type: {event_type}")
-                
-            except Exception as e:
-                logger.error(f"Error processing message: {e}")
-                logger.error(f"Message body: {message.body}")
-                # Message will be rejected due to requeue=False
-    
+
+
+
     def _find_handler(self, event_type: str) -> Optional[Callable]:
         """Find handler for event type"""
         # Direct match first

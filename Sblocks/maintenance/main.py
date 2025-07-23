@@ -74,11 +74,14 @@ async def lifespan(app: FastAPI):
         # Setup and start event consumer
         logger.info("🔗 Setting up event consumer...")
         try:
-            await event_consumer.connect()
-            setup_event_handlers()
-            # Start consuming in background without blocking startup
-            asyncio.create_task(event_consumer.start_consuming())
-            logger.info("✅ Event consumer setup completed")
+            consumer_connected = await event_consumer.connect()
+            if consumer_connected:
+                await setup_event_handlers()
+                # Start consuming in background
+                asyncio.create_task(event_consumer.start_consuming())
+                logger.info("✅ Event consumer started successfully")
+            else:
+                logger.warning("⚠️ Event consumer connection failed - continuing without event consumption")
         except Exception as e:
             logger.error(f"❌ Event consumer setup failed: {e}")
             logger.warning("⚠️ Service will continue without event consumption")
@@ -176,7 +179,8 @@ app = FastAPI(
     description="Comprehensive maintenance management service for SAMFMS fleet management system",
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
+    lifespan=lifespan
 )
 
 # Store start time for uptime calculation
