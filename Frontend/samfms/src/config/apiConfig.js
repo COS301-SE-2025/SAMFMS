@@ -107,22 +107,27 @@ export const API_ENDPOINTS = {
 
   // Vehicle Management
   VEHICLES: {
-    LIST: '/vehicles',
-    CREATE: '/vehicles',
-    GET: id => `/vehicles/${id}`,
-    UPDATE: id => `/vehicles/${id}`,
-    DELETE: id => `/vehicles/${id}`,
-    SEARCH: query => `/api/vehicles/search/${query}`,
+    LIST: '/management/vehicles',
+    CREATE: '/management/vehicles',
+    GET: id => `/management/vehicles/${id}`,
+    UPDATE: id => `/management/vehicles/${id}`,
+    DELETE: id => `/management/vehicles/${id}`,
+    SEARCH: query => `/management/vehicles/search/${query}`,
+    ASSIGNMENTS: id => `/management/vehicles/${id}/assignments`,
+    USAGE: id => `/management/vehicles/${id}/usage`
   },
 
   // Driver Management
   DRIVERS: {
-    LIST: '/management/vehicles/drivers',
-    CREATE: '/management/vehicles/drivers',
-    GET: id => `/management/vehicles/drivers/${id}`,
-    UPDATE: id => `/management/vehicles/drivers/${id}`,
-    DELETE: id => `/management/vehicles/drivers/${id}`,
-    SEARCH: query => `/management/vehicles/drivers/search/${query}`,
+    LIST: '/management/drivers',
+    CREATE: '/management/drivers',
+    GET: id => `/management/drivers/${id}`,
+    UPDATE: id => `/management/drivers/${id}`,
+    DELETE: id => `/management/drivers/${id}`,
+    SEARCH: query => `/management/drivers/search/${query}`,
+    ACTIVATE: id => `/management/${id}/activate`,
+    ASSIGN: id => `/management/${id}/assign-vehicle`,
+    ASSIGN: id => `/management/${id}/unassign-vehicle`
   },
 
   // Vehicle Assignments
@@ -139,6 +144,11 @@ export const API_ENDPOINTS = {
   GPS: {
     LOCATIONS: '/api/gps/locations',
     CREATE_LOCATION: '/api/gps/locations',
+  },
+
+  GEOFENCES: {
+    LIST: '/gps/geofences/geofences',
+    CREATE: 'gps/geofences/create',
   },
 
   // Trip Planning

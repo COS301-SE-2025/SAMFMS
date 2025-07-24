@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2 } from 'lucide-react';
+import { listGeofences, addGeofence } from '../../backend/api/geofences';
 
 const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   // State for the component
@@ -48,20 +49,16 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   // Handle adding a new geofence
   const handleAddGeofence = async () => {
     try {
-      const response = await fetch("https://capstone-samfms.dns.net.za:21017/api/api/gps/geofences/circle", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          name: newGeofence.name,
-          type: newGeofence.type,
-          radius: newGeofence.radius,
-          latitude: newGeofence.coordinates.lat,
-          longitude: newGeofence.coordinates.lng,
-          status: newGeofence.status
-        })
-      });
+      body: JSON.stringify({
+        name: newGeofence.name,
+        type: newGeofence.type,
+        radius: newGeofence.radius,
+        latitude: newGeofence.coordinates.lat,
+        longitude: newGeofence.coordinates.lng,
+        status: newGeofence.status
+      })
+
+      const response = addGeofence(body)
 
       const result = await response.json();
       console.log("Result from core:", result);
@@ -84,7 +81,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
             radius: parsed.radius,
             area: result.area // Keep original area string if needed
           };
-          
+
           console.log("Adding formatted geofence:", newFormattedGeofence);
           setGeofences(prev => [...prev, newFormattedGeofence]);
         } else {
