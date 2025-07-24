@@ -148,7 +148,7 @@ export const API_ENDPOINTS = {
 
   GEOFENCES: {
     LIST: '/gps/geofences/geofences',
-    CREATE: 'gps/geofences/create',
+    CREATE: '/gps/geofences/geofences',
   },
 
   // Trip Planning

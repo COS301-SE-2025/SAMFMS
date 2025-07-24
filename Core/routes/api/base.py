@@ -51,7 +51,7 @@ async def handle_service_request(
         service_name = _get_service_name_from_endpoint(endpoint)
         
         # Route to appropriate service
-        if service_name in ["maintenance", "management"]:
+        if service_name in ["maintenance", "management","gps"]:
             # Use RabbitMQ for microservices
             response = await _send_rabbitmq_request(
                 service_name=service_name,

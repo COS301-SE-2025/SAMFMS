@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2 } from 'lucide-react';
-import { listGeofences, addGeofence } from '../../backend/api/geofences';
+import { addGeofence } from '../../backend/api/geofences';
 
 const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   // State for the component
@@ -47,58 +47,100 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   }, [geofences, onGeofenceChange]);
 
   // Handle adding a new geofence
+  // Handle adding a new geofence
   const handleAddGeofence = async () => {
     try {
-      body: JSON.stringify({
+      console.log('Creating geofence with data:', newGeofence);
+
+      const geofenceData = {
         name: newGeofence.name,
+        description: newGeofence.description,
         type: newGeofence.type,
-        radius: newGeofence.radius,
-        latitude: newGeofence.coordinates.lat,
-        longitude: newGeofence.coordinates.lng,
+        radius: parseInt(newGeofence.radius),
+        latitude: parseFloat(newGeofence.coordinates.lat),
+        longitude: parseFloat(newGeofence.coordinates.lng),
         status: newGeofence.status
-      })
+      };
 
-      const response = addGeofence(body)
+      console.log('Sending geofence data:', geofenceData);
+      const result = await addGeofence(geofenceData);
+      console.log("Geofence creation response:", result);
 
-      const result = await response.json();
-      console.log("Result from core:", result);
-
-      if (!response.ok) {
-        throw new Error(result.detail || "Failed to create geofence");
+      // FIXED: Check the correct response structure
+      if (!result || result.status !== 'success' || !result.data) {
+        console.error("Invalid response structure:", result);
+        throw new Error("Invalid response from GPS service");
       }
 
-      // Handle the response - the API returns the geofence data differently
-      if (result.id) {
-        // Parse the area string from the response
-        const parsed = parseGeofenceArea(result.area);
-        if (parsed) {
-          const newFormattedGeofence = {
-            id: result.id,
-            name: result.name,
-            type: newGeofence.type, // Use the type from our form since it's not in response
-            status: newGeofence.status, // Use the status from our form since it's not in response
-            coordinates: parsed.coordinates,
-            radius: parsed.radius,
-            area: result.area // Keep original area string if needed
-          };
+      const responseData = result.data;
+      console.log("Response data:", responseData);
 
-          console.log("Adding formatted geofence:", newFormattedGeofence);
-          setGeofences(prev => [...prev, newFormattedGeofence]);
-        } else {
-          console.warn("Invalid geofence area format:", result.area);
-        }
+      // FIXED: Handle the actual response structure from GPS service
+      let geofenceId, geofenceArea, geofenceName;
+
+      // The GPS service returns data directly in the 'data' field
+      if (responseData.id) {
+        geofenceId = responseData.id;
+        geofenceArea = responseData.area || responseData.geometry;
+        geofenceName = responseData.name;
       } else {
-        console.warn("No geofence ID in response:", result);
+        console.error("No geofence ID in response data:", responseData);
+        throw new Error("No geofence ID returned from service");
       }
+
+      console.log("Extracted geofence data:", { geofenceId, geofenceArea, geofenceName });
+
+      // Parse the area/geometry - handle both CIRCLE format and coordinates
+      let parsed = null;
+      if (geofenceArea) {
+        parsed = parseGeofenceArea(geofenceArea);
+      }
+
+      // If parsing fails, use the original coordinates from the response or request
+      if (!parsed) {
+        console.warn("Could not parse geofence area, using original coordinates");
+        parsed = {
+          coordinates: {
+            lat: responseData.latitude || newGeofence.coordinates.lat,
+            lng: responseData.longitude || newGeofence.coordinates.lng
+          },
+          radius: responseData.radius || newGeofence.radius
+        };
+      }
+
+      const newFormattedGeofence = {
+        id: geofenceId,
+        name: geofenceName || newGeofence.name,
+        type: newGeofence.type,
+        status: newGeofence.status,
+        coordinates: parsed.coordinates,
+        radius: parsed.radius,
+        geometry: geofenceArea || `CIRCLE(${newGeofence.coordinates.lng} ${newGeofence.coordinates.lat},${newGeofence.radius})`
+      };
+
+      console.log("Adding geofence to state:", newFormattedGeofence);
+      setGeofences(prev => [...prev, newFormattedGeofence]);
 
       resetForm();
       setShowAddModal(false);
+
+      // Optional: Show success message
+      alert("Geofence created successfully!");
+
     } catch (error) {
       console.error("Error creating geofence:", error);
-      // You might want to show a user-friendly error message here
-      alert("Failed to create geofence: " + error.message);
+
+      let errorMessage = "Failed to create geofence";
+      if (error.response && error.response.data) {
+        errorMessage += ": " + (error.response.data.detail || error.response.data.message || error.message);
+      } else {
+        errorMessage += ": " + error.message;
+      }
+
+      alert(errorMessage);
     }
   };
+
 
   // Handle editing a geofence
   const handleEditGeofence = () => {

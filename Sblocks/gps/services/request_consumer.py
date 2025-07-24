@@ -168,6 +168,7 @@ class ServiceRequestConsumer:
             async with message.process(requeue=False):
                 # Parse message body
                 request_data = json.loads(message.body.decode())
+                logger.info(f"REQUEST_DATA: {request_data}")
                 
                 # Extract request details
                 request_id = request_data.get("correlation_id")
@@ -176,7 +177,8 @@ class ServiceRequestConsumer:
                 endpoint = request_data.get("endpoint", "")
                 
                 # Extract data from top-level and add to user_context for handlers
-                data = request_data.get("data", {})
+                data = request_data.get("body", {})
+                logger.info(f"Message data: {data}")
                 user_context["data"] = data
                 
                 # Enhanced duplicate request checking
@@ -407,9 +409,13 @@ class ServiceRequestConsumer:
             # Import route handlers and extract their business logic
             from services.geofence_service import geofence_service
             from schemas.responses import ResponseBuilder
+
+            if isinstance(user_context, str):
+                user_context = json.loads(user_context)
             
             # Extract data and endpoint from user_context
             data = user_context.get("data", {})
+            logger.info(f"Data in user_context, {data}")
             endpoint = user_context.get("endpoint", "")
             
             # Create mock user for service calls

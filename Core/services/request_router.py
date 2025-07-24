@@ -82,6 +82,7 @@ class RequestRouter:
     async def route_request(self, endpoint: str, method: str, data: Dict[Any, Any], user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Route request to appropriate service and wait for response with resilience"""
         try:
+            
             # Ensure response consumer is ready
             await self.response_manager.wait_for_ready()
             
