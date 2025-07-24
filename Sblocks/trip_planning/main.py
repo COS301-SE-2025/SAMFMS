@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from service_request_handler import trip_planning_request_handler
 
 app = FastAPI()
 

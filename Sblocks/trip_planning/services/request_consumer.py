@@ -168,7 +168,6 @@ class ServiceRequestConsumer:
             async with message.process(requeue=False):
                 # Parse message body
                 request_data = json.loads(message.body.decode())
-                logger.info(f"REQUEST_DATA: {request_data}")
                 
                 # Extract request details
                 request_id = request_data.get("correlation_id")
@@ -177,19 +176,42 @@ class ServiceRequestConsumer:
                 endpoint = request_data.get("endpoint", "")
                 
                 # Extract data from top-level and add to user_context for handlers
-                data = request_data.get("body", {})
-                logger.info(f"Message data: {data}")
+                data = request_data.get("data", {})
                 user_context["data"] = data
                 
-                # Check for duplicate requests by correlation_id
+                # Enhanced duplicate request checking
+                import hashlib
+                import json as json_module
+                
+                # Create content hash for deduplication
+                content_for_hash = {
+                    "method": method,
+                    "endpoint": endpoint,
+                    "data": data,
+                    "user_context": {k: v for k, v in user_context.items() if k != "data"}
+                }
+                content_hash = hashlib.md5(
+                    json_module.dumps(content_for_hash, sort_keys=True).encode()
+                ).hexdigest()
+                
+                # Check for duplicate requests by correlation_id or content hash
                 current_time = datetime.now().timestamp()
                 if request_id in self.processed_requests:
                     request_age = current_time - self.processed_requests[request_id]
                     if request_age < 300:  # 5 minutes
                         logger.warning(f"Duplicate request ignored (correlation_id): {request_id}")
                         return
+                
+                if content_hash in self.request_content_hashes:
+                    existing_correlation_id = self.request_content_hashes[content_hash]
+                    if existing_correlation_id in self.processed_requests:
+                        request_age = current_time - self.processed_requests[existing_correlation_id]
+                        if request_age < 60:  # 1 minute for content-based deduplication
+                            logger.warning(f"Duplicate request ignored (content hash): {request_id}")
+                            return
                     
                 self.processed_requests[request_id] = current_time
+                self.request_content_hashes[content_hash] = request_id
                 
                 logger.debug(f"Processing request {request_id}: {method} {endpoint}")
                 
@@ -385,13 +407,9 @@ class ServiceRequestConsumer:
             # Import route handlers and extract their business logic
             from services.geofence_service import geofence_service
             from schemas.responses import ResponseBuilder
-
-            if isinstance(user_context, str):
-                user_context = json.loads(user_context)
             
             # Extract data and endpoint from user_context
             data = user_context.get("data", {})
-            logger.info(f"Data in user_context, {data}")
             endpoint = user_context.get("endpoint", "")
             
             # Create mock user for service calls

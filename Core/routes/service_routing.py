@@ -236,16 +236,6 @@ async def route_to_service_block(
         "source": "core-gateway"
     }
     
-    # Check for duplicate requests at Core level
-    duplicate_reason = await request_deduplicator.check_and_record_request(request_id, message)
-    if duplicate_reason:
-        logger.warning(f"Duplicate request blocked: {request_id} - {duplicate_reason}")
-        # Return a successful response indicating duplication was handled
-        return {
-            "status": "success",
-            "data": {"message": "Request already processed", "duplicate": True},
-            "correlation_id": request_id
-        }
     
     # Create future for response tracking
     response_future = asyncio.Future()

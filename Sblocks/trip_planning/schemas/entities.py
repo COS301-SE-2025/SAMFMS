@@ -1,0 +1,239 @@
+"""
+Entity schemas for Trip Planning service
+"""
+from pydantic import BaseModel, Field
+from typing import Optional, Dict, Any, List
+from datetime import datetime
+from enum import Enum
+
+
+class TripStatus(str, Enum):
+    """Trip status enumeration"""
+    SCHEDULED = "scheduled"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    DELAYED = "delayed"
+
+
+class TripPriority(str, Enum):
+    """Trip priority levels"""
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
+
+
+class ConstraintType(str, Enum):
+    """Trip constraint types"""
+    AVOID_TOLLS = "avoid_tolls"
+    AVOID_HIGHWAYS = "avoid_highways"
+    AVOID_FERRIES = "avoid_ferries"
+    SHORTEST_ROUTE = "shortest_route"
+    FASTEST_ROUTE = "fastest_route"
+    FUEL_EFFICIENT = "fuel_efficient"
+    AVOID_AREA = "avoid_area"
+    PREFERRED_ROUTE = "preferred_route"
+
+
+class NotificationType(str, Enum):
+    """Notification types"""
+    TRIP_STARTED = "trip_started"
+    TRIP_COMPLETED = "trip_completed"
+    TRIP_DELAYED = "trip_delayed"
+    DRIVER_LATE = "driver_late"
+    ROUTE_CHANGED = "route_changed"
+    TRAFFIC_ALERT = "traffic_alert"
+    DRIVER_ASSIGNED = "driver_assigned"
+    DRIVER_UNASSIGNED = "driver_unassigned"
+
+
+class LocationPoint(BaseModel):
+    """Geographic point representation"""
+    type: str = Field(default="Point", description="GeoJSON type")
+    coordinates: List[float] = Field(..., description="[longitude, latitude]")
+
+
+class Address(BaseModel):
+    """Address information"""
+    street: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    postal_code: Optional[str] = None
+    country: Optional[str] = None
+    formatted_address: Optional[str] = None
+
+
+class Waypoint(BaseModel):
+    """Trip waypoint"""
+    id: Optional[str] = Field(None, alias="_id")
+    location: LocationPoint = Field(..., description="GeoJSON point")
+    address: Optional[Address] = None
+    name: Optional[str] = None
+    arrival_time: Optional[datetime] = None
+    departure_time: Optional[datetime] = None
+    stop_duration: Optional[int] = Field(None, description="Stop duration in minutes")
+    order: int = Field(..., description="Order in the trip")
+    
+    class Config:
+        populate_by_name = True
+
+
+class TripConstraint(BaseModel):
+    """Trip routing constraint"""
+    id: Optional[str] = Field(None, alias="_id")
+    trip_id: str = Field(..., description="Associated trip ID")
+    type: ConstraintType = Field(..., description="Type of constraint")
+    value: Optional[Dict[str, Any]] = Field(None, description="Constraint parameters")
+    priority: int = Field(default=1, description="Constraint priority (1-10)")
+    is_active: bool = Field(default=True, description="Whether constraint is active")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True
+
+
+class DriverAssignment(BaseModel):
+    """Driver assignment to trip"""
+    id: Optional[str] = Field(None, alias="_id")
+    trip_id: str = Field(..., description="Trip ID")
+    driver_id: str = Field(..., description="Driver ID")
+    vehicle_id: Optional[str] = Field(None, description="Assigned vehicle ID")
+    assigned_at: datetime = Field(default_factory=datetime.utcnow)
+    assigned_by: str = Field(..., description="User who made the assignment")
+    notes: Optional[str] = None
+    
+    class Config:
+        populate_by_name = True
+
+
+class Trip(BaseModel):
+    """Trip entity"""
+    id: Optional[str] = Field(None, alias="_id", description="Trip ID")
+    name: str = Field(..., description="Trip name/title")
+    description: Optional[str] = None
+    
+    # Trip schedule
+    scheduled_start_time: datetime = Field(..., description="Scheduled start time")
+    scheduled_end_time: Optional[datetime] = None
+    actual_start_time: Optional[datetime] = None
+    actual_end_time: Optional[datetime] = None
+    
+    # Trip route
+    origin: Waypoint = Field(..., description="Starting point")
+    destination: Waypoint = Field(..., description="End point")
+    waypoints: List[Waypoint] = Field(default_factory=list, description="Intermediate stops")
+    
+    # Trip details
+    status: TripStatus = Field(default=TripStatus.SCHEDULED)
+    priority: TripPriority = Field(default=TripPriority.NORMAL)
+    estimated_duration: Optional[int] = Field(None, description="Estimated duration in minutes")
+    estimated_distance: Optional[float] = Field(None, description="Estimated distance in km")
+    
+    # Assignments
+    driver_assignment: Optional[DriverAssignment] = None
+    vehicle_id: Optional[str] = None
+    
+    # Constraints
+    constraints: List[TripConstraint] = Field(default_factory=list)
+    
+    # Metadata
+    created_by: str = Field(..., description="User who created the trip")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Custom fields
+    custom_fields: Optional[Dict[str, Any]] = None
+    
+    class Config:
+        populate_by_name = True
+
+
+class TripAnalytics(BaseModel):
+    """Trip analytics data"""
+    id: Optional[str] = Field(None, alias="_id")
+    trip_id: str = Field(..., description="Trip ID")
+    
+    # Performance metrics
+    planned_duration: Optional[int] = Field(None, description="Planned duration in minutes")
+    actual_duration: Optional[int] = Field(None, description="Actual duration in minutes")
+    planned_distance: Optional[float] = Field(None, description="Planned distance in km")
+    actual_distance: Optional[float] = Field(None, description="Actual distance in km")
+    
+    # Efficiency metrics
+    fuel_consumption: Optional[float] = Field(None, description="Fuel consumed in liters")
+    cost: Optional[float] = Field(None, description="Trip cost")
+    delays: Optional[int] = Field(None, description="Total delays in minutes")
+    
+    # Route metrics
+    route_deviation: Optional[float] = Field(None, description="Deviation from planned route in km")
+    traffic_delays: Optional[int] = Field(None, description="Traffic-related delays in minutes")
+    
+    # Timestamps
+    calculated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True
+
+
+class Notification(BaseModel):
+    """User notification"""
+    id: Optional[str] = Field(None, alias="_id")
+    user_id: str = Field(..., description="Recipient user ID")
+    type: NotificationType = Field(..., description="Notification type")
+    title: str = Field(..., description="Notification title")
+    message: str = Field(..., description="Notification message")
+    
+    # Related entities
+    trip_id: Optional[str] = None
+    driver_id: Optional[str] = None
+    
+    # Notification data
+    data: Optional[Dict[str, Any]] = Field(None, description="Additional notification data")
+    
+    # Status
+    is_read: bool = Field(default=False)
+    sent_at: datetime = Field(default_factory=datetime.utcnow)
+    read_at: Optional[datetime] = None
+    
+    # Delivery
+    channels: List[str] = Field(default_factory=list, description="Delivery channels (email, push, sms)")
+    delivery_status: Optional[Dict[str, Any]] = None
+    
+    class Config:
+        populate_by_name = True
+
+
+class NotificationPreferences(BaseModel):
+    """User notification preferences"""
+    id: Optional[str] = Field(None, alias="_id")
+    user_id: str = Field(..., description="User ID")
+    
+    # Notification types preferences
+    trip_started: bool = Field(default=True)
+    trip_completed: bool = Field(default=True)
+    trip_delayed: bool = Field(default=True)
+    driver_late: bool = Field(default=True)
+    route_changed: bool = Field(default=True)
+    traffic_alert: bool = Field(default=False)
+    driver_assigned: bool = Field(default=True)
+    driver_unassigned: bool = Field(default=True)
+    
+    # Delivery channels
+    email_enabled: bool = Field(default=True)
+    push_enabled: bool = Field(default=True)
+    sms_enabled: bool = Field(default=False)
+    
+    # Contact information
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    
+    # Schedule
+    quiet_hours_start: Optional[str] = Field(None, description="HH:MM format")
+    quiet_hours_end: Optional[str] = Field(None, description="HH:MM format")
+    timezone: str = Field(default="UTC")
+    
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True
