@@ -114,7 +114,7 @@ export const API_ENDPOINTS = {
     DELETE: id => `/management/vehicles/${id}`,
     SEARCH: query => `/management/vehicles/search/${query}`,
     ASSIGNMENTS: id => `/management/vehicles/${id}/assignments`,
-    USAGE: id => `/management/vehicles/${id}/usage`
+    USAGE: id => `/management/vehicles/${id}/usage`,
   },
 
   // Driver Management
@@ -127,7 +127,7 @@ export const API_ENDPOINTS = {
     SEARCH: query => `/management/drivers/search/${query}`,
     ACTIVATE: id => `/management/${id}/activate`,
     ASSIGN: id => `/management/${id}/assign-vehicle`,
-    ASSIGN: id => `/management/${id}/unassign-vehicle`
+    ASSIGN: id => `/management/${id}/unassign-vehicle`,
   },
 
   // Vehicle Assignments
@@ -147,8 +147,8 @@ export const API_ENDPOINTS = {
   },
 
   GEOFENCES: {
-    LIST: '/gps/geofences/geofences',
-    CREATE: '/gps/geofences/geofences',
+    LIST: '/gps/geofences',
+    CREATE: '/gps/geofences',
   },
 
   // Trip Planning
@@ -215,7 +215,7 @@ export const API_ENDPOINTS = {
     // INCIDENTS: '/management/analytics/incidents',
     // DEPARTMENT_LOCATION: '/management/analytics/department-location',
     REFRESH: '/management/analytics/refresh',
-    DELETE: '/management/analytics/delete'
+    DELETE: '/management/analytics/delete',
   },
 
   // WebSocket

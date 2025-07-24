@@ -14,7 +14,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
     type: 'depot',
     radius: 500,
     coordinates: { lat: 37.7749, lng: -122.4194 },
-    status: 'active'
+    status: 'active',
   });
 
   // Filter geofences based on search and type filter
@@ -157,14 +157,14 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   };
 
   // Handle deleting a geofence
-  const handleDeleteGeofence = (id) => {
+  const handleDeleteGeofence = id => {
     if (window.confirm('Are you sure you want to delete this geofence?')) {
       setGeofences(geofences.filter(g => g.id !== id));
     }
   };
 
   // Edit geofence
-  const startEditGeofence = (geofence) => {
+  const startEditGeofence = geofence => {
     setEditingGeofence(geofence);
     setNewGeofence({ ...geofence });
     setShowAddModal(true);
@@ -177,7 +177,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
       type: 'depot',
       radius: 500,
       coordinates: { lat: 37.7749, lng: -122.4194 },
-      status: 'active'
+      status: 'active',
     });
   };
 
@@ -192,7 +192,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                 placeholder="Search geofences..."
                 className="px-4 py-2 pl-10 rounded-md border border-input bg-background text-sm"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
               />
               <Search
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
@@ -202,7 +202,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
             <select
               className="px-4 py-2 rounded-md border border-input bg-background text-sm"
               value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
+              onChange={e => setFilterType(e.target.value)}
             >
               <option value="">All types</option>
               <option value="restricted">Restricted Areas</option>
@@ -233,10 +233,12 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
             </thead>
             <tbody>
               {filteredGeofences.length > 0 ? (
-                filteredGeofences.map((geofence) => (
+                filteredGeofences.map(geofence => (
                   <tr key={geofence.id} className="border-b border-border hover:bg-accent/10">
                     <td className="py-3 px-4">{geofence.name}</td>
-                    <td className="py-3 px-4">{geofence.type.charAt(0).toUpperCase() + geofence.type.slice(1)}</td>
+                    <td className="py-3 px-4">
+                      {geofence.type.charAt(0).toUpperCase() + geofence.type.slice(1)}
+                    </td>
                     <td className="py-3 px-4">{geofence.radius}m</td>
                     <td className="py-3 px-4">
                       {geofence.coordinates.lat.toFixed(4)}, {geofence.coordinates.lng.toFixed(4)}
@@ -295,7 +297,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                 <input
                   type="text"
                   value={newGeofence.name}
-                  onChange={(e) => setNewGeofence({ ...newGeofence, name: e.target.value })}
+                  onChange={e => setNewGeofence({ ...newGeofence, name: e.target.value })}
                   className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
                   placeholder="Geofence name"
                 />
@@ -304,7 +306,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                 <label className="block text-sm font-medium mb-1">Type</label>
                 <select
                   value={newGeofence.type}
-                  onChange={(e) => setNewGeofence({ ...newGeofence, type: e.target.value })}
+                  onChange={e => setNewGeofence({ ...newGeofence, type: e.target.value })}
                   className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
                 >
                   <option value="depot">Depot</option>
@@ -318,7 +320,9 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                 <input
                   type="number"
                   value={newGeofence.radius}
-                  onChange={(e) => setNewGeofence({ ...newGeofence, radius: parseInt(e.target.value) })}
+                  onChange={e =>
+                    setNewGeofence({ ...newGeofence, radius: parseInt(e.target.value) })
+                  }
                   className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
                   min="10"
                   max="10000"
@@ -330,13 +334,15 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                   <input
                     type="number"
                     value={newGeofence.coordinates.lat}
-                    onChange={(e) => setNewGeofence({
-                      ...newGeofence,
-                      coordinates: {
-                        ...newGeofence.coordinates,
-                        lat: parseFloat(e.target.value)
-                      }
-                    })}
+                    onChange={e =>
+                      setNewGeofence({
+                        ...newGeofence,
+                        coordinates: {
+                          ...newGeofence.coordinates,
+                          lat: parseFloat(e.target.value),
+                        },
+                      })
+                    }
                     className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
                     step="0.0001"
                     min="-90"
@@ -348,13 +354,15 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                   <input
                     type="number"
                     value={newGeofence.coordinates.lng}
-                    onChange={(e) => setNewGeofence({
-                      ...newGeofence,
-                      coordinates: {
-                        ...newGeofence.coordinates,
-                        lng: parseFloat(e.target.value)
-                      }
-                    })}
+                    onChange={e =>
+                      setNewGeofence({
+                        ...newGeofence,
+                        coordinates: {
+                          ...newGeofence.coordinates,
+                          lng: parseFloat(e.target.value),
+                        },
+                      })
+                    }
                     className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
                     step="0.0001"
                     min="-180"
@@ -366,7 +374,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                 <label className="block text-sm font-medium mb-1">Status</label>
                 <select
                   value={newGeofence.status}
-                  onChange={(e) => setNewGeofence({ ...newGeofence, status: e.target.value })}
+                  onChange={e => setNewGeofence({ ...newGeofence, status: e.target.value })}
                   className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
                 >
                   <option value="active">Active</option>

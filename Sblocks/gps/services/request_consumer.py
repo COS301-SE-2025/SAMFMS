@@ -177,7 +177,7 @@ class ServiceRequestConsumer:
                 endpoint = request_data.get("endpoint", "")
                 
                 # Extract data from top-level and add to user_context for handlers
-                data = request_data.get("body", {})
+                data = request_data.get("data", {})
                 logger.info(f"Message data: {data}")
                 user_context["data"] = data
                 

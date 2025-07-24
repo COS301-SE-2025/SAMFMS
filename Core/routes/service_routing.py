@@ -223,6 +223,18 @@ async def route_to_service_block(
     
     logger.debug(f"Processing request to {service_name} - Original path: {path}, Processed path: {processed_path}")
     
+    # Parse JSON body if present and merge with query params
+    parsed_body = {}
+    if body:
+        try:
+            parsed_body = json.loads(body.decode('utf-8'))
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse JSON body for request {request_id}")
+            parsed_body = {}
+    
+    # Merge query params and body data, with body taking precedence
+    request_data = {**(query_params or {}), **parsed_body}
+    
     # Prepare message for service block (updated to match service expectations)
     message = {
         "correlation_id": request_id,  # Use correlation_id instead of request_id
@@ -230,7 +242,7 @@ async def route_to_service_block(
         "endpoint": processed_path,  # Use processed path
         "headers": dict(headers),
         "body": body.decode('utf-8') if body else None,
-        "data": query_params or {},  # Use data instead of query_params
+        "data": request_data,  # Merged query params and parsed body
         "user_context": _extract_user_context(headers),  # Extract user info from headers
         "timestamp": datetime.utcnow().isoformat(),
         "source": "core-gateway"
