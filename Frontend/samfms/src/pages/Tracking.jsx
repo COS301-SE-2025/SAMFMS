@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import VehicleStatistics from '../components/trips/VehicleStatistics';
 import VehicleList from '../components/trips/VehicleList';
 import TrackingMap from '../components/tracking/TrackingMap';
@@ -22,50 +22,27 @@ const Tracking = () => {
         const response = await listGeofences();
         console.log('Raw geofences response:', response);
         console.log('Response data:', response.data);
-        
-        // Transform the response data to match your component's expected format
-        // Adjusted for backend response structure with geometry field
-        const transformedGeofences = response.data?.data?.map(geofence => {
-          // Parse geometry if it's a circle format
-          const parseGeometry = (geometry) => {
-            if (typeof geometry === 'string') {
-              // If geometry is in CIRCLE format
-              const match = geometry.match(/^CIRCLE\((-?\d+(\.\d+)?) (-?\d+(\.\d+)?),(\d+)\)$/);
-              if (match) {
-                const lng = parseFloat(match[1]);
-                const lat = parseFloat(match[3]);
-                const radius = parseFloat(match[5]);
-                return {
-                  coordinates: { lat, lng },
-                  radius,
-                };
-              }
-            } else if (geometry && geometry.coordinates) {
-              // If geometry is a GeoJSON-like object
-              return {
-                coordinates: { 
-                  lat: geometry.coordinates[1] || 0, 
-                  lng: geometry.coordinates[0] || 0 
-                },
-                radius: geometry.radius || 500,
-              };
-            }
-            return null;
-          };
 
-          const parsed = parseGeometry(geofence.geometry);
-          
-          return {
-            id: geofence.id,
-            name: geofence.name,
-            type: geofence.metadata?.functional_type || 'depot', // Use functional_type from metadata
-            status: geofence.is_active ? 'active' : 'inactive', // Convert boolean to status
-            coordinates: parsed ? parsed.coordinates : { lat: 0, lng: 0 },
-            radius: parsed ? parsed.radius : geofence.radius || 500,
-            geometry: geofence.geometry, // Keep original geometry
-            metadata: geofence.metadata
-          };
-        }) || [];
+        const transformedGeofences = response.data?.data?.map(geofence => ({
+          id: geofence.id,
+          name: geofence.name,
+          description: geofence.description,
+          type: geofence.type,
+          status: geofence.status,
+          geometry: geofence.geometry,
+          metadata: geofence.metadata,
+          created_at: geofence.created_at,
+          updated_at: geofence.updated_at,
+          created_by: geofence.created_by,
+
+          // For components that expect flat lat/lng + radius
+          coordinates: {
+            lat: geofence.geometry?.center?.latitude || 0,
+            lng: geofence.geometry?.center?.longitude || 0
+          },
+          radius: geofence.geometry?.radius || 500
+        })) || [];
+
 
         setGeofences(transformedGeofences);
         setError(null);
@@ -153,14 +130,14 @@ const Tracking = () => {
 
       <div className="relative z-10">
         <h1 className="text-3xl font-bold mb-6">Vehicle Tracking</h1>
-        
+
         {/* Show error message if geofences failed to load */}
         {error && (
           <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
             {error}
           </div>
         )}
-        
+
         {/* Tracking Analytics Section - Moved to the top */}
         <div className="mb-6">
           <h2 className="text-xl font-semibold mb-4">Tracking Analytics</h2>
@@ -193,10 +170,10 @@ const Tracking = () => {
           {' '}
           {/* Map display takes 2/3 of the width on large screens */}
           <div className="lg:col-span-2">
-            <TrackingMap 
-              vehicles={vehicles} 
+            <TrackingMap
+              vehicles={vehicles}
               selectedVehicle={selectedVehicle}
-              geofences={geofences} 
+              geofences={geofences}
             />
           </div>{' '}
           {/* Vehicle list takes 1/3 of the width on large screens */}
@@ -206,7 +183,7 @@ const Tracking = () => {
         </div>{' '}
         {/* Geofence Management Component */}
         <div className="mt-8">
-          <GeofenceManager 
+          <GeofenceManager
             onGeofenceChange={handleGeofenceChange}
             currentGeofences={geofences}
           />

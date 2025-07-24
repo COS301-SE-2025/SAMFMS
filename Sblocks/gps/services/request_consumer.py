@@ -375,7 +375,7 @@ class ServiceRequestConsumer:
             ).model_dump()
 
     async def _handle_geofences_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle geofences-related requests by calling route logic"""
+        """Handle geofences-related requests using unified data format with Pydantic V2"""
         try:
             # Check database connectivity first
             from repositories.database import db_manager
@@ -391,7 +391,7 @@ class ServiceRequestConsumer:
             
             # Extract data and endpoint from user_context
             data = user_context.get("data", {})
-            logger.info(f"Data in user_context, {data}")
+            logger.info(f"Data in user_context: {data}")
             endpoint = user_context.get("endpoint", "")
             
             # Create mock user for service calls
@@ -405,10 +405,16 @@ class ServiceRequestConsumer:
                     geofence_id = endpoint.split('/')[-1]
                     geofence = await geofence_service.get_geofence_by_id(geofence_id)
                     
-                    return ResponseBuilder.success(
-                        data=geofence.model_dump() if geofence else None,
-                        message="Geofence retrieved successfully"
-                    ).model_dump()
+                    if geofence:
+                        return ResponseBuilder.success(
+                            data=geofence.model_dump(),  # Pydantic V2 syntax
+                            message="Geofence retrieved successfully"
+                        ).model_dump()  # Pydantic V2 syntax
+                    else:
+                        return ResponseBuilder.success(
+                            data=None,
+                            message="Geofence not found"
+                        ).model_dump()
                 else:
                     # Get all geofences with optional filters
                     active_only = data.get("active_only", False)
@@ -418,12 +424,16 @@ class ServiceRequestConsumer:
                     is_active = active_only if active_only else None
                     geofences = await geofence_service.get_geofences(
                         is_active=is_active,
+                        geofence_type=geofence_type,
                         limit=pagination["limit"],
                         offset=pagination["skip"]
                     )
                     
+                    # Return geofences in unified format using Pydantic V2
+                    geofences_data = [gf.model_dump() for gf in geofences]
+                    
                     return ResponseBuilder.success(
-                        data=[gf.model_dump() for gf in geofences],
+                        data=geofences_data,
                         message="Geofences retrieved successfully"
                     ).model_dump()
                 
@@ -431,22 +441,33 @@ class ServiceRequestConsumer:
                 if not data:
                     raise ValueError("Request data is required for POST operation")
                 
-                # Create geofence
+                logger.info(f"Creating geofence with unified format data: {data}")
+                
+                # Validate required fields
+                required_fields = ['name', 'geometry']
+                for field in required_fields:
+                    if field not in data:
+                        raise ValueError(f"'{field}' is required")
+                
+                # Create geofence using unified format (no conversion needed!)
                 created_by = current_user["user_id"]
                 result = await geofence_service.create_geofence(
                     name=data.get("name"),
                     description=data.get("description"),
+                    type=data.get("type", "depot"),
+                    status=data.get("status", "active"),
                     geometry=data.get("geometry"),
-                    geofence_type=data.get("geofence_type", "polygon"),
-                    is_active=data.get("is_active", True),
-                    created_by=created_by,
-                    metadata=data.get("metadata")
+                    metadata=data.get("metadata", {}),
+                    created_by=created_by
                 )
                 
-                return ResponseBuilder.success(
-                    data=result.model_dump() if result else None,
-                    message="Geofence created successfully"
-                ).model_dump()
+                if result:
+                    return ResponseBuilder.success(
+                        data=result.model_dump(),  # Pydantic V2 syntax
+                        message="Geofence created successfully"
+                    ).model_dump()
+                else:
+                    raise ValueError("Failed to create geofence")
                 
             elif method == "PUT":
                 geofence_id = endpoint.split('/')[-1] if '/' in endpoint else None
@@ -455,20 +476,23 @@ class ServiceRequestConsumer:
                 if not data:
                     raise ValueError("Request data is required for PUT operation")
                 
-                # Update geofence
+                # Update geofence using unified format
                 result = await geofence_service.update_geofence(
                     geofence_id=geofence_id,
                     name=data.get("name"),
                     description=data.get("description"),
                     geometry=data.get("geometry"),
-                    is_active=data.get("is_active"),
+                    status=data.get("status"),
                     metadata=data.get("metadata")
                 )
                 
-                return ResponseBuilder.success(
-                    data=result.model_dump() if result else None,
-                    message="Geofence updated successfully"
-                ).model_dump()
+                if result:
+                    return ResponseBuilder.success(
+                        data=result.model_dump(),  # Pydantic V2 syntax
+                        message="Geofence updated successfully"
+                    ).model_dump()
+                else:
+                    raise ValueError("Failed to update geofence")
                 
             elif method == "DELETE":
                 geofence_id = endpoint.split('/')[-1] if '/' in endpoint else None
@@ -488,6 +512,7 @@ class ServiceRequestConsumer:
                 
         except Exception as e:
             logger.error(f"Error handling geofences request {method} {endpoint}: {e}")
+            logger.exception("Full error traceback:")
             return ResponseBuilder.error(
                 error="GeofenceRequestError",
                 message=f"Failed to process geofence request: {str(e)}"

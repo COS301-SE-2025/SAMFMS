@@ -227,13 +227,22 @@ async def route_to_service_block(
     parsed_body = {}
     if body:
         try:
-            parsed_body = json.loads(body.decode('utf-8'))
-        except json.JSONDecodeError:
-            logger.warning(f"Failed to parse JSON body for request {request_id}")
+            # Fix: Ensure body is bytes before decoding
+            if isinstance(body, bytes):
+                body_str = body.decode('utf-8')
+                if body_str.strip():  # Only parse if body is not empty
+                    parsed_body = json.loads(body_str)
+            elif isinstance(body, str):
+                if body.strip():  # Only parse if body is not empty
+                    parsed_body = json.loads(body)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON body for request {request_id}: {str(e)}")
             parsed_body = {}
     
     # Merge query params and body data, with body taking precedence
     request_data = {**(query_params or {}), **parsed_body}
+    
+    logger.debug(f"Request data for {service_name}: {request_data}")
     
     # Prepare message for service block (updated to match service expectations)
     message = {
@@ -241,13 +250,14 @@ async def route_to_service_block(
         "method": method,
         "endpoint": processed_path,  # Use processed path
         "headers": dict(headers),
-        "body": body.decode('utf-8') if body else None,
-        "data": request_data,  # Merged query params and parsed body
+        "body": body.decode('utf-8') if body and isinstance(body, bytes) else (body if isinstance(body, str) else None),
+        "data": request_data,  # Merged query params and parsed body - this is what GPS service expects
         "user_context": _extract_user_context(headers),  # Extract user info from headers
         "timestamp": datetime.utcnow().isoformat(),
         "source": "core-gateway"
     }
     
+    logger.debug(f"Sending message to {service_name}: {json.dumps(message, indent=2)}")
     
     # Create future for response tracking
     response_future = asyncio.Future()
@@ -441,6 +451,7 @@ async def maintenance_route(request: Request, path: str = ""):
 @service_router.api_route("/gps/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
 async def gps_route(request: Request, path: str = ""):
     """Route requests to GPS service block"""
+    logger.info(f"Entered gps_route, Request: {request}")
     
     # Get request details
     method = request.method
@@ -451,12 +462,17 @@ async def gps_route(request: Request, path: str = ""):
     body = None
     if method in ["POST", "PUT", "PATCH"]:
         body = await request.body()
+        logger.debug(f"Request body: {body}")
+        logger.debug(f"Body type: {type(body)}")
+        logger.debug(f"Body length: {len(body) if body else 0}")
     
     # Ensure path starts with /
     if not path.startswith("/"):
         path = "/" + path
     
     logger.info(f"Routing to GPS service: {method} {path}")
+    logger.debug(f"Query params: {query_params}")
+    logger.debug(f"Headers: {headers}")
     
     try:
         response = await route_to_service_block(
@@ -468,6 +484,8 @@ async def gps_route(request: Request, path: str = ""):
             query_params=query_params
         )
         
+        logger.debug(f"Response from GPS service: {response}")
+        
         # Return response from service block - standardized format
         response_data = response.get("data", {})
         response_status = response.get("status_code", 200)
@@ -478,11 +496,12 @@ async def gps_route(request: Request, path: str = ""):
             status_code=response_status,
             headers=response_headers
         )
-        
+    
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"GPS service routing error: {str(e)}")
+        logger.exception("Full error traceback:")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @service_router.api_route("/trips/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])

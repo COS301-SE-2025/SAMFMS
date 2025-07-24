@@ -11,10 +11,17 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   const [editingGeofence, setEditingGeofence] = useState(null);
   const [newGeofence, setNewGeofence] = useState({
     name: '',
+    description: '',
     type: 'depot',
     radius: 500,
     coordinates: { lat: 37.7749, lng: -122.4194 },
     status: 'active',
+    metadata: {
+      priority_level: 'medium',
+      facility_code: '',
+      operating_hours: '24/7',
+      contact_info: { phone: '', email: '' }
+    }
   });
 
   // Filter geofences based on search and type filter
@@ -25,20 +32,6 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
     return matchesSearch && matchesType;
   });
 
-  function parseGeofenceArea(areaStr) {
-    const match = areaStr.match(/^CIRCLE\((-?\d+(\.\d+)?) (-?\d+(\.\d+)?),(\d+)\)$/);
-    if (!match) return null;
-
-    const lng = parseFloat(match[1]);
-    const lat = parseFloat(match[3]);
-    const radius = parseFloat(match[5]);
-
-    return {
-      coordinates: { lat, lng },
-      radius,
-    };
-  }
-
   // Effect to notify parent component when geofences change
   useEffect(() => {
     if (onGeofenceChange) {
@@ -48,97 +41,96 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
 
   // Handle adding a new geofence
   // Handle adding a new geofence
+
   const handleAddGeofence = async () => {
     try {
-      console.log('Creating geofence with data:', newGeofence);
+      if (!newGeofence.name) {
+        alert("Please fill in the name.");
+        return;
+      }
 
-      const geofenceData = {
+      // Build correct geometry for backend
+      const geometry = {
+        type: "circle",  // Only supporting circles for now
+        center: {
+          latitude: parseFloat(newGeofence.coordinates.lat),
+          longitude: parseFloat(newGeofence.coordinates.lng),
+        },
+        radius: parseInt(newGeofence.radius) || 500,
+      };
+
+      const payload = {
         name: newGeofence.name,
-        description: newGeofence.description,
-        type: newGeofence.type,
-        radius: parseInt(newGeofence.radius),
-        latitude: parseFloat(newGeofence.coordinates.lat),
-        longitude: parseFloat(newGeofence.coordinates.lng),
-        status: newGeofence.status
+        description: newGeofence.description || "",
+        type: newGeofence.type || "depot",
+        status: newGeofence.status || "active",
+        geometry: geometry,
+        metadata: newGeofence.metadata || {},
       };
 
-      console.log('Sending geofence data:', geofenceData);
-      const result = await addGeofence(geofenceData);
-      console.log("Geofence creation response:", result);
+      console.log("Sending geofence data:", payload);
+      const response = await addGeofence(payload);
+      console.log("Geofence created successfully:", response);
 
-      // FIXED: Check the correct response structure
-      if (!result || result.status !== 'success' || !result.data) {
-        console.error("Invalid response structure:", result);
-        throw new Error("Invalid response from GPS service");
-      }
-
-      const responseData = result.data;
-      console.log("Response data:", responseData);
-
-      // FIXED: Handle the actual response structure from GPS service
-      let geofenceId, geofenceArea, geofenceName;
-
-      // The GPS service returns data directly in the 'data' field
-      if (responseData.id) {
-        geofenceId = responseData.id;
-        geofenceArea = responseData.area || responseData.geometry;
-        geofenceName = responseData.name;
-      } else {
-        console.error("No geofence ID in response data:", responseData);
-        throw new Error("No geofence ID returned from service");
-      }
-
-      console.log("Extracted geofence data:", { geofenceId, geofenceArea, geofenceName });
-
-      // Parse the area/geometry - handle both CIRCLE format and coordinates
-      let parsed = null;
-      if (geofenceArea) {
-        parsed = parseGeofenceArea(geofenceArea);
-      }
-
-      // If parsing fails, use the original coordinates from the response or request
-      if (!parsed) {
-        console.warn("Could not parse geofence area, using original coordinates");
-        parsed = {
-          coordinates: {
-            lat: responseData.latitude || newGeofence.coordinates.lat,
-            lng: responseData.longitude || newGeofence.coordinates.lng
-          },
-          radius: responseData.radius || newGeofence.radius
-        };
-      }
-
-      const newFormattedGeofence = {
-        id: geofenceId,
-        name: geofenceName || newGeofence.name,
-        type: newGeofence.type,
-        status: newGeofence.status,
-        coordinates: parsed.coordinates,
-        radius: parsed.radius,
-        geometry: geofenceArea || `CIRCLE(${newGeofence.coordinates.lng} ${newGeofence.coordinates.lat},${newGeofence.radius})`
-      };
-
-      console.log("Adding geofence to state:", newFormattedGeofence);
-      setGeofences(prev => [...prev, newFormattedGeofence]);
-
-      resetForm();
+      // Update UI
+      setGeofences(prev => [...prev, response]);
       setShowAddModal(false);
-
-      // Optional: Show success message
-      alert("Geofence created successfully!");
-
+      resetForm();
     } catch (error) {
       console.error("Error creating geofence:", error);
-
-      let errorMessage = "Failed to create geofence";
-      if (error.response && error.response.data) {
-        errorMessage += ": " + (error.response.data.detail || error.response.data.message || error.message);
-      } else {
-        errorMessage += ": " + error.message;
-      }
-
-      alert(errorMessage);
+      alert(`Failed to create geofence: ${error.message || error}`);
     }
+  };
+
+
+
+
+  // Example of how to initialize the form with the unified format
+  const initializeNewGeofence = () => {
+    return {
+      name: "New Geofence",
+      description: "",
+      type: "depot",
+      status: "active",
+      coordinates: {
+        lat: -25.7479, // Pretoria coordinates as default
+        lng: 28.2293
+      },
+      radius: 500,
+      facilityCode: "",
+      priority: "medium",
+      operatingHours: "24/7"
+    };
+  };
+
+  // Helper function to convert from unified format to map display format
+  const formatGeofenceForMap = (geofence) => {
+    return {
+      id: geofence.id,
+      name: geofence.name,
+      center: {
+        lat: geofence.geometry.center.latitude,
+        lng: geofence.geometry.center.longitude
+      },
+      radius: geofence.geometry.radius,
+      type: geofence.type,
+      status: geofence.status,
+      color: getColorForType(geofence.type),
+      fillColor: getColorForType(geofence.type, 0.3)
+    };
+  };
+
+  // Helper function to get colors based on geofence type
+  const getColorForType = (type, opacity = 1) => {
+    const colors = {
+      depot: `rgba(0, 123, 255, ${opacity})`,
+      service: `rgba(40, 167, 69, ${opacity})`,
+      delivery: `rgba(255, 193, 7, ${opacity})`,
+      restricted: `rgba(220, 53, 69, ${opacity})`,
+      emergency: `rgba(255, 0, 0, ${opacity})`
+    };
+
+    return colors[type] || `rgba(108, 117, 125, ${opacity})`;
   };
 
 
@@ -173,11 +165,18 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   // Reset the form
   const resetForm = () => {
     setNewGeofence({
-      name: '',
-      type: 'depot',
+      name: "",
+      description: "",
+      type: "depot",
+      status: "active",
+      coordinates: { lat: 0, lng: 0 },
       radius: 500,
-      coordinates: { lat: 37.7749, lng: -122.4194 },
-      status: 'active',
+      metadata: {
+        priority_level: "medium",
+        facility_code: "",
+        operating_hours: "24/7",
+        contact_info: { phone: "", email: "" }
+      }
     });
   };
 
@@ -287,11 +286,12 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
       {/* Add/Edit Geofence Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center">
-          <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full">
+          <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-semibold mb-4">
               {editingGeofence ? 'Edit Geofence' : 'Add New Geofence'}
             </h3>
             <div className="space-y-4">
+              {/* Name */}
               <div>
                 <label className="block text-sm font-medium mb-1">Name</label>
                 <input
@@ -302,6 +302,20 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                   placeholder="Geofence name"
                 />
               </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Description</label>
+                <input
+                  type="text"
+                  value={newGeofence.description}
+                  onChange={e => setNewGeofence({ ...newGeofence, description: e.target.value })}
+                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                  placeholder="Geofence description"
+                />
+              </div>
+
+              {/* Type */}
               <div>
                 <label className="block text-sm font-medium mb-1">Type</label>
                 <select
@@ -315,19 +329,21 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                   <option value="service">Service Area</option>
                 </select>
               </div>
+
+              {/* Radius */}
               <div>
                 <label className="block text-sm font-medium mb-1">Radius (meters)</label>
                 <input
                   type="number"
                   value={newGeofence.radius}
-                  onChange={e =>
-                    setNewGeofence({ ...newGeofence, radius: parseInt(e.target.value) })
-                  }
+                  onChange={e => setNewGeofence({ ...newGeofence, radius: parseInt(e.target.value) })}
                   className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
                   min="10"
                   max="10000"
                 />
               </div>
+
+              {/* Coordinates */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Latitude</label>
@@ -370,6 +386,8 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                   />
                 </div>
               </div>
+
+              {/* Status */}
               <div>
                 <label className="block text-sm font-medium mb-1">Status</label>
                 <select
@@ -381,6 +399,99 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                   <option value="restricted">Restricted</option>
                 </select>
               </div>
+
+              {/* Priority */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Priority</label>
+                <select
+                  value={newGeofence.metadata.priority_level}
+                  onChange={e =>
+                    setNewGeofence({
+                      ...newGeofence,
+                      metadata: { ...newGeofence.metadata, priority_level: e.target.value },
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+
+              {/* Facility Code */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Facility Code</label>
+                <input
+                  type="text"
+                  value={newGeofence.metadata.facility_code}
+                  onChange={e =>
+                    setNewGeofence({
+                      ...newGeofence,
+                      metadata: { ...newGeofence.metadata, facility_code: e.target.value },
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                  placeholder="DEP001"
+                />
+              </div>
+
+              {/* Operating Hours */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Operating Hours</label>
+                <input
+                  type="text"
+                  value={newGeofence.metadata.operating_hours}
+                  onChange={e =>
+                    setNewGeofence({
+                      ...newGeofence,
+                      metadata: { ...newGeofence.metadata, operating_hours: e.target.value },
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                  placeholder="24/7"
+                />
+              </div>
+
+              {/* Contact Info */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Contact Phone</label>
+                <input
+                  type="text"
+                  value={newGeofence.metadata.contact_info.phone}
+                  onChange={e =>
+                    setNewGeofence({
+                      ...newGeofence,
+                      metadata: {
+                        ...newGeofence.metadata,
+                        contact_info: { ...newGeofence.metadata.contact_info, phone: e.target.value },
+                      },
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                  placeholder="+1234567890"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Contact Email</label>
+                <input
+                  type="email"
+                  value={newGeofence.metadata.contact_info.email}
+                  onChange={e =>
+                    setNewGeofence({
+                      ...newGeofence,
+                      metadata: {
+                        ...newGeofence.metadata,
+                        contact_info: { ...newGeofence.metadata.contact_info, email: e.target.value },
+                      },
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                  placeholder="depot@company.com"
+                />
+              </div>
+
+              {/* Buttons */}
               <div className="flex justify-end gap-2 mt-6">
                 <button
                   onClick={() => {
@@ -404,6 +515,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
           </div>
         </div>
       )}
+
     </>
   );
 };
