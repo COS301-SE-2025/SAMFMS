@@ -50,35 +50,26 @@ class GeofenceGeometry(BaseModel):
 class Geofence(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
-        json_encoders={
-            datetime: lambda v: v.isoformat() + 'Z'
-        }
+        json_encoders={datetime: lambda v: v.isoformat() + 'Z'}
     )
-    
+
     id: Optional[str] = Field(default=None, alias="_id")
     name: str = Field(..., min_length=1, max_length=100, description="Geofence name")
     description: Optional[str] = Field(default="", max_length=500, description="Geofence description")
     type: GeofenceCategory = Field(..., description="Category/type of geofence")
     status: GeofenceStatus = Field(default=GeofenceStatus.ACTIVE, description="Geofence status")
+
+    # Keep this for API payloads
     geometry: GeofenceGeometry = Field(..., description="Geofence geometric definition")
-    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional metadata")
-    created_by: str = Field(..., description="User who created the geofence")
+
+    # Add this for DB storage only
+    geojson_geometry: Optional[Dict[str, Any]] = Field(default=None, description="GeoJSON format for DB queries")
+
+    created_by: Optional[str] = Field(None, description="User who created the geofence")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
     is_active: bool = Field(default=True, description="Whether geofence is active")
-    
-    @model_validator(mode='after')
-    def sync_status_and_is_active(self):
-        """Keep is_active and status in sync for backward compatibility"""
-        # Sync is_active with status
-        if self.status:
-            self.is_active = self.status == GeofenceStatus.ACTIVE
-            
-        # Sync status with is_active if status is not explicitly set
-        if hasattr(self, '_status_set_explicitly') and not self._status_set_explicitly:
-            self.status = GeofenceStatus.ACTIVE if self.is_active else GeofenceStatus.INACTIVE
-            
-        return self
+
 
 class LocationPoint(BaseModel):
     """Geographic point representation"""
@@ -134,20 +125,20 @@ class GeofenceEventType(str, Enum):
     EXIT = "exit"
     DWELL = "dwell"
 
-class GeofenceEvent(BaseModel):
-    """Geofence event record"""
-    model_config = ConfigDict(populate_by_name=True)
+class Geofence(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_encoders={
+            datetime: lambda v: v.isoformat() + 'Z'
+        }
+    )
     
-    id: Optional[str] = Field(None, alias="_id", description="Document ID")
-    vehicle_id: str = Field(..., description="Vehicle identifier")
-    geofence_id: str = Field(..., description="Geofence identifier")
-    event_type: GeofenceEventType = Field(..., description="Type of event")
-    location: LocationPoint = Field(..., description="GeoJSON point where event occurred")
-    latitude: float = Field(..., ge=-90, le=90, description="Latitude coordinate")
-    longitude: float = Field(..., ge=-180, le=180, description="Longitude coordinate")
-    timestamp: datetime = Field(..., description="Event timestamp")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional event data")
-    created_at: datetime = Field(..., description="Record creation timestamp")
+    id: Optional[str] = Field(default=None, alias="_id")
+    name: str = Field(..., min_length=1, max_length=100, description="Geofence name")
+    description: Optional[str] = Field(default="", max_length=500, description="Geofence description")
+    type: GeofenceCategory = Field(..., description="Category/type of geofence")
+    status: GeofenceStatus = Field(default=GeofenceStatus.ACTIVE, description="Geofence status")
+    geometry: GeofenceGeometry = Field(..., description="Geofence geometric definition")
 
 class PlaceType(str, Enum):
     """Place types"""
@@ -206,7 +197,6 @@ class GeofenceCreateRequest(BaseModel):
     geometry: Dict[str, Any] = Field(..., description="Geofence geometry in unified format")
     type: GeofenceCategory = Field(default=GeofenceCategory.DEPOT, description="Category of geofence")
     status: GeofenceStatus = Field(default=GeofenceStatus.ACTIVE, description="Geofence status")
-    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional metadata")
 
 class PlaceCreateRequest(BaseModel):
     """Request to create a place"""

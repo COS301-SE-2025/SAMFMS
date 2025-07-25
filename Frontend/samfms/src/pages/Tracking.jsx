@@ -23,26 +23,48 @@ const Tracking = () => {
         console.log('Raw geofences response:', response);
         console.log('Response data:', response.data);
 
-        const transformedGeofences = response.data?.data?.map(geofence => ({
-          id: geofence.id,
-          name: geofence.name,
-          description: geofence.description,
-          type: geofence.type,
-          status: geofence.status,
-          geometry: geofence.geometry,
-          metadata: geofence.metadata,
-          created_at: geofence.created_at,
-          updated_at: geofence.updated_at,
-          created_by: geofence.created_by,
+        const transformedGeofences = response.data?.data?.map(geofence => {
+          // Extract coordinates based on geometry type
+          let coordinates = { lat: 0, lng: 0 };
+          let radius = 500;
+          let geometryType = 'circle';
 
-          // For components that expect flat lat/lng + radius
-          coordinates: {
-            lat: geofence.geometry?.center?.latitude || 0,
-            lng: geofence.geometry?.center?.longitude || 0
-          },
-          radius: geofence.geometry?.radius || 500
-        })) || [];
+          if (geofence.geometry) {
+            geometryType = geofence.geometry.type || 'circle';
 
+            if (geometryType === 'circle') {
+              coordinates = {
+                lat: geofence.geometry.center?.latitude || 0,
+                lng: geofence.geometry.center?.longitude || 0
+              };
+              radius = geofence.geometry.radius || 500;
+            } else if (geometryType === 'polygon' || geometryType === 'rectangle') {
+              // For polygon/rectangle, use the first point as the display coordinates
+              const firstPoint = geofence.geometry.points?.[0];
+              if (firstPoint) {
+                coordinates = {
+                  lat: firstPoint.latitude || 0,
+                  lng: firstPoint.longitude || 0
+                };
+              }
+              radius = null; // No radius for polygons
+            }
+          }
+
+          return {
+            id: geofence.id,
+            name: geofence.name,
+            description: geofence.description,
+            type: geofence.type, // depot, service, delivery, restricted, emergency
+            status: geofence.status,
+            geometry: geofence.geometry, // Keep original geometry for map rendering
+            geometryType: geometryType, // Store geometry type separately for UI
+
+            // For components that expect flat lat/lng + radius
+            coordinates: coordinates,
+            radius: radius
+          };
+        }) || [];
 
         setGeofences(transformedGeofences);
         setError(null);
@@ -57,7 +79,7 @@ const Tracking = () => {
     };
 
     loadGeofences();
-  }, []); // Empty dependency array means this runs once on mount
+  }, []);
 
   useEffect(() => {
     // Connect to your Core backend WebSocket endpoint

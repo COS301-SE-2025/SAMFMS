@@ -21,53 +21,34 @@ class GeofenceService:
         description: Optional[str] = None,
         type: str = "depot",
         status: str = "active",
-        geometry: Dict[str, Any] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        created_by: str = "system"
+        geometry: Dict[str, Any] = None
     ) -> Geofence:
         try:
             if not name:
                 raise ValueError("Name is required")
+            if not geometry or not isinstance(geometry, dict):
+                raise ValueError("Geometry must be provided as a dictionary")
 
-            if not geometry:
-                raise ValueError("Geometry is required")
-
-            if not isinstance(geometry, dict):
-                raise ValueError("Geometry must be a dictionary")
-
-            required_fields = ['type', 'center'] if geometry.get('type') == 'circle' else ['type', 'points']
-            for field in required_fields:
-                if field not in geometry:
-                    raise ValueError(f"Geometry must have '{field}' field")
-
-            # Validate center coordinates or points using Pydantic model
+            # Validate using our Pydantic model
             geometry_obj = GeofenceGeometry(**geometry)
 
-            # Convert unified geometry to MongoDB GeoJSON
+            # Build MongoDB GeoJSON format
             if geometry_obj.type == GeofenceType.CIRCLE:
                 geojson_geometry = {
                     "type": "Point",
                     "coordinates": [
                         geometry_obj.center.longitude,
                         geometry_obj.center.latitude
-                    ]
+                    ],
+                    "radius": geometry_obj.radius
                 }
-                # Store radius in metadata for app logic if needed
-                if metadata is None:
-                    metadata = {}
-                metadata["radius"] = geometry_obj.radius
-
             elif geometry_obj.type in (GeofenceType.POLYGON, GeofenceType.RECTANGLE):
-                # Convert points to GeoJSON Polygon coordinates
                 if not geometry_obj.points or len(geometry_obj.points) < 3:
                     raise ValueError("At least 3 points required for polygon/rectangle geometry")
 
-                # GeoJSON polygons require a closed ring: first point == last point
-                points_coords = [
-                    [pt["longitude"], pt["latitude"]] for pt in geometry_obj.points
-                ]
+                points_coords = [[pt["longitude"], pt["latitude"]] for pt in geometry_obj.points]
                 if points_coords[0] != points_coords[-1]:
-                    points_coords.append(points_coords[0])
+                    points_coords.append(points_coords[0])  # Close the polygon
 
                 geojson_geometry = {
                     "type": "Polygon",
@@ -76,36 +57,43 @@ class GeofenceService:
             else:
                 raise ValueError(f"Unsupported geometry type: {geometry_obj.type}")
 
-            current_time = datetime.utcnow()
-
+            # Combine for Pydantic model (keep both)
             geofence_data = {
                 "name": name,
                 "description": description or "",
                 "type": GeofenceCategory(type.lower()),
                 "status": GeofenceStatus(status.lower()),
-                "geometry": geojson_geometry,  # MongoDB GeoJSON here
-                "metadata": metadata or {},
-                "created_by": created_by,
-                "created_at": current_time,
-                "updated_at": current_time,
-                "is_active": status.lower() == "active"
+                "geometry": geometry,               # API-facing structure
+                "geojson_geometry": geojson_geometry  # MongoDB storage
             }
 
             logger.info(f"Creating geofence with data: {geofence_data}")
 
+            # Build Pydantic model
             geofence_model = Geofence(**geofence_data)
 
-            mongo_data = geofence_model.model_dump(exclude={"id"}, by_alias=True)
+            # Dump for MongoDB
+            mongo_data = {
+                "name": geofence_model.name,
+                "description": geofence_model.description,
+                "type": geofence_model.type,
+                "status": geofence_model.status,
+                "geometry": geojson_geometry,  # <-- Use the variable we created earlier
+            }
 
+
+
+            logger.info(f"Inserting into DB: {self.db.db.name}, Collection: geofences")
             result = await self.db.db.geofences.insert_one(mongo_data)
+            logger.info(f"Inserted document ID: {result.inserted_id}")
 
             geofence_model.id = str(result.inserted_id)
 
+            # Publish event
             try:
                 await event_publisher.publish_geofence_created(
                     geofence_id=str(result.inserted_id),
-                    name=name,
-                    created_by=created_by
+                    name=name
                 )
             except Exception as e:
                 logger.warning(f"Failed to publish geofence created event: {e}")
@@ -117,6 +105,7 @@ class GeofenceService:
             logger.error(f"Error creating geofence: {e}")
             logger.exception("Full traceback:")
             raise
+
     
     async def get_geofence_by_id(self, geofence_id: str) -> Optional[Geofence]:
         """Get geofence by ID"""

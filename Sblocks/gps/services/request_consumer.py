@@ -449,16 +449,13 @@ class ServiceRequestConsumer:
                     if field not in data:
                         raise ValueError(f"'{field}' is required")
                 
-                # Create geofence using unified format (no conversion needed!)
-                created_by = current_user["user_id"]
+                # Create geofence using simplified format
                 result = await geofence_service.create_geofence(
                     name=data.get("name"),
                     description=data.get("description"),
                     type=data.get("type", "depot"),
                     status=data.get("status", "active"),
-                    geometry=data.get("geometry"),
-                    metadata=data.get("metadata", {}),
-                    created_by=created_by
+                    geometry=data.get("geometry")
                 )
                 
                 if result:

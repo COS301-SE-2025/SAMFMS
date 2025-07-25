@@ -12,16 +12,11 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   const [newGeofence, setNewGeofence] = useState({
     name: '',
     description: '',
-    type: 'depot',
+    type: 'depot', // This maps to GeofenceCategory (depot, service, delivery, restricted, emergency)
+    geometryType: 'circle', // This maps to GeofenceType (circle, polygon, rectangle)
     radius: 500,
     coordinates: { lat: 37.7749, lng: -122.4194 },
-    status: 'active',
-    metadata: {
-      priority_level: 'medium',
-      facility_code: '',
-      operating_hours: '24/7',
-      contact_info: { phone: '', email: '' }
-    }
+    status: 'active'
   });
 
   // Filter geofences based on search and type filter
@@ -40,8 +35,6 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   }, [geofences, onGeofenceChange]);
 
   // Handle adding a new geofence
-  // Handle adding a new geofence
-
   const handleAddGeofence = async () => {
     try {
       if (!newGeofence.name) {
@@ -49,31 +42,69 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
         return;
       }
 
-      // Build correct geometry for backend
-      const geometry = {
-        type: "circle",  // Only supporting circles for now
-        center: {
-          latitude: parseFloat(newGeofence.coordinates.lat),
-          longitude: parseFloat(newGeofence.coordinates.lng),
-        },
-        radius: parseInt(newGeofence.radius) || 500,
-      };
+      const lat = parseFloat(newGeofence.coordinates.lat);
+      const lng = parseFloat(newGeofence.coordinates.lng);
+
+      let geometry;
+
+      if (newGeofence.geometryType === 'circle') {
+        // Correct: use center + radius
+        geometry = {
+          type: "circle",
+          center: { latitude: lat, longitude: lng },
+          radius: parseInt(newGeofence.radius)
+        };
+      }
+      else if (newGeofence.geometryType === 'rectangle') {
+        // Generate a small rectangle for demo
+        const offset = 0.001;
+        geometry = {
+          type: "rectangle",
+          points: [
+            { latitude: lat + offset, longitude: lng - offset },
+            { latitude: lat + offset, longitude: lng + offset },
+            { latitude: lat - offset, longitude: lng + offset },
+            { latitude: lat - offset, longitude: lng - offset }
+          ]
+        };
+      }
+      else if (newGeofence.geometryType === 'polygon') {
+        // Example: simple triangle around the point
+        const offset = 0.001;
+        geometry = {
+          type: "polygon",
+          points: [
+            { latitude: lat + offset, longitude: lng },
+            { latitude: lat - offset, longitude: lng + offset },
+            { latitude: lat - offset, longitude: lng - offset }
+          ]
+        };
+      }
 
       const payload = {
         name: newGeofence.name,
         description: newGeofence.description || "",
-        type: newGeofence.type || "depot",
+        type: newGeofence.type,       // depot, service, delivery, etc.
         status: newGeofence.status || "active",
-        geometry: geometry,
-        metadata: newGeofence.metadata || {},
+        geometry: geometry
       };
 
       console.log("Sending geofence data:", payload);
       const response = await addGeofence(payload);
       console.log("Geofence created successfully:", response);
 
-      // Update UI
-      setGeofences(prev => [...prev, response]);
+      // Adapt response for UI
+      const newGeofenceForUI = {
+        ...response,
+        coordinates: {
+          lat: response.geometry?.center?.latitude || response.geometry?.points?.[0]?.latitude || 0,
+          lng: response.geometry?.center?.longitude || response.geometry?.points?.[0]?.longitude || 0
+        },
+        radius: response.geometry?.radius || 500,
+        geometryType: response.geometry?.type || 'circle'
+      };
+
+      setGeofences(prev => [...prev, newGeofenceForUI]);
       setShowAddModal(false);
       resetForm();
     } catch (error) {
@@ -82,43 +113,6 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
     }
   };
 
-
-
-
-  // Example of how to initialize the form with the unified format
-  const initializeNewGeofence = () => {
-    return {
-      name: "New Geofence",
-      description: "",
-      type: "depot",
-      status: "active",
-      coordinates: {
-        lat: -25.7479, // Pretoria coordinates as default
-        lng: 28.2293
-      },
-      radius: 500,
-      facilityCode: "",
-      priority: "medium",
-      operatingHours: "24/7"
-    };
-  };
-
-  // Helper function to convert from unified format to map display format
-  const formatGeofenceForMap = (geofence) => {
-    return {
-      id: geofence.id,
-      name: geofence.name,
-      center: {
-        lat: geofence.geometry.center.latitude,
-        lng: geofence.geometry.center.longitude
-      },
-      radius: geofence.geometry.radius,
-      type: geofence.type,
-      status: geofence.status,
-      color: getColorForType(geofence.type),
-      fillColor: getColorForType(geofence.type, 0.3)
-    };
-  };
 
   // Helper function to get colors based on geofence type
   const getColorForType = (type, opacity = 1) => {
@@ -132,7 +126,6 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
 
     return colors[type] || `rgba(108, 117, 125, ${opacity})`;
   };
-
 
   // Handle editing a geofence
   const handleEditGeofence = () => {
@@ -158,7 +151,15 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   // Edit geofence
   const startEditGeofence = geofence => {
     setEditingGeofence(geofence);
-    setNewGeofence({ ...geofence });
+    setNewGeofence({
+      name: geofence.name,
+      description: geofence.description,
+      type: geofence.type,
+      geometryType: geofence.geometryType || 'circle',
+      coordinates: geofence.coordinates,
+      radius: geofence.radius,
+      status: geofence.status
+    });
     setShowAddModal(true);
   };
 
@@ -168,15 +169,10 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
       name: "",
       description: "",
       type: "depot",
+      geometryType: "circle",
       status: "active",
       coordinates: { lat: 0, lng: 0 },
-      radius: 500,
-      metadata: {
-        priority_level: "medium",
-        facility_code: "",
-        operating_hours: "24/7",
-        contact_info: { phone: "", email: "" }
-      }
+      radius: 500
     });
   };
 
@@ -204,10 +200,11 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
               onChange={e => setFilterType(e.target.value)}
             >
               <option value="">All types</option>
-              <option value="restricted">Restricted Areas</option>
-              <option value="depot">Depot Areas</option>
-              <option value="customer">Customer Sites</option>
-              <option value="service">Service Areas</option>
+              <option value="depot">Depot</option>
+              <option value="service">Service</option>
+              <option value="delivery">Delivery</option>
+              <option value="restricted">Restricted</option>
+              <option value="emergency">Emergency</option>
             </select>
           </div>
           <button
@@ -224,7 +221,8 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
               <tr className="border-b border-border">
                 <th className="text-left py-3 px-4">Name</th>
                 <th className="text-left py-3 px-4">Type</th>
-                <th className="text-left py-3 px-4">Radius</th>
+                <th className="text-left py-3 px-4">Shape</th>
+                <th className="text-left py-3 px-4">Size</th>
                 <th className="text-left py-3 px-4">Coordinates</th>
                 <th className="text-left py-3 px-4">Status</th>
                 <th className="text-left py-3 px-4">Actions</th>
@@ -238,7 +236,13 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                     <td className="py-3 px-4">
                       {geofence.type.charAt(0).toUpperCase() + geofence.type.slice(1)}
                     </td>
-                    <td className="py-3 px-4">{geofence.radius}m</td>
+                    <td className="py-3 px-4">
+                      {(geofence.geometryType || geofence.geometry?.type || 'circle').charAt(0).toUpperCase() +
+                        (geofence.geometryType || geofence.geometry?.type || 'circle').slice(1)}
+                    </td>
+                    <td className="py-3 px-4">
+                      {geofence.radius ? `${geofence.radius}m` : 'Custom'}
+                    </td>
                     <td className="py-3 px-4">
                       {geofence.coordinates.lat.toFixed(4)}, {geofence.coordinates.lng.toFixed(4)}
                     </td>
@@ -249,7 +253,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                         </span>
                       ) : (
                         <span className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 py-1 px-2 rounded-full text-xs">
-                          Restricted
+                          Inactive
                         </span>
                       )}
                     </td>
@@ -273,7 +277,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="py-8 text-center text-muted-foreground">
+                  <td colSpan="7" className="py-8 text-center text-muted-foreground">
                     No geofences found
                   </td>
                 </tr>
@@ -315,35 +319,52 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                 />
               </div>
 
-              {/* Type */}
+              {/* Category */}
               <div>
-                <label className="block text-sm font-medium mb-1">Type</label>
+                <label className="block text-sm font-medium mb-1">Category</label>
                 <select
                   value={newGeofence.type}
                   onChange={e => setNewGeofence({ ...newGeofence, type: e.target.value })}
                   className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
                 >
                   <option value="depot">Depot</option>
-                  <option value="restricted">Restricted Area</option>
-                  <option value="customer">Customer Site</option>
-                  <option value="service">Service Area</option>
+                  <option value="service">Service</option>
+                  <option value="delivery">Delivery</option>
+                  <option value="restricted">Restricted</option>
+                  <option value="emergency">Emergency</option>
                 </select>
               </div>
 
-              {/* Radius */}
+              {/* Geometry Type */}
               <div>
-                <label className="block text-sm font-medium mb-1">Radius (meters)</label>
-                <input
-                  type="number"
-                  value={newGeofence.radius}
-                  onChange={e => setNewGeofence({ ...newGeofence, radius: parseInt(e.target.value) })}
+                <label className="block text-sm font-medium mb-1">Shape</label>
+                <select
+                  value={newGeofence.geometryType}
+                  onChange={e => setNewGeofence({ ...newGeofence, geometryType: e.target.value })}
                   className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                  min="10"
-                  max="10000"
-                />
+                >
+                  <option value="circle">Circle</option>
+                  <option value="polygon">Polygon</option>
+                  <option value="rectangle">Rectangle</option>
+                </select>
               </div>
 
-              {/* Coordinates */}
+              {/* Radius (only for circle) */}
+              {newGeofence.geometryType === 'circle' && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Radius (meters)</label>
+                  <input
+                    type="number"
+                    value={newGeofence.radius}
+                    onChange={e => setNewGeofence({ ...newGeofence, radius: parseInt(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                    min="10"
+                    max="10000"
+                  />
+                </div>
+              )}
+
+              {/* Coordinates (center for now) */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Latitude</label>
@@ -396,99 +417,9 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                   className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
                 >
                   <option value="active">Active</option>
-                  <option value="restricted">Restricted</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="draft">Draft</option>
                 </select>
-              </div>
-
-              {/* Priority */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Priority</label>
-                <select
-                  value={newGeofence.metadata.priority_level}
-                  onChange={e =>
-                    setNewGeofence({
-                      ...newGeofence,
-                      metadata: { ...newGeofence.metadata, priority_level: e.target.value },
-                    })
-                  }
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
-              </div>
-
-              {/* Facility Code */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Facility Code</label>
-                <input
-                  type="text"
-                  value={newGeofence.metadata.facility_code}
-                  onChange={e =>
-                    setNewGeofence({
-                      ...newGeofence,
-                      metadata: { ...newGeofence.metadata, facility_code: e.target.value },
-                    })
-                  }
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                  placeholder="DEP001"
-                />
-              </div>
-
-              {/* Operating Hours */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Operating Hours</label>
-                <input
-                  type="text"
-                  value={newGeofence.metadata.operating_hours}
-                  onChange={e =>
-                    setNewGeofence({
-                      ...newGeofence,
-                      metadata: { ...newGeofence.metadata, operating_hours: e.target.value },
-                    })
-                  }
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                  placeholder="24/7"
-                />
-              </div>
-
-              {/* Contact Info */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Contact Phone</label>
-                <input
-                  type="text"
-                  value={newGeofence.metadata.contact_info.phone}
-                  onChange={e =>
-                    setNewGeofence({
-                      ...newGeofence,
-                      metadata: {
-                        ...newGeofence.metadata,
-                        contact_info: { ...newGeofence.metadata.contact_info, phone: e.target.value },
-                      },
-                    })
-                  }
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                  placeholder="+1234567890"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Contact Email</label>
-                <input
-                  type="email"
-                  value={newGeofence.metadata.contact_info.email}
-                  onChange={e =>
-                    setNewGeofence({
-                      ...newGeofence,
-                      metadata: {
-                        ...newGeofence.metadata,
-                        contact_info: { ...newGeofence.metadata.contact_info, email: e.target.value },
-                      },
-                    })
-                  }
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                  placeholder="depot@company.com"
-                />
               </div>
 
               {/* Buttons */}
@@ -506,7 +437,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                 <button
                   onClick={editingGeofence ? handleEditGeofence : handleAddGeofence}
                   className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition"
-                  disabled={!newGeofence.name || isNaN(newGeofence.radius)}
+                  disabled={!newGeofence.name || (newGeofence.geometryType === 'circle' && isNaN(newGeofence.radius))}
                 >
                   {editingGeofence ? 'Update' : 'Add'} Geofence
                 </button>
