@@ -129,6 +129,32 @@ class GeofenceService:
             logger.error(f"Error getting geofence {geofence_id}: {e}")
             return None
     
+    # Helper to conver GEOjson from mongodb to expected format
+    def _normalize_geometry(self, doc: dict) -> dict:
+        geometry = doc.get("geometry", {})
+        if geometry.get("type") == "Point":
+            # Convert GeoJSON Point back to "circle"
+            return {
+                "type": "circle",
+                "center": {
+                    "latitude": geometry["coordinates"][1],
+                    "longitude": geometry["coordinates"][0]
+                },
+                "radius": geometry.get("radius")
+            }
+        elif geometry.get("type") == "Polygon":
+            # Convert GeoJSON Polygon back to "polygon"
+            return {
+                "type": "polygon",
+                "points": [
+                    {"latitude": lat, "longitude": lng}
+                    for lng, lat in geometry["coordinates"][0]
+                ]
+            }
+        return geometry
+
+
+    
     async def get_geofences(
         self,
         is_active: Optional[bool] = None,
@@ -139,26 +165,22 @@ class GeofenceService:
         """Get geofences with optional filters"""
         try:
             query = {}
-            
             if is_active is not None:
                 query["is_active"] = is_active
-            
             if geofence_type:
                 query["type"] = geofence_type
-            
+
             cursor = self.db.db.geofences.find(query).skip(offset).limit(limit)
             geofences = []
-            
             async for doc in cursor:
-                # Convert ObjectId to string
                 doc["id"] = str(doc.pop("_id"))
+                doc["geometry"] = self._normalize_geometry(doc)
                 geofences.append(Geofence(**doc))
-            
             return geofences
-            
         except Exception as e:
             logger.error(f"Error getting geofences: {e}")
             return []
+
     
     async def update_geofence(
         self,
