@@ -12,8 +12,8 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   const [newGeofence, setNewGeofence] = useState({
     name: '',
     description: '',
-    type: 'depot', // This maps to GeofenceCategory (depot, service, delivery, restricted, emergency)
-    geometryType: 'circle', // This maps to GeofenceType (circle, polygon, rectangle)
+    type: 'depot', 
+    geometryType: 'circle', 
     radius: 500,
     coordinates: { lat: 37.7749, lng: -122.4194 },
     status: 'active'

@@ -297,7 +297,9 @@ class ServiceRequestConsumer:
             # Handle HTTP methods and route to appropriate logic
             if method == "GET":
                 # Parse endpoint for specific location operations
-                if "vehicle" in endpoint and endpoint.count('/') > 0:
+                if "locations" in endpoint:
+                    logger.info("Still add functionality")
+                elif "vehicle" in endpoint and endpoint.count('/') > 0:
                     # locations/vehicle/{vehicle_id} pattern
                     vehicle_id = endpoint.split('/')[-1]
                     location = await location_service.get_vehicle_location(vehicle_id)
@@ -348,7 +350,7 @@ class ServiceRequestConsumer:
                 if not all([vehicle_id, latitude, longitude]):
                     raise ValueError("vehicle_id, latitude, and longitude are required")
                 
-                result = await location_service.update_vehicle_location(
+                result = await location_service.create_vehicle_location(
                     vehicle_id=vehicle_id,
                     latitude=latitude,
                     longitude=longitude,

@@ -115,6 +115,22 @@ class EventPublisher:
         )
         return await self.publish_event(event)
     
+    async def publish_location_created(
+        self, 
+        vehicle_id: str, 
+        latitude: float, 
+        longitude: float,
+        timestamp: datetime
+    ) -> bool:
+        """Publish location created event"""
+        event = LocationUpdatedEvent(
+            vehicle_id=vehicle_id,
+            latitude=latitude,
+            longitude=longitude,
+            timestamp_location=timestamp
+        )
+        return await self.publish_event(event, f"gps.location.{vehicle_id}")
+    
     async def publish_location_updated(
         self, 
         vehicle_id: str, 
