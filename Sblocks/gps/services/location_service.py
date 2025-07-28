@@ -38,6 +38,21 @@ class LocationService:
             "timestamp": timestamp,
             "updated_at": datetime.utcnow()
         }
+    
+    async def delete_vehicle_location(self, vehicle_id: str) -> bool:
+        """Delete a vehicle's current location by vehicle_id."""
+        try:
+            result = await self.db.db.vehicle_locations.delete_one({"vehicle_id": vehicle_id})
+            if result.deleted_count > 0:
+                logger.info(f"Deleted location for vehicle {vehicle_id}")
+                return True
+            else:
+                logger.warning(f"No location found to delete for vehicle {vehicle_id}")
+                return False
+        except Exception as e:
+            logger.error(f"Error deleting vehicle location for {vehicle_id}: {e}")
+            raise
+
 
     async def create_vehicle_location(
         self,

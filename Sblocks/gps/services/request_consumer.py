@@ -384,6 +384,19 @@ class ServiceRequestConsumer:
                     data=result.model_dump() if result else None,
                     message=message
                 ).model_dump()
+            
+            elif method == "DELETE":
+                vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not vehicle_id:
+                    raise ValueError("Vehicle ID is required for DELETE operation")
+                
+                # Delete geofence
+                result = await location_service.delete_vehicle_location(vehicle_id)
+                
+                return ResponseBuilder.success(
+                    data={"deleted": result, "vehicle_id": vehicle_id},
+                    message="Vehicle location deleted successfully"
+                ).model_dump()
 
                 
         except Exception as e:
