@@ -85,61 +85,61 @@ async def register_with_core_service():
                 timeout=aiohttp.ClientTimeout(total=10)
             ) as response:
                 if response.status == 200:
-                    logger.info("✅ Successfully registered with Core service discovery")
+                    logger.info("Successfully registered with Core service discovery")
                     return True
                 else:
-                    logger.warning(f"⚠️ Service registration failed with status {response.status}")
+                    logger.warning(f"Service registration failed with status {response.status}")
                     return False
                     
     except Exception as e:
-        logger.warning(f"⚠️ Failed to register with Core service discovery: {e}")
+        logger.warning(f"Failed to register with Core service discovery: {e}")
         logger.info("Service will continue without Core registration")
         return False
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
-    logger.info("🚀 GPS Service Starting Up...")
+    logger.info("GPS Service Starting Up...")
     
     try:
         # Connect to database with error handling
-        logger.info("🔗 Connecting to database...")
+        logger.info("Connecting to database...")
         try:
             await db_manager.connect()
-            logger.info("✅ Database connected successfully")
+            logger.info("Database connected successfully")
         except Exception as e:
-            logger.error(f"❌ Database connection failed: {e}")
+            logger.error(f"Database connection failed: {e}")
             raise DatabaseConnectionError(f"Failed to connect to database: {e}")
         
         # Connect to RabbitMQ for event publishing
-        logger.info("🔗 Connecting to RabbitMQ for event publishing...")
+        logger.info("Connecting to RabbitMQ for event publishing...")
         try:
             publisher_connected = await event_publisher.connect()
             if publisher_connected:
-                logger.info("✅ Event publisher connected successfully")
+                logger.info("Event publisher connected successfully")
             else:
-                logger.warning("⚠️ Event publisher connection failed - continuing without events")
+                logger.warning("Event publisher connection failed - continuing without events")
         except Exception as e:
-            logger.error(f"❌ Event publisher connection error: {e}")
+            logger.error(f"Event publisher connection error: {e}")
             publisher_connected = False
         
         # Setup and start event consumer
-        logger.info("🔗 Setting up event consumer...")
+        logger.info("Setting up event consumer...")
         try:
             consumer_connected = await event_consumer.connect()
             if consumer_connected:
                 await setup_event_handlers()
                 # Start consuming in background
                 asyncio.create_task(event_consumer.start_consuming())
-                logger.info("✅ Event consumer started successfully")
+                logger.info("Event consumer started successfully")
             else:
-                logger.warning("⚠️ Event consumer connection failed - continuing without event consumption")
+                logger.warning("Event consumer connection failed - continuing without event consumption")
         except Exception as e:
-            logger.error(f"❌ Event consumer setup error: {e}")
+            logger.error(f"Event consumer setup error: {e}")
             consumer_connected = False
         
         # Setup and start service request consumer
-        logger.info("🔗 Setting up service request consumer...")
+        logger.info("Setting up service request consumer...")
         try:
             request_consumer_connected = await service_request_consumer.connect()
             if request_consumer_connected:
@@ -147,11 +147,11 @@ async def lifespan(app: FastAPI):
                 consumer_task = asyncio.create_task(service_request_consumer.start_consuming())
                 # Keep reference to prevent garbage collection
                 app.state.consumer_task = consumer_task
-                logger.info("✅ Service request consumer started successfully")
+                logger.info("Service request consumer started successfully")
             else:
-                logger.warning("⚠️ Service request consumer connection failed - Core communication disabled")
+                logger.warning("Service request consumer connection failed - Core communication disabled")
         except Exception as e:
-            logger.error(f"❌ Service request consumer setup error: {e}")
+            logger.error(f"Service request consumer setup error: {e}")
         
         # Publish service started event with enhanced error handling
         if publisher_connected:
@@ -172,7 +172,7 @@ async def lifespan(app: FastAPI):
                         ]
                     }
                 )
-                logger.info("✅ Service started event published")
+                logger.info("Service started event published")
             except Exception as e:
                 logger.warning(f"Failed to publish service started event: {e}")
         
@@ -190,17 +190,17 @@ async def lifespan(app: FastAPI):
         app.state.start_time = datetime.now(timezone.utc)
         metrics_middleware.app = app
 
-        logger.info("🎉 GPS Service Startup Completed Successfully")
+        logger.info("GPS Service Startup Completed Successfully")
         
         yield
         
     except Exception as e:
-        logger.error(f"💥 CRITICAL ERROR DURING STARTUP: {e}")
+        logger.error(f"CRITICAL ERROR DURING STARTUP: {e}")
         raise
     
     finally:
         # Cleanup on shutdown
-        logger.info("� GPS Service Shutting Down...")
+        logger.info("GPS Service Shutting Down...")
         try:
             # Publish service stopped event
             try:
@@ -208,24 +208,24 @@ async def lifespan(app: FastAPI):
                     version="1.0.0",
                     data={"reason": "graceful_shutdown"}
                 )
-                logger.info("✅ Service stopped event published")
+                logger.info("Service stopped event published")
             except Exception as e:
                 logger.warning(f"Failed to publish service stopped event: {e}")
             
             await event_consumer.disconnect()
-            logger.info("✅ Event consumer disconnected")
+            logger.info("Event consumer disconnected")
             
             await event_publisher.disconnect()
-            logger.info("✅ Event publisher disconnected")
+            logger.info("Event publisher disconnected")
 
             await service_request_consumer.stop_consuming()
             await service_request_consumer.disconnect()
-            logger.info("✅ Service request consumer stopped")
+            logger.info("Service request consumer stopped")
 
             await db_manager.disconnect()
-            logger.info("✅ Database disconnected")
+            logger.info("Database disconnected")
 
-            logger.info("👋 GPS Service shutdown completed")
+            logger.info("GPS Service shutdown completed")
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
 
@@ -241,9 +241,6 @@ async def enhanced_background_tasks():
                 
             # Cleanup old location history (keep last 90 days)
             await location_service.cleanup_old_locations()
-            
-            # Update geofence statistics
-            await geofence_service.update_geofence_statistics()
             
             # Validate active tracking sessions
             await location_service.validate_tracking_sessions()

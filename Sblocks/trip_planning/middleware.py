@@ -1,15 +1,14 @@
 """
-Middleware for Trip Planning service
+Middleware for GPS service
 """
 import time
 import logging
-import json
-from typing import Dict, Any, Optional
+import uuid
+from typing import Dict, Any
 from datetime import datetime
 from fastapi import Request, Response
-from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
+from starlette.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
@@ -18,30 +17,36 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
     """Add request context and correlation ID"""
     
     async def dispatch(self, request: Request, call_next):
-        # Generate correlation ID
-        correlation_id = f"req_{int(time.time() * 1000)}_{id(request)}"
+        # Generate correlation ID if not present
+        correlation_id = request.headers.get("X-Correlation-ID", str(uuid.uuid4()))
         request.state.correlation_id = correlation_id
         
-        # Add correlation ID to response headers
+        # Add request ID if not present
+        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        request.state.request_id = request_id
+        
         response = await call_next(request)
+        
+        # Add correlation ID to response headers
         response.headers["X-Correlation-ID"] = correlation_id
+        response.headers["X-Request-ID"] = request_id
         
         return response
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
-    """Log all requests and responses"""
+    """Request/response logging middleware"""
     
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
         
         # Log request
         logger.info(
-            f"Request: {request.method} {request.url} "
-            f"- Client: {request.client.host if request.client else 'unknown'}"
+            f"Request: {request.method} {request.url.path} "
+            f"- IP: {request.client.host if request.client else 'unknown'} "
+            f"- User-Agent: {request.headers.get('user-agent', 'unknown')}"
         )
         
-        # Process request
         response = await call_next(request)
         
         # Calculate duration
@@ -49,9 +54,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         
         # Log response
         logger.info(
-            f"Response: {response.status_code} "
-            f"- Duration: {duration:.3f}s "
-            f"- Correlation: {getattr(request.state, 'correlation_id', 'unknown')}"
+            f"Response: {request.method} {request.url.path} "
+            f"- Status: {response.status_code} "
+            f"- Duration: {duration:.3f}s"
         )
         
         return response
@@ -67,173 +72,115 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         
         return response
 
 
 class MetricsMiddleware(BaseHTTPMiddleware):
-    """Collect request metrics"""
+    """Collect metrics middleware"""
     
-    def __init__(self, app: ASGIApp):
+    def __init__(self, app):
         super().__init__(app)
-        self.metrics = {
-            "total_requests": 0,
-            "total_errors": 0,
-            "response_times": [],
-            "status_codes": {},
-            "endpoints": {},
-            "start_time": datetime.utcnow()
-        }
+        self.start_time = datetime.utcnow()
+        self.request_count = 0
+        self.error_count = 0
+        self.response_times = []
     
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
+        self.request_count += 1
         
-        # Increment request counter
-        self.metrics["total_requests"] += 1
-        
-        # Track endpoint
-        endpoint = f"{request.method} {request.url.path}"
-        if endpoint not in self.metrics["endpoints"]:
-            self.metrics["endpoints"][endpoint] = {"count": 0, "avg_duration": 0}
-        
-        # Process request
         response = await call_next(request)
         
-        # Calculate duration
-        duration = time.time() - start_time
+        # Calculate response time
+        response_time = time.time() - start_time
+        self.response_times.append(response_time)
         
-        # Update metrics
-        self.metrics["response_times"].append(duration)
+        # Keep only last 1000 response times
+        if len(self.response_times) > 1000:
+            self.response_times = self.response_times[-1000:]
         
-        # Keep only last 1000 response times for memory efficiency
-        if len(self.metrics["response_times"]) > 1000:
-            self.metrics["response_times"] = self.metrics["response_times"][-1000:]
-        
-        # Track status codes
-        status_code = str(response.status_code)
-        if status_code not in self.metrics["status_codes"]:
-            self.metrics["status_codes"][status_code] = 0
-        self.metrics["status_codes"][status_code] += 1
-        
-        # Track errors
+        # Count errors
         if response.status_code >= 400:
-            self.metrics["total_errors"] += 1
+            self.error_count += 1
         
-        # Update endpoint metrics
-        endpoint_metric = self.metrics["endpoints"][endpoint]
-        endpoint_metric["count"] += 1
-        endpoint_metric["avg_duration"] = (
-            (endpoint_metric["avg_duration"] * (endpoint_metric["count"] - 1) + duration) /
-            endpoint_metric["count"]
-        )
+        # Add response time header
+        response.headers["X-Response-Time"] = f"{response_time:.3f}s"
         
         return response
     
     def get_metrics(self) -> Dict[str, Any]:
         """Get current metrics"""
-        response_times = self.metrics["response_times"]
-        
-        if response_times:
-            avg_response_time = sum(response_times) / len(response_times)
-            max_response_time = max(response_times)
-            min_response_time = min(response_times)
-        else:
-            avg_response_time = max_response_time = min_response_time = 0
-        
-        uptime = (datetime.utcnow() - self.metrics["start_time"]).total_seconds()
+        avg_response_time = sum(self.response_times) / len(self.response_times) if self.response_times else 0
         
         return {
-            "total_requests": self.metrics["total_requests"],
-            "total_errors": self.metrics["total_errors"],
-            "error_rate": (
-                self.metrics["total_errors"] / self.metrics["total_requests"] * 100
-                if self.metrics["total_requests"] > 0 else 0
-            ),
-            "avg_response_time": avg_response_time,
-            "max_response_time": max_response_time,
-            "min_response_time": min_response_time,
-            "uptime_seconds": uptime,
-            "status_codes": self.metrics["status_codes"],
-            "top_endpoints": sorted(
-                self.metrics["endpoints"].items(),
-                key=lambda x: x[1]["count"],
-                reverse=True
-            )[:10]
+            "uptime_seconds": (datetime.utcnow() - self.start_time).total_seconds(),
+            "request_count": self.request_count,
+            "error_count": self.error_count,
+            "error_rate": self.error_count / self.request_count if self.request_count > 0 else 0,
+            "average_response_time": avg_response_time,
+            "requests_per_second": self.request_count / (datetime.utcnow() - self.start_time).total_seconds()
         }
+    
+    def get_uptime_seconds(self) -> float:
+        """Get uptime in seconds"""
+        return (datetime.utcnow() - self.start_time).total_seconds()
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Simple rate limiting middleware"""
     
-    def __init__(self, app: ASGIApp, calls: int = 1000, period: int = 60):
+    def __init__(self, app, requests_per_minute: int = 60):
         super().__init__(app)
-        self.calls = calls
-        self.period = period
-        self.clients: Dict[str, Dict[str, Any]] = {}
+        self.requests_per_minute = requests_per_minute
+        self.requests: Dict[str, list] = {}
     
     async def dispatch(self, request: Request, call_next):
-        # Get client IP
         client_ip = request.client.host if request.client else "unknown"
-        
-        # Skip rate limiting for health checks
-        if request.url.path in ["/health", "/metrics"]:
-            return await call_next(request)
-        
         current_time = time.time()
         
-        # Initialize client tracking
-        if client_ip not in self.clients:
-            self.clients[client_ip] = {
-                "calls": [],
-                "blocked_until": 0
-            }
-        
-        client_data = self.clients[client_ip]
-        
-        # Check if client is currently blocked
-        if current_time < client_data["blocked_until"]:
-            return JSONResponse(
-                status_code=429,
-                content={
-                    "error": "Rate limit exceeded",
-                    "retry_after": int(client_data["blocked_until"] - current_time)
-                }
-            )
-        
-        # Clean old calls
-        client_data["calls"] = [
-            call_time for call_time in client_data["calls"]
-            if current_time - call_time < self.period
-        ]
+        # Clean old requests
+        if client_ip in self.requests:
+            self.requests[client_ip] = [
+                req_time for req_time in self.requests[client_ip]
+                if current_time - req_time < 60  # Keep requests from last minute
+            ]
+        else:
+            self.requests[client_ip] = []
         
         # Check rate limit
-        if len(client_data["calls"]) >= self.calls:
-            client_data["blocked_until"] = current_time + self.period
+        if len(self.requests[client_ip]) >= self.requests_per_minute:
             return JSONResponse(
                 status_code=429,
                 content={
-                    "error": "Rate limit exceeded",
-                    "retry_after": self.period
+                    "status": "error",
+                    "error": "rate_limit_exceeded",
+                    "message": f"Rate limit exceeded. Maximum {self.requests_per_minute} requests per minute."
                 }
             )
         
-        # Record this call
-        client_data["calls"].append(current_time)
+        # Add current request
+        self.requests[client_ip].append(current_time)
         
-        return await call_next(request)
+        response = await call_next(request)
+        
+        # Add rate limit headers
+        remaining = max(0, self.requests_per_minute - len(self.requests[client_ip]))
+        response.headers["X-RateLimit-Limit"] = str(self.requests_per_minute)
+        response.headers["X-RateLimit-Remaining"] = str(remaining)
+        response.headers["X-RateLimit-Reset"] = str(int(current_time + 60))
+        
+        return response
 
 
 class HealthCheckMiddleware(BaseHTTPMiddleware):
-    """Add health check capabilities"""
-    
-    def __init__(self, app: ASGIApp, health_endpoint: str = "/health"):
-        super().__init__(app)
-        self.health_endpoint = health_endpoint
+    """Health check bypass middleware"""
     
     async def dispatch(self, request: Request, call_next):
-        # Quick health check response
-        if request.url.path == self.health_endpoint and request.method == "HEAD":
-            return Response(status_code=200)
+        # Skip other middleware for health checks
+        if request.url.path in ["/health", "/metrics"]:
+            return await call_next(request)
         
         return await call_next(request)

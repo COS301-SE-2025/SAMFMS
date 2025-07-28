@@ -53,63 +53,69 @@ class EventPublisher:
                 durable=True
             )
             
-            logger.info("Event publisher connected to RabbitMQ")
+            logger.info("Connected to RabbitMQ for event publishing")
+            return True
             
         except Exception as e:
-            logger.error(f"Failed to connect event publisher: {e}")
-            raise
+            logger.error(f"Failed to connect to RabbitMQ: {e}")
+            return False
     
     async def disconnect(self):
         """Disconnect from RabbitMQ"""
-        try:
-            if self.connection and not self.connection.is_closed:
-                await self.connection.close()
-            logger.info("Event publisher disconnected")
-        except Exception as e:
-            logger.error(f"Error disconnecting event publisher: {e}")
+        if self.connection and not self.connection.is_closed:
+            await self.connection.close()
+            logger.info("Disconnected from RabbitMQ")
     
     def is_connected(self) -> bool:
-        """Check if publisher is connected"""
-        return (
-            self.connection is not None and 
-            not self.connection.is_closed and
-            self.exchange is not None
-        )
+        """Check if connected to RabbitMQ"""
+        return (self.connection is not None and 
+                not self.connection.is_closed and 
+                self.exchange is not None)
     
-    async def publish_event(self, event: BaseEvent, routing_key: str = None):
-        """Publish an event to the exchange"""
+    async def publish_event(self, event: BaseEvent, routing_key: str = None) -> bool:
+        """Publish an event"""
+        if not self.exchange:
+            logger.error("Not connected to RabbitMQ")
+            return False
+        
         try:
-            if not self.is_connected():
-                logger.warning("Publisher not connected, attempting to reconnect")
-                await self.connect()
-            
-            # Use event type as routing key if not specified
-            if routing_key is None:
-                routing_key = event.event_type
+            # Generate routing key if not provided
+            if not routing_key:
+                routing_key = f"trips.{event.event_type.value}"
             
             # Serialize event
-            message_body = json.dumps(event.dict(), default=str).encode()
+            message_body = event.model_dump_json()
             
             # Create message
             message = aio_pika.Message(
-                message_body,
+                message_body.encode(),
                 content_type="application/json",
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                timestamp=datetime.utcnow(),
                 headers={
-                    "event_type": event.event_type,
+                    "event_type": event.event_type.value,
                     "service": event.service,
-                    "timestamp": event.timestamp.isoformat()
-                },
-                timestamp=event.timestamp
+                    "correlation_id": event.correlation_id
+                }
             )
             
             # Publish message
             await self.exchange.publish(message, routing_key=routing_key)
             
-            logger.debug(f"Published event: {event.event_type} with routing key: {routing_key}")
+            logger.info(f"Published event {event.event_type.value} with routing key {routing_key}")
+            return True
             
         except Exception as e:
-            logger.error(f"Failed to publish event {event.event_type}: {e}")
-            raise
+            logger.error(f"Failed to publish event {event.event_type.value}: {e}")
+            return False
+    
+    async def publish_service_started(self, version: str, data: Dict[str, Any]) -> bool:
+        """Publish service started event"""
+        event = ServiceStartedEvent(
+            version=version,
+            features=data
+        )
+        return await self.publish_event(event)
     
     # Trip-related event publishers
     async def publish_trip_created(self, trip: Trip):

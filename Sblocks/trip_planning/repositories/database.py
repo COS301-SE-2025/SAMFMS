@@ -48,26 +48,33 @@ class DatabaseManager:
                 try:
                     await self._create_indexes()
                 except Exception as index_error:
-                    logger.warning(f"Index creation failed (will retry): {index_error}")
+                    logger.warning(f"Failed to create some indexes: {index_error}")
                 
-                logger.info(f"Connected to MongoDB database: {self.database_name}")
-                return True
+                logger.info(f"Connected to MongoDB: {self.database_name}")
                 
             except Exception as e:
-                logger.error(f"Database connection failed: {e}")
-                self._client = None
-                self._db = None
+                logger.error(f"Failed to connect to MongoDB: {e}")
                 raise
-        
-        return True
     
     async def disconnect(self):
-        """Close database connection"""
-        if self._client:
+        """Safely disconnect from database"""
+        if self._client is not None:
             self._client.close()
             self._client = None
             self._db = None
             logger.info("Disconnected from MongoDB")
+    
+    def is_connected(self) -> bool:
+        """Check if database is connected"""
+        return self._client is not None and self._db is not None
+
+    @property
+    def db(self):
+        """Get database instance"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db
+
     
     async def health_check(self) -> bool:
         """Check database health"""

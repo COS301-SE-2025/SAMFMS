@@ -1,87 +1,106 @@
-from pydantic_settings import BaseSettings
+"""
+Configuration for Trips service
+"""
 import os
-from typing import Optional
+from typing import Dict, Any, List
+from pydantic import BaseModel, Field
+
+class SecurityConfig(BaseModel):
+    """Security configuration"""
+    enable_hsts: bool = Field(default=True, description="Enable HSTS headers")
+    hsts_max_age: int = Field(default=31536000, description="HSTS max age in seconds")
+    rate_limit_requests_per_minute: int = Field(default=120, description="Rate limit per minute")
+    enable_cors: bool = Field(default=True, description="Enable CORS")
+    allowed_origins: List[str] = Field(default=["*"], description="Allowed CORS origins")
+
+class DatabaseConfig(BaseModel):
+    """Database configuration"""
+    mongodb_url: str = Field(
+        default="mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017",
+        description="MongoDB connection URL"
+    )
+    database_name: str = Field(default="samfms_gps", description="Database name")
+    connection_timeout: int = Field(default=30, description="Connection timeout in seconds")
+    max_pool_size: int = Field(default=100, description="Maximum connection pool size")
+
+class RabbitMQConfig(BaseModel):
+    """RabbitMQ configuration"""
+    rabbitmq_url: str = Field(
+        default="amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/",
+        description="RabbitMQ connection URL"
+    )
+    heartbeat: int = Field(default=600, description="Heartbeat interval in seconds")
+    blocked_connection_timeout: int = Field(default=300, description="Blocked connection timeout")
+    connection_attempts: int = Field(default=3, description="Connection retry attempts")
+    retry_delay: float = Field(default=2.0, description="Retry delay in seconds")
+    max_retry_attempts: int = Field(default=3, description="Max message retry attempts")
+    prefetch_count: int = Field(default=10, description="Message prefetch count")
+
+class TripsConfig(BaseModel):
+    """Trip planning service configuration"""
+    trip_history_days: int = Field(default=180, description="Days to retain completed trip records")
+    default_optimization: str = Field(default="time", description="Default optimization type (time, distance, cost)")
+    max_trips_per_vehicle_per_day: int = Field(default=5, description="Maximum trips a vehicle can handle per day")
+    auto_assign_vehicles: bool = Field(default=True, description="Automatically assign vehicles to trips if not provided")
 
 
-class TripPlanningSettings(BaseSettings):
-    """Trip Planning Service Configuration"""
+class ServiceConfig(BaseModel):
+    """Main service configuration"""
+    service_name: str = Field(default="trips", description="Service name")
+    version: str = Field(default="1.0.0", description="Service version")
+    host: str = Field(default="0.0.0.0", description="Service host")
+    port: int = Field(default=8000, description="Service port")
+    debug: bool = Field(default=False, description="Debug mode")
+    log_level: str = Field(default="INFO", description="Logging level")
     
-    # MongoDB Configuration
-    MONGODB_URL: str = "mongodb://mongodb:27017"
-    DATABASE_NAME: str = "trip_planning_db"
-    
-    # RabbitMQ Configuration
-    RABBITMQ_URL: str = "amqp://user:password@rabbitmq:5672/"
-    RABBITMQ_EXCHANGE: str = "samfms_exchange"
-    RABBITMQ_QUEUE_PREFIX: str = "trip_planning"
-    
-    # Service Configuration
-    SERVICE_NAME: str = "trip_planning"
-    SERVICE_VERSION: str = "1.0.0"
-    SERVICE_PORT: int = 8000
-    SERVICE_HOST: str = "0.0.0.0"
-    
-    # External Service URLs
-    GPS_SERVICE_URL: str = "http://gps-service:8000"
-    USER_SERVICE_URL: str = "http://users-service:8000"
-    VEHICLE_SERVICE_URL: str = "http://vehicles-service:8000"
-    
-    # Redis Configuration (for caching)
-    REDIS_URL: str = "redis://redis:6379"
-    REDIS_TTL: int = 300  # 5 minutes default TTL
-    
-    # API Configuration
-    API_V1_PREFIX: str = "/api/v1"
-    CORS_ORIGINS: list = ["*"]
-    
-    # Logging Configuration
-    LOG_LEVEL: str = "INFO"
-    LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    
-    # Performance Settings
-    MAX_CONNECTIONS_PER_HOST: int = 10
-    REQUEST_TIMEOUT: int = 30
-    MAX_RETRY_ATTEMPTS: int = 3
-    
-    # Route Calculation Settings
-    MAX_WAYPOINTS: int = 25
-    MAX_TRIP_DURATION_HOURS: int = 24
-    DEFAULT_VEHICLE_SPEED_KMH: int = 60
-    
-    # Driver Assignment Settings
-    MAX_DRIVING_HOURS_PER_DAY: int = 10
-    MIN_REST_HOURS: int = 8
-    MAX_ASSIGNMENTS_PER_DRIVER: int = 3
-    
-    # Notification Settings
-    NOTIFICATION_RETRY_ATTEMPTS: int = 3
-    NOTIFICATION_TIMEOUT: int = 10
-    
-    # Security Settings
-    SECRET_KEY: str = "your-secret-key-here-change-in-production"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
+    # Sub-configurations
+    security: SecurityConfig = Field(default_factory=SecurityConfig)
+    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    rabbitmq: RabbitMQConfig = Field(default_factory=RabbitMQConfig)
+    trips: TripsConfig = Field(default_factory=TripsConfig)
+
+def load_config() -> ServiceConfig:
+    """Load configuration from environment variables"""
+    return ServiceConfig(
+        service_name=os.getenv("SERVICE_NAME", "trips"),
+        version=os.getenv("SERVICE_VERSION", "1.0.0"),
+        host=os.getenv("TRIPS_HOST", "0.0.0.0"),
+        port=int(os.getenv("TRIPS_PORT", "8000")),
+        debug=os.getenv("DEBUG", "false").lower() == "true",
+        log_level=os.getenv("LOG_LEVEL", "INFO"),
+        
+        security=SecurityConfig(
+            rate_limit_requests_per_minute=int(os.getenv("RATE_LIMIT_RPM", "120")),
+            allowed_origins=os.getenv("ALLOWED_ORIGINS", "*").split(",")
+        ),
+        
+        database=DatabaseConfig(
+            mongodb_url=os.getenv(
+                "MONGODB_URL",
+                "mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017"
+            ),
+            database_name=os.getenv("DATABASE_NAME", "samfms_gps"),
+            max_pool_size=int(os.getenv("DB_MAX_POOL_SIZE", "100"))
+        ),
+        
+        rabbitmq=RabbitMQConfig(
+            rabbitmq_url=os.getenv(
+                "RABBITMQ_URL",
+                "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/"
+            ),
+            heartbeat=int(os.getenv("RABBITMQ_HEARTBEAT", "600")),
+            connection_attempts=int(os.getenv("RABBITMQ_CONNECTION_ATTEMPTS", "3"))
+        ),
+        
+        trips=TripsConfig(
+            trip_history_days=int(os.getenv("TRIP_HISTORY_DAYS", "180")),
+            default_optimization=os.getenv("DEFAULT_TRIP_OPTIMIZATION", "time"),
+            max_trips_per_vehicle_per_day=int(os.getenv("MAX_TRIPS_PER_VEHICLE_PER_DAY", "5")),
+            auto_assign_vehicles=os.getenv("AUTO_ASSIGN_VEHICLES", "true").lower() == "true"
+        )
+
+    )
 
 
-# Global settings instance
-settings = TripPlanningSettings()
-
-
-def get_settings() -> TripPlanningSettings:
-    """Get application settings"""
-    return settings
-
-
-def get_database_url() -> str:
-    """Get database connection URL"""
-    return settings.MONGODB_URL
-
-
-def get_rabbitmq_url() -> str:
-    """Get RabbitMQ connection URL"""
-    return settings.RABBITMQ_URL
+# Global configuration instance
+config = load_config()

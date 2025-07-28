@@ -1,4 +1,4 @@
 """
-Trip Planning Service Block
-Handles CRUD operations for trips, driver assignments, constraints, analytics, and notifications
+Initialize Trips service package
 """
+__version__ = "1.0.0"
