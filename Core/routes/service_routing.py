@@ -245,12 +245,20 @@ async def route_to_service_block(
     logger.debug(f"Request data for {service_name}: {request_data}")
     
     # Prepare message for service block (updated to match service expectations)
+    # Keep the original body for services that expect it, and also provide parsed data
+    original_body = None
+    if body:
+        if isinstance(body, bytes):
+            original_body = body.decode('utf-8')
+        elif isinstance(body, str):
+            original_body = body
+    
     message = {
         "correlation_id": request_id,  # Use correlation_id instead of request_id
         "method": method,
         "endpoint": processed_path,  # Use processed path
         "headers": dict(headers),
-        "body": body.decode('utf-8') if body and isinstance(body, bytes) else (body if isinstance(body, str) else None),
+        "body": original_body,  # Keep original JSON string for services that expect it
         "data": request_data,  # Merged query params and parsed body - this is what GPS service expects
         "user_context": _extract_user_context(headers),  # Extract user info from headers
         "timestamp": datetime.utcnow().isoformat(),

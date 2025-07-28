@@ -7,12 +7,13 @@ import CustomDropdown from './CustomDropdown';
 const initialForm = {
   make: '',
   model: '',
+  year: '',
   vin: '',
   license_plate: '',
   color: '',
   fuel_type: 'petrol',
   mileage: 0,
-  status: 'active',
+  status: 'available',
   customMake: '',
   customModel: '',
   customColor: '',
@@ -302,6 +303,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
         mileage: parseInt(form.mileage),
         vin: form.vin,
         license_plate: form.license_plate,
+        registration_number: form.license_plate, // Backend might expect this field
         fuel_type: form.fuel_type,
         status: form.status,
         // Add backend-compatible fields with defaults
@@ -310,7 +312,10 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
         capacity: 5, // Default capacity
       };
 
-      const newVehicle = await createVehicle(formData);
+      console.log('Sending vehicle data:', formData); // Debug log
+
+      const response = await createVehicle(formData);
+      const newVehicle = response.data?.data || response.data || response;
       setVehicles(prev => [...prev, newVehicle]);
       closeModal();
     } catch (err) {

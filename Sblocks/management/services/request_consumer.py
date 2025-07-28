@@ -108,6 +108,7 @@ class ServiceRequestConsumer:
                 method = request_data.get("method")
                 user_context = request_data.get("user_context", {})
                 endpoint = request_data.get("endpoint", "")
+                request_payload = request_data.get("data", {})  # Extract the actual request data
                 
                 # Check for duplicate requests
                 if request_id in self.processed_requests:
@@ -119,7 +120,7 @@ class ServiceRequestConsumer:
                 logger.debug(f"Processing request {request_id}: {method} {endpoint}")
                 
                 # Route and process request
-                response_data = await self._route_request(method, user_context, endpoint)
+                response_data = await self._route_request(method, user_context, endpoint, request_payload)
                 
                 # Send successful response
                 response = {
@@ -144,7 +145,7 @@ class ServiceRequestConsumer:
                 }
                 await self._send_response(request_id, error_response)
     
-    async def _route_request(self, method: str, user_context: Dict[str, Any], endpoint: str = "") -> Dict[str, Any]:
+    async def _route_request(self, method: str, user_context: Dict[str, Any], endpoint: str = "", request_payload: Dict[str, Any] = None) -> Dict[str, Any]:
         """Route request to appropriate handler based on method name"""
         try:
             # Validate inputs
@@ -157,11 +158,15 @@ class ServiceRequestConsumer:
             if not isinstance(endpoint, str):
                 raise ValueError("Invalid endpoint")
             
+            if request_payload is None:
+                request_payload = {}
+            
             # Normalize endpoint path
             endpoint = endpoint.strip().lstrip('/').rstrip('/')
             
-            # Add endpoint to user_context for handlers to use
+            # Add endpoint and request data to user_context for handlers to use
             user_context["endpoint"] = endpoint
+            user_context["data"] = request_payload  # Add the request payload here
             
             logger.debug(f"Routing {method} request to endpoint: {endpoint}")
             
