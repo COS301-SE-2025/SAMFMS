@@ -286,6 +286,8 @@ class ServiceRequestConsumer:
                 return await self._handle_health_request(method, user_context)
             elif "records" in endpoint or endpoint == "/records":
                 return await self._handle_maintenance_records_request(method, user_context)
+            elif "schedules" in endpoint:
+                return await self._handle_schedules_request(method, user_context)
             elif "licenses" in endpoint:
                 return await self._handle_license_request(method, user_context)
             elif "analytics" in endpoint:
@@ -334,14 +336,23 @@ class ServiceRequestConsumer:
                 if "overdue" in endpoint:
                     records = await maintenance_records_service.get_overdue_maintenance()
                     return ResponseBuilder.success(
-                        data=records,
+                        data={
+                            "maintenance_records": records,
+                            "total": len(records),
+                            "filter": "overdue"
+                        },
                         message="Overdue maintenance retrieved successfully"
                     ).model_dump()
                 elif "upcoming" in endpoint:
                     days_ahead = data.get("days", 7)
                     records = await maintenance_records_service.get_upcoming_maintenance(days_ahead)
                     return ResponseBuilder.success(
-                        data=records,
+                        data={
+                            "maintenance_records": records,
+                            "total": len(records),
+                            "days_ahead": days_ahead,
+                            "filter": "upcoming"
+                        },
                         message="Upcoming maintenance retrieved successfully"
                     ).model_dump()
                 elif endpoint.count('/') > 0 and endpoint.split('/')[-1] and endpoint.split('/')[-1] not in ["records", "maintenance"]:
@@ -350,7 +361,9 @@ class ServiceRequestConsumer:
                     record = await maintenance_records_service.get_maintenance_record(record_id)
                     if record:
                         return ResponseBuilder.success(
-                            data=record,
+                            data={
+                                "maintenance_record": record
+                            },
                             message="Maintenance record retrieved successfully"
                         ).model_dump()
                     else:
@@ -368,7 +381,15 @@ class ServiceRequestConsumer:
                         sort_order=data.get("sort_order", "desc")
                     )
                     return ResponseBuilder.success(
-                        data=records,
+                        data={
+                            "maintenance_records": records,
+                            "total": len(records),
+                            "pagination": {
+                                "skip": data.get("skip", 0),
+                                "limit": data.get("limit", 100)
+                            },
+                            "filters": data
+                        },
                         message="Maintenance records retrieved successfully"
                     ).model_dump()
                     
@@ -378,7 +399,9 @@ class ServiceRequestConsumer:
                 
                 record = await maintenance_records_service.create_maintenance_record(data)
                 return ResponseBuilder.success(
-                    data=record,
+                    data={
+                        "maintenance_record": record
+                    },
                     message="Maintenance record created successfully"
                 ).model_dump()
                 
@@ -392,7 +415,9 @@ class ServiceRequestConsumer:
                 record = await maintenance_records_service.update_maintenance_record(record_id, data)
                 if record:
                     return ResponseBuilder.success(
-                        data=record,
+                        data={
+                            "maintenance_record": record
+                        },
                         message="Maintenance record updated successfully"
                     ).model_dump()
                 else:
@@ -445,43 +470,47 @@ class ServiceRequestConsumer:
             
             if method == "GET":
                 if endpoint == "licenses" or "maintenance/licenses" in endpoint:
-                    # License service not implemented yet, return placeholder
-                    return {
-                        "success": True,
-                        "message": "License service not yet implemented - GET",
-                        "data": [],
-                        "method": method,
-                        "endpoint": endpoint
-                    }
+                    # License service not implemented yet, return standardized placeholder
+                    return ResponseBuilder.success(
+                        data={
+                            "licenses": [],
+                            "total": 0,
+                            "message": "License service not yet implemented"
+                        },
+                        message="License service not yet implemented - GET"
+                    ).model_dump()
                 else:
-                    return {
-                        "success": True,
-                        "message": "License service not yet implemented - GET specific",
-                        "data": {},
-                        "method": method,
-                        "endpoint": endpoint
-                    }
+                    return ResponseBuilder.success(
+                        data={
+                            "license": {},
+                            "message": "License service not yet implemented"
+                        },
+                        message="License service not yet implemented - GET specific"
+                    ).model_dump()
             elif method == "POST":
-                return {
-                    "success": True,
-                    "message": "License service not yet implemented - POST",
-                    "data": {},
-                    "method": method
-                }
+                return ResponseBuilder.success(
+                    data={
+                        "license": {},
+                        "message": "License service not yet implemented"
+                    },
+                    message="License service not yet implemented - POST"
+                ).model_dump()
             elif method == "PUT":
-                return {
-                    "success": True,
-                    "message": "License service not yet implemented - PUT",
-                    "data": {},
-                    "method": method
-                }
+                return ResponseBuilder.success(
+                    data={
+                        "license": {},
+                        "message": "License service not yet implemented"
+                    },
+                    message="License service not yet implemented - PUT"
+                ).model_dump()
             elif method == "DELETE":
-                return {
-                    "success": True,
-                    "message": "License service not yet implemented - DELETE",
-                    "data": {"deleted": True},
-                    "method": method
-                }
+                return ResponseBuilder.success(
+                    data={
+                        "deleted": True,
+                        "message": "License service not yet implemented"
+                    },
+                    message="License service not yet implemented - DELETE"
+                ).model_dump()
             else:
                 raise ValueError(f"Unsupported HTTP method for licenses: {method}")
                 
@@ -491,6 +520,146 @@ class ServiceRequestConsumer:
             return ResponseBuilder.error(
                 error="LicenseRequestError",
                 message=f"Failed to process license request: {str(e)}"
+            ).model_dump()
+
+    async def _handle_schedules_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle maintenance schedules requests with standardized responses"""
+        try:
+            # Check database connectivity first
+            if not await self._check_database_connectivity():
+                from schemas.responses import ResponseBuilder
+                return ResponseBuilder.error(
+                    error="DatabaseUnavailable",
+                    message="Database service is currently unavailable"
+                ).model_dump()
+            
+            # Import required services
+            from services.maintenance_service import maintenance_records_service
+            from schemas.responses import ResponseBuilder
+            
+            # Extract data and endpoint from user_context
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            if method == "GET":
+                # Handle different schedule endpoints
+                if "upcoming" in endpoint:
+                    # Get upcoming scheduled maintenance
+                    days_ahead = data.get("days", 30)  # Default 30 days ahead
+                    records = await maintenance_records_service.get_upcoming_maintenance(days_ahead)
+                    return ResponseBuilder.success(
+                        data={
+                            "schedules": records,
+                            "total": len(records),
+                            "days_ahead": days_ahead
+                        },
+                        message="Upcoming maintenance schedules retrieved successfully"
+                    ).model_dump()
+                elif "overdue" in endpoint:
+                    # Get overdue scheduled maintenance
+                    records = await maintenance_records_service.get_overdue_maintenance()
+                    return ResponseBuilder.success(
+                        data={
+                            "schedules": records,
+                            "total": len(records)
+                        },
+                        message="Overdue maintenance schedules retrieved successfully"
+                    ).model_dump()
+                elif endpoint.count('/') > 0 and endpoint.split('/')[-1] and endpoint.split('/')[-1] not in ["schedules", "maintenance"]:
+                    # Get specific schedule by ID
+                    schedule_id = endpoint.split('/')[-1]
+                    record = await maintenance_records_service.get_maintenance_record(schedule_id)
+                    if record:
+                        return ResponseBuilder.success(
+                            data={"schedule": record},
+                            message="Schedule retrieved successfully"
+                        ).model_dump()
+                    else:
+                        return ResponseBuilder.error(
+                            error="NotFound",
+                            message="Schedule not found"
+                        ).model_dump()
+                else:
+                    # Get all scheduled maintenance with filters
+                    vehicle_id = data.get("vehicle_id")
+                    status_filter = data.get("status", "scheduled")
+                    
+                    # Use maintenance service to get filtered records
+                    if vehicle_id:
+                        records = await maintenance_records_service.get_maintenance_by_vehicle(vehicle_id)
+                    else:
+                        records = await maintenance_records_service.get_maintenance_by_status(status_filter)
+                    
+                    return ResponseBuilder.success(
+                        data={
+                            "schedules": records,
+                            "total": len(records),
+                            "filters": {
+                                "vehicle_id": vehicle_id,
+                                "status": status_filter
+                            }
+                        },
+                        message="Maintenance schedules retrieved successfully"
+                    ).model_dump()
+                    
+            elif method == "POST":
+                # Create new maintenance schedule
+                if not data:
+                    raise ValueError("Schedule data is required for POST operation")
+                
+                record = await maintenance_records_service.create_maintenance_record(data)
+                return ResponseBuilder.success(
+                    data={"schedule": record},
+                    message="Maintenance schedule created successfully"
+                ).model_dump()
+                
+            elif method == "PUT":
+                # Update existing schedule
+                schedule_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not schedule_id:
+                    raise ValueError("Schedule ID is required for PUT operation")
+                if not data:
+                    raise ValueError("Schedule data is required for PUT operation")
+                
+                record = await maintenance_records_service.update_maintenance_record(schedule_id, data)
+                if record:
+                    return ResponseBuilder.success(
+                        data={"schedule": record},
+                        message="Maintenance schedule updated successfully"
+                    ).model_dump()
+                else:
+                    return ResponseBuilder.error(
+                        error="NotFound",
+                        message="Schedule not found"
+                    ).model_dump()
+                    
+            elif method == "DELETE":
+                # Delete schedule
+                schedule_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not schedule_id:
+                    raise ValueError("Schedule ID is required for DELETE operation")
+                
+                success = await maintenance_records_service.delete_maintenance_record(schedule_id)
+                if success:
+                    return ResponseBuilder.success(
+                        data={"deleted": True, "schedule_id": schedule_id},
+                        message="Maintenance schedule deleted successfully"
+                    ).model_dump()
+                else:
+                    return ResponseBuilder.error(
+                        error="NotFound",
+                        message="Schedule not found"
+                    ).model_dump()
+                    
+            else:
+                raise ValueError(f"Unsupported HTTP method for schedules: {method}")
+                
+        except Exception as e:
+            logger.error(f"Error handling schedules request {method} {endpoint}: {e}")
+            from schemas.responses import ResponseBuilder
+            return ResponseBuilder.error(
+                error="SchedulesRequestError",
+                message=f"Failed to process schedules request: {str(e)}"
             ).model_dump()
     
     async def _handle_analytics_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
@@ -509,13 +678,19 @@ class ServiceRequestConsumer:
             endpoint = user_context.get("endpoint", "")
             
             if method == "GET":
-                return {
-                    "success": True,
-                    "message": "Analytics service not yet implemented",
-                    "data": {},
-                    "method": method,
-                    "endpoint": endpoint
-                }
+                # Standardized analytics response structure
+                return ResponseBuilder.success(
+                    data={
+                        "analytics": {
+                            "maintenance_summary": {},
+                            "cost_analysis": {},
+                            "performance_metrics": {},
+                            "trends": {}
+                        },
+                        "message": "Analytics service not yet implemented"
+                    },
+                    message="Analytics service not yet implemented"
+                ).model_dump()
             else:
                 raise ValueError(f"Unsupported HTTP method for analytics: {method}")
                 
@@ -543,27 +718,30 @@ class ServiceRequestConsumer:
             endpoint = user_context.get("endpoint", "")
             
             if method == "GET":
-                return {
-                    "success": True,
-                    "message": "Notification service not yet implemented",
-                    "data": [],
-                    "method": method,
-                    "endpoint": endpoint
-                }
+                return ResponseBuilder.success(
+                    data={
+                        "notifications": [],
+                        "total": 0,
+                        "message": "Notification service not yet implemented"
+                    },
+                    message="Notification service not yet implemented"
+                ).model_dump()
             elif method == "POST":
-                return {
-                    "success": True,
-                    "message": "Notification service not yet implemented - POST",
-                    "data": {},
-                    "method": method
-                }
+                return ResponseBuilder.success(
+                    data={
+                        "notification": {},
+                        "message": "Notification service not yet implemented"
+                    },
+                    message="Notification service not yet implemented - POST"
+                ).model_dump()
             elif method == "PUT":
-                return {
-                    "success": True,
-                    "message": "Notification service not yet implemented - PUT",
-                    "data": {},
-                    "method": method
-                }
+                return ResponseBuilder.success(
+                    data={
+                        "notification": {},
+                        "message": "Notification service not yet implemented"
+                    },
+                    message="Notification service not yet implemented - PUT"
+                ).model_dump()
             else:
                 raise ValueError(f"Unsupported HTTP method for notifications: {method}")
                 
@@ -590,14 +768,12 @@ class ServiceRequestConsumer:
             data = user_context.get("data", {})
             endpoint = user_context.get("endpoint", "")
             
-            # Vendor endpoints not yet implemented - return placeholder
-            return {
-                "success": False,
-                "message": "Vendor endpoints not yet implemented",
-                "error_code": "NOT_IMPLEMENTED",
-                "method": method,
-                "endpoint": endpoint
-            }
+            # Vendor endpoints not yet implemented - return standardized placeholder
+            return ResponseBuilder.error(
+                error="NotImplemented",
+                message="Vendor endpoints not yet implemented",
+                status_code=501
+            ).model_dump()
             
         except Exception as e:
             logger.error(f"Error handling vendor request {method}: {e}")

@@ -391,6 +391,19 @@ class MaintenanceRecordsService:
         except Exception as e:
             logger.error(f"Error calculating maintenance costs: {e}")
             raise
+    
+    # Alias methods for compatibility with request consumer
+    async def get_maintenance_by_vehicle(self, vehicle_id: str, 
+                                       skip: int = 0, 
+                                       limit: int = 100) -> List[Dict[str, Any]]:
+        """Alias for get_vehicle_maintenance_records"""
+        return await self.get_vehicle_maintenance_records(vehicle_id, skip, limit)
+    
+    async def get_maintenance_by_status(self, status: str, 
+                                      skip: int = 0, 
+                                      limit: int = 100) -> List[Dict[str, Any]]:
+        """Alias for get_maintenance_records_by_status"""
+        return await self.get_maintenance_records_by_status(status, skip, limit)
 
 
 # Global service instance
