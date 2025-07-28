@@ -36,9 +36,9 @@ export const createLocation = async locationData => {
   }
 }
 
-export const updateLocation = async (locationID, locationData) => {
+export const updateLocation = async (locationData) => {
   try {
-    return await httpClient.put(LOCATIONS_ENDPOINTS.update(locationID,locationData));
+    return await httpClient.post(LOCATIONS_ENDPOINTS.update(locationData));
   } catch (error){
     console.log("Error updating location: ", error);
     throw error;

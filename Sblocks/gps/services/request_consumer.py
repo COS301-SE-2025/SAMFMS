@@ -298,7 +298,12 @@ class ServiceRequestConsumer:
             if method == "GET":
                 # Parse endpoint for specific location operations
                 if "locations" in endpoint:
-                    logger.info("Still add functionality")
+                    locations = await location_service.get_all_vehicle_locations()
+                    return ResponseBuilder.success(
+                        data=[loc.model_dump() for loc in locations] if locations else None,
+                        message="Vehicle locations retrieved successfully"
+                    ).model_dump()
+                
                 elif "vehicle" in endpoint and endpoint.count('/') > 0:
                     # locations/vehicle/{vehicle_id} pattern
                     vehicle_id = endpoint.split('/')[-1]
@@ -342,7 +347,6 @@ class ServiceRequestConsumer:
                 if not data:
                     raise ValueError("Request data is required for POST operation")
                 
-                # Update vehicle location
                 vehicle_id = data.get("vehicle_id")
                 latitude = data.get("latitude")
                 longitude = data.get("longitude")
@@ -350,24 +354,37 @@ class ServiceRequestConsumer:
                 if not all([vehicle_id, latitude, longitude]):
                     raise ValueError("vehicle_id, latitude, and longitude are required")
                 
-                result = await location_service.create_vehicle_location(
-                    vehicle_id=vehicle_id,
-                    latitude=latitude,
-                    longitude=longitude,
-                    altitude=data.get("altitude"),
-                    speed=data.get("speed"),
-                    heading=data.get("heading"),
-                    accuracy=data.get("accuracy"),
-                    timestamp=data.get("timestamp")
-                )
+                # Use update when endpoint includes "update"
+                if "update" in endpoint:
+                    result = await location_service.update_vehicle_location(
+                        vehicle_id=vehicle_id,
+                        latitude=latitude,
+                        longitude=longitude,
+                        altitude=data.get("altitude"),
+                        speed=data.get("speed"),
+                        heading=data.get("heading"),
+                        accuracy=data.get("accuracy"),
+                        timestamp=data.get("timestamp")
+                    )
+                    message = "Vehicle location updated successfully"
+                else:
+                    result = await location_service.create_vehicle_location(
+                        vehicle_id=vehicle_id,
+                        latitude=latitude,
+                        longitude=longitude,
+                        altitude=data.get("altitude"),
+                        speed=data.get("speed"),
+                        heading=data.get("heading"),
+                        accuracy=data.get("accuracy"),
+                        timestamp=data.get("timestamp")
+                    )
+                    message = "Vehicle location created successfully"
                 
                 return ResponseBuilder.success(
                     data=result.model_dump() if result else None,
-                    message="Vehicle location updated successfully"
+                    message=message
                 ).model_dump()
-                
-            else:
-                raise ValueError(f"Unsupported HTTP method for locations: {method}")
+
                 
         except Exception as e:
             logger.error(f"Error handling locations request {method} {endpoint}: {e}")
