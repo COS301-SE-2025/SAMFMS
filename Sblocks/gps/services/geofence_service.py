@@ -191,42 +191,55 @@ class GeofenceService:
         status: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Optional[Geofence]:
-        """Update geofence"""
+        """Update geofence with proper GeoJSON transformation"""
         try:
-            # Build update data
             update_data = {"updated_at": datetime.utcnow()}
-            
+
             if name is not None:
                 update_data["name"] = name
-            
+
             if description is not None:
                 update_data["description"] = description
-            
+
             if geometry is not None:
-                geometry_obj = GeofenceGeometry(**geometry)
-                update_data["geometry"] = geometry_obj.model_dump()
-            
+                # Transform our custom format to MongoDB GeoJSON
+                geo_type = geometry.get("type")
+                if geo_type == "circle":
+                    center = geometry.get("center", {})
+                    update_data["geometry"] = {
+                        "type": "Point",
+                        "coordinates": [center.get("longitude"), center.get("latitude")],
+                        "radius": geometry.get("radius")
+                    }
+                elif geo_type in ["polygon", "rectangle"]:
+                    points = geometry.get("points", [])
+                    coords = [[(p["longitude"], p["latitude"]) for p in points]]
+                    update_data["geometry"] = {
+                        "type": "Polygon",
+                        "coordinates": coords
+                    }
+                else:
+                    raise ValueError(f"Unsupported geometry type: {geo_type}")
+
             if status is not None:
                 update_data["status"] = status
                 update_data["is_active"] = status.lower() == "active"
-            
+
             if metadata is not None:
                 update_data["metadata"] = metadata
-            
-            # Convert ID
+
             query_id = ObjectId(geofence_id) if len(geofence_id) == 24 else geofence_id
-            
-            # Update in database
+
             result = await self.db.db.geofences.update_one(
                 {"_id": query_id},
                 {"$set": update_data}
             )
-            
+
             if result.modified_count > 0:
                 return await self.get_geofence_by_id(geofence_id)
-            
+
             return None
-            
+
         except Exception as e:
             logger.error(f"Error updating geofence {geofence_id}: {e}")
             return None

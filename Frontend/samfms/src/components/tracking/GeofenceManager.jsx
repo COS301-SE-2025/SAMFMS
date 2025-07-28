@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2 } from 'lucide-react';
-import { addGeofence } from '../../backend/api/geofences';
+import { addGeofence, deleteGeofence, updateGeofence } from '../../backend/api/geofences';
 
 const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   // State for the component
@@ -12,8 +12,8 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   const [newGeofence, setNewGeofence] = useState({
     name: '',
     description: '',
-    type: 'depot', // This maps to GeofenceCategory (depot, service, delivery, restricted, emergency)
-    geometryType: 'circle', // This maps to GeofenceType (circle, polygon, rectangle)
+    type: 'depot', 
+    geometryType: 'circle', 
     radius: 500,
     coordinates: { lat: 37.7749, lng: -122.4194 },
     status: 'active'
@@ -128,25 +128,83 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   };
 
   // Handle editing a geofence
-  const handleEditGeofence = () => {
+  const handleEditGeofence = async () => {
     if (!editingGeofence) return;
 
-    const updatedGeofences = geofences.map(g =>
-      g.id === editingGeofence.id ? { ...newGeofence, id: g.id } : g
-    );
+    try {
+      const lat = parseFloat(newGeofence.coordinates.lat);
+      const lng = parseFloat(newGeofence.coordinates.lng);
 
-    setGeofences(updatedGeofences);
-    resetForm();
-    setEditingGeofence(null);
-    setShowAddModal(false);
-  };
+      let geometry;
+      if (newGeofence.geometryType === 'circle') {
+        geometry = {
+          type: "circle",
+          center: { latitude: lat, longitude: lng },
+          radius: parseInt(newGeofence.radius)
+        };
+      } else if (newGeofence.geometryType === 'rectangle') {
+        const offset = 0.001;
+        geometry = {
+          type: "rectangle",
+          points: [
+            { latitude: lat + offset, longitude: lng - offset },
+            { latitude: lat + offset, longitude: lng + offset },
+            { latitude: lat - offset, longitude: lng + offset },
+            { latitude: lat - offset, longitude: lng - offset }
+          ]
+        };
+      } else if (newGeofence.geometryType === 'polygon') {
+        const offset = 0.001;
+        geometry = {
+          type: "polygon",
+          points: [
+            { latitude: lat + offset, longitude: lng },
+            { latitude: lat - offset, longitude: lng + offset },
+            { latitude: lat - offset, longitude: lng - offset }
+          ]
+        };
+      }
 
-  // Handle deleting a geofence
-  const handleDeleteGeofence = id => {
-    if (window.confirm('Are you sure you want to delete this geofence?')) {
-      setGeofences(geofences.filter(g => g.id !== id));
+      const payload = {
+        name: newGeofence.name,
+        description: newGeofence.description || "",
+        type: newGeofence.type,
+        status: newGeofence.status,
+        geometry: geometry
+      };
+
+      const response = await updateGeofence(editingGeofence.id, payload);
+      console.log("Geofence updated successfully:", response);
+
+      const updatedGeofences = geofences.map(g =>
+        g.id === editingGeofence.id ? { ...g, ...payload, coordinates: { lat, lng }, radius: geometry.radius } : g
+      );
+      setGeofences(updatedGeofences);
+
+      resetForm();
+      setEditingGeofence(null);
+      setShowAddModal(false);
+    } catch (error) {
+      console.error("Error updating geofence:", error);
+      alert(`Failed to update geofence: ${error.message || error}`);
     }
   };
+
+
+  // Handle deleting a geofence
+  const handleDeleteGeofence = async id => {
+    if (window.confirm('Are you sure you want to delete this geofence?')) {
+      try {
+        await deleteGeofence(id);
+        setGeofences(geofences.filter(g => g.id !== id));
+        console.log(`Geofence ${id} deleted successfully`);
+      } catch (error) {
+        console.error("Error deleting geofence:", error);
+        alert(`Failed to delete geofence: ${error.message || error}`);
+      }
+    }
+  };
+
 
   // Edit geofence
   const startEditGeofence = geofence => {
