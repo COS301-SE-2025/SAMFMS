@@ -47,8 +47,8 @@ SERVICE_BLOCKS = {
     },
     "trips": {
         "exchange": "service_requests",
-        "queue": "trip_planning.requests",
-        "routing_key": "trip_planning.requests"
+        "queue": "trips.requests",
+        "routing_key": "trips.requests"
     }
 }
 

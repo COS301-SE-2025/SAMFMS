@@ -274,12 +274,77 @@ class ServiceRequestConsumer:
             if endpoint == "health" or endpoint == "":
                 # Health check endpoint
                 return await self._handle_health_request(method, user_context)
+            elif "trips" in endpoint:
+                # Trips endpoint
+                return await self._handle_trips_request(method, user_context)
             else:
                 raise ValueError(f"Unknown endpoint: {endpoint}")
                 
         except Exception as e:
             logger.error(f"Error routing request for {endpoint}: {e}")
             raise
+    
+    async def _handle_trips_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle trips-related requests by calling route logic"""
+        try:
+            # Check database connectivity first
+            if not self.config or not hasattr(self, 'db_manager'):
+                # Import here to avoid circular import
+                from repositories.database import db_manager
+                if not db_manager.is_connected():
+                    raise RuntimeError("Database not connected")
+            
+            # Import route handlers and extract their business logic
+            from services.trip_service import trip_service
+            from schemas.responses import ResponseBuilder
+
+            # Extract the data and endpoint from user_context
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+
+            # Handle HTTP methods and route to appropriate logic
+            if method == "GET":
+                # Parse endpoint for specifc trips operations
+                if "trips" in endpoint:
+                    trips = await trip_service.list_trips()
+                    return ResponseBuilder.success(
+                        data=[trip.model_dump() for trip in trips] if trips else None,
+                        message="Trips retrieved successfully"
+                    ).model_dump()
+                else:
+                    raise ValueError(f"Unknown endpoint: {endpoint}")
+            elif method == "POST":
+                if not data:
+                    raise ValueError("Request data is required for POST operation")
+                
+                if "create" in endpoint:
+                    from schemas.requests import CreateTripRequest
+
+                    # Convert raw dict into a Pydantic model (validates input)
+                    trip_request = CreateTripRequest(**data)
+
+                    # Get the user who made the request (if present in context)
+                    created_by = user_context.get("user_id", "system")  # fallback to "system"
+
+                    # Create the trip
+                    trip = await trip_service.create_trip(trip_request, created_by)
+
+                    # Return standardized response
+                    return ResponseBuilder.success(
+                        data=trip.model_dump(),
+                        message="Trip created successfully"
+                    ).model_dump()
+                else:
+                    raise ValueError(f"Unknown endpoint: {endpoint}")
+            else:
+                raise ValueError(f"Unknown endpoint: {endpoint}")
+        
+        except Exception as e:
+            logger.error(f"Error handling trips request {method} {endpoint}: {e}")
+            return ResponseBuilder.error(
+                error="TripsRequestError",
+                message=f"Failed to process trips request: {str(e)}"
+            ).model_dump()
 
     async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle health check requests"""

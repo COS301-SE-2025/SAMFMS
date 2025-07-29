@@ -291,9 +291,6 @@ class ServiceRequestConsumer:
             data = user_context.get("data", {})
             endpoint = user_context.get("endpoint", "")
             
-            # Create mock user for service calls
-            current_user = {"user_id": user_context.get("user_id", "system")}
-            
             # Handle HTTP methods and route to appropriate logic
             if method == "GET":
                 # Parse endpoint for specific location operations

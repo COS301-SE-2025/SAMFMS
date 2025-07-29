@@ -140,12 +140,6 @@ export const API_ENDPOINTS = {
     CANCEL: id => `/api/assignments/${id}/cancel`,
   },
 
-  // GPS and Tracking
-  GPS: {
-    LOCATIONS: '/api/gps/locations',
-    CREATE_LOCATION: '/api/gps/locations',
-  },
-
   LOCATIONS: {
     LIST: '/gps/locations',
     GET: id => `/gps/locations/${id}`,
@@ -163,8 +157,8 @@ export const API_ENDPOINTS = {
 
   // Trip Planning
   TRIPS: {
-    LIST: '/api/trips',
-    CREATE: '/api/trips',
+    LIST: '/trips/trips',
+    CREATE: '/trips/create',
   },
 
   // Maintenance

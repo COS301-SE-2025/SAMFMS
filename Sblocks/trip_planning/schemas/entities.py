@@ -34,6 +34,7 @@ class ConstraintType(str, Enum):
     FUEL_EFFICIENT = "fuel_efficient"
     AVOID_AREA = "avoid_area"
     PREFERRED_ROUTE = "preferred_route"
+    TIME_WINDOW = "time_window"
 
 
 class NotificationType(str, Enum):
