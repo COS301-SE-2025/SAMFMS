@@ -34,14 +34,17 @@ const Dashboard = () => {
       try {
         setLoadingVehicles(true);
         setLoadingAnalytics(true);
-        const data = await getVehicles();
-        // console.log(data);
-        // console.log(data.count);
-        // console.log(data.vehicles);
-        // If your API returns { total: 42 }, adjust accordingly
-        // data ? setTotalVehicles(data.count) : setTotalVehicles(mockData.fleetOverview.totalVehicles);
-        setTotalVehicles(data.count);
-        setAnalytics(data.analytics);
+        const response = await getVehicles();
+
+
+        setTotalVehicles(response.data.data.vehicles.length);
+        //setLoadingVehicles
+        //setLoadingAnalytics
+        //setAnalytics
+        //setAssignmentMetrics
+        //setLoadingAssignments
+
+
       } catch (error) {
         console.log(`Error fetching data: ${error}`);
         setTotalVehicles('N/A');
