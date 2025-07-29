@@ -285,7 +285,7 @@ async def root():
             "timestamp": datetime.now(timezone.utc).isoformat()
         },
         message="Trips Service is operational"
-    ).model_dump()
+    ).model_dump(mode='json')
 
 @app.get("/health")
 async def health_check():
@@ -347,7 +347,7 @@ async def health_check():
         return ResponseBuilder.success(
             data=health_data,
             message=f"Service is {overall_status}"
-        ).model_dump()
+        ).model_dump(mode='json')
 
     except Exception as e:
         logger.error(f"Health check failed: {e}")
@@ -355,7 +355,7 @@ async def health_check():
             error="HealthCheckError",
             message="Health check failed",
             details={"error": str(e)}
-        ).model_dump()
+        ).model_dump(mode='json')
 
 @app.get("/metrics")
 async def get_service_metrics():
@@ -365,14 +365,14 @@ async def get_service_metrics():
         return ResponseBuilder.success(
             data=metrics,
             message="Service metrics retrieved successfully"
-        ).model_dump()
+        ).model_dump(mode='json')
     except Exception as e:
         logger.error(f"Metrics collection error: {e}")
         return ResponseBuilder.error(
             error="MetricsError",
             message="Failed to collect metrics",
             details={"error": str(e)}
-        ).model_dump()
+        ).model_dump(mode='json')
 
 @app.get("/docs")
 async def api_documentation():
@@ -428,7 +428,7 @@ async def api_documentation():
             ]
         },
         message="Trips Service API documentation"
-    ).model_dump()
+    ).model_dump(mode='json')
 
 # Exception handlers using ResponseBuilder for consistency
 @app.exception_handler(RequestValidationError)
@@ -440,7 +440,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             error="ValidationError",
             message="Validation error",
             details=exc.errors()
-        ).model_dump()
+        ).model_dump(mode='json')
     )
 
 @app.exception_handler(StarletteHTTPException)
@@ -451,7 +451,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         content=ResponseBuilder.error(
             error=f"HTTP_{exc.status_code}",
             message=exc.detail
-        ).model_dump()
+        ).model_dump(mode='json')
     )
 
 @app.exception_handler(Exception)
@@ -462,7 +462,7 @@ async def general_exception_handler(request: Request, exc: Exception):
         content=ResponseBuilder.error(
             error="INTERNAL_ERROR",
             message="Internal server error"
-        ).model_dump()
+        ).model_dump(mode='json')
     )
 
 if __name__ == "__main__":

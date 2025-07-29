@@ -65,11 +65,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     
     return JSONResponse(
         status_code=422,
-        content=ResponseBuilder.error(
+        content=ResponseBuilder.validation_error(
             message="Request validation failed",
-            error_code="VALIDATION_ERROR",
-            details={"errors": errors}
-        )
+            validation_errors=errors
+        ).model_dump(mode='json')
     )
 
 
@@ -80,10 +79,9 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(
         status_code=exc.status_code,
         content=ResponseBuilder.error(
-            message=exc.detail,
-            error_code=f"HTTP_{exc.status_code}",
-            status_code=exc.status_code
-        )
+            error=f"HTTP_{exc.status_code}",
+            message=exc.detail
+        ).model_dump(mode='json')
     )
 
 
@@ -94,10 +92,9 @@ async def starlette_exception_handler(request: Request, exc: StarletteHTTPExcept
     return JSONResponse(
         status_code=exc.status_code,
         content=ResponseBuilder.error(
-            message=exc.detail,
-            error_code=f"HTTP_{exc.status_code}",
-            status_code=exc.status_code
-        )
+            error=f"HTTP_{exc.status_code}",
+            message=exc.detail
+        ).model_dump(mode='json')
     )
 
 
@@ -116,10 +113,9 @@ async def trip_planning_exception_handler(request: Request, exc: TripPlanningExc
     return JSONResponse(
         status_code=status_code,
         content=ResponseBuilder.error(
-            message=exc.message,
-            error_code=exc.error_code,
-            status_code=status_code
-        )
+            error=exc.error_code,
+            message=exc.message
+        ).model_dump(mode='json')
     )
 
 
@@ -130,10 +126,9 @@ async def general_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content=ResponseBuilder.error(
-            message="An unexpected error occurred",
-            error_code="INTERNAL_SERVER_ERROR",
-            status_code=500
-        )
+            error="INTERNAL_SERVER_ERROR",
+            message="An unexpected error occurred"
+        ).model_dump(mode='json')
     )
 
 

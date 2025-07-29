@@ -1,7 +1,7 @@
 """
 Response schemas for Trip Planning service
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from enum import Enum
@@ -23,6 +23,8 @@ class PaginationMeta(BaseModel):
 
 class ResponseMeta(BaseModel):
     """Response metadata"""
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()})
+    
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Response timestamp")
     request_id: Optional[str] = Field(None, description="Request ID for tracing")
     execution_time_ms: Optional[float] = Field(None, description="Execution time in milliseconds")
@@ -31,6 +33,8 @@ class ResponseMeta(BaseModel):
 
 class StandardResponse(BaseModel):
     """Standard API response wrapper"""
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()})
+    
     status: ResponseStatus = Field(..., description="Response status")
     data: Optional[Any] = Field(None, description="Response data")
     message: Optional[str] = Field(None, description="Response message")
@@ -39,6 +43,8 @@ class StandardResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     """Error response schema"""
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()})
+    
     status: ResponseStatus = Field(default=ResponseStatus.ERROR, description="Response status")
     error: str = Field(..., description="Error type")
     message: str = Field(..., description="Error message")
@@ -67,6 +73,12 @@ class ListResponse(SuccessResponse):
 
 class HealthCheckResponse(BaseModel):
     """Health check response schema"""
+    model_config = ConfigDict(
+        json_encoders={
+            datetime: lambda v: v.isoformat()
+        }
+    )
+    
     status: str = Field(..., description="Overall health status")
     service: str = Field(..., description="Service name")
     version: str = Field(..., description="Service version")

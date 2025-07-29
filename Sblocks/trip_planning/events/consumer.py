@@ -70,6 +70,32 @@ class EventConsumer:
             self.connection = None
             self.channel = None
     
+    async def _setup_dead_letter_queue(self):
+        """Setup dead letter queue for failed messages"""
+        try:
+            # Declare dead letter exchange
+            dlx_exchange = await self.channel.declare_exchange(
+                "trips_dlx",
+                aio_pika.ExchangeType.DIRECT,
+                durable=True
+            )
+            
+            # Declare dead letter queue
+            self.dead_letter_queue = await self.channel.declare_queue(
+                "trips_dead_letter",
+                durable=True
+            )
+            
+            # Bind dead letter queue to exchange
+            await self.dead_letter_queue.bind(dlx_exchange, "dead_letter")
+            
+            logger.info("Dead letter queue setup completed")
+            
+        except Exception as e:
+            logger.error(f"Failed to setup dead letter queue: {e}")
+            # Continue without dead letter queue
+            self.dead_letter_queue = None
+    
     def is_connected(self) -> bool:
         """Check if connected to RabbitMQ"""
         return (self.connection is not None and 

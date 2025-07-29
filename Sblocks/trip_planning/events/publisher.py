@@ -109,14 +109,6 @@ class EventPublisher:
             logger.error(f"Failed to publish event {event.event_type.value}: {e}")
             return False
     
-    async def publish_service_started(self, version: str, data: Dict[str, Any]) -> bool:
-        """Publish service started event"""
-        event = ServiceStartedEvent(
-            version=version,
-            features=data
-        )
-        return await self.publish_event(event)
-    
     # Trip-related event publishers
     async def publish_trip_created(self, trip: Trip):
         """Publish trip created event"""
@@ -182,10 +174,13 @@ class EventPublisher:
         await self.publish_event(event, "notification.sent")
     
     # Service-related event publishers
-    async def publish_service_started(self, service_name: str, version: str):
+    async def publish_service_started(self, version: str, data: Dict[str, Any] = None) -> bool:
         """Publish service started event"""
-        event = ServiceStartedEvent.create(service_name, version)
-        await self.publish_event(event, "service.started")
+        event = ServiceStartedEvent(
+            version=version,
+            features=data or {}
+        )
+        return await self.publish_event(event)
     
     # Batch publishing
     async def publish_multiple_events(self, events: list[tuple[BaseEvent, str]]):

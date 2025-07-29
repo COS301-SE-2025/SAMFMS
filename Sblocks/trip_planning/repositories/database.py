@@ -90,7 +90,7 @@ class DatabaseManager:
     async def get_metrics(self) -> dict:
         """Get database metrics"""
         try:
-            if not self._db:
+            if self._db is None:
                 return {"status": "disconnected"}
             
             # Get collection stats
@@ -171,42 +171,42 @@ class DatabaseManager:
     @property
     def trips(self):
         """Get trips collection"""
-        if not self._db:
+        if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.trips
     
     @property
     def trip_constraints(self):
         """Get trip constraints collection"""
-        if not self._db:
+        if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.trip_constraints
     
     @property
     def driver_assignments(self):
         """Get driver assignments collection"""
-        if not self._db:
+        if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.driver_assignments
     
     @property
     def trip_analytics(self):
         """Get trip analytics collection"""
-        if not self._db:
+        if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.trip_analytics
     
     @property
     def notifications(self):
         """Get notifications collection"""
-        if not self._db:
+        if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.notifications
     
     @property
     def notification_preferences(self):
         """Get notification preferences collection"""
-        if not self._db:
+        if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.notification_preferences
     

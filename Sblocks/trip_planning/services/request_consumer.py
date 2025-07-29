@@ -301,7 +301,7 @@ class ServiceRequestConsumer:
                 return ResponseBuilder.success(
                     data=health_data,
                     message="GPS service health check completed"
-                ).model_dump()
+                ).model_dump(mode='json')
             else:
                 raise ValueError(f"Unsupported method for health endpoint: {method}")
                 
@@ -310,7 +310,7 @@ class ServiceRequestConsumer:
             return ResponseBuilder.error(
                 error="HealthCheckError",
                 message=f"Failed to process health check: {str(e)}"
-            ).model_dump()
+            ).model_dump(mode='json')
 
     async def _handle_docs_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle documentation requests"""
@@ -332,7 +332,7 @@ class ServiceRequestConsumer:
                 return ResponseBuilder.success(
                     data=docs_data,
                     message="GPS service documentation retrieved successfully"
-                ).model_dump()
+                ).model_dump(mode='json')
             else:
                 raise ValueError(f"Unsupported method for docs endpoint: {method}")
                 
@@ -341,7 +341,7 @@ class ServiceRequestConsumer:
             return ResponseBuilder.error(
                 error="DocsRequestError",
                 message=f"Failed to process docs request: {str(e)}"
-            ).model_dump()
+            ).model_dump(mode='json')
 
     async def _handle_metrics_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle metrics requests"""
@@ -361,7 +361,7 @@ class ServiceRequestConsumer:
                 return ResponseBuilder.success(
                     data=metrics_data,
                     message="Trips service metrics retrieved successfully"
-                ).model_dump()
+                ).model_dump(mode='json')
             else:
                 raise ValueError(f"Unsupported method for metrics endpoint: {method}")
                 
@@ -370,7 +370,7 @@ class ServiceRequestConsumer:
             return ResponseBuilder.error(
                 error="MetricsRequestError",
                 message=f"Failed to process metrics request: {str(e)}"
-            ).model_dump()
+            ).model_dump(mode='json')
     
     async def _send_response(self, correlation_id: str, response_data: Dict[str, Any]):
         """Send response back to Core via RabbitMQ using dedicated response connection"""
