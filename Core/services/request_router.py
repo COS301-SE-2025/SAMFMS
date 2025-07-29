@@ -44,8 +44,8 @@ class RequestRouter:
             "/gps/*": "gps",
             
             # Trip Planning Service Routes - simplified
-            "/trips": "trip_planning", 
-            "/trips/*": "trip_planning",
+            "/trips": "trips", 
+            "/trips/*": "trips",
         }
 
     def normalize_endpoint(self, endpoint: str) -> str:

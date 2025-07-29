@@ -158,7 +158,9 @@ export const API_ENDPOINTS = {
   // Trip Planning
   TRIPS: {
     LIST: '/trips/trips',
-    CREATE: '/trips/create',
+    CREATE: '/trips/trips/create',
+    UPDATE: id =>  `/trips/trips/${id}`,
+    DELETE: id => `/trips/trips/${id}`
   },
 
   // Maintenance

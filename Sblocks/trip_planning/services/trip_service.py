@@ -19,19 +19,22 @@ class TripService:
     
     def __init__(self):
         self.db = db_manager
-        
+
     async def create_trip(
         self, 
         request: CreateTripRequest,
         created_by: str
     ) -> Trip:
         """Create a new trip"""
+        logger.info(f"[TripService.create_trip] Entered with created_by={created_by}")
         try:
             # Validate schedule
+            logger.debug(f"[TripService.create_trip] Validating schedule: start={request.scheduled_start_time}, end={request.scheduled_end_time}")
             if request.scheduled_end_time:
                 if request.scheduled_end_time <= request.scheduled_start_time:
+                    logger.warning("[TripService.create_trip] Invalid schedule: end <= start")
                     raise ValueError("End time must be after start time")
-            
+
             # Create trip entity
             trip_data = request.dict(exclude_unset=True)
             trip_data.update({
@@ -40,22 +43,46 @@ class TripService:
                 "updated_at": datetime.utcnow(),
                 "status": TripStatus.SCHEDULED
             })
-            
+            logger.debug(f"[TripService.create_trip] Prepared trip_data: {trip_data}")
+
             # Insert into database
+            logger.info("[TripService.create_trip] Inserting trip into database")
             result = await self.db.trips.insert_one(trip_data)
-            
+            logger.info(f"[TripService.create_trip] Trip inserted with _id={result.inserted_id}")
+
             # Retrieve created trip
+            logger.info(f"[TripService.create_trip] Fetching created trip with ID={result.inserted_id}")
             trip = await self.get_trip_by_id(str(result.inserted_id))
-            
+            if not trip:
+                logger.error(f"[TripService.create_trip] Failed to retrieve trip after insert (ID={result.inserted_id})")
+                raise RuntimeError("Failed to retrieve created trip")
+
             # Publish event
+            logger.info(f"[TripService.create_trip] Publishing trip.created event for ID={trip.id}")
             await event_publisher.publish_trip_created(trip)
-            
-            logger.info(f"Created trip {trip.id} by user {created_by}")
+
+            logger.info(f"[TripService.create_trip] Successfully created trip {trip.id} by user {created_by}")
             return trip
-            
+
         except Exception as e:
-            logger.error(f"Failed to create trip: {e}")
+            logger.error(f"[TripService.create_trip] Failed: {e}")
             raise
+
+    async def get_all_trips(self) -> List[Trip]:
+        """Return all trips in the database"""
+        logger.info("[TripService.get_all_trips] Entered")
+        try:
+            cursor = self.db.trips.find({})
+            trips = []
+            async for trip_doc in cursor:
+                trip_doc["_id"] = str(trip_doc["_id"])
+                trips.append(Trip(**trip_doc))
+            logger.info(f"[TripService.get_all_trips] Retrieved {len(trips)} trips")
+            return trips
+        except Exception as e:
+            logger.error(f"[TripService.get_all_trips] Failed: {e}")
+            raise
+
     
     async def get_trip_by_id(self, trip_id: str) -> Optional[Trip]:
         """Get trip by ID"""
@@ -73,8 +100,7 @@ class TripService:
     async def update_trip(
         self,
         trip_id: str,
-        request: UpdateTripRequest,
-        updated_by: str
+        request: UpdateTripRequest
     ) -> Optional[Trip]:
         """Update an existing trip"""
         try:
@@ -107,14 +133,14 @@ class TripService:
             # Publish event
             await event_publisher.publish_trip_updated(updated_trip, existing_trip)
             
-            logger.info(f"Updated trip {trip_id} by user {updated_by}")
+            logger.info(f"Updated trip {trip_id}")
             return updated_trip
             
         except Exception as e:
             logger.error(f"Failed to update trip {trip_id}: {e}")
             raise
     
-    async def delete_trip(self, trip_id: str, deleted_by: str) -> bool:
+    async def delete_trip(self, trip_id: str) -> bool:
         """Delete a trip"""
         try:
             # Get trip before deletion for event
@@ -140,7 +166,7 @@ class TripService:
             # Publish event
             await event_publisher.publish_trip_deleted(trip)
             
-            logger.info(f"Deleted trip {trip_id} by user {deleted_by}")
+            logger.info(f"Deleted trip {trip_id}")
             return True
             
         except Exception as e:

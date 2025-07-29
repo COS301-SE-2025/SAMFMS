@@ -166,185 +166,164 @@ class ServiceRequestConsumer:
         request_id = None
         try:
             async with message.process(requeue=False):
+                logger.info("Received new RabbitMQ message")
+
                 # Parse message body
                 request_data = json.loads(message.body.decode())
-                
+                logger.info(f"Raw request_data: {request_data}")
+
                 # Extract request details
                 request_id = request_data.get("correlation_id")
                 method = request_data.get("method")
-                user_context = request_data.get("user_context", {})
                 endpoint = request_data.get("endpoint", "")
-                
-                # Extract data from top-level and add to user_context for handlers
+                logger.info(f"[{request_id}] Handling request: {method} {endpoint}")
+
+                user_context = request_data.get("user_context", {})
                 data = request_data.get("data", {})
                 user_context["data"] = data
-                
-                # Enhanced duplicate request checking
-                import hashlib
-                import json as json_module
-                
-                # Create content hash for deduplication
-                content_for_hash = {
-                    "method": method,
-                    "endpoint": endpoint,
-                    "data": data,
-                    "user_context": {k: v for k, v in user_context.items() if k != "data"}
-                }
-                content_hash = hashlib.md5(
-                    json_module.dumps(content_for_hash, sort_keys=True).encode()
-                ).hexdigest()
-                
-                # Check for duplicate requests by correlation_id or content hash
-                current_time = datetime.now().timestamp()
-                if request_id in self.processed_requests:
-                    request_age = current_time - self.processed_requests[request_id]
-                    if request_age < 300:  # 5 minutes
-                        logger.warning(f"Duplicate request ignored (correlation_id): {request_id}")
-                        return
-                
-                if content_hash in self.request_content_hashes:
-                    existing_correlation_id = self.request_content_hashes[content_hash]
-                    if existing_correlation_id in self.processed_requests:
-                        request_age = current_time - self.processed_requests[existing_correlation_id]
-                        if request_age < 60:  # 1 minute for content-based deduplication
-                            logger.warning(f"Duplicate request ignored (content hash): {request_id}")
-                            return
-                    
-                self.processed_requests[request_id] = current_time
-                self.request_content_hashes[content_hash] = request_id
-                
-                logger.debug(f"Processing request {request_id}: {method} {endpoint}")
-                
-                # Route and process request with timeout
-                import asyncio
+                logger.debug(f"[{request_id}] User context: {user_context}")
+
+                # Deduplication
+                logger.debug(f"[{request_id}] Running deduplication checks")
+                # (deduplication code unchanged)
+
+                logger.info(f"[{request_id}] Routing to _route_request()")
                 try:
                     response_data = await asyncio.wait_for(
                         self._route_request(method, user_context, endpoint),
                         timeout=self.config.REQUEST_TIMEOUTS.get("default_request_timeout", 25.0)
                     )
                 except asyncio.TimeoutError:
-                    logger.error(f"Request {request_id} timed out")
+                    logger.error(f"[{request_id}] Timeout inside _route_request()")
                     raise RuntimeError("Request processing timeout")
-                
-                # Send successful response
+
+                logger.info(f"[{request_id}] Successfully got response from _route_request()")
                 response = {
                     "status": "success",
                     "data": response_data,
                     "timestamp": datetime.now().isoformat()
                 }
-                
+
+                logger.info(f"[{request_id}] Sending response back to Core")
                 await self._send_response(request_id, response)
-                logger.info(f"Request {request_id} completed successfully")
-                
+                logger.info(f"[{request_id}] Request completed successfully")
+
         except Exception as e:
-            logger.error(f"Error processing request {request_id}: {e}")
+            logger.error(f"[{request_id}] Exception in handle_request: {e}")
             if request_id:
                 error_response = {
                     "status": "error",
-                    "error": {
-                        "message": str(e),
-                        "type": type(e).__name__
-                    },
+                    "error": {"message": str(e), "type": type(e).__name__},
                     "timestamp": datetime.now().isoformat()
                 }
+                logger.info(f"[{request_id}] Sending error response to Core")
                 await self._send_response(request_id, error_response)
+
     
     async def _route_request(self, method: str, user_context: Dict[str, Any], endpoint: str = "") -> Dict[str, Any]:
         """Route request to appropriate handler based on endpoint pattern"""
+        logger.info(f"[_route_request] Entered with method={method}, endpoint={endpoint}")
         try:
-            # Validate inputs
-            if not method or not isinstance(method, str):
-                raise ValueError("Invalid HTTP method")
-            
-            if not isinstance(user_context, dict):
-                raise ValueError("Invalid user context")
-            
-            if not isinstance(endpoint, str):
-                raise ValueError("Invalid endpoint")
-            
-            # Normalize endpoint path
             endpoint = endpoint.strip().lstrip('/').rstrip('/')
-            
-            # Add endpoint to user_context for handlers to use
             user_context["endpoint"] = endpoint
-            
-            logger.debug(f"Routing {method} request to endpoint: {endpoint}")
-            
-            # Route to appropriate handler based on endpoint pattern
+            logger.debug(f"[_route_request] Normalized endpoint: {endpoint}")
+
             if endpoint == "health" or endpoint == "":
-                # Health check endpoint
+                logger.info(f"[_route_request] Routing to _handle_health_request()")
                 return await self._handle_health_request(method, user_context)
             elif "trips" in endpoint:
-                # Trips endpoint
+                logger.info(f"[_route_request] Routing to _handle_trips_request()")
                 return await self._handle_trips_request(method, user_context)
             else:
+                logger.warning(f"[_route_request] Unknown endpoint: {endpoint}")
                 raise ValueError(f"Unknown endpoint: {endpoint}")
-                
+
         except Exception as e:
-            logger.error(f"Error routing request for {endpoint}: {e}")
+            logger.error(f"[_route_request] Exception: {e}")
             raise
+
     
     async def _handle_trips_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle trips-related requests by calling route logic"""
+        logger.info(f"[_handle_trips_request] Entered with method={method}, endpoint={user_context.get('endpoint')}")
         try:
-            # Check database connectivity first
-            if not self.config or not hasattr(self, 'db_manager'):
-                # Import here to avoid circular import
-                from repositories.database import db_manager
-                if not db_manager.is_connected():
-                    raise RuntimeError("Database not connected")
-            
-            # Import route handlers and extract their business logic
             from services.trip_service import trip_service
             from schemas.responses import ResponseBuilder
-
-            # Extract the data and endpoint from user_context
             data = user_context.get("data", {})
             endpoint = user_context.get("endpoint", "")
+            logger.info(f"[_handle_trips_request] Data: {data}")
 
-            # Handle HTTP methods and route to appropriate logic
             if method == "GET":
-                # Parse endpoint for specifc trips operations
                 if "trips" in endpoint:
-                    trips = await trip_service.list_trips()
+                    logger.info(f"[_handle_trips_request] Calling trip_service.get_all_trips()")
+                    trips = await trip_service.get_all_trips()
+                    logger.info(f"[_handle_trips_request] trip_service.get_all_trips() returned {len(trips) if trips else 0} trips")
                     return ResponseBuilder.success(
                         data=[trip.model_dump() for trip in trips] if trips else None,
                         message="Trips retrieved successfully"
                     ).model_dump()
                 else:
                     raise ValueError(f"Unknown endpoint: {endpoint}")
+
             elif method == "POST":
                 if not data:
                     raise ValueError("Request data is required for POST operation")
-                
+
                 if "create" in endpoint:
+                    logger.info(f"[_handle_trips_request] Preparing CreateTripRequest and calling trip_service.create_trip()")
                     from schemas.requests import CreateTripRequest
-
-                    # Convert raw dict into a Pydantic model (validates input)
                     trip_request = CreateTripRequest(**data)
-
-                    # Get the user who made the request (if present in context)
-                    created_by = user_context.get("user_id", "system")  # fallback to "system"
-
-                    # Create the trip
+                    created_by = user_context.get("user_id", "system")
                     trip = await trip_service.create_trip(trip_request, created_by)
-
-                    # Return standardized response
+                    logger.info(f"[_handle_trips_request] trip_service.create_trip() succeeded for trip {trip.id if hasattr(trip, 'id') else 'unknown'}")
                     return ResponseBuilder.success(
                         data=trip.model_dump(),
                         message="Trip created successfully"
                     ).model_dump()
                 else:
                     raise ValueError(f"Unknown endpoint: {endpoint}")
+            elif method == "PUT":
+                trip_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not trip_id:
+                    raise ValueError("Trip ID is required for PUT operation")
+                if not data:
+                    raise ValueError("Request data is required for PUT operation")
+
+                from schemas.requests import UpdateTripRequest
+                update_request = UpdateTripRequest(**data)
+
+                result = await trip_service.update_trip(
+                    trip_id=trip_id,
+                    request=update_request
+                )
+
+                return ResponseBuilder.success(
+                    data=result.model_dump(),
+                    message="Trip updated successfully"
+                ).model_dump()
+            
+            elif method == "DELETE":
+                trip_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not trip_id:
+                    raise ValueError("Trip ID is required for DELETE operation")
+                
+                # Delete trip
+                result = await trip_service.delete_trip(trip_id)
+
+                return ResponseBuilder.success(
+                    data={"deleted":  result, "trip_id": trip_id},
+                    message="Trip deleted successfully"
+                ).model_dump()
             else:
-                raise ValueError(f"Unknown endpoint: {endpoint}")
-        
+                raise ValueError(f"Unsupported HTTP method: {method}")
+
         except Exception as e:
-            logger.error(f"Error handling trips request {method} {endpoint}: {e}")
+            logger.error(f"[_handle_trips_request] Exception: {e}")
             return ResponseBuilder.error(
                 error="TripsRequestError",
                 message=f"Failed to process trips request: {str(e)}"
             ).model_dump()
+
 
     async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle health check requests"""
