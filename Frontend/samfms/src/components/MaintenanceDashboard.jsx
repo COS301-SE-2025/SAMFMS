@@ -19,8 +19,37 @@ const MaintenanceDashboard = ({ vehicles }) => {
         maintenanceAPI.getMaintenanceNotifications(1, 10),
       ]);
 
-      setDashboardData(dashboardResponse);
-      setNotifications(notificationsResponse.data || []);
+      // Handle nested data structure from backend
+      const dashboardData = dashboardResponse.data?.data || dashboardResponse.data || {};
+      const analytics = dashboardData.analytics || {};
+
+      // Transform analytics data to match component expectations
+      const transformedData = {
+        total_records: analytics.maintenance_summary?.total_records || 0,
+        overdue_count: analytics.maintenance_summary?.overdue_count || 0,
+        upcoming_count: analytics.maintenance_summary?.upcoming_count || 0,
+        total_cost_this_month:
+          analytics.performance_metrics?.total_cost_period ||
+          analytics.cost_analysis?.total_cost ||
+          0,
+        recent_records: dashboardData.recent_records || [],
+        completion_rate:
+          analytics.maintenance_summary?.completion_rate ||
+          analytics.performance_metrics?.on_time_completion ||
+          0,
+        average_cost:
+          analytics.performance_metrics?.average_cost_per_maintenance ||
+          analytics.cost_analysis?.average_cost ||
+          0,
+      };
+
+      setDashboardData(transformedData);
+
+      // Handle notifications data
+      const notificationsData =
+        notificationsResponse.data?.data || notificationsResponse.data || {};
+      const notifications = notificationsData.notifications || notificationsData || [];
+      setNotifications(notifications);
     } catch (err) {
       console.error('Error loading dashboard data:', err);
       setError('Failed to load dashboard data');

@@ -14,9 +14,11 @@ const LicenseManagement = ({ vehicles }) => {
 
   const [formData, setFormData] = useState({
     vehicle_id: '',
+    entity_id: '', // Required field - typically same as vehicle_id
+    entity_type: 'vehicle', // Required field - type of entity (vehicle, driver, etc.)
     license_type: '',
     license_number: '',
-    issued_date: '',
+    issue_date: '', // Changed from issued_date to match backend expectation
     expiry_date: '',
     issuing_authority: '',
     cost: '',
@@ -45,7 +47,12 @@ const LicenseManagement = ({ vehicles }) => {
         filters.vehicleId || null,
         filters.licenseType || null
       );
-      setLicenses(response.data || []);
+
+      // Handle nested data structure from backend
+      const data = response.data?.data || response.data || {};
+      const licenses = data.licenses || data || [];
+
+      setLicenses(licenses);
     } catch (err) {
       console.error('Error loading license records:', err);
       setError('Failed to load license records');
@@ -60,6 +67,9 @@ const LicenseManagement = ({ vehicles }) => {
       const submitData = {
         ...formData,
         cost: parseFloat(formData.cost) || 0,
+        // Ensure entity_id matches vehicle_id if not set
+        entity_id: formData.entity_id || formData.vehicle_id,
+        entity_type: formData.entity_type || 'vehicle',
       };
 
       if (editingLicense) {
@@ -82,11 +92,14 @@ const LicenseManagement = ({ vehicles }) => {
     setEditingLicense(license);
     setFormData({
       vehicle_id: license.vehicle_id || '',
+      entity_id: license.entity_id || license.vehicle_id || '',
+      entity_type: license.entity_type || 'vehicle',
       license_type: license.license_type || '',
       license_number: license.license_number || '',
-      issued_date: license.issued_date
-        ? new Date(license.issued_date).toISOString().split('T')[0]
-        : '',
+      issue_date:
+        license.issue_date || license.issued_date
+          ? new Date(license.issue_date || license.issued_date).toISOString().split('T')[0]
+          : '',
       expiry_date: license.expiry_date
         ? new Date(license.expiry_date).toISOString().split('T')[0]
         : '',
@@ -113,9 +126,11 @@ const LicenseManagement = ({ vehicles }) => {
   const resetForm = () => {
     setFormData({
       vehicle_id: '',
+      entity_id: '',
+      entity_type: 'vehicle',
       license_type: '',
       license_number: '',
-      issued_date: '',
+      issue_date: '',
       expiry_date: '',
       issuing_authority: '',
       cost: '',
@@ -215,8 +230,8 @@ const LicenseManagement = ({ vehicles }) => {
               className="w-full border border-border rounded-md px-3 py-2"
             >
               <option value="">All Vehicles</option>
-              {vehicles.map(vehicle => (
-                <option key={vehicle.id} value={vehicle.id}>
+              {vehicles.map((vehicle, index) => (
+                <option key={vehicle.id || `filter-vehicle-${index}`} value={vehicle.id}>
                   {getVehicleName(vehicle.id)}
                 </option>
               ))}
@@ -374,13 +389,19 @@ const LicenseManagement = ({ vehicles }) => {
                   <label className="block text-sm font-medium mb-1">Vehicle *</label>
                   <select
                     value={formData.vehicle_id}
-                    onChange={e => setFormData(prev => ({ ...prev, vehicle_id: e.target.value }))}
+                    onChange={e =>
+                      setFormData(prev => ({
+                        ...prev,
+                        vehicle_id: e.target.value,
+                        entity_id: e.target.value, // Auto-set entity_id to match vehicle_id
+                      }))
+                    }
                     required
                     className="w-full border border-border rounded-md px-3 py-2"
                   >
                     <option value="">Select Vehicle</option>
-                    {vehicles.map(vehicle => (
-                      <option key={vehicle.id} value={vehicle.id}>
+                    {vehicles.map((vehicle, index) => (
+                      <option key={vehicle.id || `vehicle-${index}`} value={vehicle.id}>
                         {getVehicleName(vehicle.id)}
                       </option>
                     ))}
@@ -431,21 +452,23 @@ const LicenseManagement = ({ vehicles }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Issued Date</label>
+                  <label className="block text-sm font-medium mb-1">Issue Date *</label>
                   <input
                     type="date"
-                    value={formData.issued_date}
-                    onChange={e => setFormData(prev => ({ ...prev, issued_date: e.target.value }))}
+                    value={formData.issue_date}
+                    onChange={e => setFormData(prev => ({ ...prev, issue_date: e.target.value }))}
+                    required
                     className="w-full border border-border rounded-md px-3 py-2"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Expiry Date</label>
+                  <label className="block text-sm font-medium mb-1">Expiry Date *</label>
                   <input
                     type="date"
                     value={formData.expiry_date}
                     onChange={e => setFormData(prev => ({ ...prev, expiry_date: e.target.value }))}
+                    required
                     className="w-full border border-border rounded-md px-3 py-2"
                   />
                 </div>

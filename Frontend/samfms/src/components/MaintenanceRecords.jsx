@@ -22,9 +22,11 @@ const MaintenanceRecords = ({ vehicles }) => {
   const [formData, setFormData] = useState({
     vehicle_id: '',
     maintenance_type: '',
+    title: '', // Required field for maintenance record
     description: '',
     cost: '',
-    date_performed: new Date().toISOString().split('T')[0],
+    scheduled_date: new Date().toISOString().split('T')[0], // Required field
+    date_performed: '',
     next_due_date: '',
     vendor_id: '',
     notes: '',
@@ -67,11 +69,16 @@ const MaintenanceRecords = ({ vehicles }) => {
         filters.page,
         filters.size
       );
-      setRecords(response.data || []);
+
+      // Handle nested data structure from backend
+      const data = response.data?.data || response.data || {};
+      const records = data.maintenance_records || data.records || data || [];
+
+      setRecords(records);
       setPagination({
-        total: response.total || 0,
-        pages: response.pages || 0,
-        current_page: response.page || 1,
+        total: data.total || 0,
+        pages: data.pages || Math.ceil((data.total || 0) / filters.size),
+        current_page: filters.page || 1,
       });
     } catch (err) {
       console.error('Error loading maintenance records:', err);
@@ -110,8 +117,12 @@ const MaintenanceRecords = ({ vehicles }) => {
     setFormData({
       vehicle_id: record.vehicle_id || '',
       maintenance_type: record.maintenance_type || '',
+      title: record.title || '',
       description: record.description || '',
       cost: record.cost?.toString() || '',
+      scheduled_date: record.scheduled_date
+        ? new Date(record.scheduled_date).toISOString().split('T')[0]
+        : '',
       date_performed: record.date_performed
         ? new Date(record.date_performed).toISOString().split('T')[0]
         : '',
@@ -142,9 +153,11 @@ const MaintenanceRecords = ({ vehicles }) => {
     setFormData({
       vehicle_id: '',
       maintenance_type: '',
+      title: '',
       description: '',
       cost: '',
-      date_performed: new Date().toISOString().split('T')[0],
+      scheduled_date: new Date().toISOString().split('T')[0],
+      date_performed: '',
       next_due_date: '',
       vendor_id: '',
       notes: '',
@@ -224,8 +237,8 @@ const MaintenanceRecords = ({ vehicles }) => {
               className="w-full border border-border rounded-md px-3 py-2"
             >
               <option value="">All Vehicles</option>
-              {vehicles.map(vehicle => (
-                <option key={vehicle.id} value={vehicle.id}>
+              {vehicles.map((vehicle, index) => (
+                <option key={vehicle.id || `filter-vehicle-${index}`} value={vehicle.id}>
                   {getVehicleName(vehicle.id)}
                 </option>
               ))}
@@ -397,8 +410,8 @@ const MaintenanceRecords = ({ vehicles }) => {
                     className="w-full border border-border rounded-md px-3 py-2"
                   >
                     <option value="">Select Vehicle</option>
-                    {vehicles.map(vehicle => (
-                      <option key={vehicle.id} value={vehicle.id}>
+                    {vehicles.map((vehicle, index) => (
+                      <option key={vehicle.id || `vehicle-${index}`} value={vehicle.id}>
                         {getVehicleName(vehicle.id)}
                       </option>
                     ))}
@@ -422,6 +435,31 @@ const MaintenanceRecords = ({ vehicles }) => {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Title *</label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                    required
+                    className="w-full border border-border rounded-md px-3 py-2"
+                    placeholder="Enter maintenance title (e.g., Oil Change Service)"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Scheduled Date *</label>
+                  <input
+                    type="date"
+                    value={formData.scheduled_date}
+                    onChange={e =>
+                      setFormData(prev => ({ ...prev, scheduled_date: e.target.value }))
+                    }
+                    required
+                    className="w-full border border-border rounded-md px-3 py-2"
+                  />
                 </div>
 
                 <div>

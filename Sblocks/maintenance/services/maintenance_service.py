@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from schemas.entities import MaintenanceRecord, MaintenanceStatus, MaintenancePriority
 from repositories import MaintenanceRecordsRepository
+from utils.vehicle_validator import vehicle_validator
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,11 @@ class MaintenanceRecordsService:
             for field in required_fields:
                 if field not in data or not data[field]:
                     raise ValueError(f"Required field '{field}' is missing")
+            
+            # Validate vehicle_id exists in vehicles collection
+            vehicle_exists = await vehicle_validator.validate_vehicle_id(data["vehicle_id"])
+            if not vehicle_exists:
+                raise ValueError(f"Vehicle ID '{data['vehicle_id']}' does not exist in the vehicles collection")
             
             # Set default values
             if "status" not in data:
@@ -74,6 +80,12 @@ class MaintenanceRecordsService:
     async def update_maintenance_record(self, record_id: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Update a maintenance record"""
         try:
+            # Validate vehicle_id if it's being updated
+            if "vehicle_id" in data and data["vehicle_id"]:
+                vehicle_exists = await vehicle_validator.validate_vehicle_id(data["vehicle_id"])
+                if not vehicle_exists:
+                    raise ValueError(f"Vehicle ID '{data['vehicle_id']}' does not exist in the vehicles collection")
+            
             # Parse datetime fields if they're strings
             datetime_fields = ["scheduled_date", "actual_start_date", "actual_completion_date"]
             for field in datetime_fields:
@@ -114,6 +126,11 @@ class MaintenanceRecordsService:
                                             limit: int = 100) -> List[Dict[str, Any]]:
         """Get maintenance records for a vehicle"""
         try:
+            # Validate vehicle_id exists
+            vehicle_exists = await vehicle_validator.validate_vehicle_id(vehicle_id)
+            if not vehicle_exists:
+                raise ValueError(f"Vehicle ID '{vehicle_id}' does not exist in the vehicles collection")
+                
             return await self.repository.get_by_vehicle_id(vehicle_id, skip, limit)
         except Exception as e:
             logger.error(f"Error fetching maintenance records for vehicle {vehicle_id}: {e}")
@@ -158,6 +175,11 @@ class MaintenanceRecordsService:
                                     end_date: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get maintenance history for a vehicle"""
         try:
+            # Validate vehicle_id exists
+            vehicle_exists = await vehicle_validator.validate_vehicle_id(vehicle_id)
+            if not vehicle_exists:
+                raise ValueError(f"Vehicle ID '{vehicle_id}' does not exist in the vehicles collection")
+            
             # Parse date strings
             start_dt = None
             end_dt = None
