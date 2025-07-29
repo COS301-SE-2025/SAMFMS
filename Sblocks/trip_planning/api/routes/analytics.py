@@ -3,10 +3,11 @@ Analytics API routes
 """
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
+
 
 from schemas.requests import AnalyticsRequest
-from schemas.responses import ResponseBuilder, TripAnalyticsResponse, DriverPerformanceResponse
+from schemas.responses import ResponseBuilder
 from services.analytics_service import analytics_service
 from api.dependencies import get_current_user
 

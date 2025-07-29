@@ -10,7 +10,7 @@ from schemas.requests import (
     TripProgressRequest, RouteOptimizationRequest
 )
 from schemas.responses import (
-    ResponseBuilder, TripResponse, TripListResponse, RouteOptimizationResponse
+    ResponseBuilder
 )
 from schemas.entities import Trip, TripStatus
 from services.trip_service import trip_service

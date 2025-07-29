@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI):
     """Enhanced application lifespan manager with comprehensive startup/shutdown"""
     
     startup_start_time = datetime.utcnow()
-    logger.info("🚀 Starting SAMFMS Core Service...")
+    logger.info("Starting SAMFMS Core Service...")
     
     try:
         # Import components here to avoid circular imports
@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI):
         from auth_service import get_auth_service, shutdown_auth_service
         
         # 1. Initialize Database
-        logger.info("📊 Initializing database connection...")
+        logger.info("Initializing database connection...")
         db_manager = await get_database_manager()
         await db_manager.connect()
         
@@ -55,10 +55,10 @@ async def lifespan(app: FastAPI):
         health = await db_manager.health_check()
         if health["status"] != "healthy":
             raise DatabaseError("Database health check failed", details=health)
-        logger.info("✅ Database connection established and healthy")
+        logger.info("Database connection established and healthy")
         
         # 2. Initialize Service Discovery
-        logger.info("🔍 Initializing service discovery...")
+        logger.info("Initializing service discovery...")
         service_discovery = await get_service_discovery()
         
         # Register this service
@@ -75,16 +75,16 @@ async def lifespan(app: FastAPI):
                 "startup_time": startup_start_time.isoformat()
             }
         )
-        logger.info("✅ Service discovery initialized and service registered")
+        logger.info("Service discovery initialized and service registered")
         
         # 3. Initialize Authentication Service
-        logger.info("🔐 Initializing authentication service...")
+        logger.info("Initializing authentication service...")
         auth_service = await get_auth_service()
-        logger.info("✅ Authentication service initialized")
+        logger.info("Authentication service initialized")
         
         # 4. Initialize RabbitMQ (if needed)
         try:
-            logger.info("🐰 Initializing RabbitMQ...")
+            logger.info("Initializing RabbitMQ...")
             from rabbitmq.consumer import consume_messages
             from rabbitmq.admin import create_exchange
             
@@ -93,23 +93,23 @@ async def lifespan(app: FastAPI):
             
             # Start background message consumption for service responses
             asyncio.create_task(consume_messages("core.responses"))
-            logger.info("✅ RabbitMQ initialized with service response consumer")
+            logger.info("RabbitMQ initialized with service response consumer")
         except Exception as e:
-            logger.warning(f"⚠️  RabbitMQ initialization failed: {e}")
+            logger.warning(f"RabbitMQ initialization failed: {e}")
             # Continue without RabbitMQ for now
         
         # 5. Initialize startup services (includes response manager)
         try:
-            logger.info("⚙️ Initializing startup services...")
+            logger.info("Initializing startup services...")
             from services.startup import startup_service
             await startup_service.startup()
-            logger.info("✅ Startup services initialized")
+            logger.info("Startup services initialized")
         except Exception as e:
-            logger.warning(f"⚠️  Startup services initialization failed: {e}")
+            logger.warning(f"Startup services initialization failed: {e}")
             # Continue without startup services
         
         startup_duration = (datetime.utcnow() - startup_start_time).total_seconds()
-        logger.info(f"🎉 SAMFMS Core Service startup completed in {startup_duration:.2f}s")
+        logger.info(f"SAMFMS Core Service startup completed in {startup_duration:.2f}s")
         
         # Store startup info in app state
         app.state.startup_time = startup_start_time
@@ -117,14 +117,14 @@ async def lifespan(app: FastAPI):
         app.state.db_manager = db_manager
         
     except Exception as e:
-        logger.error(f"❌ Startup failed: {e}")
+        logger.error(f"Startup failed: {e}")
         raise
     
     yield
     
     # Shutdown sequence
     shutdown_start_time = datetime.utcnow()
-    logger.info("🛑 Shutting down SAMFMS Core Service...")
+    logger.info("Shutting down SAMFMS Core Service...")
     
     try:
         # Import shutdown functions
@@ -132,22 +132,22 @@ async def lifespan(app: FastAPI):
         from auth_service import shutdown_auth_service
         
         # 1. Shutdown services
-        logger.info("🔐 Shutting down authentication service...")
+        logger.info("Shutting down authentication service...")
         await shutdown_auth_service()
         
-        logger.info("🔍 Shutting down service discovery...")
+        logger.info("Shutting down service discovery...")
         await shutdown_service_discovery()
         
         # 2. Close database connections
         if hasattr(app.state, 'db_manager'):
-            logger.info("📊 Closing database connections...")
+            logger.info("Closing database connections...")
             await app.state.db_manager.close()
         
         shutdown_duration = (datetime.utcnow() - shutdown_start_time).total_seconds()
-        logger.info(f"✅ SAMFMS Core Service shutdown completed in {shutdown_duration:.2f}s")
+        logger.info(f"SAMFMS Core Service shutdown completed in {shutdown_duration:.2f}s")
         
     except Exception as e:
-        logger.error(f"❌ Shutdown error: {e}")
+        logger.error(f"Shutdown error: {e}")
 
 # Create FastAPI application
 app = FastAPI(
@@ -189,15 +189,15 @@ app.add_middleware(
 )
 
 # Setup API routes
-logger.info("🛣️  Setting up simplified service routing...")
+logger.info("Setting up simplified service routing...")
 
 # Import auth routes (essential)
 try:
     from routes.auth import router as auth_router
     app.include_router(auth_router)
-    logger.info("✅ Auth routes configured")
+    logger.info("Auth routes configured")
 except ImportError as e:
-    logger.error(f"❌ Failed to import auth routes: {e}")
+    logger.error(f"Failed to import auth routes: {e}")
     # Auth routes are essential, so we should raise an error
     raise SystemExit(f"Critical error: Auth routes are required but could not be imported: {e}")
 
@@ -205,39 +205,39 @@ except ImportError as e:
 try:
     from routes.health import health_router
     app.include_router(health_router)
-    logger.info("✅ Health check routes configured")
+    logger.info("Health check routes configured")
 except ImportError as e:
-    logger.warning(f"⚠️ Failed to import health routes: {e}")
+    logger.warning(f"Failed to import health routes: {e}")
 
 # Import simplified service routing
 try:
     from routes.service_routing import service_router
     app.include_router(service_router)
-    logger.info("✅ Simplified service routing configured")
+    logger.info("Simplified service routing configured")
     logger.info("    • /management/* -> Management service block")
     logger.info("    • /maintenance/* -> Maintenance service block")
     logger.info("    • /gps/* -> GPS service block")
     logger.info("    • /trips/* -> Trip planning service block")
 except ImportError as e:
-    logger.error(f"❌ Failed to import service routing: {e}")
-    logger.warning("⚠️  Falling back to direct routes...")
+    logger.error(f"Failed to import service routing: {e}")
+    logger.warning("Falling back to direct routes...")
     
     # Fallback to direct routes if service routing fails
     try:
         from routes.gps_direct import router as gps_router
         app.include_router(gps_router)
-        logger.info("✅ Direct GPS routes configured as fallback")
+        logger.info("Direct GPS routes configured as fallback")
     except ImportError as gps_error:
-        logger.warning(f"⚠️  Direct GPS routes also failed: {gps_error}")
+        logger.warning(f" Direct GPS routes also failed: {gps_error}")
 
 # Import debug routes if in development
 if config.environment.value == "development":
     try:
         from routes.debug import router as debug_router
         app.include_router(debug_router)
-        logger.info("✅ Debug routes configured for development")
+        logger.info("Debug routes configured for development")
     except ImportError as e:
-        logger.warning(f"⚠️  Debug routes could not be imported: {e}")
+        logger.warning(f"Debug routes could not be imported: {e}")
 
 # Add a simple test route to verify routing works
 @app.get("/test-auth")

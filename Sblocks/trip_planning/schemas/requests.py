@@ -88,7 +88,7 @@ class TripFilterRequest(BaseModel):
     
     # Sorting
     sort_by: Optional[str] = Field(default="scheduled_start_time")
-    sort_order: Optional[str] = Field(default="asc", regex="^(asc|desc)$")
+    sort_order: Optional[str] = Field(default="asc", pattern="^(asc|desc)$")
 
 
 class AssignDriverRequest(BaseModel):
@@ -117,7 +117,7 @@ class RouteOptimizationRequest(BaseModel):
     trip_id: str = Field(..., description="Trip ID to optimize")
     optimization_type: str = Field(
         default="fastest",
-        regex="^(fastest|shortest|fuel_efficient|balanced)$"
+        pattern="^(fastest|shortest|fuel_efficient|balanced)$"
     )
     avoid_traffic: bool = Field(default=True)
     real_time: bool = Field(default=True, description="Use real-time traffic data")
@@ -137,7 +137,7 @@ class AnalyticsRequest(BaseModel):
     # Grouping
     group_by: Optional[str] = Field(
         default=None,
-        regex="^(day|week|month|driver|vehicle)$"
+        pattern="^(day|week|month|driver|vehicle)$"
     )
     
     # Metrics
@@ -189,12 +189,12 @@ class UpdateNotificationPreferencesRequest(BaseModel):
     sms_enabled: Optional[bool] = None
     
     # Contact info
-    email: Optional[str] = Field(None, regex=r'^[^@]+@[^@]+\.[^@]+$')
-    phone: Optional[str] = Field(None, regex=r'^\+?[\d\s\-\(\)]+$')
+    email: Optional[str] = Field(None, pattern=r'^[^@]+@[^@]+\.[^@]+$')
+    phone: Optional[str] = Field(None, pattern=r'^\+?[\d\s\-\(\)]+$')
     
     # Schedule
-    quiet_hours_start: Optional[str] = Field(None, regex=r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')
-    quiet_hours_end: Optional[str] = Field(None, regex=r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')
+    quiet_hours_start: Optional[str] = Field(None, pattern=r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')
+    quiet_hours_end: Optional[str] = Field(None, pattern=r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$')
     timezone: Optional[str] = None
 
 

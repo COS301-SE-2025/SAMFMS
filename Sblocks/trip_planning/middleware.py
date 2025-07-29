@@ -1,5 +1,5 @@
 """
-Middleware for GPS service
+Middleware for Trips service
 """
 import time
 import logging

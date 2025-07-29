@@ -1,5 +1,5 @@
 """
-Service Request Consumer for GPS Service
+Service Request Consumer for Trips Service
 Handles requests from Core service via RabbitMQ with standardized patterns
 """
 
@@ -29,7 +29,7 @@ class ServiceRequestConsumer:
         self.queue = None
         # Use standardized config
         self.config = RabbitMQConfig()
-        self.queue_name = self.config.QUEUE_NAMES["gps"]
+        self.queue_name = self.config.QUEUE_NAMES["trips"]
         self.exchange_name = self.config.EXCHANGE_NAMES["requests"]
         self.response_exchange_name = self.config.EXCHANGE_NAMES["responses"]
         # Enhanced request deduplication with content hashing
@@ -72,8 +72,8 @@ class ServiceRequestConsumer:
                 durable=True
             )
             
-            # Bind to gps routing key (must match Core service routing pattern)
-            await self.queue.bind(self.exchange, "gps.requests")
+            # Bind to trips routing key (must match Core service routing pattern)
+            await self.queue.bind(self.exchange, "trips.requests")
             
             logger.info(f"Connected to RabbitMQ. Queue: {self.queue_name}")
             
@@ -145,7 +145,7 @@ class ServiceRequestConsumer:
         if self.connection and not self.connection.is_closed:
             await self.connection.close()
             
-        logger.info("GPS service request consumer stopped")
+        logger.info("Trips service request consumer stopped")
     
     async def disconnect(self):
         """Disconnect from RabbitMQ"""
@@ -159,7 +159,7 @@ class ServiceRequestConsumer:
         if self.connection and not self.connection.is_closed:
             await self.connection.close()
             
-        logger.info("GPS service disconnected")
+        logger.info("Trips service disconnected")
     
     async def handle_request(self, message: AbstractIncomingMessage):
         """Handle incoming request message using standardized pattern"""
@@ -274,487 +274,12 @@ class ServiceRequestConsumer:
             if endpoint == "health" or endpoint == "":
                 # Health check endpoint
                 return await self._handle_health_request(method, user_context)
-            elif "locations" in endpoint:
-                return await self._handle_locations_request(method, user_context)
-            elif "geofences" in endpoint:
-                return await self._handle_geofences_request(method, user_context)
-            elif "places" in endpoint:
-                return await self._handle_places_request(method, user_context)
-            elif "tracking" in endpoint:
-                return await self._handle_tracking_request(method, user_context)
-            elif "status" in endpoint or endpoint == "status":
-                return await self._handle_status_request(method, user_context)
-            elif "docs" in endpoint or "openapi" in endpoint:
-                return await self._handle_docs_request(method, user_context)
-            elif "metrics" in endpoint:
-                return await self._handle_metrics_request(method, user_context)
             else:
                 raise ValueError(f"Unknown endpoint: {endpoint}")
                 
         except Exception as e:
             logger.error(f"Error routing request for {endpoint}: {e}")
             raise
-
-    async def _handle_locations_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle locations-related requests by calling route logic"""
-        try:
-            # Check database connectivity first
-            if not self.config or not hasattr(self, 'db_manager'):
-                # Import here to avoid circular imports
-                from repositories.database import db_manager
-                if not db_manager.is_connected():
-                    raise RuntimeError("Database not connected")
-            
-            # Import route handlers and extract their business logic
-            from services.location_service import location_service
-            from schemas.responses import ResponseBuilder
-            
-            # Extract data and endpoint from user_context
-            data = user_context.get("data", {})
-            endpoint = user_context.get("endpoint", "")
-            
-            # Create mock user for service calls
-            current_user = {"user_id": user_context.get("user_id", "system")}
-            
-            # Handle HTTP methods and route to appropriate logic
-            if method == "GET":
-                # Parse endpoint for specific location operations
-                if "vehicle" in endpoint and endpoint.count('/') > 0:
-                    # locations/vehicle/{vehicle_id} pattern
-                    vehicle_id = endpoint.split('/')[-1]
-                    location = await location_service.get_vehicle_location(vehicle_id)
-                    
-                    return ResponseBuilder.success(
-                        data=location.model_dump() if location else None,
-                        message="Vehicle location retrieved successfully"
-                    ).model_dump()
-                    
-                elif "history" in endpoint:
-                    # locations/history with query params
-                    vehicle_id = data.get("vehicle_id")
-                    start_time = data.get("start_time")
-                    end_time = data.get("end_time")
-                    limit = data.get("limit", 100)
-                    
-                    history = await location_service.get_location_history(
-                        vehicle_id, start_time, end_time, limit
-                    )
-                    
-                    return ResponseBuilder.success(
-                        data=[loc.model_dump() for loc in history],
-                        message="Location history retrieved successfully"
-                    ).model_dump()
-                    
-                else:
-                    # Get all active vehicle locations
-                    vehicle_ids = data.get("vehicle_ids", [])
-                    if vehicle_ids:
-                        locations = await location_service.get_multiple_vehicle_locations(vehicle_ids)
-                    else:
-                        locations = await location_service.get_all_vehicle_locations()
-                    
-                    return ResponseBuilder.success(
-                        data=[loc.model_dump() for loc in locations],
-                        message="Vehicle locations retrieved successfully"
-                    ).model_dump()
-                
-            elif method == "POST":
-                if not data:
-                    raise ValueError("Request data is required for POST operation")
-                
-                # Update vehicle location
-                vehicle_id = data.get("vehicle_id")
-                latitude = data.get("latitude")
-                longitude = data.get("longitude")
-                
-                if not all([vehicle_id, latitude, longitude]):
-                    raise ValueError("vehicle_id, latitude, and longitude are required")
-                
-                result = await location_service.update_vehicle_location(
-                    vehicle_id=vehicle_id,
-                    latitude=latitude,
-                    longitude=longitude,
-                    altitude=data.get("altitude"),
-                    speed=data.get("speed"),
-                    heading=data.get("heading"),
-                    accuracy=data.get("accuracy"),
-                    timestamp=data.get("timestamp")
-                )
-                
-                return ResponseBuilder.success(
-                    data=result.model_dump() if result else None,
-                    message="Vehicle location updated successfully"
-                ).model_dump()
-                
-            else:
-                raise ValueError(f"Unsupported HTTP method for locations: {method}")
-                
-        except Exception as e:
-            logger.error(f"Error handling locations request {method} {endpoint}: {e}")
-            return ResponseBuilder.error(
-                error="LocationRequestError",
-                message=f"Failed to process location request: {str(e)}"
-            ).model_dump()
-
-    async def _handle_geofences_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle geofences-related requests by calling route logic"""
-        try:
-            # Check database connectivity first
-            from repositories.database import db_manager
-            if not db_manager.is_connected():
-                raise RuntimeError("Database not connected")
-                
-            # Import route handlers and extract their business logic
-            from services.geofence_service import geofence_service
-            from schemas.responses import ResponseBuilder
-            
-            # Extract data and endpoint from user_context
-            data = user_context.get("data", {})
-            endpoint = user_context.get("endpoint", "")
-            
-            # Create mock user for service calls
-            current_user = {"user_id": user_context.get("user_id", "system")}
-            
-            # Handle HTTP methods and route to appropriate logic
-            if method == "GET":
-                # Parse endpoint for specific geofence operations
-                if endpoint.count('/') > 0 and endpoint.split('/')[-1] and endpoint.split('/')[-1] != "geofences":
-                    # geofences/{id} pattern
-                    geofence_id = endpoint.split('/')[-1]
-                    geofence = await geofence_service.get_geofence_by_id(geofence_id)
-                    
-                    return ResponseBuilder.success(
-                        data=geofence.model_dump() if geofence else None,
-                        message="Geofence retrieved successfully"
-                    ).model_dump()
-                else:
-                    # Get all geofences with optional filters
-                    active_only = data.get("active_only", False)
-                    geofence_type = data.get("type")
-                    pagination = data.get("pagination", {"skip": 0, "limit": 50})
-                    
-                    is_active = active_only if active_only else None
-                    geofences = await geofence_service.get_geofences(
-                        is_active=is_active,
-                        limit=pagination["limit"],
-                        offset=pagination["skip"]
-                    )
-                    
-                    return ResponseBuilder.success(
-                        data=[gf.model_dump() for gf in geofences],
-                        message="Geofences retrieved successfully"
-                    ).model_dump()
-                
-            elif method == "POST":
-                if not data:
-                    raise ValueError("Request data is required for POST operation")
-                
-                # Create geofence
-                created_by = current_user["user_id"]
-                result = await geofence_service.create_geofence(
-                    name=data.get("name"),
-                    description=data.get("description"),
-                    geometry=data.get("geometry"),
-                    geofence_type=data.get("geofence_type", "polygon"),
-                    is_active=data.get("is_active", True),
-                    created_by=created_by,
-                    metadata=data.get("metadata")
-                )
-                
-                return ResponseBuilder.success(
-                    data=result.model_dump() if result else None,
-                    message="Geofence created successfully"
-                ).model_dump()
-                
-            elif method == "PUT":
-                geofence_id = endpoint.split('/')[-1] if '/' in endpoint else None
-                if not geofence_id:
-                    raise ValueError("Geofence ID is required for PUT operation")
-                if not data:
-                    raise ValueError("Request data is required for PUT operation")
-                
-                # Update geofence
-                result = await geofence_service.update_geofence(
-                    geofence_id=geofence_id,
-                    name=data.get("name"),
-                    description=data.get("description"),
-                    geometry=data.get("geometry"),
-                    is_active=data.get("is_active"),
-                    metadata=data.get("metadata")
-                )
-                
-                return ResponseBuilder.success(
-                    data=result.model_dump() if result else None,
-                    message="Geofence updated successfully"
-                ).model_dump()
-                
-            elif method == "DELETE":
-                geofence_id = endpoint.split('/')[-1] if '/' in endpoint else None
-                if not geofence_id:
-                    raise ValueError("Geofence ID is required for DELETE operation")
-                
-                # Delete geofence
-                result = await geofence_service.delete_geofence(geofence_id)
-                
-                return ResponseBuilder.success(
-                    data={"deleted": result, "geofence_id": geofence_id},
-                    message="Geofence deleted successfully"
-                ).model_dump()
-                
-            else:
-                raise ValueError(f"Unsupported HTTP method for geofences: {method}")
-                
-        except Exception as e:
-            logger.error(f"Error handling geofences request {method} {endpoint}: {e}")
-            return ResponseBuilder.error(
-                error="GeofenceRequestError",
-                message=f"Failed to process geofence request: {str(e)}"
-            ).model_dump()
-
-    async def _handle_places_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle places-related requests by calling route logic"""
-        try:
-            # Check database connectivity first
-            from repositories.database import db_manager
-            if not db_manager.is_connected():
-                raise RuntimeError("Database not connected")
-                
-            # Import route handlers and extract their business logic
-            from services.places_service import places_service
-            from schemas.responses import ResponseBuilder
-            
-            # Extract data and endpoint from user_context
-            data = user_context.get("data", {})
-            endpoint = user_context.get("endpoint", "")
-            
-            # Create mock user for service calls
-            current_user = {"user_id": user_context.get("user_id", "system")}
-            
-            # Handle HTTP methods and route to appropriate logic
-            if method == "GET":
-                # Parse endpoint for specific place operations
-                if "search" in endpoint:
-                    # places/search with query
-                    query = data.get("query", "")
-                    place_type = data.get("type")
-                    latitude = data.get("latitude")
-                    longitude = data.get("longitude")
-                    radius = data.get("radius", 1000)  # Default 1km
-                    
-                    if latitude and longitude:
-                        # Search near location
-                        places = await places_service.get_places_near_location(
-                            latitude=latitude,
-                            longitude=longitude,
-                            radius_meters=radius,
-                            place_type=place_type,
-                            limit=50
-                        )
-                    elif query:
-                        # Text search - need user_id context
-                        user_id = user_context.get("user_id", "system")
-                        places = await places_service.search_places(
-                            user_id=user_id,
-                            search_term=query,
-                            limit=50
-                        )
-                    else:
-                        # Get all places
-                        places = await places_service.get_places(
-                            place_type=place_type,
-                            limit=50
-                        )
-                    
-                    return ResponseBuilder.success(
-                        data=[place.model_dump() for place in places],
-                        message="Places search completed successfully"
-                    ).model_dump()
-                    
-                elif endpoint.count('/') > 0 and endpoint.split('/')[-1] and endpoint.split('/')[-1] != "places":
-                    # places/{id} pattern
-                    place_id = endpoint.split('/')[-1]
-                    place = await places_service.get_place_by_id(place_id)
-                    
-                    return ResponseBuilder.success(
-                        data=place.model_dump() if place else None,
-                        message="Place retrieved successfully"
-                    ).model_dump()
-                else:
-                    # Get all places with optional filters
-                    place_type = data.get("type")
-                    pagination = data.get("pagination", {"skip": 0, "limit": 50})
-                    
-                    places = await places_service.get_places(
-                        place_type=place_type,
-                        skip=pagination["skip"],
-                        limit=pagination["limit"]
-                    )
-                    
-                    return ResponseBuilder.success(
-                        data=[place.model_dump() for place in places],
-                        message="Places retrieved successfully"
-                    ).model_dump()
-                
-            elif method == "POST":
-                if not data:
-                    raise ValueError("Request data is required for POST operation")
-                
-                # Create place
-                created_by = current_user["user_id"]
-                user_id = data.get("user_id", created_by)  # Use provided user_id or creator
-                
-                result = await places_service.create_place(
-                    user_id=user_id,
-                    name=data.get("name"),
-                    description=data.get("description"),
-                    latitude=data.get("latitude"),
-                    longitude=data.get("longitude"),
-                    address=data.get("address"),
-                    place_type=data.get("place_type", "custom"),
-                    metadata=data.get("metadata"),
-                    created_by=created_by
-                )
-                
-                return ResponseBuilder.success(
-                    data=result.model_dump() if result else None,
-                    message="Place created successfully"
-                ).model_dump()
-                
-            elif method == "PUT":
-                place_id = endpoint.split('/')[-1] if '/' in endpoint else None
-                if not place_id:
-                    raise ValueError("Place ID is required for PUT operation")
-                if not data:
-                    raise ValueError("Request data is required for PUT operation")
-                
-                # Update place
-                updated_by = current_user["user_id"]
-                user_id = data.get("user_id", updated_by)  # Use provided user_id or updater
-                
-                result = await places_service.update_place(
-                    place_id=place_id,
-                    user_id=user_id,
-                    name=data.get("name"),
-                    description=data.get("description"),
-                    latitude=data.get("latitude"),
-                    longitude=data.get("longitude"),
-                    address=data.get("address"),
-                    place_type=data.get("place_type"),
-                    metadata=data.get("metadata")
-                )
-                
-                return ResponseBuilder.success(
-                    data=result.model_dump() if result else None,
-                    message="Place updated successfully"
-                ).model_dump()
-                
-            elif method == "DELETE":
-                place_id = endpoint.split('/')[-1] if '/' in endpoint else None
-                if not place_id:
-                    raise ValueError("Place ID is required for DELETE operation")
-                
-                # Delete place
-                deleted_by = current_user["user_id"]
-                result = await places_service.delete_place(place_id, deleted_by)
-                
-                return ResponseBuilder.success(
-                    data={"deleted": result, "place_id": place_id},
-                    message="Place deleted successfully"
-                ).model_dump()
-                
-            else:
-                raise ValueError(f"Unsupported HTTP method for places: {method}")
-                
-        except Exception as e:
-            logger.error(f"Error handling places request {method} {endpoint}: {e}")
-            return ResponseBuilder.error(
-                error="PlaceRequestError",
-                message=f"Failed to process place request: {str(e)}"
-            ).model_dump()
-
-    async def _handle_tracking_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle tracking-related requests"""
-        try:
-            # Check database connectivity first
-            from repositories.database import db_manager
-            if not db_manager.is_connected():
-                raise RuntimeError("Database not connected")
-                
-            # Import route handlers and extract their business logic
-            from services.location_service import location_service
-            from schemas.responses import ResponseBuilder
-            
-            # Extract data and endpoint from user_context
-            data = user_context.get("data", {})
-            endpoint = user_context.get("endpoint", "")
-            
-            # Handle HTTP methods and route to appropriate logic
-            if method == "GET":
-                # Parse endpoint for specific tracking operations
-                if "live" in endpoint:
-                    # tracking/live for real-time tracking
-                    vehicle_ids = data.get("vehicle_ids", [])
-                    
-                    if vehicle_ids:
-                        locations = await location_service.get_multiple_vehicle_locations(vehicle_ids)
-                    else:
-                        locations = await location_service.get_all_vehicle_locations()
-                    
-                    return ResponseBuilder.success(
-                        data=[loc.model_dump() for loc in locations],
-                        message="Live tracking data retrieved successfully"
-                    ).model_dump()
-                    
-                elif "route" in endpoint:
-                    # tracking/route for route tracking
-                    vehicle_id = data.get("vehicle_id")
-                    start_time = data.get("start_time")
-                    end_time = data.get("end_time")
-                    
-                    if not vehicle_id:
-                        raise ValueError("Vehicle ID is required for route tracking")
-                    
-                    route = await location_service.get_vehicle_route(
-                        vehicle_id, start_time, end_time
-                    )
-                    
-                    return ResponseBuilder.success(
-                        data=route,
-                        message="Vehicle route retrieved successfully"
-                    ).model_dump()
-                    
-                else:
-                    # Generic tracking status
-                    return ResponseBuilder.success(
-                        data={"tracking_active": True, "service": "gps"},
-                        message="GPS tracking service is operational"
-                    ).model_dump()
-                
-            elif method == "POST":
-                if not data:
-                    raise ValueError("Request data is required for POST operation")
-                
-                # Start/update tracking for vehicle
-                vehicle_id = data.get("vehicle_id")
-                if not vehicle_id:
-                    raise ValueError("Vehicle ID is required to start tracking")
-                
-                result = await location_service.start_vehicle_tracking(vehicle_id)
-                
-                return ResponseBuilder.success(
-                    data=result,
-                    message="Vehicle tracking started successfully"
-                ).model_dump()
-                
-            else:
-                raise ValueError(f"Unsupported HTTP method for tracking: {method}")
-                
-        except Exception as e:
-            logger.error(f"Error handling tracking request {method} {endpoint}: {e}")
-            return ResponseBuilder.error(
-                error="TrackingRequestError",
-                message=f"Failed to process tracking request: {str(e)}"
-            ).model_dump()
 
     async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle health check requests"""
@@ -785,42 +310,6 @@ class ServiceRequestConsumer:
             return ResponseBuilder.error(
                 error="HealthCheckError",
                 message=f"Failed to process health check: {str(e)}"
-            ).model_dump()
-
-    async def _handle_status_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle status requests"""
-        try:
-            from schemas.responses import ResponseBuilder
-            
-            if method == "GET":
-                status_data = {
-                    "status": "operational",
-                    "service": "gps",
-                    "uptime": "unknown",  # Could implement actual uptime tracking
-                    "connections": {
-                        "database": "connected",
-                        "rabbitmq": "connected"
-                    },
-                    "features": [
-                        "location_tracking",
-                        "geofencing", 
-                        "places_management",
-                        "real_time_tracking"
-                    ],
-                    "timestamp": datetime.now().isoformat()
-                }
-                return ResponseBuilder.success(
-                    data=status_data,
-                    message="GPS service status retrieved successfully"
-                ).model_dump()
-            else:
-                raise ValueError(f"Unsupported method for status endpoint: {method}")
-                
-        except Exception as e:
-            logger.error(f"Error handling status request {method}: {e}")
-            return ResponseBuilder.error(
-                error="StatusRequestError",
-                message=f"Failed to process status request: {str(e)}"
             ).model_dump()
 
     async def _handle_docs_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
@@ -867,11 +356,11 @@ class ServiceRequestConsumer:
                         "last_request_time": datetime.now().isoformat(),
                         "tracking_active": True
                     },
-                    "service": "gps"
+                    "service": "trips"
                 }
                 return ResponseBuilder.success(
                     data=metrics_data,
-                    message="GPS service metrics retrieved successfully"
+                    message="Trips service metrics retrieved successfully"
                 ).model_dump()
             else:
                 raise ValueError(f"Unsupported method for metrics endpoint: {method}")
@@ -903,16 +392,16 @@ class ServiceRequestConsumer:
                 content_type="application/json",
                 headers={
                     'timestamp': datetime.utcnow().isoformat(),
-                    'source': 'gps_service'
+                    'source': 'trips_service'
                 }
             )
             
             await self._response_exchange.publish(message, routing_key=self.config.ROUTING_KEYS["core_responses"])
             
-            logger.debug(f"📤 Sent response for correlation_id: {correlation_id}")
+            logger.debug(f"Sent response for correlation_id: {correlation_id}")
             
         except Exception as e:
-            logger.error(f"❌ Error sending response for {correlation_id}: {e}")
+            logger.error(f"Error sending response for {correlation_id}: {e}")
             raise
 
     async def _send_error_response(self, correlation_id: str, error_message: str):
@@ -942,10 +431,10 @@ class ServiceRequestConsumer:
             
             await self._response_exchange.publish(message, routing_key=self.config.ROUTING_KEYS["core_responses"])
             
-            logger.debug(f"📤 Sent error response for correlation_id: {correlation_id}")
+            logger.debug(f"Sent error response for correlation_id: {correlation_id}")
             
         except Exception as e:
-            logger.error(f"❌ Error sending error response for {correlation_id}: {e}")
+            logger.error(f"Error sending error response for {correlation_id}: {e}")
     
     async def _cleanup_old_requests(self):
         """Cleanup old request data to prevent memory leaks"""
@@ -972,10 +461,10 @@ class ServiceRequestConsumer:
                 del self._pending_requests[req_id]
             
             if old_hashes or old_requests:
-                logger.info(f"🧹 Cleaned up {len(old_hashes)} old request hashes and {len(old_requests)} old pending requests")
+                logger.info(f"Cleaned up {len(old_hashes)} old request hashes and {len(old_requests)} old pending requests")
                 
         except Exception as e:
-            logger.error(f"❌ Error during request cleanup: {e}")
+            logger.error(f"Error during request cleanup: {e}")
     
     async def _start_cleanup_task(self):
         """Start periodic cleanup task"""
@@ -984,14 +473,14 @@ class ServiceRequestConsumer:
                 await asyncio.sleep(1800)  # Run every 30 minutes
                 await self._cleanup_old_requests()
             except Exception as e:
-                logger.error(f"❌ Error in cleanup task: {e}")
+                logger.error(f"Error in cleanup task: {e}")
                 await asyncio.sleep(60)  # Wait 1 minute before retrying
     async def stop_consuming(self):
         """Stop consuming messages"""
         self.is_consuming = False
         if self.connection and not self.connection.is_closed:
             await self.connection.close()
-        logger.info("GPS service request consumer stopped")
+        logger.info("Trips service request consumer stopped")
 
 
 # Global service request consumer instance

@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from schemas.requests import AssignDriverRequest, DriverAvailabilityRequest
-from schemas.responses import ResponseBuilder, DriverAvailabilityResponse, AssignmentResponse
+from schemas.responses import ResponseBuilder
 from schemas.entities import Trip
 from services.driver_service import driver_service
 from api.dependencies import get_current_user, validate_trip_access
