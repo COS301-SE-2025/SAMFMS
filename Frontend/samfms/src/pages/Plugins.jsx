@@ -14,6 +14,7 @@ import {
 } from '../backend/api/plugins';
 import {useAuth, ROLES} from '../components/RBACUtils';
 import PluginCard from '../components/PluginCard';
+import PluginTable from '../components/PluginTable';
 
 const userTypes = ['admin', 'fleet_manager', 'driver'];
 
@@ -217,6 +218,9 @@ const Plugins = () => {
             </Button>
           </div>
         </header>
+
+
+        <PluginTable />
 
         {error && (
           <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">

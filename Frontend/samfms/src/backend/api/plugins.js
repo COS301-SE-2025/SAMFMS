@@ -1,6 +1,7 @@
 import { httpClient } from '../services/httpClient';
 import { buildApiUrl } from '../../config/apiConfig';
 import { getToken, fetchWithTimeout } from './auth';
+import { API_ENDPOINTS } from '../../config/apiConfig';
 
 // Plugin API endpoints using centralized configuration
 const PLUGIN_ENDPOINTS = {
@@ -10,6 +11,7 @@ const PLUGIN_ENDPOINTS = {
   stop: pluginId => buildApiUrl(`/plugins/${pluginId}/stop`),
   updateRoles: pluginId => buildApiUrl(`/plugins/${pluginId}/roles`),
   status: pluginId => buildApiUrl(`/plugins/${pluginId}/status`),
+  health_status: API_ENDPOINTS.PLUGINSTATUS.STATUS,
 };
 
 /**
@@ -138,6 +140,39 @@ export const getAllPlugins = async () => {
   } catch (error) {
     console.error('Error fetching all plugins:', error);
     throw error;
+  }
+};
+
+/**
+ * Get plugins with health status
+ */
+export const getPluginsWithStatus = async () => {
+  try {
+    const res = await fetch("http://localhost:21004/health/healthy-services", {
+      headers: { Accept: "application/json" },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Health endpoint failed: ${res.status} ${res.statusText}`);
+    }
+
+    const body = await res.json();
+    const sblocks = body?.sblocks ?? {};
+
+    return Object.entries(sblocks).map(([plugin, value]) => {
+      const statusRaw =
+        value?.data?.data?.status ??
+        value?.data?.status ??
+        value?.status ??
+        "unknown";
+
+      const status = String(statusRaw); 
+
+      return { plugin, status };
+    });
+  } catch (err) {
+    console.error("getPluginsWithStatus:", err);
+    throw err; 
   }
 };
 

@@ -167,6 +167,10 @@ export const API_ENDPOINTS = {
     CREATE: '/api/trips',
   },
 
+  PLUGINSTATUS: {
+    STATUS: '/health/healthy-services',
+  },
+
   // Maintenance
   MAINTENANCE: {
     RECORDS: {
