@@ -15,6 +15,7 @@ from rabbitmq.admin import create_exchange, wait_for_rabbitmq
 from rabbitmq.producer import publish_message
 from rabbitmq.consumer import consume_messages, consume_messages_Direct, consume_messages_Direct_GEOFENCES
 from services.request_router import request_router
+from services.request_deduplicator import request_deduplicator
 from websockets.vehicle_tracking import vehicle_websocket
 
 logger = logging.getLogger(__name__)
@@ -40,6 +41,7 @@ class StartupService:
         await self._test_mongodb_connection()
         await self._initialize_plugin_manager()
         await self._initialize_rabbitmq()
+        await self._initialize_request_deduplicator()
         await self._initialize_request_router()
         
         logger.info("✅ Core service startup completed")
@@ -47,6 +49,9 @@ class StartupService:
     async def shutdown(self):
         """Execute shutdown procedures"""
         logger.info("🛑 Core service shutting down...")
+        
+        # Stop request deduplicator
+        await request_deduplicator.stop()
         
         # Properly shutdown consumer tasks
         for task in self.consumer_tasks:
@@ -124,6 +129,14 @@ class StartupService:
         except Exception as e:
             logger.error(f"❌ Failed to initialize RabbitMQ: {e}")
             # Continue startup - messaging will retry
+    
+    async def _initialize_request_deduplicator(self):
+        """Initialize request deduplicator"""
+        try:
+            await request_deduplicator.start()
+            logger.info("✅ Request deduplicator initialized")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize request deduplicator: {e}")
     
     async def _initialize_request_router(self):
         """Initialize request router and response manager"""

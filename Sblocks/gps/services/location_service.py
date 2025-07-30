@@ -18,6 +18,108 @@ class LocationService:
     
     def __init__(self):
         self.db = db_manager
+
+    def _build_location_doc(self, vehicle_id: str, latitude: float, longitude: float,
+                            altitude: Optional[float], speed: Optional[float],
+                            heading: Optional[float], accuracy: Optional[float],
+                            timestamp: datetime) -> dict:
+        return {
+            "vehicle_id": vehicle_id,
+            "location": {
+                "type": "Point",
+                "coordinates": [longitude, latitude]
+            },
+            "latitude": latitude,
+            "longitude": longitude,
+            "altitude": altitude,
+            "speed": speed,
+            "heading": heading,
+            "accuracy": accuracy,
+            "timestamp": timestamp,
+            "updated_at": datetime.utcnow()
+        }
+    
+    async def delete_vehicle_location(self, vehicle_id: str) -> bool:
+        """Delete a vehicle's current location by vehicle_id."""
+        try:
+            result = await self.db.db.vehicle_locations.delete_one({"vehicle_id": vehicle_id})
+            if result.deleted_count > 0:
+                logger.info(f"Deleted location for vehicle {vehicle_id}")
+                return True
+            else:
+                logger.warning(f"No location found to delete for vehicle {vehicle_id}")
+                return False
+        except Exception as e:
+            logger.error(f"Error deleting vehicle location for {vehicle_id}: {e}")
+            raise
+
+
+    async def create_vehicle_location(
+        self,
+        vehicle_id: str,
+        latitude: float,
+        longitude: float,
+        altitude: Optional[float] = None,
+        speed: Optional[float] = None,
+        heading: Optional[float] = None,
+        accuracy: Optional[float] = None,
+        timestamp: Optional[datetime] = None
+    ) -> VehicleLocation:
+        """Add a vehicle's current location"""
+        try:
+            if not timestamp:
+                timestamp = datetime.utcnow()
+
+            location_data = self._build_location_doc(
+                vehicle_id=vehicle_id,
+                latitude=latitude,
+                longitude=longitude,
+                altitude=altitude,
+                speed=speed,
+                heading=heading,
+                accuracy=accuracy,
+                timestamp=timestamp
+            )
+
+            result = await self.db.db.vehicle_locations.insert_one(location_data)
+            location_data["_id"] = str(result.inserted_id)
+
+            history_data = location_data.copy()
+            history_data["created_at"] = datetime.utcnow()
+            await self.db.db.location_history.insert_one(history_data)
+
+            try:
+                await event_publisher.publish_location_created(
+                    vehicle_id=vehicle_id,
+                    latitude=latitude,
+                    longitude=longitude,
+                    timestamp=timestamp
+                )
+            except Exception as e:
+                logger.warning(f"Failed to publish location created event: {e}")
+
+            logger.info(f"Created new location for vehicle {vehicle_id}")
+            return VehicleLocation(**location_data)
+
+
+        except Exception as e:
+            logger.info(f"Error creating vehicle: {e}")
+            raise
+            
+    
+    async def get_all_vehicle_locations(self) -> List[VehicleLocation]:
+        """Fetch all current vehicle locations."""
+        try:
+            cursor = self.db.db.vehicle_locations.find({})
+            locations = []
+            async for doc in cursor:
+                doc["_id"] = str(doc["_id"])  # Convert ObjectId to string for API response
+                locations.append(VehicleLocation(**doc))
+            return locations
+        except Exception as e:
+            logger.error(f"Error fetching all vehicle locations: {e}")
+            raise
+
         
     async def update_vehicle_location(
         self, 

@@ -106,8 +106,9 @@ const Vehicles = () => {
           params.make_filter = filters.make;
         }
         const response = await getVehicles(params);
-        const vehiclesArray = response.vehicles || response || [];
-        const transformedVehicles = vehiclesArray
+        const vehiclesData =
+          response.data?.data?.vehicles || response.vehicles || response.data?.vehicles || [];
+        const transformedVehicles = vehiclesData
           .map(transformVehicleData)
           .filter(vehicle => vehicle !== null);
         setVehicles(transformedVehicles);

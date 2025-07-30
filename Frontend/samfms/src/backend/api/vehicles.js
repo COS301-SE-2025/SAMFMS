@@ -22,7 +22,10 @@ const VEHICLE_ENDPOINTS = {
  */
 export const createVehicle = async vehicleData => {
   try {
-    return await httpClient.post(VEHICLE_ENDPOINTS.create, vehicleData);
+    console.log('Creating vehicle with data:', vehicleData); // Debug log
+    const response = await httpClient.post(VEHICLE_ENDPOINTS.create, vehicleData);
+    console.log('Create vehicle response:', response); // Debug log
+    return response;
   } catch (error) {
     console.error('Error creating vehicle:', error);
     throw error;

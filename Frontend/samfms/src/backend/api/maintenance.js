@@ -190,6 +190,8 @@ export const maintenanceAPI = {
     validateRequiredFields(scheduleData, [
       'vehicle_id',
       'maintenance_type',
+      'title',
+      'scheduled_date',
       'interval_type',
       'interval_value',
     ]);

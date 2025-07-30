@@ -129,6 +129,19 @@ class LicenseService:
             logger.error(f"Error fetching licenses by type {license_type}: {e}")
             raise
             
+    async def get_all_licenses(self, skip: int = 0, limit: int = 100) -> List[Dict[str, Any]]:
+        """Get all licenses with pagination"""
+        try:
+            return await self.repository.find(
+                query={"is_active": True},
+                skip=skip,
+                limit=limit,
+                sort=[("expiry_date", 1)]
+            )
+        except Exception as e:
+            logger.error(f"Error fetching all licenses: {e}")
+            raise
+            
     async def renew_license(self, record_id: str, new_expiry_date: str, 
                            renewal_cost: Optional[float] = None) -> Optional[Dict[str, Any]]:
         """Renew a license"""

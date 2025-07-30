@@ -113,16 +113,21 @@ export const API_ENDPOINTS = {
     UPDATE: id => `/management/vehicles/${id}`,
     DELETE: id => `/management/vehicles/${id}`,
     SEARCH: query => `/management/vehicles/search/${query}`,
+    ASSIGNMENTS: id => `/management/vehicles/${id}/assignments`,
+    USAGE: id => `/management/vehicles/${id}/usage`,
   },
 
   // Driver Management
   DRIVERS: {
-    LIST: '/management/vehicles/drivers',
-    CREATE: '/management/vehicles/drivers',
-    GET: id => `/management/vehicles/drivers/${id}`,
-    UPDATE: id => `/management/vehicles/drivers/${id}`,
-    DELETE: id => `/management/vehicles/drivers/${id}`,
-    SEARCH: query => `/management/vehicles/drivers/search/${query}`,
+    LIST: '/management/drivers',
+    CREATE: '/management/drivers',
+    GET: id => `/management/drivers/${id}`,
+    UPDATE: id => `/management/drivers/${id}`,
+    DELETE: id => `/management/drivers/${id}`,
+    SEARCH: query => `/management/drivers/search/${query}`,
+    ACTIVATE: id => `/management/${id}/activate`,
+    ASSIGN: id => `/management/${id}/assign-vehicle`,
+    ASSIGN: id => `/management/${id}/unassign-vehicle`,
   },
 
   // Vehicle Assignments
@@ -135,50 +140,61 @@ export const API_ENDPOINTS = {
     CANCEL: id => `/api/assignments/${id}/cancel`,
   },
 
-  // GPS and Tracking
-  GPS: {
-    LOCATIONS: '/api/gps/locations',
-    CREATE_LOCATION: '/api/gps/locations',
+  LOCATIONS: {
+    LIST: '/gps/locations',
+    GET: id => `/gps/locations/${id}`,
+    CREATE: '/gps/locations',
+    UPDATE: '/gps/locations/update',
+    DELETE: id=> `/gps/locations/${id}`
+  },
+
+  GEOFENCES: {
+    LIST: '/gps/geofences',
+    CREATE: '/gps/geofences',
+    UPDATE: id => `/gps/geofences/${id}`,
+    DELETE: id => `/gps/geofences/${id}`
   },
 
   // Trip Planning
   TRIPS: {
-    LIST: '/api/trips',
-    CREATE: '/api/trips',
+    LIST: '/trips/trips',
+    CREATE: '/trips/trips/create',
+    UPDATE: id =>  `/trips/trips/${id}`,
+    DELETE: id => `/trips/trips/${id}`
   },
 
   // Maintenance
   MAINTENANCE: {
     RECORDS: {
-      LIST: '/api/maintenance/records',
-      CREATE: '/api/maintenance/records',
-      GET: id => `/api/maintenance/records/${id}`,
-      UPDATE: id => `/api/maintenance/records/${id}`,
-      DELETE: id => `/api/maintenance/records/${id}`,
-      BY_VEHICLE: vehicleId => `/api/maintenance/records/vehicle/${vehicleId}`,
-      OVERDUE: '/api/maintenance/records/overdue',
+      LIST: '/maintenance/records',
+      CREATE: '/maintenance/records',
+      GET: id => `/maintenance/records/${id}`,
+      UPDATE: id => `/maintenance/records/${id}`,
+      DELETE: id => `/maintenance/records/${id}`,
+      BY_VEHICLE: vehicleId => `/maintenance/records/vehicle/${vehicleId}`,
+      OVERDUE: '/maintenance/records/overdue',
     },
     SCHEDULES: {
-      LIST: '/api/maintenance/schedules',
-      CREATE: '/api/maintenance/schedules',
-      GET: id => `/api/maintenance/schedules/${id}`,
-      UPDATE: id => `/api/maintenance/schedules/${id}`,
-      DELETE: id => `/api/maintenance/schedules/${id}`,
+      LIST: '/maintenance/schedules',
+      CREATE: '/maintenance/schedules',
+      GET: id => `/maintenance/schedules/${id}`,
+      UPDATE: id => `/maintenance/schedules/${id}`,
+      DELETE: id => `/maintenance/schedules/${id}`,
     },
     LICENSES: {
-      LIST: '/api/maintenance/licenses',
-      CREATE: '/api/maintenance/licenses',
-      GET: id => `/api/maintenance/licenses/${id}`,
-      UPDATE: id => `/api/maintenance/licenses/${id}`,
-      DELETE: id => `/api/maintenance/licenses/${id}`,
-      EXPIRING: '/api/maintenance/licenses/expiring',
+      LIST: '/maintenance/licenses',
+      CREATE: '/maintenance/licenses',
+      GET: id => `/maintenance/licenses/${id}`,
+      UPDATE: id => `/maintenance/licenses/${id}`,
+      DELETE: id => `/maintenance/licenses/${id}`,
+      EXPIRING: '/maintenance/licenses/expiring',
     },
     VENDORS: {
-      LIST: '/api/maintenance/vendors',
-      CREATE: '/api/maintenance/vendors',
-      GET: id => `/api/maintenance/vendors/${id}`,
-      UPDATE: id => `/api/maintenance/vendors/${id}`,
-      DELETE: id => `/api/maintenance/vendors/${id}`,
+      LIST: '/maintenance/vendors',
+      CREATE: '/maintenance/vendors',
+      GET: id => `/maintenance/vendors/${id}`,
+      UPDATE: id => `/maintenance/vendors/${id}`,
+      DELETE: id => `/maintenance/vendors/${id}`,
     },
     ANALYTICS: {
       DASHBOARD: '/maintenance/analytics/dashboard',
@@ -186,9 +202,9 @@ export const API_ENDPOINTS = {
       OVERVIEW: '/maintenance/analytics',
     },
     NOTIFICATIONS: {
-      LIST: '/api/maintenance/notifications',
-      MARK_READ: id => `/api/maintenance/notifications/${id}/read`,
-      DELETE: id => `/api/maintenance/notifications/${id}`,
+      LIST: '/maintenance/notifications',
+      MARK_READ: id => `/maintenance/notifications/${id}/read`,
+      DELETE: id => `/maintenance/notifications/${id}`,
     },
   },
 
@@ -205,7 +221,7 @@ export const API_ENDPOINTS = {
     // INCIDENTS: '/management/analytics/incidents',
     // DEPARTMENT_LOCATION: '/management/analytics/department-location',
     REFRESH: '/management/analytics/refresh',
-    DELETE: '/management/analytics/delete'
+    DELETE: '/management/analytics/delete',
   },
 
   // WebSocket

@@ -168,6 +168,7 @@ class ServiceRequestConsumer:
             async with message.process(requeue=False):
                 # Parse message body
                 request_data = json.loads(message.body.decode())
+                logger.info(f"REQUEST_DATA: {request_data}")
                 
                 # Extract request details
                 request_id = request_data.get("correlation_id")
@@ -177,41 +178,18 @@ class ServiceRequestConsumer:
                 
                 # Extract data from top-level and add to user_context for handlers
                 data = request_data.get("data", {})
+                logger.info(f"Message data: {data}")
                 user_context["data"] = data
                 
-                # Enhanced duplicate request checking
-                import hashlib
-                import json as json_module
-                
-                # Create content hash for deduplication
-                content_for_hash = {
-                    "method": method,
-                    "endpoint": endpoint,
-                    "data": data,
-                    "user_context": {k: v for k, v in user_context.items() if k != "data"}
-                }
-                content_hash = hashlib.md5(
-                    json_module.dumps(content_for_hash, sort_keys=True).encode()
-                ).hexdigest()
-                
-                # Check for duplicate requests by correlation_id or content hash
+                # Check for duplicate requests by correlation_id
                 current_time = datetime.now().timestamp()
                 if request_id in self.processed_requests:
                     request_age = current_time - self.processed_requests[request_id]
                     if request_age < 300:  # 5 minutes
                         logger.warning(f"Duplicate request ignored (correlation_id): {request_id}")
                         return
-                
-                if content_hash in self.request_content_hashes:
-                    existing_correlation_id = self.request_content_hashes[content_hash]
-                    if existing_correlation_id in self.processed_requests:
-                        request_age = current_time - self.processed_requests[existing_correlation_id]
-                        if request_age < 60:  # 1 minute for content-based deduplication
-                            logger.warning(f"Duplicate request ignored (content hash): {request_id}")
-                            return
                     
                 self.processed_requests[request_id] = current_time
-                self.request_content_hashes[content_hash] = request_id
                 
                 logger.debug(f"Processing request {request_id}: {method} {endpoint}")
                 
@@ -313,13 +291,17 @@ class ServiceRequestConsumer:
             data = user_context.get("data", {})
             endpoint = user_context.get("endpoint", "")
             
-            # Create mock user for service calls
-            current_user = {"user_id": user_context.get("user_id", "system")}
-            
             # Handle HTTP methods and route to appropriate logic
             if method == "GET":
                 # Parse endpoint for specific location operations
-                if "vehicle" in endpoint and endpoint.count('/') > 0:
+                if "locations" in endpoint:
+                    locations = await location_service.get_all_vehicle_locations()
+                    return ResponseBuilder.success(
+                        data=[loc.model_dump() for loc in locations] if locations else None,
+                        message="Vehicle locations retrieved successfully"
+                    ).model_dump()
+                
+                elif "vehicle" in endpoint and endpoint.count('/') > 0:
                     # locations/vehicle/{vehicle_id} pattern
                     vehicle_id = endpoint.split('/')[-1]
                     location = await location_service.get_vehicle_location(vehicle_id)
@@ -362,7 +344,6 @@ class ServiceRequestConsumer:
                 if not data:
                     raise ValueError("Request data is required for POST operation")
                 
-                # Update vehicle location
                 vehicle_id = data.get("vehicle_id")
                 latitude = data.get("latitude")
                 longitude = data.get("longitude")
@@ -370,24 +351,50 @@ class ServiceRequestConsumer:
                 if not all([vehicle_id, latitude, longitude]):
                     raise ValueError("vehicle_id, latitude, and longitude are required")
                 
-                result = await location_service.update_vehicle_location(
-                    vehicle_id=vehicle_id,
-                    latitude=latitude,
-                    longitude=longitude,
-                    altitude=data.get("altitude"),
-                    speed=data.get("speed"),
-                    heading=data.get("heading"),
-                    accuracy=data.get("accuracy"),
-                    timestamp=data.get("timestamp")
-                )
+                # Use update when endpoint includes "update"
+                if "update" in endpoint:
+                    result = await location_service.update_vehicle_location(
+                        vehicle_id=vehicle_id,
+                        latitude=latitude,
+                        longitude=longitude,
+                        altitude=data.get("altitude"),
+                        speed=data.get("speed"),
+                        heading=data.get("heading"),
+                        accuracy=data.get("accuracy"),
+                        timestamp=data.get("timestamp")
+                    )
+                    message = "Vehicle location updated successfully"
+                else:
+                    result = await location_service.create_vehicle_location(
+                        vehicle_id=vehicle_id,
+                        latitude=latitude,
+                        longitude=longitude,
+                        altitude=data.get("altitude"),
+                        speed=data.get("speed"),
+                        heading=data.get("heading"),
+                        accuracy=data.get("accuracy"),
+                        timestamp=data.get("timestamp")
+                    )
+                    message = "Vehicle location created successfully"
                 
                 return ResponseBuilder.success(
                     data=result.model_dump() if result else None,
-                    message="Vehicle location updated successfully"
+                    message=message
                 ).model_dump()
+            
+            elif method == "DELETE":
+                vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not vehicle_id:
+                    raise ValueError("Vehicle ID is required for DELETE operation")
                 
-            else:
-                raise ValueError(f"Unsupported HTTP method for locations: {method}")
+                # Delete geofence
+                result = await location_service.delete_vehicle_location(vehicle_id)
+                
+                return ResponseBuilder.success(
+                    data={"deleted": result, "vehicle_id": vehicle_id},
+                    message="Vehicle location deleted successfully"
+                ).model_dump()
+
                 
         except Exception as e:
             logger.error(f"Error handling locations request {method} {endpoint}: {e}")
@@ -397,7 +404,7 @@ class ServiceRequestConsumer:
             ).model_dump()
 
     async def _handle_geofences_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle geofences-related requests by calling route logic"""
+        """Handle geofences-related requests using unified data format with Pydantic V2"""
         try:
             # Check database connectivity first
             from repositories.database import db_manager
@@ -407,9 +414,13 @@ class ServiceRequestConsumer:
             # Import route handlers and extract their business logic
             from services.geofence_service import geofence_service
             from schemas.responses import ResponseBuilder
+
+            if isinstance(user_context, str):
+                user_context = json.loads(user_context)
             
             # Extract data and endpoint from user_context
             data = user_context.get("data", {})
+            logger.info(f"Data in user_context: {data}")
             endpoint = user_context.get("endpoint", "")
             
             # Create mock user for service calls
@@ -423,10 +434,16 @@ class ServiceRequestConsumer:
                     geofence_id = endpoint.split('/')[-1]
                     geofence = await geofence_service.get_geofence_by_id(geofence_id)
                     
-                    return ResponseBuilder.success(
-                        data=geofence.model_dump() if geofence else None,
-                        message="Geofence retrieved successfully"
-                    ).model_dump()
+                    if geofence:
+                        return ResponseBuilder.success(
+                            data=geofence.model_dump(),  # Pydantic V2 syntax
+                            message="Geofence retrieved successfully"
+                        ).model_dump()  # Pydantic V2 syntax
+                    else:
+                        return ResponseBuilder.success(
+                            data=None,
+                            message="Geofence not found"
+                        ).model_dump()
                 else:
                     # Get all geofences with optional filters
                     active_only = data.get("active_only", False)
@@ -436,12 +453,16 @@ class ServiceRequestConsumer:
                     is_active = active_only if active_only else None
                     geofences = await geofence_service.get_geofences(
                         is_active=is_active,
+                        geofence_type=geofence_type,
                         limit=pagination["limit"],
                         offset=pagination["skip"]
                     )
                     
+                    # Return geofences in unified format using Pydantic V2
+                    geofences_data = [gf.model_dump() for gf in geofences]
+                    
                     return ResponseBuilder.success(
-                        data=[gf.model_dump() for gf in geofences],
+                        data=geofences_data,
                         message="Geofences retrieved successfully"
                     ).model_dump()
                 
@@ -449,22 +470,30 @@ class ServiceRequestConsumer:
                 if not data:
                     raise ValueError("Request data is required for POST operation")
                 
-                # Create geofence
-                created_by = current_user["user_id"]
+                logger.info(f"Creating geofence with unified format data: {data}")
+                
+                # Validate required fields
+                required_fields = ['name', 'geometry']
+                for field in required_fields:
+                    if field not in data:
+                        raise ValueError(f"'{field}' is required")
+                
+                # Create geofence using simplified format
                 result = await geofence_service.create_geofence(
                     name=data.get("name"),
                     description=data.get("description"),
-                    geometry=data.get("geometry"),
-                    geofence_type=data.get("geofence_type", "polygon"),
-                    is_active=data.get("is_active", True),
-                    created_by=created_by,
-                    metadata=data.get("metadata")
+                    type=data.get("type", "depot"),
+                    status=data.get("status", "active"),
+                    geometry=data.get("geometry")
                 )
                 
-                return ResponseBuilder.success(
-                    data=result.model_dump() if result else None,
-                    message="Geofence created successfully"
-                ).model_dump()
+                if result:
+                    return ResponseBuilder.success(
+                        data=result.model_dump(),  # Pydantic V2 syntax
+                        message="Geofence created successfully"
+                    ).model_dump()
+                else:
+                    raise ValueError("Failed to create geofence")
                 
             elif method == "PUT":
                 geofence_id = endpoint.split('/')[-1] if '/' in endpoint else None
@@ -473,20 +502,23 @@ class ServiceRequestConsumer:
                 if not data:
                     raise ValueError("Request data is required for PUT operation")
                 
-                # Update geofence
+                # Update geofence using unified format
                 result = await geofence_service.update_geofence(
                     geofence_id=geofence_id,
                     name=data.get("name"),
                     description=data.get("description"),
                     geometry=data.get("geometry"),
-                    is_active=data.get("is_active"),
+                    status=data.get("status"),
                     metadata=data.get("metadata")
                 )
                 
-                return ResponseBuilder.success(
-                    data=result.model_dump() if result else None,
-                    message="Geofence updated successfully"
-                ).model_dump()
+                if result:
+                    return ResponseBuilder.success(
+                        data=result.model_dump(),  # Pydantic V2 syntax
+                        message="Geofence updated successfully"
+                    ).model_dump()
+                else:
+                    raise ValueError("Failed to update geofence")
                 
             elif method == "DELETE":
                 geofence_id = endpoint.split('/')[-1] if '/' in endpoint else None
@@ -506,6 +538,7 @@ class ServiceRequestConsumer:
                 
         except Exception as e:
             logger.error(f"Error handling geofences request {method} {endpoint}: {e}")
+            logger.exception("Full error traceback:")
             return ResponseBuilder.error(
                 error="GeofenceRequestError",
                 message=f"Failed to process geofence request: {str(e)}"
