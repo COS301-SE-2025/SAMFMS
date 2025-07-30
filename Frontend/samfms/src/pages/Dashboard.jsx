@@ -37,7 +37,7 @@ const Dashboard = () => {
         const response = await getVehicles();
 
 
-        setTotalVehicles(response.data.data.vehicles.length);
+        setTotalVehicles(response.data.data.vehicles.length || 0);
         //setLoadingVehicles
         //setLoadingAnalytics
         //setAnalytics
