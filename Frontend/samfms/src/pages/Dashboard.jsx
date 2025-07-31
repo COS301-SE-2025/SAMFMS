@@ -10,6 +10,7 @@ import StatusBreakdownPieChart from '../components/analytics/StatusBreakdownPieC
 import AssignmentMetricsCard from '../components/analytics/AssignmentMetricsCard';
 import { getStatusBreakdown } from '../backend/api/analytics';
 import { getVehicles } from '../backend/api/vehicles';
+import { getDrivers } from '../backend/api/drivers';
 
 // Mock data for the dashboard
 const mockData = {
@@ -33,7 +34,6 @@ const Dashboard = () => {
     const fetchTotalVehicles = async () => {
       try {
         setLoadingVehicles(true);
-        setLoadingAnalytics(true);
         const response = await getVehicles();
 
 
@@ -54,6 +54,19 @@ const Dashboard = () => {
       }
     };
 
+    const fetchLoadingAnalytics = async () => {
+      try {
+        setLoadingAnalytics(true);
+        const response = await getDrivers();
+        console.log('================');
+        console.log(response.length);
+        console.log('================');
+        setLoadingAnalytics(response.length || {});
+      } catch (error) {
+        console.error('Error fetching available drivers:', error);
+      }
+    };
+
     const fetchStatusBreakdown = async () => {
       try {
         const response = await getVehicles();
@@ -62,6 +75,7 @@ const Dashboard = () => {
         console.error('Error fetching status breakdown:', error);
       }
     };
+
 
     const fetchAssignmentMetrics = async () => {
       try {
@@ -78,6 +92,7 @@ const Dashboard = () => {
 
     fetchTotalVehicles();
     fetchStatusBreakdown();
+    fetchLoadingAnalytics();
     fetchAssignmentMetrics();
   }, []);
 
