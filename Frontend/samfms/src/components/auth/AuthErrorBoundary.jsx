@@ -41,7 +41,7 @@ class AuthErrorBoundary extends React.Component {
 
   handleLogout = async () => {
     try {
-      const { logout } = await import('../backend/api/auth');
+      const { logout } = await import('../../backend/api/auth');
       await logout();
       window.location.href = '/login';
     } catch (error) {

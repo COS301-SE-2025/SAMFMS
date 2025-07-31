@@ -15,8 +15,6 @@ import {
 import { useAuth, ROLES } from '../components/auth/RBACUtils';
 import PluginCard from '../components/plugins/PluginCard';
 
-const userTypes = ['admin', 'fleet_manager', 'driver'];
-
 const Plugins = () => {
   const { hasRole } = useAuth();
   const [plugins, setPlugins] = useState([]);

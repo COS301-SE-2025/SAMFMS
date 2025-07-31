@@ -12,11 +12,11 @@ const Layout = () => {
     const initializeAuth = async () => {
       try {
         // Start session monitoring
-        const { startSessionMonitoring } = await import('../utils/sessionMonitor');
+        const { startSessionMonitoring } = await import('../../utils/sessionMonitor');
         startSessionMonitoring();
 
         // Start token refresh
-        const { startTokenRefresh } = await import('../utils/tokenManager');
+        const { startTokenRefresh } = await import('../../utils/tokenManager');
         startTokenRefresh();
 
         console.log('Authentication monitoring initialized');
@@ -29,13 +29,13 @@ const Layout = () => {
 
     // Cleanup on unmount
     return () => {
-      import('../utils/sessionMonitor')
+      import('../../utils/sessionMonitor')
         .then(({ stopSessionMonitoring }) => {
           stopSessionMonitoring();
         })
         .catch(console.error);
 
-      import('../utils/tokenManager')
+      import('../../utils/tokenManager')
         .then(({ stopTokenRefresh }) => {
           stopTokenRefresh();
         })
@@ -47,7 +47,7 @@ const Layout = () => {
   useEffect(() => {
     const trackPage = async () => {
       try {
-        const { trackPageView } = await import('../utils/sessionMonitor');
+        const { trackPageView } = await import('../../utils/sessionMonitor');
         trackPageView(location.pathname);
       } catch (error) {
         console.error('Failed to track page view:', error);

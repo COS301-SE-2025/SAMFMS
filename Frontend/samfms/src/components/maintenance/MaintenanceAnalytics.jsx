@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { maintenanceAPI } from '../backend/api/maintenance';
+import React, { useState, useEffect, useCallback } from 'react';
+import { maintenanceAPI } from '../../backend/api/maintenance';
 
 const MaintenanceAnalytics = ({ vehicles }) => {
   const [analyticsData, setAnalyticsData] = useState(null);
@@ -13,11 +13,7 @@ const MaintenanceAnalytics = ({ vehicles }) => {
     endDate: '',
   });
 
-  useEffect(() => {
-    loadAnalytics();
-  }, [filters]);
-
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -42,7 +38,11 @@ const MaintenanceAnalytics = ({ vehicles }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters.vehicleId, filters.period, filters.startDate, filters.endDate]);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [loadAnalytics]);
 
   const getVehicleName = vehicleId => {
     const vehicle = vehicles.find(v => v.id === vehicleId);

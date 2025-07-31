@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Button } from './ui/button';
-import { useAuth, ROLES } from './RBACUtils';
+import { Button } from '../ui/button';
+import { useAuth, ROLES } from '../auth/RBACUtils';
 
 const ManualCreateUserModal = ({
   isOpen,

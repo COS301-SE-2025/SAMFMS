@@ -1,36 +1,31 @@
-import React, {useState} from 'react';
-import {Button} from './ui/button';
+import React, { useState } from 'react';
+import { Button } from '../ui/button';
 
 const userTypes = ['admin', 'fleet_manager', 'driver'];
 
-const PluginCard = ({
-  plugin,
-  onAccessToggle,
-  onEnabledToggle,
-  isLoading
-}) => {
+const PluginCard = ({ plugin, onAccessToggle, onEnabledToggle, isLoading }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Map status to display values
   const getStatusDisplay = status => {
     switch (status) {
       case 'ACTIVE':
-        return {text: 'Active', color: 'text-green-500'};
+        return { text: 'Active', color: 'text-green-500' };
       case 'INACTIVE':
-        return {text: 'Inactive', color: 'text-gray-500'};
+        return { text: 'Inactive', color: 'text-gray-500' };
       case 'STARTING':
-        return {text: 'Starting...', color: 'text-yellow-500'};
+        return { text: 'Starting...', color: 'text-yellow-500' };
       case 'STOPPING':
-        return {text: 'Stopping...', color: 'text-orange-500'};
+        return { text: 'Stopping...', color: 'text-orange-500' };
       case 'ERROR':
-        return {text: 'Error', color: 'text-red-500'};
+        return { text: 'Error', color: 'text-red-500' };
       default:
-        return {text: 'Unknown', color: 'text-gray-500'};
+        return { text: 'Unknown', color: 'text-gray-500' };
     }
   };
 
   const statusDisplay = getStatusDisplay(plugin.status.toUpperCase());
-  const isEnabled = plugin.status === 'ACTIVE';
+  // const isEnabled = plugin.status === 'ACTIVE'; // Commented out as unused
 
   // Convert role names for display
   const formatRoleName = role => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { maintenanceAPI } from '../backend/api/maintenance';
+import { maintenanceAPI } from '../../backend/api/maintenance';
 
 const MaintenanceDashboard = ({ vehicles }) => {
   const [dashboardData, setDashboardData] = useState(null);

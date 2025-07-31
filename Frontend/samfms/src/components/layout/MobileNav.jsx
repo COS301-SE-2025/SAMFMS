@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { Menu, X, Home, User, Package2, Car, Users, Map, Navigation, Wrench } from 'lucide-react';
-import { Button } from './ui/button';
-import { cn } from '.../../lib/utils';
+import { Button } from '../ui/button';
+import { cn } from '../../lib/utils';
 
 const MobileNav = () => {
   const [isOpen, setIsOpen] = useState(false);

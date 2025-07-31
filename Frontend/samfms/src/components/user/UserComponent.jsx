@@ -1,8 +1,8 @@
-import React, {useState, useEffect} from 'react';
-import {Button} from './ui/button';
-import {LogOut, User} from 'lucide-react';
-import {Link, useNavigate} from 'react-router-dom';
-import {getCurrentUser, logout} from '../backend/API.js';
+import React, { useState, useEffect } from 'react';
+import { Button } from '../ui/button';
+import { LogOut, User } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { getCurrentUser, logout } from '../../backend/API.js';
 
 const UserComponent = () => {
   const navigate = useNavigate();

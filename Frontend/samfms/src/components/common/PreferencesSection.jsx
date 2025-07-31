@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import PreferenceCard from './PreferenceCard';
 import ToggleSwitch from './ToggleSwitch';
-import { Button } from './ui/button';
-import { updatePreferences, getCurrentUser } from '../backend/api/auth';
-import { useTheme } from '../contexts/ThemeContext';
-import { useNotification } from '../contexts/NotificationContext';
+import { Button } from '../ui/button';
+import { updatePreferences, getCurrentUser } from '../../backend/api/auth';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useNotification } from '../../contexts/NotificationContext';
 
 // Icon components
 const ThemeIcon = () => (

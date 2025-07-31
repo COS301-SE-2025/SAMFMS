@@ -1,6 +1,6 @@
-import React, {useState, useEffect} from 'react';
-import {Button} from './ui/button';
-import {Plus, Search, ChevronUp, ChevronDown} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Button } from '../ui/button';
+import { Plus, Search, ChevronUp, ChevronDown } from 'lucide-react';
 
 const UserTable = ({
   title,
@@ -12,7 +12,7 @@ const UserTable = ({
   actions = [],
   search = '',
   setSearch,
-  sort = {field: 'full_name', direction: 'asc'},
+  sort = { field: 'full_name', direction: 'asc' },
   onSortChange,
   onAddUser,
   showAddButton = false,
@@ -66,9 +66,10 @@ const UserTable = ({
     }
     const lowerQuery = query.toLowerCase();
     setFilteredUsers(
-      users.filter(user =>
-        (user.full_name && user.full_name.toLowerCase().includes(lowerQuery)) ||
-        (user.email && user.email.toLowerCase().includes(lowerQuery))
+      users.filter(
+        user =>
+          (user.full_name && user.full_name.toLowerCase().includes(lowerQuery)) ||
+          (user.email && user.email.toLowerCase().includes(lowerQuery))
       )
     );
   };
@@ -111,30 +112,34 @@ const UserTable = ({
           <thead className="bg-muted/50">
             <tr>
               <th
-                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                  }`}
+                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
+                  onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
+                }`}
                 onClick={() => handleHeaderClick('full_name')}
               >
                 Name {getSortIcon('full_name')}
               </th>
               <th
-                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                  }`}
+                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
+                  onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
+                }`}
                 onClick={() => handleHeaderClick('email')}
               >
                 Email {getSortIcon('email')}
               </th>
               <th
-                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                  }`}
+                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
+                  onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
+                }`}
                 onClick={() => handleHeaderClick('phoneNo')}
               >
                 Phone {getSortIcon('phoneNo')}
               </th>
               {showRole && (
                 <th
-                  className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                    }`}
+                  className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
+                    onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
+                  }`}
                   onClick={() => handleHeaderClick('role')}
                 >
                   Role {getSortIcon('role')}
@@ -144,7 +149,7 @@ const UserTable = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {users.length === 0 ? (
+            {filteredUsers.length === 0 ? (
               <tr>
                 <td
                   colSpan={
@@ -156,7 +161,7 @@ const UserTable = ({
                 </td>
               </tr>
             ) : (
-              users.map(user => (
+              filteredUsers.map(user => (
                 <tr key={user.id || user.email} className="hover:bg-muted/30">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-foreground">

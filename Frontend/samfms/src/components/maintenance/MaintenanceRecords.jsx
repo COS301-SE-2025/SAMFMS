@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { maintenanceAPI } from '../backend/api/maintenance';
+import { maintenanceAPI } from '../../backend/api/maintenance';
 
 const MaintenanceRecords = ({ vehicles }) => {
   const [records, setRecords] = useState([]);
@@ -58,7 +58,7 @@ const MaintenanceRecords = ({ vehicles }) => {
 
   useEffect(() => {
     loadRecords();
-  }, [filters]);
+  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadRecords = async () => {
     try {

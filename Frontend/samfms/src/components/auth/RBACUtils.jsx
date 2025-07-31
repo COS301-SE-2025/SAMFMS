@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { hasPermission, hasRole, hasAnyRole, getCurrentUser } from '../backend/API.js';
+import { hasPermission, hasRole, hasAnyRole, getCurrentUser } from '../../backend/API.js';
 
 // HOC for permission-based rendering
 export const withPermission = permission => Component => {

@@ -26,7 +26,6 @@ const getApiConfig = () => {
     if (typeof window !== 'undefined') {
       const protocol = window.location.protocol;
       const host = window.location.hostname;
-      const port = window.location.port;
 
       // For production/staging with HTTPS - use nginx proxy path
       if (protocol === 'https:') {
@@ -127,7 +126,6 @@ export const API_ENDPOINTS = {
     SEARCH: query => `/management/drivers/search/${query}`,
     ACTIVATE: id => `/management/${id}/activate`,
     ASSIGN: id => `/management/${id}/assign-vehicle`,
-    ASSIGN: id => `/management/${id}/unassign-vehicle`,
   },
 
   // Vehicle Assignments

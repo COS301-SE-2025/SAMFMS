@@ -1,26 +1,24 @@
-import React, {useState, useEffect, useRef} from 'react';
-import {Button} from './ui/button';
-import {useAuth, ROLES} from './RBACUtils';
+import React, { useState, useEffect, useRef } from 'react';
+import { Button } from '../ui/button';
+import { useAuth, ROLES } from '../auth/RBACUtils';
 import {
   listUsers,
   updateUserPermissions,
   getRoles,
   isAuthenticated,
-  sendInvitation,
   getPendingInvitations,
   resendInvitation,
   createUserManually,
   getDrivers,
-} from '../backend/API.js';
-import {Navigate} from 'react-router-dom';
-import {useNotification} from '../contexts/NotificationContext';
+} from '../../backend/API.js';
+import { Navigate } from 'react-router-dom';
+import { useNotification } from '../../contexts/NotificationContext';
 import UserTable from './UserTable';
-import InviteUserModal from './InviteUserModal';
 import ManualCreateUserModal from './ManualCreateUserModal';
 
 const UserManagement = () => {
-  const {hasPermission, hasRole} = useAuth();
-  const {showNotification} = useNotification();
+  const { hasPermission, hasRole } = useAuth();
+  const { showNotification } = useNotification();
   const [adminUsers, setAdminUsers] = useState([]);
   const [managerUsers, setManagerUsers] = useState([]);
   const [driverUsers, setDriverUsers] = useState([]);
@@ -28,7 +26,6 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(false);
 
   // Modal states
-  const [showInviteModal, setShowInviteModal] = useState(false);
   const [showManualCreateModal, setShowManualCreateModal] = useState(false);
 
   const hasMounted = useRef(false);
@@ -67,7 +64,7 @@ const UserManagement = () => {
     try {
       // Load drivers from the drivers API if user has permission
       if (hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) {
-        const driversData = await getDrivers({limit: 100});
+        const driversData = await getDrivers({ limit: 100 });
         // Transform driver data to match user table format
         const transformedDrivers = driversData.map(driver => ({
           id: driver.id || driver._id,
@@ -134,25 +131,6 @@ const UserManagement = () => {
       </div>
     );
   }
-
-  const handleInviteSubmit = async formData => {
-    try {
-      setLoading(true);
-      await sendInvitation(formData);
-      showNotification(
-        `Invitation sent to ${formData.email}! They will receive an OTP to complete registration.`,
-        'success'
-      );
-      setShowInviteModal(false);
-      // Refresh data
-      loadUsers();
-      loadInvitedUsers();
-    } catch (err) {
-      showNotification(`Failed to send invitation: ${err.message}`, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleManualCreateSubmit = async formData => {
     try {
@@ -289,13 +267,13 @@ const UserManagement = () => {
   const invitationActions = invitation => [
     ...(!invitation.is_expired && invitation.can_resend
       ? [
-        {
-          label: 'Resend OTP',
-          variant: 'outline',
-          onClick: () => handleResendInvitation(invitation.email),
-          disabled: () => loading,
-        },
-      ]
+          {
+            label: 'Resend OTP',
+            variant: 'outline',
+            onClick: () => handleResendInvitation(invitation.email),
+            disabled: () => loading,
+          },
+        ]
       : []),
     {
       label: 'Cancel',

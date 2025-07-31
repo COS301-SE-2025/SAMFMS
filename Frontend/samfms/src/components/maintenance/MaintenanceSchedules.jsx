@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { maintenanceAPI } from '../backend/api/maintenance';
+import { maintenanceAPI } from '../../backend/api/maintenance';
 
 const MaintenanceSchedules = ({ vehicles }) => {
   const [schedules, setSchedules] = useState([]);
@@ -49,7 +49,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
 
   useEffect(() => {
     loadSchedules();
-  }, [filters]);
+  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadSchedules = async () => {
     try {
@@ -237,7 +237,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
         setFormData(prev => ({ ...prev, next_due_date: nextDate }));
       }
     }
-  }, [formData.last_service_date, formData.interval_value, formData.interval_type]);
+  }, [formData.last_service_date, formData.interval_value, formData.interval_type]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (
@@ -250,7 +250,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
         setFormData(prev => ({ ...prev, next_due_mileage: nextMileage }));
       }
     }
-  }, [formData.last_service_mileage, formData.interval_value, formData.interval_type]);
+  }, [formData.last_service_mileage, formData.interval_value, formData.interval_type]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-6">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Button } from './ui/button';
-import { verifyInvitationOTP, completeUserRegistration } from '../backend/API.js';
+import { Button } from '../ui/button';
+import { verifyInvitationOTP, completeUserRegistration } from '../../backend/API.js';
 
 const UserActivation = () => {
   const navigate = useNavigate();

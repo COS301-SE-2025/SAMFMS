@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { maintenanceAPI } from '../backend/api/maintenance';
+import React, { useState, useEffect, useCallback } from 'react';
+import { maintenanceAPI } from '../../backend/api/maintenance';
 
 const LicenseManagement = ({ vehicles }) => {
   const [licenses, setLicenses] = useState([]);
@@ -36,11 +36,7 @@ const LicenseManagement = ({ vehicles }) => {
     'other',
   ];
 
-  useEffect(() => {
-    loadLicenses();
-  }, [filters]);
-
-  const loadLicenses = async () => {
+  const loadLicenses = useCallback(async () => {
     try {
       setLoading(true);
       const response = await maintenanceAPI.getLicenseRecords(
@@ -59,7 +55,11 @@ const LicenseManagement = ({ vehicles }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters.vehicleId, filters.licenseType]);
+
+  useEffect(() => {
+    loadLicenses();
+  }, [loadLicenses]);
 
   const handleSubmit = async e => {
     e.preventDefault();

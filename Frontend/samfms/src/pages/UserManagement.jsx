@@ -204,21 +204,6 @@ const UserManagement = () => {
       setLoading(false);
     }
   };
-  const handleRoleChange = async (userId, newRole) => {
-    try {
-      setLoading(true);
-      await updateUserPermissions({
-        user_id: userId,
-        role: newRole,
-      });
-      showNotification('User role updated successfully!', 'success');
-      loadUsers();
-    } catch (err) {
-      showNotification(`Failed to update user role: ${err.message}`, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleRemoveUser = async (userId, userName) => {
     const userConfirmed = window.confirm(
@@ -288,11 +273,6 @@ const UserManagement = () => {
   const filteredAdmins = filterAndSortUsers(adminUsers, adminSearch, adminSort);
   const filteredManagers = filterAndSortUsers(managerUsers, managerSearch, managerSort);
   const filteredDrivers = filterAndSortUsers(driverUsers, driverSearch, driverSort);
-
-  // Handle role change with current user protection
-  const canChangeRole = user => {
-    return !user.isCurrentUser;
-  };
 
   return (
     <div className="relative container mx-auto py-8">

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { maintenanceAPI } from '../backend/api/maintenance';
 import { vehiclesAPI } from '../backend/api/vehicles';
 import MaintenanceRecords from '../components/maintenance/MaintenanceRecords';
 import MaintenanceSchedules from '../components/maintenance/MaintenanceSchedules';
