@@ -1,36 +1,39 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { DashboardProvider, useDashboard } from '../contexts/DashboardContext';
+import { DashboardToolbar } from '../components/dashboard/DashboardToolbar';
+import { DashboardCanvas } from '../components/dashboard/DashboardCanvas';
+
+// Import widgets to ensure they're registered
+import '../components/widgets';
+import '../components/dashboard/dashboard.css';
+
+// Dashboard component that initializes with defaults if empty
+const DashboardContent = () => {
+  const { state, dispatch } = useDashboard();
+
+  useEffect(() => {
+    // Initialize with default dashboard if empty and no saved data
+    if (state.widgets.length === 0) {
+      const savedDashboard = localStorage.getItem('dashboard_main');
+      if (!savedDashboard) {
+        dispatch({ type: 'RESET_TO_DEFAULT' });
+      }
+    }
+  }, [state.widgets.length, dispatch]);
+
+  return (
+    <div className="min-h-screen bg-background">
+      <DashboardToolbar />
+      <DashboardCanvas />
+    </div>
+  );
+};
 
 const Dashboard = () => {
   return (
-    <div className="relative container mx-auto py-8 space-y-8">
-      {/* Background pattern */}
-      <div
-        className="absolute inset-0 z-0 opacity-10 pointer-events-none"
-        style={{
-          backgroundImage: 'url("/logo/logo_icon_dark.svg")',
-          backgroundSize: '200px',
-          backgroundRepeat: 'repeat',
-          filter: 'blur(1px)',
-        }}
-        aria-hidden="true"
-      />
-      {/* Content */}
-      <div className="relative z-10">
-        {/* Header */}
-        <header>
-          <h1 className="text-4xl font-bold mb-2">Fleet Dashboard</h1>
-          <p className="text-muted-foreground">Welcome to SAMFMS - Your Fleet Management System</p>
-        </header>
-
-        {/* Simple welcome message */}
-        <div className="bg-card rounded-lg border border-border p-8 text-center">
-          <h2 className="text-2xl font-semibold mb-4">Dashboard Under Construction</h2>
-          <p className="text-muted-foreground">
-            Use the navigation menu to access vehicles, drivers, tracking, and other features.
-          </p>
-        </div>
-      </div>
-    </div>
+    <DashboardProvider dashboardId="main">
+      <DashboardContent />
+    </DashboardProvider>
   );
 };
 
