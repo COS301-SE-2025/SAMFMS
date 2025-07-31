@@ -132,12 +132,12 @@ export const API_ENDPOINTS = {
 
   // Vehicle Assignments
   ASSIGNMENTS: {
-    LIST: '/api/assignments',
-    CREATE: '/api/assignments',
-    UPDATE: id => `/api/assignments/${id}`,
-    DELETE: id => `/api/assignments/${id}`,
-    COMPLETE: id => `/api/assignments/${id}/complete`,
-    CANCEL: id => `/api/assignments/${id}/cancel`,
+    LIST: '/management/assignments',
+    CREATE: '/management/assignments',
+    UPDATE: id => `/management/assignments/${id}`,
+    DELETE: id => `/management/assignments/${id}`,
+    COMPLETE: id => `/management/assignments/${id}/complete`,
+    CANCEL: id => `/management/assignments/${id}/cancel`,
   },
 
   LOCATIONS: {
@@ -145,22 +145,22 @@ export const API_ENDPOINTS = {
     GET: id => `/gps/locations/${id}`,
     CREATE: '/gps/locations',
     UPDATE: '/gps/locations/update',
-    DELETE: id=> `/gps/locations/${id}`
+    DELETE: id => `/gps/locations/${id}`,
   },
 
   GEOFENCES: {
     LIST: '/gps/geofences',
     CREATE: '/gps/geofences',
     UPDATE: id => `/gps/geofences/${id}`,
-    DELETE: id => `/gps/geofences/${id}`
+    DELETE: id => `/gps/geofences/${id}`,
   },
 
   // Trip Planning
   TRIPS: {
     LIST: '/trips/trips',
     CREATE: '/trips/trips/create',
-    UPDATE: id =>  `/trips/trips/${id}`,
-    DELETE: id => `/trips/trips/${id}`
+    UPDATE: id => `/trips/trips/${id}`,
+    DELETE: id => `/trips/trips/${id}`,
   },
 
   // Maintenance

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { maintenanceAPI } from '../backend/api/maintenance';
 import { vehiclesAPI } from '../backend/api/vehicles';
-import MaintenanceRecords from '../components/MaintenanceRecords';
-import MaintenanceSchedules from '../components/MaintenanceSchedules';
-import LicenseManagement from '../components/LicenseManagement';
-import MaintenanceAnalytics from '../components/MaintenanceAnalytics';
-import MaintenanceDashboard from '../components/MaintenanceDashboard';
+import MaintenanceRecords from '../components/maintenance/MaintenanceRecords';
+import MaintenanceSchedules from '../components/maintenance/MaintenanceSchedules';
+import LicenseManagement from '../components/maintenance/LicenseManagement';
+import MaintenanceAnalytics from '../components/maintenance/MaintenanceAnalytics';
+import MaintenanceDashboard from '../components/maintenance/MaintenanceDashboard';
 
 const Maintenance = () => {
   const [activeTab, setActiveTab] = useState('dashboard');

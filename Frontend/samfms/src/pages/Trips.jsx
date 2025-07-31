@@ -1,15 +1,17 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import VehicleStatistics from '../components/trips/VehicleStatistics';
 import MapDisplay from '../components/trips/MapDisplay';
 import VehicleList from '../components/trips/VehicleList';
+import { buildWsUrl } from '../config/apiConfig';
 
 // Custom hook for location autocomplete using Nominatim (OpenStreetMap)
 const useLocationAutocomplete = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const searchLocation = async (query) => {
-    if (!query || query.length < 2) { // Reduced from 3 to 2
+  const searchLocation = async query => {
+    if (!query || query.length < 2) {
+      // Reduced from 3 to 2
       setSuggestions([]);
       return;
     }
@@ -26,15 +28,15 @@ const useLocationAutocomplete = () => {
         countrycodes: 'za', // Limit to South Africa (adjust as needed)
         dedupe: '1', // Remove duplicate results
         extratags: '1', // Include additional tags
-        namedetails: '1' // Include name variations
+        namedetails: '1', // Include name variations
       });
 
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?${params.toString()}`,
         {
           headers: {
-            'User-Agent': 'YourAppName/1.0' // Always include a User-Agent
-          }
+            'User-Agent': 'YourAppName/1.0', // Always include a User-Agent
+          },
         }
       );
 
@@ -66,11 +68,13 @@ const useLocationAutocomplete = () => {
       // Fallback: Try a simpler query if the first one fails
       try {
         const simpleResponse = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`,
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            query
+          )}&limit=5`,
           {
             headers: {
-              'User-Agent': 'YourAppName/1.0'
-            }
+              'User-Agent': 'YourAppName/1.0',
+            },
           }
         );
 
@@ -86,14 +90,14 @@ const useLocationAutocomplete = () => {
     }
   };
 
-  return {suggestions, isLoading, searchLocation};
+  return { suggestions, isLoading, searchLocation };
 };
 
 // Location Autocomplete Component
-const LocationAutocomplete = ({value, onChange, placeholder, className, required}) => {
+const LocationAutocomplete = ({ value, onChange, placeholder, className, required }) => {
   const [inputValue, setInputValue] = useState(value || '');
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const {suggestions, isLoading, searchLocation} = useLocationAutocomplete();
+  const { suggestions, isLoading, searchLocation } = useLocationAutocomplete();
   const debounceRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -101,7 +105,7 @@ const LocationAutocomplete = ({value, onChange, placeholder, className, required
     setInputValue(value || '');
   }, [value]);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = e => {
     const newValue = e.target.value;
     setInputValue(newValue);
 
@@ -117,7 +121,7 @@ const LocationAutocomplete = ({value, onChange, placeholder, className, required
     }, 300);
   };
 
-  const handleSuggestionClick = (suggestion) => {
+  const handleSuggestionClick = suggestion => {
     const address = suggestion.display_name;
     setInputValue(address);
     setShowSuggestions(false);
@@ -125,7 +129,7 @@ const LocationAutocomplete = ({value, onChange, placeholder, className, required
       lat: parseFloat(suggestion.lat),
       lng: parseFloat(suggestion.lon),
       formatted_address: address,
-      place_id: suggestion.place_id
+      place_id: suggestion.place_id,
     });
   };
 
@@ -191,34 +195,34 @@ const Trips = () => {
     endLocation: '',
     scheduledDate: '',
     scheduledTime: '',
-    notes: ''
+    notes: '',
   });
 
   // Store coordinates for selected locations
   const [locationCoords, setLocationCoords] = useState({
     start: null,
-    end: null
+    end: null,
   });
 
   useEffect(() => {
     // Connect to your Core backend WebSocket endpoint
-    const ws = new WebSocket('ws://localhost:8000/ws/vehicles');
+    const ws = new WebSocket(buildWsUrl('/vehicles'));
 
-    ws.onmessage = (event) => {
+    ws.onmessage = event => {
       const data = JSON.parse(event.data);
       if (data.vehicles) {
         setVehicles(data.vehicles);
       } else {
         setVehicles([]);
-        console.warn("No vehicles data received:", data);
+        console.warn('No vehicles data received:', data);
       }
     };
 
-    ws.onerror = (err) => {
+    ws.onerror = err => {
       console.error('WebSocket error:', err);
     };
 
-    ws.onclose = (event) => {
+    ws.onclose = event => {
       console.warn('WebSocket closed:', event);
     };
 
@@ -247,18 +251,18 @@ const Trips = () => {
       endLocation: '',
       scheduledDate: '',
       scheduledTime: '',
-      notes: ''
+      notes: '',
     });
     setLocationCoords({
       start: null,
-      end: null
+      end: null,
     });
   };
 
   const handleFormChange = (field, value) => {
     setTripForm(prev => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -266,7 +270,7 @@ const Trips = () => {
     handleFormChange('startLocation', address);
     setLocationCoords(prev => ({
       ...prev,
-      start: locationData
+      start: locationData,
     }));
   };
 
@@ -274,16 +278,21 @@ const Trips = () => {
     handleFormChange('endLocation', address);
     setLocationCoords(prev => ({
       ...prev,
-      end: locationData
+      end: locationData,
     }));
   };
 
-  const handleSubmitTrip = async (e) => {
+  const handleSubmitTrip = async e => {
     e.preventDefault();
 
     // Validate form
-    if (!tripForm.vehicleId || !tripForm.startLocation ||
-      !tripForm.endLocation || !tripForm.scheduledDate || !tripForm.scheduledTime) {
+    if (
+      !tripForm.vehicleId ||
+      !tripForm.startLocation ||
+      !tripForm.endLocation ||
+      !tripForm.scheduledDate ||
+      !tripForm.scheduledTime
+    ) {
       alert('Please fill in all required fields');
       return;
     }
@@ -294,7 +303,7 @@ const Trips = () => {
         ...tripForm,
         scheduledDateTime: `${tripForm.scheduledDate}T${tripForm.scheduledTime}`,
         status: 'scheduled',
-        coordinates: locationCoords // Include coordinates for mapping
+        coordinates: locationCoords, // Include coordinates for mapping
       };
 
       console.log('Creating trip:', tripData);
@@ -382,7 +391,7 @@ const Trips = () => {
                     </label>
                     <select
                       value={tripForm.vehicleId}
-                      onChange={(e) => handleFormChange('vehicleId', e.target.value)}
+                      onChange={e => handleFormChange('vehicleId', e.target.value)}
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                       required
                     >
@@ -435,7 +444,7 @@ const Trips = () => {
                       <input
                         type="date"
                         value={tripForm.scheduledDate}
-                        onChange={(e) => handleFormChange('scheduledDate', e.target.value)}
+                        onChange={e => handleFormChange('scheduledDate', e.target.value)}
                         min={new Date().toISOString().split('T')[0]}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                         required
@@ -448,7 +457,7 @@ const Trips = () => {
                       <input
                         type="time"
                         value={tripForm.scheduledTime}
-                        onChange={(e) => handleFormChange('scheduledTime', e.target.value)}
+                        onChange={e => handleFormChange('scheduledTime', e.target.value)}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                         required
                       />
@@ -457,12 +466,10 @@ const Trips = () => {
 
                   {/* Notes */}
                   <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Notes (Optional)
-                    </label>
+                    <label className="block text-sm font-medium mb-2">Notes (Optional)</label>
                     <textarea
                       value={tripForm.notes}
-                      onChange={(e) => handleFormChange('notes', e.target.value)}
+                      onChange={e => handleFormChange('notes', e.target.value)}
                       placeholder="Add any additional notes or instructions..."
                       rows="3"
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
@@ -515,18 +522,29 @@ const Trips = () => {
                         <td className="py-3 px-4">{vehicle.id}</td>
                         <td className="py-3 px-4">{vehicle.name || 'Unknown'}</td>
                         <td className="py-3 px-4">
-                          <span className={
-                            vehicle.status === 'online'
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 py-1 px-2 rounded-full text-xs"
-                              : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 py-1 px-2 rounded-full text-xs"
-                          }>
+                          <span
+                            className={
+                              vehicle.status === 'online'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 py-1 px-2 rounded-full text-xs'
+                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 py-1 px-2 rounded-full text-xs'
+                            }
+                          >
                             {vehicle.status === 'online' ? 'Active' : 'Idle'}
                           </span>
                         </td>
-                        <td className="py-3 px-4">{vehicle.lastUpdate ? new Date(vehicle.lastUpdate).toLocaleString() : 'Unknown'}</td>
-                        <td className="py-3 px-4">{vehicle.speed != null ? `${vehicle.speed} km/h` : 'N/A'}</td>
                         <td className="py-3 px-4">
-                          <button className="text-primary hover:text-primary/80" onClick={() => handleSelectVehicle(vehicle)}>
+                          {vehicle.lastUpdate
+                            ? new Date(vehicle.lastUpdate).toLocaleString()
+                            : 'Unknown'}
+                        </td>
+                        <td className="py-3 px-4">
+                          {vehicle.speed != null ? `${vehicle.speed} km/h` : 'N/A'}
+                        </td>
+                        <td className="py-3 px-4">
+                          <button
+                            className="text-primary hover:text-primary/80"
+                            onClick={() => handleSelectVehicle(vehicle)}
+                          >
                             Details
                           </button>
                         </td>

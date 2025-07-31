@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
-import UserComponent from './UserComponent';
+import UserComponent from '../user/UserComponent';
 
 const Layout = () => {
   const location = useLocation();

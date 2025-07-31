@@ -3,17 +3,17 @@ import './App.css';
 import 'leaflet/dist/leaflet.css';
 
 // Import layout and contexts
-import Layout from './components/Layout';
+import Layout from './components/layout/Layout';
 import ThemeProvider from './contexts/ThemeContext';
 import NotificationProvider from './contexts/NotificationContext';
-import ProtectedRoute from './components/ProtectedRoute';
-import ErrorBoundary from './components/ErrorBoundary';
-import AuthErrorBoundary from './components/AuthErrorBoundary';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import AuthErrorBoundary from './components/auth/AuthErrorBoundary';
 
 // Import pages
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import UserActivation from './components/UserActivation';
+import UserActivation from './components/auth/UserActivation';
 import Dashboard from './pages/Dashboard';
 import Account from './pages/Account';
 import Plugins from './pages/Plugins';
@@ -24,7 +24,7 @@ import Trips from './pages/Trips';
 import Maintenance from './pages/Maintenance';
 import Help from './pages/Help';
 import Landing from './pages/Landing';
-import UserManagement from './components/UserManagement';
+import UserManagement from './components/user/UserManagement';
 
 function App() {
   return (
