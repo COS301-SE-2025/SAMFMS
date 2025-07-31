@@ -23,54 +23,62 @@ const mockData = {
 };
 
 const Dashboard = () => {
-  const [totalVehicles, setTotalVehicles] = useState(null);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
+  const [totalVehicles, setTotalVehicles] = useState(null);
+  
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
-  const [analytics, setAnalytics] = useState({});
+  const [analytics, setAnalytics] = useState(null);
+
+  const [loadingDrivers, setLoadingDrivers] = useState(true);
+  const [totalAvailableDrivers, setTotalAvailableDrivers] = useState(null);
+
   const [assignmentMetrics, setAssignmentMetrics] = useState({});
   const [loadingAssignments, setLoadingAssignments] = useState(true);
+
 
   useEffect(() => {
     const fetchTotalVehicles = async () => {
       try {
         setLoadingVehicles(true);
         const response = await getVehicles();
-
-
         setTotalVehicles(response.data.data.vehicles.length || 0);
-        //setLoadingVehicles
-        //setLoadingAnalytics
-        //setAnalytics
-        //setAssignmentMetrics
-        //setLoadingAssignments
-
-
       } catch (error) {
         console.log(`Error fetching data: ${error}`);
         setTotalVehicles('N/A');
       } finally {
         setLoadingVehicles(false);
-        setLoadingAnalytics(false);
       }
     };
 
-    const fetchLoadingAnalytics = async () => {
+    const fetchTotalDrivers = async () => {
       try {
-        setLoadingAnalytics(true);
+        setLoadingTotalDrivers(true);
         const response = await getDrivers();
-        console.log('================');
-        console.log(response.drivers.length);
-        console.log('================');
-        setLoadingAnalytics(response.drivers.length || {});//response.length || {}
+        setTotalVehicles(response.data.data.vehicles.length || 0);
       } catch (error) {
-        console.error('Error fetching available drivers:', error);
+        console.log(`Error fetching data: ${error}`);
+        setTotalVehicles('N/A');
+      } finally {
+        setLoadingVehicles(false);
       }
     };
+    //   try {
+    //     setLoadingAnalytics(true);
+    //     const response = await getDrivers();
+    //     const numActiveDrivers = response.drivers.filter(driver => driver.is_active === false).length;
+    //     console.log(`Number of active drivers: ${numActiveDrivers}`);
+    //     setAnalytics(numActiveDrivers);
+    //   } catch (error) {
+    //     console.error('Error fetching available drivers: ${error}');
+    //   } finally {
+    //     setLoadingAnalytics(false);
+    //   }
+    // };
 
     const fetchStatusBreakdown = async () => {
       try {
         const response = await getVehicles();
-        setAnalytics(response.analytics || {});
+        setAnalytics(response.analytics || 0);
       } catch (error) {
         console.error('Error fetching status breakdown:', error);
       }
@@ -137,12 +145,7 @@ const Dashboard = () => {
           />
           <MetricCard
             title="Available Drivers"
-            value={
-              loadingAnalytics
-                ? 'Loading...'
-                : analytics?.status_breakdown?.find(status => is_active === 'false')?.count ||
-                  0
-            }
+            value={loadingAnalytics ? 'Loading...' : analytics}
             subtitle="Ready for dispatch"
             color="purple"
           />
