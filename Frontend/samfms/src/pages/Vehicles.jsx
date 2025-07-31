@@ -39,10 +39,12 @@ const Vehicles = () => {
     make: '',
   });
   const [analytics, setAnalytics] = useState({});
+  const [stats, setStats] = useState({});
 
   const [loadingVehicles, setLoadingVehicles] = useState(true);
-  const [totalVehicles, setTotalVehicles] = useState(null);
-  const [totalVehiclesMaint, setTotalVehiclesMaint] = useState(null);
+  const [totalVehicles, setTotalVehicles] = useState({});
+  const [totalVehiclesMaint, setTotalVehiclesMaint] = useState({});
+  const [fleetUtil, setFleetUtil] = useState({});
 
 
 
@@ -104,8 +106,28 @@ const Vehicles = () => {
         setLoadingVehicles(true);
         const response = await getVehicles();
         setTotalVehicles(response.data.data.vehicles.length || 0);
+        console.log(response.data.data.vehicles.length);
+
         const maintenanceVehicles = response.data.data.vehicles.filter(vehicle => vehicle.status === 'maintenance');
         setTotalVehiclesMaint(maintenanceVehicles.length);
+        console.log(maintenanceVehicles.length);
+
+        const vehicleUtil = (1 - (maintenanceVehicles.length / response.data.data.vehicles.length));
+        setFleetUtil(vehicleUtil);
+
+        setStats(
+          {
+            totalVehicles: response.data.data.vehicles.length || 0,
+            totalVehiclesMaint: maintenanceVehicles.length || 0,
+            fleetUtil: vehicleUtil || 0,
+            statusBreakdown: response.data.data.vehicles.reduce((breakdown, vehicle) => {
+              breakdown[vehicle.status] = (breakdown[vehicle.status] || 0) + 1;
+              return breakdown;
+          })
+          }
+         || {});
+        console.log(stats);
+        
       } catch (error) {
         console.log(`Error fetching data: ${error}`);
         setTotalVehicles('N/A');
@@ -577,7 +599,7 @@ const Vehicles = () => {
           />
         )}
         {/* Data visualization section */}
-        <DataVisualization analytics={analytics} />
+        <DataVisualization analytics={stats} />
         <VehicleUsageStats stats={analytics.vehicle_usage} />
         <DriverPerformanceCard stats={analytics.driver_performance} />
         <CostAnalyticsCard stats={analytics.cost_analytics} />
