@@ -59,9 +59,9 @@ const Dashboard = () => {
         setLoadingAnalytics(true);
         const response = await getDrivers();
         console.log('================');
-        console.log(response.length);
+        console.log(response.drivers.length);
         console.log('================');
-        setLoadingAnalytics(response.length || {});
+        setLoadingAnalytics(response.drivers.length || {});//response.length || {}
       } catch (error) {
         console.error('Error fetching available drivers:', error);
       }
@@ -140,7 +140,7 @@ const Dashboard = () => {
             value={
               loadingAnalytics
                 ? 'Loading...'
-                : analytics?.status_breakdown?.find(status => status._id === 'available')?.count ||
+                : analytics?.status_breakdown?.find(status => is_active === 'false')?.count ||
                   0
             }
             subtitle="Ready for dispatch"
