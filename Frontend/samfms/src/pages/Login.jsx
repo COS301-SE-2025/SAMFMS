@@ -189,7 +189,7 @@ const Login = () => {
       {/* Left section - plain background */}
       <div className="flex w-full md:w-1/2 flex-col justify-center items-center p-8 relative z-10 bg-background">
         <img
-          src="/logo/logo_light.svg"
+          src="/logo/logo_dark.svg"
           alt="SAMFMS Logo"
           className="h-32 mb-4 animate-fadeIn transition-all duration-300 drop-shadow-lg"
         />
@@ -200,13 +200,14 @@ const Login = () => {
         <div
           className="absolute inset-0 z-0 opacity-10 pointer-events-none"
           style={{
-            backgroundImage: 'url("/logo/logo_icon_dark.svg")',
+            backgroundImage: 'url("/logo/logo_icon_light.svg")',
             backgroundSize: '200px',
             backgroundRepeat: 'repeat',
             filter: 'blur(1px)',
           }}
         />
-        <div className="relative z-10 w-full max-w-md bg-white p-8 rounded-lg border border-primary-300 animate-slideIn transform hover:scale-[1.01] transition-all duration-300"
+        <div
+          className="relative z-10 w-full max-w-md bg-white p-8 rounded-lg border border-primary-300 animate-slideIn transform hover:scale-[1.01] transition-all duration-300"
           style={{
             boxShadow: '0 20px 50px rgba(8,85,177,0.4)',
             transform: 'perspective(1000px) rotateX(0deg)',
@@ -229,7 +230,7 @@ const Login = () => {
         >
           <div className="md:hidden mb-6 text-center">
             <img
-              src="/logo/logo_dark.svg"
+              src="/logo/logo_light.svg"
               alt="SAMFMS Logo"
               className="h-24 mx-auto mb-2 animate-fadeIn transition-all duration-300 drop-shadow-lg"
             />

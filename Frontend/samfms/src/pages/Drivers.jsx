@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PlusCircle } from 'lucide-react';
 import DriverList from '../components/drivers/DriverList';
 import DriverSearch from '../components/drivers/DriverSearch';
 import DriverActions from '../components/drivers/DriverActions';
@@ -7,13 +6,8 @@ import DriverDetailsModal from '../components/drivers/DriverDetailsModal';
 import VehicleAssignmentModal from '../components/drivers/VehicleAssignmentModal';
 import AddDriverModal from '../components/drivers/AddDriverModal';
 import EditDriverModal from '../components/drivers/EditDriverModal';
-import DataVisualization from '../components/drivers/DataVisualization';
 
-import {
-  getDrivers,
-  deleteDriver,
-  searchDrivers,
-} from '../backend/api/drivers'
+import { getDrivers, deleteDriver, searchDrivers } from '../backend/api/drivers';
 
 const Drivers = () => {
   const [drivers, setDrivers] = useState([]);
@@ -21,7 +15,6 @@ const Drivers = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedDrivers, setSelectedDrivers] = useState([]);
-  const [selectAll, setSelectAll] = useState(false);
   const [driverDetailsOpen, setDriverDetailsOpen] = useState(false);
   const [currentDriver, setCurrentDriver] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -32,39 +25,34 @@ const Drivers = () => {
   const [showAddDriverModal, setShowAddDriverModal] = useState(false);
   const [showEditDriverModal, setShowEditDriverModal] = useState(false);
   const [driverToEdit, setDriverToEdit] = useState(null);
-  const [filters, setFilters] = useState({
+  const [filters] = useState({
     status: '',
     department: '',
     licenseType: '',
-  }); // Helper function to capitalize status
-  const capitalizeStatus = useCallback(status => {
-    if (!status) return 'Unknown';
-    return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  }, []); // Transform backend driver data to frontend format
-  const transformDriverData = useCallback(
-    backendDriver => {
-      // Handle auth service data structure
-      const driverId = backendDriver.id || backendDriver._id;
+  });
 
-      return {
-        id: driverId,
-        name: backendDriver.full_name || 'Unknown',
-        licenseNumber: backendDriver.details?.license_number || 'N/A',
-        phone: backendDriver.phoneNo || 'N/A',
-        licenseExpiry: backendDriver.details?.license_expiry || 'N/A',
-        email: backendDriver.email || 'N/A',
-        status: backendDriver.is_active ? 'Active' : 'Inactive',
-        employeeId: backendDriver.details?.employee_id || backendDriver.id || 'N/A',
-        department: backendDriver.details?.department || 'N/A',
-        licenseType: backendDriver.details?.license_type || 'N/A',
-        permissions: backendDriver.permissions || [],
-        last_login: backendDriver.last_login,
-        preferences: backendDriver.preferences || {},
-        role: backendDriver.role,
-      };
-    },
-    [capitalizeStatus]
-  );
+  // Transform backend driver data to frontend format
+  const transformDriverData = useCallback(backendDriver => {
+    // Handle auth service data structure
+    const driverId = backendDriver.id || backendDriver._id;
+
+    return {
+      id: driverId,
+      name: backendDriver.full_name || 'Unknown',
+      licenseNumber: backendDriver.details?.license_number || 'N/A',
+      phone: backendDriver.phoneNo || 'N/A',
+      licenseExpiry: backendDriver.details?.license_expiry || 'N/A',
+      email: backendDriver.email || 'N/A',
+      status: backendDriver.is_active ? 'Active' : 'Inactive',
+      employeeId: backendDriver.details?.employee_id || backendDriver.id || 'N/A',
+      department: backendDriver.details?.department || 'N/A',
+      licenseType: backendDriver.details?.license_type || 'N/A',
+      permissions: backendDriver.permissions || [],
+      last_login: backendDriver.last_login,
+      preferences: backendDriver.preferences || {},
+      role: backendDriver.role,
+    };
+  }, []);
 
   // Load drivers from API
   useEffect(() => {
@@ -120,21 +108,6 @@ const Drivers = () => {
     }
   };
 
-  // Handle filter changes
-  const handleApplyFilters = async newFilters => {
-    setFilters(newFilters);
-    setCurrentPage(1); // Reset to first page
-  };
-
-  // Handle filter reset
-  const handleResetFilters = () => {
-    setFilters({
-      status: '',
-      department: '',
-      licenseType: '',
-    });
-    setCurrentPage(1); // Reset to first page
-  }; // Handle driver deletion
   const handleDeleteDriver = async employeeId => {
     try {
       // Validate that we have a valid employee ID before proceeding
@@ -193,32 +166,6 @@ const Drivers = () => {
   const indexOfFirstDriver = indexOfLastDriver - itemsPerPage;
   const currentDrivers = sortedDrivers.slice(indexOfFirstDriver, indexOfLastDriver);
   const totalPages = Math.ceil(sortedDrivers.length / itemsPerPage); // Toggle select all
-  const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedDrivers([]);
-    } else {
-      // Make sure we only select drivers with valid employee IDs
-      setSelectedDrivers(
-        currentDrivers.filter(driver => driver.employeeId).map(driver => driver.employeeId)
-      );
-    }
-    setSelectAll(!selectAll);
-  };
-
-  // Toggle select individual driver
-  const handleSelectDriver = employeeId => {
-    // Validate the employee ID
-    if (!employeeId) {
-      console.error('Attempted to select driver with invalid employee ID');
-      return;
-    }
-
-    if (selectedDrivers.includes(employeeId)) {
-      setSelectedDrivers(selectedDrivers.filter(id => id !== employeeId));
-    } else {
-      setSelectedDrivers([...selectedDrivers, employeeId]);
-    }
-  };
 
   // Open driver details
   const openDriverDetails = driver => {
@@ -333,23 +280,6 @@ const Drivers = () => {
     setCurrentPage(1); // Reset to first page
   };
 
-  // Local Search Function
-  const localSearchDrivers = searchTerm => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return;
-
-    const filteredDrivers = drivers.filter(driver => {
-      return (
-        driver.make?.toLowerCase().includes(term) ||
-        driver.model?.toLowerCase().includes(term) ||
-        driver.year?.toString().includes(term) ||
-        driver.color?.toLowerCase().includes(term) ||
-        driver.fuelType?.toLowerCase().includes(term)
-      );
-    });
-
-    setDrivers(filteredDrivers);
-  };
   return (
     <div className="min-h-screen bg-background relative">
       {/* SVG pattern background like Landing page */}
@@ -449,8 +379,6 @@ const Drivers = () => {
             onDriverUpdated={handleDriverUpdated}
           />
         )}
-        {/* Data visualization section */}
-        <DataVisualization />
       </div>
     </div>
   );

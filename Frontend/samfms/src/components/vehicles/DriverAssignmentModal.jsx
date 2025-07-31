@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { getDrivers } from '../../backend/api/drivers';
-import { createVehicleAssignment, getVehicleAssignments } from '../../backend/api/assignments';
+import { createVehicleAssignment } from '../../backend/api/assignments';
 import { useNotification } from '../../contexts/NotificationContext';
 
 const DriverAssignmentModal = ({

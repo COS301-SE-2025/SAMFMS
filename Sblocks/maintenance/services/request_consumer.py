@@ -487,11 +487,22 @@ class ServiceRequestConsumer:
                                 days_until_expiry = 0
                                 expiry_date = license_record.get("expiry_date")
                                 if expiry_date:
-                                    if hasattr(expiry_date, 'isoformat'):
-                                        days_until_expiry = (expiry_date - datetime.now().date()).days
-                                    else:
-                                        expiry_date_parsed = datetime.strptime(str(expiry_date), "%Y-%m-%d").date()
-                                        days_until_expiry = (expiry_date_parsed - datetime.now().date()).days
+                                    try:
+                                        # Convert expiry_date to date object for consistent comparison
+                                        if hasattr(expiry_date, 'date'):
+                                            # It's a datetime object, extract the date part
+                                            expiry_date_obj = expiry_date.date()
+                                        elif hasattr(expiry_date, 'year'):
+                                            # It's already a date object
+                                            expiry_date_obj = expiry_date
+                                        else:
+                                            # It's a string, parse it
+                                            expiry_date_obj = datetime.strptime(str(expiry_date), "%Y-%m-%d").date()
+                                        
+                                        days_until_expiry = (expiry_date_obj - datetime.now().date()).days
+                                    except (ValueError, AttributeError) as e:
+                                        logger.warning(f"Error parsing expiry date {expiry_date}: {e}")
+                                        days_until_expiry = 0
                                 
                                 # Determine status
                                 if days_until_expiry < 0:
@@ -618,11 +629,18 @@ class ServiceRequestConsumer:
                                 if license_record.get("expiry_date"):
                                     try:
                                         expiry_date = license_record.get("expiry_date")
-                                        if hasattr(expiry_date, 'isoformat'):
-                                            days_until_expiry = (expiry_date - datetime.now().date()).days
+                                        # Convert expiry_date to date object for consistent comparison
+                                        if hasattr(expiry_date, 'date'):
+                                            # It's a datetime object, extract the date part
+                                            expiry_date_obj = expiry_date.date()
+                                        elif hasattr(expiry_date, 'year'):
+                                            # It's already a date object
+                                            expiry_date_obj = expiry_date
                                         else:
-                                            expiry_date_parsed = datetime.strptime(str(expiry_date), "%Y-%m-%d").date()
-                                            days_until_expiry = (expiry_date_parsed - datetime.now().date()).days
+                                            # It's a string, parse it
+                                            expiry_date_obj = datetime.strptime(str(expiry_date), "%Y-%m-%d").date()
+                                        
+                                        days_until_expiry = (expiry_date_obj - datetime.now().date()).days
                                         license_data["days_until_expiry"] = days_until_expiry
                                         license_data["renewal_required"] = days_until_expiry < 60
                                     except Exception as date_error:

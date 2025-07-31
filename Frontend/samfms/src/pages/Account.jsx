@@ -12,7 +12,7 @@ import {
   PasswordStrengthIndicator,
   PasswordRequirements,
 } from '../utils/passwordValidation';
-import PreferencesSection from '../components/PreferencesSection';
+import PreferencesSection from '../components/common/PreferencesSection';
 import { useNotification } from '../contexts/NotificationContext';
 
 // Modal component for change password

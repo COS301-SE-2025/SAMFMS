@@ -155,8 +155,9 @@ class HttpClient {
             error.message.includes('fetch'))
         ) {
           retries++;
-          // Add exponential backoff
-          await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+          // Add exponential backoff with current retry count
+          const currentRetries = retries;
+          await new Promise(resolve => setTimeout(resolve, 1000 * currentRetries));
           continue;
         }
 

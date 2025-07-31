@@ -1,6 +1,6 @@
-import React, {useState, useEffect, useRef} from 'react';
-import {Button} from '../components/ui/button.jsx';
-import {useAuth, ROLES} from '../components/RBACUtils.jsx';
+import React, { useState, useEffect, useRef } from 'react';
+import { Button } from '../components/ui/button.jsx';
+import { useAuth, ROLES } from '../components/auth/RBACUtils.jsx';
 import {
   listUsers,
   updateUserPermissions,
@@ -12,15 +12,15 @@ import {
   createUserManually,
   getUserInfo,
 } from '../backend/API.js';
-import {Navigate} from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import UserTable from '../components/UserTable.jsx';
 import InviteUserModal from '../components/InviteUserModal.jsx';
 import ManualCreateUserModal from '../components/ManualCreateUserModal.jsx';
-import {useNotification} from '../contexts/NotificationContext.jsx';
+import { useNotification } from '../contexts/NotificationContext.jsx';
 
 const UserManagement = () => {
-  const {hasPermission, hasRole} = useAuth();
-  const {showNotification} = useNotification();
+  const { hasPermission, hasRole } = useAuth();
+  const { showNotification } = useNotification();
   const [adminUsers, setAdminUsers] = useState([]);
   const [managerUsers, setManagerUsers] = useState([]);
   const [driverUsers, setDriverUsers] = useState([]);
@@ -32,9 +32,9 @@ const UserManagement = () => {
   const [adminSearch, setAdminSearch] = useState('');
   const [managerSearch, setManagerSearch] = useState('');
   const [driverSearch, setDriverSearch] = useState('');
-  const [adminSort, setAdminSort] = useState({field: 'full_name', direction: 'asc'});
-  const [managerSort, setManagerSort] = useState({field: 'full_name', direction: 'asc'});
-  const [driverSort, setDriverSort] = useState({field: 'full_name', direction: 'asc'});
+  const [adminSort, setAdminSort] = useState({ field: 'full_name', direction: 'asc' });
+  const [managerSort, setManagerSort] = useState({ field: 'full_name', direction: 'asc' });
+  const [driverSort, setDriverSort] = useState({ field: 'full_name', direction: 'asc' });
 
   // Modal states
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -204,21 +204,6 @@ const UserManagement = () => {
       setLoading(false);
     }
   };
-  const handleRoleChange = async (userId, newRole) => {
-    try {
-      setLoading(true);
-      await updateUserPermissions({
-        user_id: userId,
-        role: newRole,
-      });
-      showNotification('User role updated successfully!', 'success');
-      loadUsers();
-    } catch (err) {
-      showNotification(`Failed to update user role: ${err.message}`, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleRemoveUser = async (userId, userName) => {
     const userConfirmed = window.confirm(
@@ -281,18 +266,13 @@ const UserManagement = () => {
   const handleSort = (field, currentSort, setSortFunction) => {
     const newDirection =
       currentSort.field === field && currentSort.direction === 'asc' ? 'desc' : 'asc';
-    setSortFunction({field, direction: newDirection});
+    setSortFunction({ field, direction: newDirection });
   };
 
   // Get filtered and sorted users (recalculate on every render)
   const filteredAdmins = filterAndSortUsers(adminUsers, adminSearch, adminSort);
   const filteredManagers = filterAndSortUsers(managerUsers, managerSearch, managerSort);
   const filteredDrivers = filterAndSortUsers(driverUsers, driverSearch, driverSort);
-
-  // Handle role change with current user protection
-  const canChangeRole = user => {
-    return !user.isCurrentUser;
-  };
 
   return (
     <div className="relative container mx-auto py-8">

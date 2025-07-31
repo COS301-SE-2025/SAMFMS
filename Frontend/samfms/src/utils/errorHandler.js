@@ -239,7 +239,7 @@ export const formatErrorForUser = error => {
   };
 };
 
-export default {
+const errorHandler = {
   ApiError,
   parseApiError,
   withRetry,
@@ -250,3 +250,5 @@ export default {
   formatErrorForUser,
   ERROR_TYPES,
 };
+
+export default errorHandler;
