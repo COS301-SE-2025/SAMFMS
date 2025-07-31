@@ -40,6 +40,10 @@ const Vehicles = () => {
   });
   const [analytics, setAnalytics] = useState({});
 
+  const [totalVehicles, setTotalVehicles] = useState({});
+  const [totalVehiclesMaint, setTotalVehiclesMaint] = useState({});
+  const [fleetUtil, setFleetUtil] = useState({});
+
   // Enhanced error handling with retry logic
   const handleAPIError = async (error, retryFn, maxRetries = 3) => {
     if ((error.status === 503 || error.status === 504) && retryFn && maxRetries > 0) {
