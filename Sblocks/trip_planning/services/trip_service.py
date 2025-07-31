@@ -111,18 +111,23 @@ class TripService:
             
             # Prepare update data
             update_data = request.dict(exclude_unset=True)
+            print(f"DEBUG: update_data = {update_data}")
             update_data["updated_at"] = datetime.utcnow()
             
             # Validate schedule changes
             if "scheduled_end_time" in update_data and "scheduled_start_time" in update_data:
                 if update_data["scheduled_end_time"] <= update_data["scheduled_start_time"]:
                     raise ValueError("End time must be after start time")
+
             
             # Update in database
             result = await self.db.trips.update_one(
                 {"_id": ObjectId(trip_id)},
                 {"$set": update_data}
             )
+
+            print(f"DEBUG: Modified count = {result.modified_count}")  # Add this
+            print(f"DEBUG: Matched count = {result.matched_count}")
             
             if result.modified_count == 0:
                 return None
