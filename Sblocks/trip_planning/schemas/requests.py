@@ -62,6 +62,8 @@ class UpdateTripRequest(BaseModel):
     priority: Optional[TripPriority] = None
     status: Optional[TripStatus] = None
     vehicle_id: Optional[str] = None
+    actual_start_time: Optional[datetime]= None
+    actual_end_time: Optional[datetime] = None
     custom_fields: Optional[Dict[str, Any]] = None
 
 
