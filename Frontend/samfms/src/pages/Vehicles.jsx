@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, use } from 'react';
 import { PlusCircle } from 'lucide-react';
 import VehicleList from '../components/vehicles/VehicleList';
 import VehicleSearch from '../components/vehicles/VehicleSearch';
@@ -211,6 +211,26 @@ const Vehicles = () => {
       setLoading(false);
     }
   };
+
+  
+  useEffect(() => {
+    async function fetchVehicles() {
+      try {
+        const response = await getVehicles();
+        if (response) {
+          const transformedVehicles = response.vehicles.map(transformVehicleData);
+          setTotalVehicles(response.data.data.vehicles.length);
+        } else {
+          setVehicles([]); 
+          setError('No vehicles found.');
+        }
+      } catch (err) {
+        console.error('Error fetching vehicles:', err);
+        setError('Failed to fetch vehicles');
+      }
+      setLoading(false);
+    }
+  }, []);
 
   // Handle filter changes
   const handleApplyFilters = async newFilters => {
