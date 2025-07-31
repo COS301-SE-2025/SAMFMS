@@ -40,9 +40,11 @@ const Vehicles = () => {
   });
   const [analytics, setAnalytics] = useState({});
 
-  const [totalVehicles, setTotalVehicles] = useState({});
-  const [totalVehiclesMaint, setTotalVehiclesMaint] = useState({});
-  const [fleetUtil, setFleetUtil] = useState({});
+  const [loadingVehicles, setLoadingVehicles] = useState(true);
+  const [totalVehicles, setTotalVehicles] = useState(null);
+  const [totalVehiclesMaint, setTotalVehiclesMaint] = useState(null);
+
+
 
   // Enhanced error handling with retry logic
   const handleAPIError = async (error, retryFn, maxRetries = 3) => {
@@ -96,6 +98,23 @@ const Vehicles = () => {
 
   // Load vehicles from API
   useEffect(() => {
+
+    const fetchTotalVehicles = async () => {
+      try {
+        setLoadingVehicles(true);
+        const response = await getVehicles();
+        setTotalVehicles(response.data.data.vehicles.length || 0);
+        const maintenanceVehicles = response.data.data.vehicles.filter(vehicle => vehicle.status === 'maintenance');
+        setTotalVehiclesMaint(maintenanceVehicles.length);
+      } catch (error) {
+        console.log(`Error fetching data: ${error}`);
+        setTotalVehicles('N/A');
+      } finally {
+        setLoadingVehicles(false);
+      }
+    };
+    fetchTotalVehicles();
+
     const loadVehicles = async (retryCount = 3) => {
       try {
         setLoading(true);
@@ -213,24 +232,9 @@ const Vehicles = () => {
   };
 
   
-  useEffect(() => {
-    async function fetchVehicles() {
-      try {
-        const response = await getVehicles();
-        if (response) {
-          const transformedVehicles = response.vehicles.map(transformVehicleData);
-          setTotalVehicles(response.data.data.vehicles.length);
-        } else {
-          setVehicles([]); 
-          setError('No vehicles found.');
-        }
-      } catch (err) {
-        console.error('Error fetching vehicles:', err);
-        setError('Failed to fetch vehicles');
-      }
-      setLoading(false);
-    }
-  }, []);
+
+
+
 
   // Handle filter changes
   const handleApplyFilters = async newFilters => {
