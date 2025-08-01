@@ -257,3 +257,20 @@ async def get_trace_details(correlation_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error getting trace details: {e}")
         raise HTTPException(status_code=500, detail="Failed to get trace details")
+ 
+# Get healthy services/sblocks for display on frontend   
+from .service_routing import route_to_service_block
+
+@health_router.get("/healthy-services")
+async def get_healthy_services() -> Dict[str, Any]:
+    sblocks = ["management", "maintenance", "gps", "trips"]
+    results = {}
+    for block in sblocks:
+        try:
+            resp = await route_to_service_block(service_name=block, method="GET", path="health", headers={}, body=None, query_params=None)
+            results[block] = resp.get("data", {})
+        except Exception as e:
+            logger.warning(f"{block} health check failed: {e}")
+            results[block] = {"status": "unavailable", "error": str(e)}
+    return {"timestamp": datetime.utcnow().isoformat(), "sblocks": results}
+            
