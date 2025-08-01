@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Button } from '../components/ui/button.jsx';
-import { useAuth, ROLES } from '../components/auth/RBACUtils.jsx';
+import React, {useState, useEffect, useRef} from 'react';
+import {Button} from '../components/ui/button.jsx';
+import {useAuth, ROLES} from '../components/auth/RBACUtils.jsx';
 import {
   listUsers,
   updateUserPermissions,
@@ -12,15 +12,15 @@ import {
   createUserManually,
   getUserInfo,
 } from '../backend/API.js';
-import { Navigate } from 'react-router-dom';
+import {Navigate} from 'react-router-dom';
 import UserTable from '../components/UserTable.jsx';
 import InviteUserModal from '../components/InviteUserModal.jsx';
 import ManualCreateUserModal from '../components/ManualCreateUserModal.jsx';
-import { useNotification } from '../contexts/NotificationContext.jsx';
+import {useNotification} from '../contexts/NotificationContext.jsx';
 
 const UserManagement = () => {
-  const { hasPermission, hasRole } = useAuth();
-  const { showNotification } = useNotification();
+  const {hasPermission, hasRole} = useAuth();
+  const {showNotification} = useNotification();
   const [adminUsers, setAdminUsers] = useState([]);
   const [managerUsers, setManagerUsers] = useState([]);
   const [driverUsers, setDriverUsers] = useState([]);
@@ -32,9 +32,9 @@ const UserManagement = () => {
   const [adminSearch, setAdminSearch] = useState('');
   const [managerSearch, setManagerSearch] = useState('');
   const [driverSearch, setDriverSearch] = useState('');
-  const [adminSort, setAdminSort] = useState({ field: 'full_name', direction: 'asc' });
-  const [managerSort, setManagerSort] = useState({ field: 'full_name', direction: 'asc' });
-  const [driverSort, setDriverSort] = useState({ field: 'full_name', direction: 'asc' });
+  const [adminSort, setAdminSort] = useState({field: 'full_name', direction: 'asc'});
+  const [managerSort, setManagerSort] = useState({field: 'full_name', direction: 'asc'});
+  const [driverSort, setDriverSort] = useState({field: 'full_name', direction: 'asc'});
 
   // Modal states
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -228,10 +228,12 @@ const UserManagement = () => {
     }
   };
 
-  // Handle opening manual create modal with specific role
   const handleOpenCreateModal = role => {
-    setCreateUserRole(role);
-    setShowManualCreateModal(true);
+    setShowManualCreateModal(false);
+    setTimeout(() => {
+      setCreateUserRole(role);
+      setShowManualCreateModal(true);
+    }, 0);
   };
 
   // Search and sort utility functions
@@ -266,7 +268,7 @@ const UserManagement = () => {
   const handleSort = (field, currentSort, setSortFunction) => {
     const newDirection =
       currentSort.field === field && currentSort.direction === 'asc' ? 'desc' : 'asc';
-    setSortFunction({ field, direction: newDirection });
+    setSortFunction({field, direction: newDirection});
   };
 
   // Get filtered and sorted users (recalculate on every render)
@@ -353,7 +355,7 @@ const UserManagement = () => {
           setSearch={setDriverSearch}
           sort={driverSort}
           onSortChange={field => handleSort(field, driverSort, setDriverSort)}
-          showAddButton={hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)}
+          showAddButton={true}
           onAddUser={() => handleOpenCreateModal('driver')}
         />
         {/* Pending Invitations Table */}

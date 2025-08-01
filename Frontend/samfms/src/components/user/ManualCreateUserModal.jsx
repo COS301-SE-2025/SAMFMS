@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Button } from '../ui/button';
-import { useAuth, ROLES } from '../auth/RBACUtils';
+import React, {useState} from 'react';
+import {Button} from '../ui/button';
+import {useAuth, ROLES} from '../auth/RBACUtils';
 
 const ManualCreateUserModal = ({
   isOpen,
@@ -9,7 +9,7 @@ const ManualCreateUserModal = ({
   loading,
   preselectedRole = 'driver',
 }) => {
-  const { hasRole } = useAuth();
+  const {hasRole} = useAuth();
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -29,7 +29,7 @@ const ManualCreateUserModal = ({
   }, [preselectedRole]);
 
   const handleChange = e => {
-    const { name, value } = e.target;
+    const {name, value} = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value,
@@ -145,7 +145,7 @@ const ManualCreateUserModal = ({
                 required
               />
             </div>{' '}
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium mb-1 text-foreground">Role *</label>
               <select
                 name="role"
@@ -157,11 +157,9 @@ const ManualCreateUserModal = ({
                 {hasRole(ROLES.ADMIN) && <option value="fleet_manager">Fleet Manager</option>}
                 <option value="driver">Driver</option>
               </select>
-              <p className="text-xs text-muted-foreground mt-1">
-                Role is pre-selected based on the table you're adding to, but you can change it
-              </p>
-            </div>
+            </div> */}
             <div>
+              <input type="hidden" name="role" value={preselectedRole} />
               <label className="block text-sm font-medium mb-1 text-foreground">Phone Number</label>
               <input
                 type="tel"
