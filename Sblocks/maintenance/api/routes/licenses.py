@@ -102,18 +102,38 @@ async def get_license_records(
             sort_order=sort_order
         )
         
-        return ResponseBuilder.success(
-            data=records,
-            message="License records retrieved successfully",
-            request_id=timer.request_id,
-            execution_time=timer.elapsed,
-            metadata={
-                "total": len(records),
-                "skip": pagination["skip"],
-                "limit": pagination["limit"],
-                "sort_by": sort_by,
-                "sort_order": sort_order
+        # Get total count for pagination
+        total_count = await license_service.get_total_count(query_params)
+        
+        # Get license summary for compliance information
+        summary = await license_service.get_license_summary()
+        
+        # Calculate has_more flag
+        has_more = (pagination["skip"] + len(records)) < total_count
+        
+        # Build response data in expected format
+        response_data = {
+            "licenses": records,
+            "total": total_count,
+            "skip": pagination["skip"],
+            "limit": pagination["limit"],
+            "has_more": has_more,
+            "summary": {
+                "expired": summary.get("expired", 0),
+                "expiring_soon": summary.get("expiring_soon", 0),
+                "active": summary.get("active_licenses", 0),
+                "total": summary.get("total_licenses", 0),
+                "compliance_rate": round(
+                    (summary.get("active_licenses", 0) / max(summary.get("total_licenses", 1), 1)) * 100, 1
+                ) if summary.get("total_licenses", 0) > 0 else 0.0
             }
+        }
+        
+        return ResponseBuilder.success(
+            data=response_data,
+            message="Vehicle licenses retrieved successfully",
+            request_id=timer.request_id,
+            execution_time=timer.elapsed
         )
         
     except Exception as e:

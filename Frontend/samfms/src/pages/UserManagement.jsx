@@ -1,6 +1,6 @@
 import React, {useState, useEffect, useRef} from 'react';
 import {Button} from '../components/ui/button.jsx';
-import {useAuth, ROLES} from '../components/RBACUtils.jsx';
+import {useAuth, ROLES} from '../components/auth/RBACUtils.jsx';
 import {
   listUsers,
   updateUserPermissions,
@@ -204,21 +204,6 @@ const UserManagement = () => {
       setLoading(false);
     }
   };
-  const handleRoleChange = async (userId, newRole) => {
-    try {
-      setLoading(true);
-      await updateUserPermissions({
-        user_id: userId,
-        role: newRole,
-      });
-      showNotification('User role updated successfully!', 'success');
-      loadUsers();
-    } catch (err) {
-      showNotification(`Failed to update user role: ${err.message}`, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleRemoveUser = async (userId, userName) => {
     const userConfirmed = window.confirm(
@@ -243,10 +228,12 @@ const UserManagement = () => {
     }
   };
 
-  // Handle opening manual create modal with specific role
   const handleOpenCreateModal = role => {
-    setCreateUserRole(role);
-    setShowManualCreateModal(true);
+    setShowManualCreateModal(false);
+    setTimeout(() => {
+      setCreateUserRole(role);
+      setShowManualCreateModal(true);
+    }, 0);
   };
 
   // Search and sort utility functions
@@ -288,11 +275,6 @@ const UserManagement = () => {
   const filteredAdmins = filterAndSortUsers(adminUsers, adminSearch, adminSort);
   const filteredManagers = filterAndSortUsers(managerUsers, managerSearch, managerSort);
   const filteredDrivers = filterAndSortUsers(driverUsers, driverSearch, driverSort);
-
-  // Handle role change with current user protection
-  const canChangeRole = user => {
-    return !user.isCurrentUser;
-  };
 
   return (
     <div className="relative container mx-auto py-8">
@@ -373,7 +355,7 @@ const UserManagement = () => {
           setSearch={setDriverSearch}
           sort={driverSort}
           onSortChange={field => handleSort(field, driverSort, setDriverSort)}
-          showAddButton={hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)}
+          showAddButton={true}
           onAddUser={() => handleOpenCreateModal('driver')}
         />
         {/* Pending Invitations Table */}

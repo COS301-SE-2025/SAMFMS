@@ -64,7 +64,7 @@ const Trips = () => {
   // Store coordinates for selected locations
   const [locationCoords, setLocationCoords] = useState({
     start: null,
-    end: null
+    end: null,
   });
 
   useEffect(() => {
@@ -164,14 +164,14 @@ const Trips = () => {
     });
     setLocationCoords({
       start: null,
-      end: null
+      end: null,
     });
   };
 
   const handleFormChange = (field, value) => {
     setTripForm(prev => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -179,7 +179,7 @@ const Trips = () => {
     handleFormChange('startLocation', address);
     setLocationCoords(prev => ({
       ...prev,
-      start: locationData
+      start: locationData,
     }));
   };
 
@@ -187,7 +187,7 @@ const Trips = () => {
     handleFormChange('endLocation', address);
     setLocationCoords(prev => ({
       ...prev,
-      end: locationData
+      end: locationData,
     }));
   };
 
@@ -424,7 +424,7 @@ const Trips = () => {
                     </label>
                     <select
                       value={tripForm.vehicleId}
-                      onChange={(e) => handleFormChange('vehicleId', e.target.value)}
+                      onChange={e => handleFormChange('vehicleId', e.target.value)}
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                       required
                     >

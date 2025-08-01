@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { listUsers, inviteUser, updateUserPermissions, getRoles } from '../backend/API';
-import { useAuth, ROLES } from '../components/RBACUtils';
+import { useAuth, ROLES } from '../components/auth/RBACUtils';
 
 /**
  * Custom hook to handle user management functionality
