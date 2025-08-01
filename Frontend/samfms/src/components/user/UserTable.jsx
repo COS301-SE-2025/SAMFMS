@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '../ui/button';
-import { Plus, Search, ChevronUp, ChevronDown } from 'lucide-react';
+import React, {useState, useEffect} from 'react';
+import {Button} from '../ui/button';
+import {Plus, Search, ChevronUp, ChevronDown} from 'lucide-react';
 
 const UserTable = ({
   title,
@@ -12,12 +12,13 @@ const UserTable = ({
   actions = [],
   search = '',
   setSearch,
-  sort = { field: 'full_name', direction: 'asc' },
+  sort = {field: 'full_name', direction: 'asc'},
   onSortChange,
   onAddUser,
   showAddButton = false,
 }) => {
   const [filteredUsers, setFilteredUsers] = useState(users);
+  const [searchField, setSearchField] = useState(search);
 
   useEffect(() => {
     setFilteredUsers(users);
@@ -59,7 +60,10 @@ const UserTable = ({
     }
   };
 
-  const handleSearchChange = async query => {
+  const handleSearchChange = async e => {
+    console.log("Changing search query:", e.target.value);
+    const query = e.target.value;
+    setSearchField(query);
     if (!query.trim()) {
       setFilteredUsers(users);
       return;
@@ -99,7 +103,7 @@ const UserTable = ({
             <input
               type="text"
               placeholder={`Search ${title.toLowerCase()}...`}
-              value={search}
+              value={searchField}
               onChange={handleSearchChange}
               className="w-full pl-10 pr-4 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
             />
@@ -112,34 +116,30 @@ const UserTable = ({
           <thead className="bg-muted/50">
             <tr>
               <th
-                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
-                  onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                }`}
+                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
+                  }`}
                 onClick={() => handleHeaderClick('full_name')}
               >
                 Name {getSortIcon('full_name')}
               </th>
               <th
-                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
-                  onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                }`}
+                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
+                  }`}
                 onClick={() => handleHeaderClick('email')}
               >
                 Email {getSortIcon('email')}
               </th>
               <th
-                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
-                  onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                }`}
+                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
+                  }`}
                 onClick={() => handleHeaderClick('phoneNo')}
               >
                 Phone {getSortIcon('phoneNo')}
               </th>
               {showRole && (
                 <th
-                  className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
-                    onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                  }`}
+                  className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
+                    }`}
                   onClick={() => handleHeaderClick('role')}
                 >
                   Role {getSortIcon('role')}
