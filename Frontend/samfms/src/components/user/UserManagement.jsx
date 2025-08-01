@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Button } from '../ui/button';
-import { useAuth, ROLES } from '../auth/RBACUtils';
+import React, {useState, useEffect, useRef} from 'react';
+import {Button} from '../ui/button';
+import {useAuth, ROLES} from '../auth/RBACUtils';
 import {
   listUsers,
   updateUserPermissions,
@@ -11,14 +11,14 @@ import {
   createUserManually,
   getDrivers,
 } from '../../backend/API.js';
-import { Navigate } from 'react-router-dom';
-import { useNotification } from '../../contexts/NotificationContext';
+import {Navigate} from 'react-router-dom';
+import {useNotification} from '../../contexts/NotificationContext';
 import UserTable from './UserTable';
 import ManualCreateUserModal from './ManualCreateUserModal';
 
 const UserManagement = () => {
-  const { hasPermission, hasRole } = useAuth();
-  const { showNotification } = useNotification();
+  const {hasPermission, hasRole} = useAuth();
+  const {showNotification} = useNotification();
   const [adminUsers, setAdminUsers] = useState([]);
   const [managerUsers, setManagerUsers] = useState([]);
   const [driverUsers, setDriverUsers] = useState([]);
@@ -27,6 +27,7 @@ const UserManagement = () => {
 
   // Modal states
   const [showManualCreateModal, setShowManualCreateModal] = useState(false);
+  const [createUserRole, setCreateUserRole] = useState('driver');
 
   const hasMounted = useRef(false);
 
@@ -64,7 +65,7 @@ const UserManagement = () => {
     try {
       // Load drivers from the drivers API if user has permission
       if (hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) {
-        const driversData = await getDrivers({ limit: 100 });
+        const driversData = await getDrivers({limit: 100});
         // Transform driver data to match user table format
         const transformedDrivers = driversData.map(driver => ({
           id: driver.id || driver._id,
@@ -154,6 +155,15 @@ const UserManagement = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenCreateModal = role => {
+    setShowManualCreateModal(false);
+    setTimeout(() => {
+      console.log("Opening create user modal with role:", role);
+      setCreateUserRole(role);
+      setShowManualCreateModal(true);
+    }, 0);
   };
 
   const handleResendInvitation = async email => {
@@ -267,13 +277,13 @@ const UserManagement = () => {
   const invitationActions = invitation => [
     ...(!invitation.is_expired && invitation.can_resend
       ? [
-          {
-            label: 'Resend OTP',
-            variant: 'outline',
-            onClick: () => handleResendInvitation(invitation.email),
-            disabled: () => loading,
-          },
-        ]
+        {
+          label: 'Resend OTP',
+          variant: 'outline',
+          onClick: () => handleResendInvitation(invitation.email),
+          disabled: () => loading,
+        },
+      ]
       : []),
     {
       label: 'Cancel',
@@ -324,6 +334,7 @@ const UserManagement = () => {
           showRole={false}
           emptyMessage="No administrators found"
           actions={adminActions}
+          onAddUser={() => handleOpenCreateModal('admin')}
         />
       )}
 
@@ -337,6 +348,7 @@ const UserManagement = () => {
           showRole={false}
           emptyMessage="No fleet managers found"
           actions={managerActions}
+          onAddUser={() => handleOpenCreateModal('fleet_manager')}
         />
       )}
 
@@ -350,6 +362,7 @@ const UserManagement = () => {
           showRole={false}
           emptyMessage="No drivers found"
           actions={driverActions}
+          onAddUser={() => handleOpenCreateModal('driver')}
         />
       )}
 
@@ -435,6 +448,7 @@ const UserManagement = () => {
         onClose={() => setShowManualCreateModal(false)}
         onSubmit={handleManualCreateSubmit}
         loading={loading}
+        preselectedRole={createUserRole}
       />
     </div>
   );
