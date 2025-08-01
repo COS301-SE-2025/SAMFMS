@@ -160,7 +160,13 @@ export const API_ENDPOINTS = {
     LIST: '/trips/trips',
     CREATE: '/trips/trips/create',
     UPDATE: id =>  `/trips/trips/${id}`,
-    DELETE: id => `/trips/trips/${id}`
+    DELETE: id => `/trips/trips/${id}`,
+    ACTIVE: '/trips/trips/active',
+    HISTORY: '/trips/history',
+    ANALYTICS: {
+      DRIVERS: '/trips/analytics/drivers',
+      VEHICLES: '/trips/analytics/vehicles'
+    }
   },
 
   // Maintenance

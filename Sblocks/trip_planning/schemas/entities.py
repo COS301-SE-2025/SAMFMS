@@ -96,14 +96,9 @@ class TripConstraint(BaseModel):
 
 class DriverAssignment(BaseModel):
     """Driver assignment to trip"""
-    id: Optional[str] = Field(None, alias="_id")
-    trip_id: str = Field(..., description="Trip ID")
     driver_id: str = Field(..., description="Driver ID")
-    vehicle_id: Optional[str] = Field(None, description="Assigned vehicle ID")
-    assigned_at: datetime = Field(default_factory=datetime.utcnow)
-    assigned_by: str = Field(..., description="User who made the assignment")
-    notes: Optional[str] = None
-    
+    driver_name: Optional[str] = Field(None, description="Driver name")
+
     class Config:
         populate_by_name = True
 
@@ -128,11 +123,11 @@ class Trip(BaseModel):
     # Trip details
     status: TripStatus = Field(default=TripStatus.SCHEDULED)
     priority: TripPriority = Field(default=TripPriority.NORMAL)
-    estimated_duration: Optional[int] = Field(None, description="Estimated duration in minutes")
+    estimated_end_time: Optional[datetime] = Field(None, description="Estimated end time")
     estimated_distance: Optional[float] = Field(None, description="Estimated distance in km")
     
     # Assignments
-    driver_assignment: Optional[DriverAssignment] = None
+    driver_assignment: Optional[str] = None
     vehicle_id: Optional[str] = None
     
     # Constraints

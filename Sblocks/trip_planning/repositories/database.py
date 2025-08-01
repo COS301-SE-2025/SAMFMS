@@ -174,6 +174,12 @@ class DatabaseManager:
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.trips
+    @property
+    def trip_history(self):
+        """Get trip history"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.trip_history
     
     @property
     def trip_constraints(self):
@@ -336,6 +342,82 @@ class DatabaseManagerGeo():
             raise RuntimeError("Database not connected")
         return self._db.vehicle_locations
 
+class DatabaseManagerManagement():
+    """Centralized database connection manager for Trip Planning: Management access"""
+    def __init__(self):
+        self._client: Optional[motor.motor_asyncio.AsyncIOMotorClient] = None
+        self._db = None
+        self.mongodb_url = os.getenv(
+            "MONGODB_URL",
+            "mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017"
+        )
+        self.database_name = os.getenv("DATABASE_MANAGEMENT","samfms_gpssamfms_management")
+    
+    async def connect(self):
+        """Establish database connection with optimal settings and error recovery"""
+        if self._client is None:
+            try:
+                # Connection with optimized settings
+                self._client = motor.motor_asyncio.AsyncIOMotorClient(
+                    self.mongodb_url,
+                    maxPoolSize=50,
+                    minPoolSize=10,
+                    maxIdleTimeMS=30000,
+                    waitQueueTimeoutMS=5000,
+                    serverSelectionTimeoutMS=5000,
+                    connectTimeoutMS=10000,
+                    socketTimeoutMS=20000,
+                    retryWrites=True,
+                    w="majority"
+                )
+                
+                # Test connection
+                await self._client.admin.command('ping')
+                self._db = self._client[self.database_name]
+
+                logger.info(f"Connected to MongoDB Management: {self.database_name}")
+            
+            except Exception as e:
+                logger.error(f"Failed to connect to MongoDB Management: {e}")
+                raise
+    async def disconnect(self):
+        """Safely disconnect from database"""
+        if self._client is not None:
+            self._client.close()
+            self._client = None
+            self._db = None
+            logger.info("Disconnected from MongoDB Management")
+    
+    def is_connected(self) -> bool:
+        """Check if database is connected"""
+        return self._client is not None and self._db is not None
+    
+    @property
+    def db(self):
+        """Get database Management instance"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db
+
+    async def health_check(self) -> bool:
+        """Check database health"""
+        try:
+            if not self._client:
+                return False
+            await self._client.admin.command('ping')
+            return True
+        except Exception as e:
+            logger.error(f"Database health check failed Management: {e}")
+            return False
+    
+    @property
+    def drivers(self):
+        """Get drivers collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.drivers
+
 # Global database manager instance
 db_manager = DatabaseManager()
 db_manager_gps = DatabaseManagerGeo()
+db_manager_management = DatabaseManagerManagement()
