@@ -14,7 +14,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
 
 # Import organised modules
-from repositories.database import db_manager
+from repositories.database import db_manager, db_manager_gps, db_manager_management
 from events.publisher import event_publisher
 from events.consumer import event_consumer, setup_event_handlers
 from services.analytics_service import analytics_service
@@ -37,6 +37,9 @@ from api.exception_handlers import (
     BusinessLogicError
 )
 from schemas.responses import ResponseBuilder
+
+# Import the simulation service
+from services.simulation_service import simulation_service
 
 # Setup logging
 logging.basicConfig(
@@ -181,6 +184,26 @@ async def lifespan(app: FastAPI):
         app.state.start_time = datetime.now(timezone.utc)
         metrics_middleware.app = app
 
+        # Start database for Management
+        logger.info("Connecting to database Management...")
+        try:
+            await db_manager_management.connect()
+            logger.info("Database Management connected successfully")
+        except Exception as e:
+            logger.error(f"Database Management connection failed: {e}")
+            raise DatabaseConnectionError(f"Failed to connect to database Management: {e}")
+
+        # Start database for GPS
+        logger.info("Connecting to database GPS...")
+        try:
+            await db_manager_gps.connect()
+            logger.info("Database GPS connected successfully")
+        except Exception as e:
+            logger.error(f"Database GPS connection failed: {e}")
+            raise DatabaseConnectionError(f"Failed to connect to database GPS: {e}")
+        # Start the simulation service
+        await simulation_service.start_simulation_service()
+
         logger.info("Trips Service Startup Completed Successfully")
         
         yield
@@ -215,6 +238,9 @@ async def lifespan(app: FastAPI):
 
             await db_manager.disconnect()
             logger.info("Database disconnected")
+
+            await db_manager_gps.disconnect()
+            logger.info("Database GPS disconnected")
 
             logger.info("Trips Service shutdown completed")
         except Exception as e:

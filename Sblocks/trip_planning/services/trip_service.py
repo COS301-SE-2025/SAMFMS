@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from bson import ObjectId
 
 from repositories.database import db_manager
-from schemas.entities import Trip, TripStatus, TripConstraint, DriverAssignment
+from schemas.entities import Trip, TripStatus, TripConstraint
 from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest
 from events.publisher import event_publisher
 
@@ -82,6 +82,70 @@ class TripService:
         except Exception as e:
             logger.error(f"[TripService.get_all_trips] Failed: {e}")
             raise
+    
+    async def cancel_trip(self, trip_id: str, reason: str = "cancelled"):
+        """Cancel a trip and move it to history (for external cancellation handling)"""
+        try:
+            # Get the original trip document
+            trip_doc = await db_manager.trips.find_one({"_id": ObjectId(trip_id)})
+            
+            if not trip_doc:
+                logger.error(f"Trip {trip_id} not found in trips collection")
+                return False
+            
+            # Add cancellation information
+            cancellation_time = datetime.utcnow()
+            trip_doc.update({
+                "actual_end_time": cancellation_time,
+                "status": "cancelled",
+                "completion_reason": "cancelled",
+                "cancellation_reason": reason,
+                "moved_to_history_at": cancellation_time
+            })
+            
+            # Insert into trip_history collection
+            await db_manager.trip_history.insert_one(trip_doc)
+            logger.info(f"Trip {trip_id} moved to trip_history with status 'cancelled'")
+            
+            # Remove from active trips collection
+            await db_manager.trips.delete_one({"_id": ObjectId(trip_id)})
+            
+            # Stop simulation if running
+            if trip_id in self.active_simulators:
+                self.active_simulators[trip_id].is_running = False
+                del self.active_simulators[trip_id]
+                logger.info(f"Stopped simulation for cancelled trip {trip_id}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to cancel trip {trip_id}: {e}")
+            return False
+    
+    async def get_active_trips(self) -> List[Trip]:
+        """
+        Return all active trips (current time >= scheduled_start_time and not completed/canceled)
+        """
+        logger.info("[TripService.get_active_trips] Entered")
+        try:
+            now = datetime.utcnow()
+            query = {
+                "scheduled_start_time": {"$lte": now},
+                #"status": {"$in": [TripStatus.SCHEDULED, TripStatus.IN_PROGRESS]}
+            }
+            logger.debug(f"[TripService.get_active_trips] Query: {query}")
+
+            cursor = self.db.trips.find(query)
+            trips = []
+            async for trip_doc in cursor:
+                trip_doc["_id"] = str(trip_doc["_id"])
+                trips.append(Trip(**trip_doc))
+            logger.info(f"[TripService.get_active_trips] Retrieved {len(trips)} active trips")
+            return trips
+        except Exception as e:
+            logger.error(f"[TripService.get_active_trips] Failed: {e}")
+            raise
+
 
     
     async def get_trip_by_id(self, trip_id: str) -> Optional[Trip]:
@@ -111,18 +175,23 @@ class TripService:
             
             # Prepare update data
             update_data = request.dict(exclude_unset=True)
+            print(f"DEBUG: update_data = {update_data}")
             update_data["updated_at"] = datetime.utcnow()
             
             # Validate schedule changes
             if "scheduled_end_time" in update_data and "scheduled_start_time" in update_data:
                 if update_data["scheduled_end_time"] <= update_data["scheduled_start_time"]:
                     raise ValueError("End time must be after start time")
+
             
             # Update in database
             result = await self.db.trips.update_one(
                 {"_id": ObjectId(trip_id)},
                 {"$set": update_data}
             )
+
+            print(f"DEBUG: Modified count = {result.modified_count}")  # Add this
+            print(f"DEBUG: Matched count = {result.matched_count}")
             
             if result.modified_count == 0:
                 return None

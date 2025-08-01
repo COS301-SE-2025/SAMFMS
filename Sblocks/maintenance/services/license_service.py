@@ -215,6 +215,32 @@ class LicenseService:
             logger.error(f"Error searching license records: {e}")
             raise
             
+    async def get_total_count(self, query: Dict[str, Any]) -> int:
+        """Get total count of license records matching query"""
+        try:
+            # Build MongoDB query from search parameters
+            db_query = {}
+            
+            if "entity_id" in query:
+                db_query["entity_id"] = query["entity_id"]
+            if "entity_type" in query:
+                db_query["entity_type"] = query["entity_type"]
+            if "license_type" in query:
+                db_query["license_type"] = query["license_type"]
+            if "is_active" in query:
+                db_query["is_active"] = query["is_active"]
+                
+            # Expiry date range
+            if "expiring_within_days" in query:
+                future_date = date.today() + timedelta(days=query["expiring_within_days"])
+                db_query["expiry_date"] = {"$lte": future_date}
+                
+            return await self.repository.count(db_query)
+            
+        except Exception as e:
+            logger.error(f"Error counting license records: {e}")
+            raise
+            
     async def get_license_summary(self, entity_id: Optional[str] = None,
                                 entity_type: Optional[str] = None) -> Dict[str, Any]:
         """Get license summary statistics"""

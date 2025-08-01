@@ -12,11 +12,11 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   const [newGeofence, setNewGeofence] = useState({
     name: '',
     description: '',
-    type: 'depot', 
-    geometryType: 'circle', 
+    type: 'depot',
+    geometryType: 'circle',
     radius: 500,
     coordinates: { lat: 37.7749, lng: -122.4194 },
-    status: 'active'
+    status: 'active',
   });
 
   // Filter geofences based on search and type filter
@@ -38,7 +38,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   const handleAddGeofence = async () => {
     try {
       if (!newGeofence.name) {
-        alert("Please fill in the name.");
+        alert('Please fill in the name.');
         return;
       }
 
@@ -50,71 +50,70 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
       if (newGeofence.geometryType === 'circle') {
         // Correct: use center + radius
         geometry = {
-          type: "circle",
+          type: 'circle',
           center: { latitude: lat, longitude: lng },
-          radius: parseInt(newGeofence.radius)
+          radius: parseInt(newGeofence.radius),
         };
-      }
-      else if (newGeofence.geometryType === 'rectangle') {
+      } else if (newGeofence.geometryType === 'rectangle') {
         // Generate a small rectangle for demo
         const offset = 0.001;
         geometry = {
-          type: "rectangle",
+          type: 'rectangle',
           points: [
             { latitude: lat + offset, longitude: lng - offset },
             { latitude: lat + offset, longitude: lng + offset },
             { latitude: lat - offset, longitude: lng + offset },
-            { latitude: lat - offset, longitude: lng - offset }
-          ]
+            { latitude: lat - offset, longitude: lng - offset },
+          ],
         };
-      }
-      else if (newGeofence.geometryType === 'polygon') {
+      } else if (newGeofence.geometryType === 'polygon') {
         // Example: simple triangle around the point
         const offset = 0.001;
         geometry = {
-          type: "polygon",
+          type: 'polygon',
           points: [
             { latitude: lat + offset, longitude: lng },
             { latitude: lat - offset, longitude: lng + offset },
-            { latitude: lat - offset, longitude: lng - offset }
-          ]
+            { latitude: lat - offset, longitude: lng - offset },
+          ],
         };
       }
 
       const payload = {
         name: newGeofence.name,
-        description: newGeofence.description || "",
-        type: newGeofence.type,       // depot, service, delivery, etc.
-        status: newGeofence.status || "active",
-        geometry: geometry
+        description: newGeofence.description || '',
+        type: newGeofence.type, // depot, service, delivery, etc.
+        status: newGeofence.status || 'active',
+        geometry: geometry,
       };
 
-      console.log("Sending geofence data:", payload);
+      console.log('Sending geofence data:', payload);
       const response = await addGeofence(payload);
-      console.log("Geofence created successfully:", response);
+      console.log('Geofence created successfully:', response);
 
       // Adapt response for UI
       const newGeofenceForUI = {
         ...response,
         coordinates: {
           lat: response.geometry?.center?.latitude || response.geometry?.points?.[0]?.latitude || 0,
-          lng: response.geometry?.center?.longitude || response.geometry?.points?.[0]?.longitude || 0
+          lng:
+            response.geometry?.center?.longitude || response.geometry?.points?.[0]?.longitude || 0,
         },
         radius: response.geometry?.radius || 500,
-        geometryType: response.geometry?.type || 'circle'
+        geometryType: response.geometry?.type || 'circle',
       };
 
       setGeofences(prev => [...prev, newGeofenceForUI]);
       setShowAddModal(false);
       resetForm();
     } catch (error) {
-      console.error("Error creating geofence:", error);
+      console.error('Error creating geofence:', error);
       alert(`Failed to create geofence: ${error.message || error}`);
     }
   };
 
-
   // Helper function to get colors based on geofence type
+  /*
   const getColorForType = (type, opacity = 1) => {
     const colors = {
       depot: `rgba(0, 123, 255, ${opacity})`,
@@ -126,6 +125,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
 
     return colors[type] || `rgba(108, 117, 125, ${opacity})`;
   };
+  */
 
   // Handle editing a geofence
   const handleEditGeofence = async () => {
@@ -138,46 +138,48 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
       let geometry;
       if (newGeofence.geometryType === 'circle') {
         geometry = {
-          type: "circle",
+          type: 'circle',
           center: { latitude: lat, longitude: lng },
-          radius: parseInt(newGeofence.radius)
+          radius: parseInt(newGeofence.radius),
         };
       } else if (newGeofence.geometryType === 'rectangle') {
         const offset = 0.001;
         geometry = {
-          type: "rectangle",
+          type: 'rectangle',
           points: [
             { latitude: lat + offset, longitude: lng - offset },
             { latitude: lat + offset, longitude: lng + offset },
             { latitude: lat - offset, longitude: lng + offset },
-            { latitude: lat - offset, longitude: lng - offset }
-          ]
+            { latitude: lat - offset, longitude: lng - offset },
+          ],
         };
       } else if (newGeofence.geometryType === 'polygon') {
         const offset = 0.001;
         geometry = {
-          type: "polygon",
+          type: 'polygon',
           points: [
             { latitude: lat + offset, longitude: lng },
             { latitude: lat - offset, longitude: lng + offset },
-            { latitude: lat - offset, longitude: lng - offset }
-          ]
+            { latitude: lat - offset, longitude: lng - offset },
+          ],
         };
       }
 
       const payload = {
         name: newGeofence.name,
-        description: newGeofence.description || "",
+        description: newGeofence.description || '',
         type: newGeofence.type,
         status: newGeofence.status,
-        geometry: geometry
+        geometry: geometry,
       };
 
       const response = await updateGeofence(editingGeofence.id, payload);
-      console.log("Geofence updated successfully:", response);
+      console.log('Geofence updated successfully:', response);
 
       const updatedGeofences = geofences.map(g =>
-        g.id === editingGeofence.id ? { ...g, ...payload, coordinates: { lat, lng }, radius: geometry.radius } : g
+        g.id === editingGeofence.id
+          ? { ...g, ...payload, coordinates: { lat, lng }, radius: geometry.radius }
+          : g
       );
       setGeofences(updatedGeofences);
 
@@ -185,11 +187,10 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
       setEditingGeofence(null);
       setShowAddModal(false);
     } catch (error) {
-      console.error("Error updating geofence:", error);
+      console.error('Error updating geofence:', error);
       alert(`Failed to update geofence: ${error.message || error}`);
     }
   };
-
 
   // Handle deleting a geofence
   const handleDeleteGeofence = async id => {
@@ -199,12 +200,11 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
         setGeofences(geofences.filter(g => g.id !== id));
         console.log(`Geofence ${id} deleted successfully`);
       } catch (error) {
-        console.error("Error deleting geofence:", error);
+        console.error('Error deleting geofence:', error);
         alert(`Failed to delete geofence: ${error.message || error}`);
       }
     }
   };
-
 
   // Edit geofence
   const startEditGeofence = geofence => {
@@ -216,7 +216,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
       geometryType: geofence.geometryType || 'circle',
       coordinates: geofence.coordinates,
       radius: geofence.radius,
-      status: geofence.status
+      status: geofence.status,
     });
     setShowAddModal(true);
   };
@@ -224,13 +224,13 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   // Reset the form
   const resetForm = () => {
     setNewGeofence({
-      name: "",
-      description: "",
-      type: "depot",
-      geometryType: "circle",
-      status: "active",
+      name: '',
+      description: '',
+      type: 'depot',
+      geometryType: 'circle',
+      status: 'active',
       coordinates: { lat: 0, lng: 0 },
-      radius: 500
+      radius: 500,
     });
   };
 
@@ -295,7 +295,9 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                       {geofence.type.charAt(0).toUpperCase() + geofence.type.slice(1)}
                     </td>
                     <td className="py-3 px-4">
-                      {(geofence.geometryType || geofence.geometry?.type || 'circle').charAt(0).toUpperCase() +
+                      {(geofence.geometryType || geofence.geometry?.type || 'circle')
+                        .charAt(0)
+                        .toUpperCase() +
                         (geofence.geometryType || geofence.geometry?.type || 'circle').slice(1)}
                     </td>
                     <td className="py-3 px-4">
@@ -414,7 +416,9 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                   <input
                     type="number"
                     value={newGeofence.radius}
-                    onChange={e => setNewGeofence({ ...newGeofence, radius: parseInt(e.target.value) })}
+                    onChange={e =>
+                      setNewGeofence({ ...newGeofence, radius: parseInt(e.target.value) })
+                    }
                     className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
                     min="10"
                     max="10000"
@@ -495,7 +499,10 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                 <button
                   onClick={editingGeofence ? handleEditGeofence : handleAddGeofence}
                   className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition"
-                  disabled={!newGeofence.name || (newGeofence.geometryType === 'circle' && isNaN(newGeofence.radius))}
+                  disabled={
+                    !newGeofence.name ||
+                    (newGeofence.geometryType === 'circle' && isNaN(newGeofence.radius))
+                  }
                 >
                   {editingGeofence ? 'Update' : 'Add'} Geofence
                 </button>
@@ -504,7 +511,6 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
           </div>
         </div>
       )}
-
     </>
   );
 };

@@ -15,7 +15,9 @@
     "lucide-react": "^0.511.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-grid-layout": "^1.5.2",
     "react-leaflet": "^5.0.0",
+    "react-resizable": "^3.0.5",
     "react-router-dom": "^7.6.0",
     "react-scripts": "5.0.1",
     "tailwind-merge": "^3.3.0",
@@ -52,21 +54,21 @@
     ]
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.3",
-    "tailwindcss": "^3.4.17",
-    "tailwindcss-animate": "^1.0.7",
-    "recharts": "^3.0.0",
-    "jest-junit": "^16.0.0",
-    "eslint": "^8.57.0",
-    "eslint-plugin-react": "^7.34.1",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-jsx-a11y": "^6.8.0",
-    "eslint-plugin-import": "^2.29.1",
     "@babel/core": "^7.24.0",
     "@babel/preset-env": "^7.24.0",
     "@babel/preset-react": "^7.24.0",
+    "autoprefixer": "^10.4.21",
     "babel-jest": "^29.7.0",
-    "identity-obj-proxy": "^3.0.0"
+    "eslint": "^8.57.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-jsx-a11y": "^6.8.0",
+    "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "identity-obj-proxy": "^3.0.0",
+    "jest-junit": "^16.0.0",
+    "postcss": "^8.5.3",
+    "recharts": "^3.0.0",
+    "tailwindcss": "^3.4.17",
+    "tailwindcss-animate": "^1.0.7"
   }
 }

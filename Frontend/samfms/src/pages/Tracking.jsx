@@ -6,6 +6,7 @@ import GeofenceManager from '../components/tracking/GeofenceManager';
 import LocationHistory from '../components/tracking/LocationHistory';
 import { listGeofences } from '../backend/api/geofences';
 import { listLocations } from '../backend/api/locations';
+import { getVehicles } from '../backend/api/vehicles';
 
 const Tracking = () => {
   const [locations, setLocations] = useState([]);
@@ -19,8 +20,8 @@ const Tracking = () => {
   useEffect(() => {
     const loadVehicles = async () => {
       try {
-        const response = await listVehicles();
-        setVehicles(response.data?.data || []);
+        const response = await getVehicles();
+        setVehicles(response.vehicles || []);
       } catch (err) {
         console.error('Failed to load vehicles:', err);
       }
@@ -34,40 +35,41 @@ const Tracking = () => {
       try {
         setLoading(true);
         const response = await listGeofences();
-        const transformedGeofences = response.data?.data?.map(geofence => {
-          let coordinates = { lat: 0, lng: 0 };
-          let radius = 500;
-          let geometryType = 'circle';
+        const transformedGeofences =
+          response.data?.data?.map(geofence => {
+            let coordinates = { lat: 0, lng: 0 };
+            let radius = 500;
+            let geometryType = 'circle';
 
-          if (geofence.geometry) {
-            geometryType = geofence.geometry.type || 'circle';
-            if (geometryType === 'circle') {
-              coordinates = {
-                lat: geofence.geometry.center?.latitude || 0,
-                lng: geofence.geometry.center?.longitude || 0
-              };
-              radius = geofence.geometry.radius || 500;
-            } else if (geometryType === 'polygon' || geometryType === 'rectangle') {
-              const firstPoint = geofence.geometry.points?.[0];
-              if (firstPoint) {
-                coordinates = { lat: firstPoint.latitude || 0, lng: firstPoint.longitude || 0 };
+            if (geofence.geometry) {
+              geometryType = geofence.geometry.type || 'circle';
+              if (geometryType === 'circle') {
+                coordinates = {
+                  lat: geofence.geometry.center?.latitude || 0,
+                  lng: geofence.geometry.center?.longitude || 0,
+                };
+                radius = geofence.geometry.radius || 500;
+              } else if (geometryType === 'polygon' || geometryType === 'rectangle') {
+                const firstPoint = geofence.geometry.points?.[0];
+                if (firstPoint) {
+                  coordinates = { lat: firstPoint.latitude || 0, lng: firstPoint.longitude || 0 };
+                }
+                radius = null;
               }
-              radius = null;
             }
-          }
 
-          return {
-            id: geofence.id,
-            name: geofence.name,
-            description: geofence.description,
-            type: geofence.type,
-            status: geofence.status,
-            geometry: geofence.geometry,
-            geometryType: geometryType,
-            coordinates: coordinates,
-            radius: radius
-          };
-        }) || [];
+            return {
+              id: geofence.id,
+              name: geofence.name,
+              description: geofence.description,
+              type: geofence.type,
+              status: geofence.status,
+              geometry: geofence.geometry,
+              geometryType: geometryType,
+              coordinates: coordinates,
+              radius: radius,
+            };
+          }) || [];
 
         setGeofences(transformedGeofences);
         setError(null);
@@ -87,7 +89,7 @@ const Tracking = () => {
     const loadLocations = async () => {
       try {
         const response = await listLocations();
-        console.log("Response received from Core: ");
+        console.log('Response received from Core: ');
         console.log(response);
         setLocations(response.data?.data || []);
       } catch (err) {
@@ -109,7 +111,7 @@ const Tracking = () => {
     setSelectedVehicle(vehicle);
   };
 
-  const handleGeofenceChange = (updatedGeofences) => {
+  const handleGeofenceChange = updatedGeofences => {
     setGeofences(updatedGeofences);
   };
 

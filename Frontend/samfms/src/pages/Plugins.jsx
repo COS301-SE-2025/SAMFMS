@@ -1,5 +1,5 @@
-import React, {useState, useEffect} from 'react';
-import {Button} from '../components/ui/button';
+import React, { useState, useEffect } from 'react';
+import { Button } from '../components/ui/button';
 import {
   getPlugins,
   getAllPlugins,
@@ -12,14 +12,11 @@ import {
   removeSblock,
   addSblock,
 } from '../backend/api/plugins';
-import {useAuth, ROLES} from '../components/RBACUtils';
-import PluginCard from '../components/PluginCard';
-import PluginTable from '../components/PluginTable';
-
-const userTypes = ['admin', 'fleet_manager', 'driver'];
+import { useAuth, ROLES } from '../components/auth/RBACUtils';
+import PluginCard from '../components/plugins/PluginCard';
 
 const Plugins = () => {
-  const {hasRole} = useAuth();
+  const { hasRole } = useAuth();
   const [plugins, setPlugins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -100,7 +97,7 @@ const Plugins = () => {
   // Handler for changing access for a plugin
   const handleAccessToggle = async (pluginId, role) => {
     try {
-      setActionLoading(prev => ({...prev, [pluginId]: true}));
+      setActionLoading(prev => ({ ...prev, [pluginId]: true }));
 
       const plugin = plugins.find(p => p.plugin_id === pluginId);
       if (!plugin) return;
@@ -113,13 +110,13 @@ const Plugins = () => {
 
       // Update local state
       setPlugins(prev =>
-        prev.map(p => (p.plugin_id === pluginId ? {...p, allowed_roles: newRoles} : p))
+        prev.map(p => (p.plugin_id === pluginId ? { ...p, allowed_roles: newRoles } : p))
       );
     } catch (err) {
       setError('Failed to update plugin access: ' + err.message);
       console.error('Error updating plugin access:', err);
     } finally {
-      setActionLoading(prev => ({...prev, [pluginId]: false}));
+      setActionLoading(prev => ({ ...prev, [pluginId]: false }));
     }
   };
   // Handler for toggling enabled/disabled
@@ -130,7 +127,7 @@ const Plugins = () => {
     }
 
     try {
-      setActionLoading(prev => ({...prev, [pluginId]: true}));
+      setActionLoading(prev => ({ ...prev, [pluginId]: true }));
 
       const plugin = plugins.find(p => p.plugin_id === pluginId);
       if (!plugin) return;
@@ -146,7 +143,7 @@ const Plugins = () => {
 
       // Update local state with the result
       setPlugins(prev =>
-        prev.map(p => (p.plugin_id === pluginId ? {...p, status: result.status} : p))
+        prev.map(p => (p.plugin_id === pluginId ? { ...p, status: result.status } : p))
       );
 
       // Refresh plugin status after a short delay
@@ -155,7 +152,7 @@ const Plugins = () => {
       setError('Failed to toggle plugin: ' + err.message);
       console.error('Error toggling plugin:', err);
     } finally {
-      setActionLoading(prev => ({...prev, [pluginId]: false}));
+      setActionLoading(prev => ({ ...prev, [pluginId]: false }));
     }
   };
 
@@ -166,7 +163,7 @@ const Plugins = () => {
       setPlugins(prev =>
         prev.map(p =>
           p.plugin_id === pluginId
-            ? {...p, status: status.status, container_status: status.container_status}
+            ? { ...p, status: status.status, container_status: status.container_status }
             : p
         )
       );
@@ -190,7 +187,6 @@ const Plugins = () => {
 
   return (
     <div className="relative container mx-auto py-8">
-
       {/* Background pattern */}
       <div
         className="absolute inset-0 z-0 opacity-10 pointer-events-none"

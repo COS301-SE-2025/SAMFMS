@@ -118,7 +118,7 @@ const Landing = () => {
                             <p className="text-xl text-muted-foreground mb-8">
                                 Streamline your fleet operations, optimize vehicle maintenance, and track your assets with our comprehensive management system.
                             </p>
-                            <div>
+                            <div className="flex justify-center md:justify-start">
                                 <Button
                                     size="lg"
                                     onClick={handleGetStarted}

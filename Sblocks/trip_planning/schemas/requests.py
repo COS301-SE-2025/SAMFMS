@@ -11,14 +11,18 @@ from .entities import (
 )
 
 
+from pydantic import BaseModel, Field, validator
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+
 class CreateTripRequest(BaseModel):
     """Request to create a new trip"""
     name: str = Field(..., min_length=1, max_length=200, description="Trip name")
-    description: Optional[str] = Field(None, max_length=1000)
+    description: str = Field(..., max_length=1000, description="Trip description")
     
     # Schedule
     scheduled_start_time: datetime = Field(..., description="When the trip should start")
-    scheduled_end_time: Optional[datetime] = None
+    scheduled_end_time: datetime = Field(..., description="When the trip should end")
     
     # Route
     origin: Waypoint = Field(..., description="Starting point")
@@ -26,8 +30,9 @@ class CreateTripRequest(BaseModel):
     waypoints: List[Waypoint] = Field(default_factory=list, description="Intermediate stops")
     
     # Trip details
-    priority: TripPriority = Field(default=TripPriority.NORMAL)
-    vehicle_id: Optional[str] = None
+    priority: TripPriority = Field(..., description="Trip priority")
+    vehicle_id: str = Field(..., description="Assigned vehicle ID")
+    driver_assignment: str = Field(..., description="Assigned driver ID")
     
     # Constraints
     constraints: List[TripConstraint] = Field(default_factory=list)
@@ -41,7 +46,7 @@ class CreateTripRequest(BaseModel):
             if v <= values['scheduled_start_time']:
                 raise ValueError('End time must be after start time')
         return v
-    
+
     @validator('waypoints')
     def validate_waypoints_order(cls, v):
         if v:
@@ -53,6 +58,7 @@ class CreateTripRequest(BaseModel):
         return v
 
 
+
 class UpdateTripRequest(BaseModel):
     """Request to update a trip"""
     name: Optional[str] = Field(None, min_length=1, max_length=200)
@@ -62,6 +68,8 @@ class UpdateTripRequest(BaseModel):
     priority: Optional[TripPriority] = None
     status: Optional[TripStatus] = None
     vehicle_id: Optional[str] = None
+    actual_start_time: Optional[datetime]= None
+    actual_end_time: Optional[datetime] = None
     custom_fields: Optional[Dict[str, Any]] = None
 
 
