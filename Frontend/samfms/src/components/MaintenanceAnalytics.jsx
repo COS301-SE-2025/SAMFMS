@@ -30,8 +30,12 @@ const MaintenanceAnalytics = ({ vehicles }) => {
         maintenanceAPI.getCostAnalytics(filters.period, filters.vehicleId || null),
       ]);
 
-      setAnalyticsData(analyticsResponse);
-      setCostAnalytics(costResponse);
+      // Handle nested data structure from backend
+      const analyticsData = analyticsResponse.data?.data || analyticsResponse.data || {};
+      const costData = costResponse.data?.data || costResponse.data || {};
+
+      setAnalyticsData(analyticsData.analytics || analyticsData);
+      setCostAnalytics(costData.cost_analytics || costData.analytics || costData);
     } catch (err) {
       console.error('Error loading analytics:', err);
       setError('Failed to load analytics data');

@@ -44,6 +44,7 @@ class LicenseType(str, Enum):
     ROADWORTHY_CERTIFICATE = "roadworthy_certificate"
     EMISSIONS_CERTIFICATE = "emissions_certificate"
     OPERATING_PERMIT = "operating_permit"
+    LICENSE_DISK = "license_disk"
 
 
 class MaintenanceRecord(BaseModel):

@@ -14,7 +14,9 @@ const MaintenanceSchedules = ({ vehicles }) => {
   const [formData, setFormData] = useState({
     vehicle_id: '',
     maintenance_type: '',
+    title: '', // Required field for schedule creation
     description: '',
+    scheduled_date: new Date().toISOString().split('T')[0], // Required field
     interval_type: 'mileage',
     interval_value: '',
     last_service_date: '',
@@ -53,7 +55,12 @@ const MaintenanceSchedules = ({ vehicles }) => {
     try {
       setLoading(true);
       const response = await maintenanceAPI.getMaintenanceSchedules(filters.vehicleId || null);
-      setSchedules(response.data || []);
+
+      // Handle nested data structure from backend
+      const data = response.data?.data || response.data || {};
+      const schedules = data.schedules || data || [];
+
+      setSchedules(schedules);
     } catch (err) {
       console.error('Error loading maintenance schedules:', err);
       setError('Failed to load maintenance schedules');
@@ -93,7 +100,11 @@ const MaintenanceSchedules = ({ vehicles }) => {
     setFormData({
       vehicle_id: schedule.vehicle_id || '',
       maintenance_type: schedule.maintenance_type || '',
+      title: schedule.title || '',
       description: schedule.description || '',
+      scheduled_date: schedule.scheduled_date
+        ? new Date(schedule.scheduled_date).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0],
       interval_type: schedule.interval_type || 'mileage',
       interval_value: schedule.interval_value?.toString() || '',
       last_service_date: schedule.last_service_date
@@ -125,7 +136,9 @@ const MaintenanceSchedules = ({ vehicles }) => {
     setFormData({
       vehicle_id: '',
       maintenance_type: '',
+      title: '',
       description: '',
+      scheduled_date: new Date().toISOString().split('T')[0],
       interval_type: 'mileage',
       interval_value: '',
       last_service_date: '',
@@ -267,8 +280,8 @@ const MaintenanceSchedules = ({ vehicles }) => {
               className="w-full border border-border rounded-md px-3 py-2"
             >
               <option value="">All Vehicles</option>
-              {vehicles.map(vehicle => (
-                <option key={vehicle.id} value={vehicle.id}>
+              {vehicles.map((vehicle, index) => (
+                <option key={vehicle.id || `filter-vehicle-${index}`} value={vehicle.id}>
                   {getVehicleName(vehicle.id)}
                 </option>
               ))}
@@ -418,8 +431,8 @@ const MaintenanceSchedules = ({ vehicles }) => {
                     className="w-full border border-border rounded-md px-3 py-2"
                   >
                     <option value="">Select Vehicle</option>
-                    {vehicles.map(vehicle => (
-                      <option key={vehicle.id} value={vehicle.id}>
+                    {vehicles.map((vehicle, index) => (
+                      <option key={vehicle.id || `vehicle-${index}`} value={vehicle.id}>
                         {getVehicleName(vehicle.id)}
                       </option>
                     ))}
@@ -443,6 +456,31 @@ const MaintenanceSchedules = ({ vehicles }) => {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Title *</label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                    required
+                    className="w-full border border-border rounded-md px-3 py-2"
+                    placeholder="Enter schedule title (e.g., Oil Change Schedule)"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Scheduled Date *</label>
+                  <input
+                    type="date"
+                    value={formData.scheduled_date}
+                    onChange={e =>
+                      setFormData(prev => ({ ...prev, scheduled_date: e.target.value }))
+                    }
+                    required
+                    className="w-full border border-border rounded-md px-3 py-2"
+                  />
                 </div>
 
                 <div>

@@ -8,6 +8,8 @@ from enum import Enum
 
 from schemas.entities import Trip, DriverAssignment
 
+from uuid import uuid4
+
 
 class EventType(str, Enum):
     """Event types for trip planning"""
@@ -42,6 +44,8 @@ class BaseEvent(BaseModel):
     service: str = "trip_planning"
     version: str = "1.0.0"
     data: Dict[str, Any] = Field(default_factory=dict)
+
+    correlation_id: str = Field(default_factory=lambda: str(uuid4()))
     
     class Config:
         use_enum_values = True

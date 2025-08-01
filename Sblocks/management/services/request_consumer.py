@@ -234,6 +234,9 @@ class ServiceRequestConsumer:
                         pagination=pagination
                     )
                 
+                # Transform _id to id for frontend compatibility
+                vehicles = self._transform_vehicle_data(vehicles)
+                
                 return ResponseBuilder.success(
                     data=vehicles,
                     message="Vehicles retrieved successfully"
@@ -247,6 +250,9 @@ class ServiceRequestConsumer:
                 vehicle_request = VehicleCreateRequest(**data)
                 created_by = current_user["user_id"]
                 result = await vehicle_service.create_vehicle(vehicle_request, created_by)
+                
+                # Transform _id to id for frontend compatibility
+                result = self._transform_vehicle_data(result)
                 
                 return ResponseBuilder.success(
                     data=result,
@@ -264,6 +270,9 @@ class ServiceRequestConsumer:
                 vehicle_update_request = VehicleUpdateRequest(**data)
                 updated_by = current_user["user_id"]
                 result = await vehicle_service.update_vehicle(vehicle_id, vehicle_update_request, updated_by)
+                
+                # Transform _id to id for frontend compatibility
+                result = self._transform_vehicle_data(result)
                 
                 return ResponseBuilder.success(
                     data=result,
@@ -570,6 +579,35 @@ class ServiceRequestConsumer:
         except Exception as e:
             logger.error(f"Failed to send response for {correlation_id}: {e}")
             raise
+    
+    def _transform_vehicle_data(self, data):
+        """Transform vehicle data to convert _id to id for frontend compatibility"""
+        if data is None:
+            return data
+        
+        def transform_single_vehicle(vehicle):
+            """Transform a single vehicle object"""
+            if isinstance(vehicle, dict) and "_id" in vehicle:
+                # Create new dict with id field
+                transformed = vehicle.copy()
+                transformed["id"] = transformed.pop("_id")
+                return transformed
+            return vehicle
+        
+        if isinstance(data, dict):
+            # Check if it's a vehicle list response
+            if "vehicles" in data and isinstance(data["vehicles"], list):
+                # Transform list of vehicles
+                data["vehicles"] = [transform_single_vehicle(v) for v in data["vehicles"]]
+                return data
+            else:
+                # Single vehicle response
+                return transform_single_vehicle(data)
+        elif isinstance(data, list):
+            # Direct list of vehicles
+            return [transform_single_vehicle(v) for v in data]
+        
+        return data
     
     async def stop_consuming(self):
         """Stop consuming messages"""

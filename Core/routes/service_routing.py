@@ -47,8 +47,8 @@ SERVICE_BLOCKS = {
     },
     "trips": {
         "exchange": "service_requests",
-        "queue": "trip_planning.requests",
-        "routing_key": "trip_planning.requests"
+        "queue": "trips.requests",
+        "routing_key": "trips.requests"
     }
 }
 
@@ -515,6 +515,7 @@ async def gps_route(request: Request, path: str = ""):
 @service_router.api_route("/trips/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
 async def trips_route(request: Request, path: str = ""):
     """Route requests to trip planning service block"""
+    logger.info(f"Entered trips_route, RequestL {request}")
     
     # Get request details
     method = request.method
@@ -525,12 +526,17 @@ async def trips_route(request: Request, path: str = ""):
     body = None
     if method in ["POST", "PUT", "PATCH"]:
         body = await request.body()
+        logger.debug(f"Request body: {body}")
+        logger.debug(f"Body type: {type(body)}")
+        logger.debug(f"Body length: {len(body) if body else 0}")
     
     # Ensure path starts with /
     if not path.startswith("/"):
         path = "/" + path
     
     logger.info(f"Routing to trip planning service: {method} {path}")
+    logger.debug(f"Query params: {query_params}")
+    logger.debug(f"Headers: {headers}")
     
     try:
         response = await route_to_service_block(
@@ -541,12 +547,18 @@ async def trips_route(request: Request, path: str = ""):
             body=body,
             query_params=query_params
         )
+
+        logger.debug(f"Response from Trips service: {response}")
+
+        response_data = response.get("data", {})
+        response_status = response.get("status_code", 200)
+        response_headers = response.get("headers", {})
         
         # Return response from service block
         return JSONResponse(
-            content=response.get("body", {}),
-            status_code=response.get("status_code", 200),
-            headers=response.get("headers", {})
+            content=response_data,
+            status_code=response_status,
+            headers=response_headers
         )
         
     except HTTPException:
