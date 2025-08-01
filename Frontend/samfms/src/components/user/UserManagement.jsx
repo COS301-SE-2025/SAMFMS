@@ -303,24 +303,7 @@ const UserManagement = () => {
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-semibold">User Management Actions</h2>
-          <div className="space-x-2">
-            {hasRole(ROLES.ADMIN) && (
-              <Button
-                onClick={() => setShowManualCreateModal(true)}
-                className="bg-green-600 hover:bg-green-700 text-white"
-                disabled={loading}
-              >
-                Manually Add User
-              </Button>
-            )}
-            {/* <Button
-              onClick={() => setShowInviteModal(true)}
-              className="bg-primary hover:bg-primary/90"
-              disabled={loading}
-            >
-              Invite User
-            </Button> */}
-          </div>
+
         </div>
       </div>
 
