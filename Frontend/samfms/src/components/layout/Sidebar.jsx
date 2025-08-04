@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { cn } from '../../lib/utils';
-import { useTheme } from '../../contexts/ThemeContext';
+import React, {useState} from 'react';
+import {Link, useLocation} from 'react-router-dom';
+import {cn} from '../../lib/utils';
+import {useTheme} from '../../contexts/ThemeContext';
 import {
   Home,
   User,
@@ -13,17 +13,19 @@ import {
   Wrench,
   UserPlus,
   HelpCircle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
-import { useAuth, PERMISSIONS, ROLES } from '../auth/RBACUtils';
+import {useAuth, PERMISSIONS, ROLES} from '../auth/RBACUtils';
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { theme } = useTheme();
-  const { hasPermission, hasAnyRole } = useAuth();
+  const {theme} = useTheme();
+  const {hasPermission, hasAnyRole} = useAuth();
   // Define navigation items with permission requirements
   const allNavItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: <Home size={20} />, permission: null }, // Always visible
+    {path: '/dashboard', label: 'Dashboard', icon: <Home size={20} />, permission: null}, // Always visible
     {
       path: '/vehicles',
       label: 'Vehicles',
@@ -60,9 +62,9 @@ const Sidebar = () => {
       icon: <UserPlus size={20} />,
       roles: [ROLES.ADMIN],
     }, // Admin only
-    { path: '/plugins', label: 'Plugins', icon: <Package2 size={20} />, roles: [ROLES.ADMIN] }, // Admin only
-    { path: '/account', label: 'Account', icon: <User size={20} />, permission: null }, // Always visible
-    { path: '/help', label: 'Help', icon: <HelpCircle size={20} />, permission: null }, // Always visible to all users
+    {path: '/plugins', label: 'Plugins', icon: <Package2 size={20} />, roles: [ROLES.ADMIN]}, // Admin only
+    {path: '/account', label: 'Account', icon: <User size={20} />, permission: null}, // Always visible
+    {path: '/help', label: 'Help', icon: <HelpCircle size={20} />, permission: null}, // Always visible to all users
   ];
 
   // Filter navigation items based on user permissions
@@ -92,36 +94,51 @@ const Sidebar = () => {
     <div
       className={cn(
         'h-full bg-card border-r border-border transition-all duration-300 ease-in-out flex flex-col',
-        collapsed ? 'w-16' : 'w-64'
+        collapsed
+          ? 'w-16 hover:w-24 group' // Collapsed: w-16, expand to w-24 on hover
+          : 'w-64'
       )}
     >
       {/* Sidebar header */}
       <div
-        className="p-4 flex items-center justify-between border-b border-border cursor-pointer"
+        className="p-4 flex items-center border-b border-border cursor-pointer group/sidebar"
         onClick={toggleSidebar}
         tabIndex={0}
         aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         role="button"
       >
-        {/* Logo as expand/collapse button */}
         {!collapsed ? (
-          <div className="flex items-center w-full">
-            <img
-              src={
-                theme === 'dark'
-                  ? '/logo/logo_horisontal_dark.svg'
-                  : '/logo/logo_horisontal_light.svg'
-              }
-              alt="SAMFMS Logo"
-              className="h-8"
+          <>
+            <div className="flex items-center">
+              <img
+                src={
+                  theme === 'dark'
+                    ? '/logo/logo_horisontal_dark.svg'
+                    : '/logo/logo_horisontal_light.svg'
+                }
+                alt="SAMFMS Logo"
+                className="h-8"
+              />
+            </div>
+            {/* Collapse arrow at far right */}
+            <ChevronLeft
+              className="ml-auto text-muted-foreground hover:text-primary transition-colors"
+              size={22}
+              aria-label="Collapse sidebar"
             />
-          </div>
+          </>
         ) : (
-          <div className="w-full flex items-center justify-center">
+          <div className="w-full flex items-center justify-between relative">
             <img
               src={theme === 'dark' ? '/logo/logo_icon_dark.svg' : '/logo/logo_icon_light.svg'}
               alt="SAMFMS Icon"
               className="h-8"
+            />
+            {/* Show right arrow on hover, always visible next to logo */}
+            <ChevronRight
+              className="ml-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              size={22}
+              aria-label="Expand sidebar"
             />
           </div>
         )}

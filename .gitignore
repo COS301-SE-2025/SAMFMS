@@ -40,3 +40,6 @@ htmlcov/
 # media/
 # Django collected static files (if you collect them to a non-standard directory not already ignored)
 # collected_static/
+env
+traccar/logs/tracker-server.log
+traccar/logs/tracker-server.log

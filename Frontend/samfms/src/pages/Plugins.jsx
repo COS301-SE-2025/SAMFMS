@@ -14,6 +14,7 @@ import {
 } from '../backend/api/plugins';
 import { useAuth, ROLES } from '../components/auth/RBACUtils';
 import PluginCard from '../components/plugins/PluginCard';
+import PluginTable from '../components/PluginTable';
 
 const Plugins = () => {
   const { hasRole } = useAuth();
@@ -45,7 +46,7 @@ const Plugins = () => {
         // console.log(pluginsData);
         setPlugins(pluginsData);
       } catch (err) {
-        setError('Failed to load plugins: ' + err.message);
+       // setError('Failed to load plugins: ' + err.message);
         console.error('Error loading plugins:', err);
       } finally {
         setLoading(false);
@@ -63,7 +64,7 @@ const Plugins = () => {
       const pluginsData = isAdmin ? await getAllPlugins() : await getPlugins();
       setPlugins(pluginsData);
     } catch (err) {
-      setError('Failed to refresh plugins: ' + err.message);
+   //   setError('Failed to refresh plugins: ' + err.message);
       console.error('Error refreshing plugins:', err);
     } finally {
       setRefreshing(false);
@@ -72,7 +73,7 @@ const Plugins = () => {
 
   const syncPluginsStatus = async () => {
     if (!isAdmin) {
-      setError('Only administrators can sync plugin status');
+    //  setError('Only administrators can sync plugin status');
       return;
     }
 
@@ -87,7 +88,7 @@ const Plugins = () => {
       const pluginsData = await getAllPlugins();
       setPlugins(pluginsData);
     } catch (err) {
-      setError('Failed to sync plugin status: ' + err.message);
+    // setError('Failed to sync plugin status: ' + err.message);
       console.error('Error syncing plugin status:', err);
     } finally {
       setRefreshing(false);
@@ -113,7 +114,7 @@ const Plugins = () => {
         prev.map(p => (p.plugin_id === pluginId ? { ...p, allowed_roles: newRoles } : p))
       );
     } catch (err) {
-      setError('Failed to update plugin access: ' + err.message);
+    //  setError('Failed to update plugin access: ' + err.message);
       console.error('Error updating plugin access:', err);
     } finally {
       setActionLoading(prev => ({ ...prev, [pluginId]: false }));
@@ -122,7 +123,7 @@ const Plugins = () => {
   // Handler for toggling enabled/disabled
   const handleEnabledToggle = async pluginId => {
     if (!isAdmin) {
-      setError('Only administrators can start/stop plugins');
+    //  setError('Only administrators can start/stop plugins');
       return;
     }
 
@@ -149,7 +150,7 @@ const Plugins = () => {
       // Refresh plugin status after a short delay
       setTimeout(() => refreshPluginStatus(pluginId), 1000);
     } catch (err) {
-      setError('Failed to toggle plugin: ' + err.message);
+    //  setError('Failed to toggle plugin: ' + err.message);
       console.error('Error toggling plugin:', err);
     } finally {
       setActionLoading(prev => ({ ...prev, [pluginId]: false }));
@@ -214,6 +215,9 @@ const Plugins = () => {
             </Button>
           </div>
         </header>
+
+
+        <PluginTable />
 
         {error && (
           <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
