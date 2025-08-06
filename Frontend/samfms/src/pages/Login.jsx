@@ -193,7 +193,7 @@ const Login = () => {
         <img
           src={theme === 'dark' ? '/logo/logo_dark.svg' : '/logo/logo_light.svg'}
           alt="SAMFMS Logo"
-          className="h-32 mb-4 animate-fadeIn transition-all duration-300 drop-shadow-lg"
+          className="h-48 mb-8 animate-fadeIn transition-all duration-300 drop-shadow-lg"
         />
         <p className="text-lg text-primary-700">Smart Fleet Management System</p>
       </div>

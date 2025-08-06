@@ -106,7 +106,7 @@ const MobileNav = () => {
               <img
                 src={
                   theme === 'dark'
-                    ? '/logo/logo_horisontal_dark.svg'
+                    ? '/logo/logo_horisontal_light.svg'
                     : '/logo/logo_horisontal_light.svg'
                 }
                 alt="SAMFMS Logo"
