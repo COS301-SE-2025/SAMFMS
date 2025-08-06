@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import ActiveTripsPanel from '../components/trips/ActiveTripsPanel';
 import SchedulingPanel from '../components/trips/SchedulingPanel';
 import TripsAnalytics from '../components/trips/TripsAnalytics';
@@ -6,18 +6,20 @@ import TripsHistory from '../components/trips/TripsHistory';
 import LocationAutocomplete from '../components/trips/LocationAutocomplete';
 import VehicleStatistics from '../components/trips/VehicleStatistics';
 import VehicleList from '../components/trips/VehicleList';
-import { createTrip,
+import {
+  createTrip,
   getActiveTrips,
   getDriverAnalytics,
   getVehicleAnalytics,
- } from '../backend/api/trips';
+} from '../backend/api/trips';
 
 import { getVehicles } from '../backend/api/vehicles'
+import { getDrivers } from '../backend/api/drivers';
 
 const Trips = () => {
   // Existing state
   const [vehicles, setVehicles] = useState([]);
-  
+
   // New state for features
   const [activeTrips, setActiveTrips] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -48,13 +50,14 @@ const Trips = () => {
     name: '',
     description: '',
     vehicleId: '',
+    driverId: '',
     startLocation: '',
     endLocation: '',
     scheduledStartDate: '',
     scheduledStartTime: '',
     scheduledEndDate: '',
     scheduledEndTime: '',
-    priority: 'medium',
+    priority: 'normal',
     temperatureControl: false,
     driverNote: '',
     timeWindowStart: '',
@@ -74,13 +77,13 @@ const Trips = () => {
         setError(null);
 
         const response = await getVehicles();
-        
+
         // Extract vehicles from the nested response structure
-        const vehicleData = response?.data?.data?.data?.vehicles || 
-                           response?.data?.data?.vehicles || 
-                           response?.data?.vehicles || 
-                           response?.vehicles || 
-                           [];
+        const vehicleData = response?.data?.data?.data?.vehicles ||
+          response?.data?.data?.vehicles ||
+          response?.data?.vehicles ||
+          response?.vehicles ||
+          [];
 
         console.log('Loaded vehicles:', vehicleData);
         setVehicles(vehicleData);
@@ -93,7 +96,7 @@ const Trips = () => {
         setLoading(false);
       }
     };
-    
+
     loadVehicles();
   }, []);
 
@@ -113,7 +116,7 @@ const Trips = () => {
           getDriverAnalytics(analyticsTimeframe),
           getVehicleAnalytics(analyticsTimeframe)
         ]);
-        
+
         // No need to access .data since the API returns the correct structure
         setDriverAnalytics(driverData);
         setVehicleAnalytics(vehicleData);
@@ -130,6 +133,30 @@ const Trips = () => {
 
     return () => clearInterval(pollInterval);
   }, [analyticsTimeframe]); // Re-run when timeframe changes
+
+  useEffect(() => {
+    const loadDrivers = async () => {
+      try {
+        const response = await getDrivers();
+        console.log("Response received for drivers: ", response);
+
+        // Extract drivers from the nested response structure
+        const driversData = response?.drivers || [];
+
+        // Filter for available drivers (is_active: false)
+        const availableDrivers = driversData.filter(driver =>
+          driver.role === 'driver' && !driver.is_active
+        );
+
+        console.log("Available drivers: ", availableDrivers);
+        setDrivers(availableDrivers);
+      } catch (error) {
+        console.error('Error loading drivers:', error);
+      }
+    };
+
+    loadDrivers();
+  }, []);
 
   const stats = {
     activeVehicles: vehicles.filter(v => v.status === 'available' || v.status === 'active').length,
@@ -150,13 +177,14 @@ const Trips = () => {
       name: '',
       description: '',
       vehicleId: '',
+      driverId: '',
       startLocation: '',
       endLocation: '',
       scheduledStartDate: '',
       scheduledStartTime: '',
       scheduledEndDate: '',
       scheduledEndTime: '',
-      priority: 'medium',
+      priority: 'normal',
       temperatureControl: false,
       driverNote: '',
       timeWindowStart: '',
@@ -219,6 +247,7 @@ const Trips = () => {
       waypoints: [], // Can be extended later for intermediate stops
       priority: tripForm.priority,
       vehicle_id: tripForm.vehicleId,
+      driver_assignment: tripForm.driverId,
       constraints: tripForm.timeWindowStart && tripForm.timeWindowEnd ? [
         {
           trip_id: "placeholder_trip_id", // Will be set by backend
@@ -243,8 +272,8 @@ const Trips = () => {
 
     // Validate required fields
     if (!tripForm.name || !tripForm.vehicleId || !tripForm.startLocation ||
-      !tripForm.endLocation || !tripForm.scheduledStartDate || 
-      !tripForm.scheduledStartTime || !tripForm.scheduledEndDate || 
+      !tripForm.endLocation || !tripForm.scheduledStartDate ||
+      !tripForm.scheduledStartTime || !tripForm.scheduledEndDate ||
       !tripForm.scheduledEndTime) {
       alert('Please fill in all required fields');
       return;
@@ -275,6 +304,7 @@ const Trips = () => {
   };
 
   const availableVehicles = vehicles.filter(v => v.status === 'available' || v.status === 'active');
+  const availableDrivers = drivers
 
   if (loading) {
     return (
@@ -294,8 +324,8 @@ const Trips = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           <p>{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
+          <button
+            onClick={() => window.location.reload()}
             className="mt-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
           >
             Retry
@@ -324,13 +354,13 @@ const Trips = () => {
 
         <ActiveTripsPanel activeTrips={activeTrips} /> {/* Add active trips data */}
 
-        <SchedulingPanel 
+        <SchedulingPanel
           availableVehicles={availableVehicles.length}
-          availableDrivers={0} // Add driver data
+          availableDrivers={availableDrivers.length}
           onScheduleClick={handleScheduleTrip}
         />
 
-        <TripsAnalytics 
+        <TripsAnalytics
           driverData={driverAnalytics} // Add driver analytics data
           vehicleData={vehicleAnalytics} // Add vehicle analytics data
           timeframe={analyticsTimeframe}
@@ -398,8 +428,9 @@ const Trips = () => {
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         <option value="low">Low</option>
-                        <option value="medium">Medium</option>
+                        <option value="normal">Normal</option>
                         <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
                       </select>
                     </div>
                   </div>
@@ -438,6 +469,26 @@ const Trips = () => {
                     {availableVehicles.length === 0 && (
                       <p className="text-sm text-red-500 mt-1">No available vehicles</p>
                     )}
+                  </div>
+
+                  {/* Add driver selection dropdown */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Select Driver
+                    </label>
+                    <select
+                      value={tripForm.driverId}
+                      onChange={(e) => handleFormChange('driverId', e.target.value)}
+                      className="w-full p-2 border rounded-md focus:ring-primary focus:border-primary"
+                      required
+                    >
+                      <option value="">Select a driver</option>
+                      {drivers.map(driver => (
+                        <option key={driver.id} value={driver.id}>
+                          {driver.full_name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Location Section */}
@@ -636,8 +687,8 @@ const Trips = () => {
                         </td>
                         <td className="py-3 px-4">{vehicle.mileage.toLocaleString()} km</td>
                         <td className="py-3 px-4">
-                          <button 
-                            className="text-primary hover:text-primary/80" 
+                          <button
+                            className="text-primary hover:text-primary/80"
                             onClick={() => handleSelectVehicle(vehicle)}
                           >
                             View Details

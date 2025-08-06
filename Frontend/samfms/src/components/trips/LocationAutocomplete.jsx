@@ -4,7 +4,7 @@ import {useLocationAutocomplete} from '../../hooks/useLocationAutocomplete';
 const LocationAutocomplete = ({value, onChange, placeholder, className, required}) => {
   const [inputValue, setInputValue] = useState(value || '');
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const {suggestions, isLoading, searchLocation} = useLocationAutocomplete();
+  const {suggestions, loading: isLoading, getSuggestions} = useLocationAutocomplete();
   const debounceRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -21,7 +21,7 @@ const LocationAutocomplete = ({value, onChange, placeholder, className, required
     }
 
     debounceRef.current = setTimeout(() => {
-      searchLocation(newValue);
+      getSuggestions(newValue);
       setShowSuggestions(true);
     }, 300);
   };

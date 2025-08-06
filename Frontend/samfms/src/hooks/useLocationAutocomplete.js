@@ -6,7 +6,7 @@ export const useLocationAutocomplete = () => {
   const [error, setError] = useState(null);
 
   const getSuggestions = async (query) => {
-    if (!query) {
+    if (!query || query.length < 3) {
       setSuggestions([]);
       return;
     }
@@ -16,13 +16,26 @@ export const useLocationAutocomplete = () => {
 
     try {
       const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${process.env.REACT_APP_MAPBOX_TOKEN}&country=za`
+        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&countrycodes=za&q=${encodeURIComponent(query)}`,
+        {
+          headers: {
+            'User-Agent': 'YourAppName/1.0' // Replace with your app name
+          }
+        }
       );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const data = await response.json();
-      setSuggestions(data.features || []);
+      
+      // Nominatim already returns data in the format your component expects
+      setSuggestions(data);
     } catch (err) {
       setError('Failed to fetch location suggestions');
       console.error('Error fetching locations:', err);
+      setSuggestions([]);
     } finally {
       setLoading(false);
     }

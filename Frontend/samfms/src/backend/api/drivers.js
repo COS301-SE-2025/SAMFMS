@@ -43,6 +43,7 @@ export const getDrivers = async (params = {}) => {
 
     // Filter for users with 'driver' role
     const drivers = allUsers.filter(user => user.role === 'driver');
+    console.log(drivers);
 
     console.log(`Found ${drivers.length} drivers out of ${allUsers.length} total users`);
 
