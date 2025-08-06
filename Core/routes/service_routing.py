@@ -143,7 +143,7 @@ def _get_timeout_for_operation(service_name: str, endpoint: str) -> float:
         "maintenance": {
             "records": 45.0,
             "analytics": 60.0,
-            "health": 10.0,
+            "health": 0.1,
             "licenses": 30.0,
             "notifications": 20.0,
             "vendors": 30.0,
@@ -153,19 +153,19 @@ def _get_timeout_for_operation(service_name: str, endpoint: str) -> float:
             "vehicles": 35.0,
             "drivers": 35.0,
             "analytics": 60.0,
-            "health": 10.0,
+            "health": 0.1,
             "default": 30.0
         },
         "gps": {
             "tracking": 20.0,
             "locations": 25.0,
-            "health": 10.0,
+            "health": 0.1,
             "default": 30.0
         },
         "trips": {
             "planning": 45.0,
             "optimization": 60.0,
-            "health": 10.0,
+            "health": 0.1,
             "default": 30.0
         }
     }

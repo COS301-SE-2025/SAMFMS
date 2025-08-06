@@ -261,16 +261,23 @@ async def get_trace_details(correlation_id: str) -> Dict[str, Any]:
 # Get healthy services/sblocks for display on frontend   
 from .service_routing import route_to_service_block
 
+
 @health_router.get("/healthy-services")
 async def get_healthy_services() -> Dict[str, Any]:
     sblocks = ["management", "maintenance", "gps", "trips"]
-    results = {}
-    for block in sblocks:
+
+    async def check_block(block):
         try:
-            resp = await route_to_service_block(service_name=block, method="GET", path="health", headers={}, body=None, query_params=None)
-            results[block] = resp.get("data", {})
+            resp = await asyncio.wait_for(
+                route_to_service_block(service_name=block, method="GET", path="health", headers={}, body=None, query_params=None),
+                timeout=1.0
+            )
+            return block, resp.get("data", {})
         except Exception as e:
             logger.warning(f"{block} health check failed: {e}")
-            results[block] = {"status": "unavailable", "error": str(e)}
-    return {"timestamp": datetime.utcnow().isoformat(), "sblocks": results}
+            return block, {"status": "unavailable", "error": str(e)}
+
+    tasks = [check_block(block) for block in sblocks]
+    results = await asyncio.gather(*tasks)
+    return {"timestamp": datetime.utcnow().isoformat(), "sblocks": dict(results)}
             
