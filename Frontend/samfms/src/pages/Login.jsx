@@ -1,6 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import {Button} from '../components/ui/button';
 import {useNavigate} from 'react-router-dom';
+import {useTheme} from '../contexts/ThemeContext';
 import {
   login,
   isAuthenticated,
@@ -23,6 +24,7 @@ const Login = () => {
     password: false,
   });
   const navigate = useNavigate();
+  const {theme} = useTheme();
   useEffect(() => {
     // If user is already authenticated, redirect to dashboard
     if (isAuthenticated()) {
@@ -189,7 +191,7 @@ const Login = () => {
       {/* Left section - plain background - hidden on mobile */}
       <div className="hidden md:flex w-full md:w-1/2 flex-col justify-center items-center p-8 relative z-10 bg-background">
         <img
-          src="/logo/logo_dark.svg"
+          src={theme === 'dark' ? '/logo/logo_dark.svg' : '/logo/logo_light.svg'}
           alt="SAMFMS Logo"
           className="h-32 mb-4 animate-fadeIn transition-all duration-300 drop-shadow-lg"
         />
@@ -231,7 +233,7 @@ const Login = () => {
           {/* Mobile logo - only visible on mobile */}
           <div className="md:hidden mb-6 text-center">
             <img
-              src="/logo/logo_dark.svg"
+              src={theme === 'dark' ? '/logo/logo_dark.svg' : '/logo/logo_light.svg'}
               alt="SAMFMS Logo"
               className="h-24 mx-auto mb-2 animate-fadeIn transition-all duration-300 drop-shadow-lg"
             />
@@ -282,8 +284,8 @@ const Login = () => {
                 onBlur={() => handleBlur('password')}
                 required
                 className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${validationErrors.password && touched.password
-                    ? 'border-red-500'
-                    : 'border-primary-200'
+                  ? 'border-red-500'
+                  : 'border-primary-200'
                   }`}
               />{' '}
               {validationErrors.password && touched.password && (
