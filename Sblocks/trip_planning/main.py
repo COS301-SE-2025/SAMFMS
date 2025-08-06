@@ -14,7 +14,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
 
 # Import organised modules
-from repositories.database import db_manager, db_manager_gps
+from repositories.database import db_manager, db_manager_gps, db_manager_management
 from events.publisher import event_publisher
 from events.consumer import event_consumer, setup_event_handlers
 from services.analytics_service import analytics_service
@@ -183,6 +183,15 @@ async def lifespan(app: FastAPI):
         # Store start time for uptime calculation
         app.state.start_time = datetime.now(timezone.utc)
         metrics_middleware.app = app
+
+        # Start database for Management
+        logger.info("Connecting to database Management...")
+        try:
+            await db_manager_management.connect()
+            logger.info("Database Management connected successfully")
+        except Exception as e:
+            logger.error(f"Database Management connection failed: {e}")
+            raise DatabaseConnectionError(f"Failed to connect to database Management: {e}")
 
         # Start database for GPS
         logger.info("Connecting to database GPS...")

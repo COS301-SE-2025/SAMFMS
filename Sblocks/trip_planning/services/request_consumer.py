@@ -8,7 +8,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any
 import aio_pika
 from aio_pika.abc import AbstractIncomingMessage
@@ -234,6 +234,9 @@ class ServiceRequestConsumer:
             elif "trips" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_trips_request()")
                 return await self._handle_trips_request(method, user_context)
+            elif "analytics" in endpoint:
+                logger.inf(f"Routing to analytics")
+                return await self._handle_analytics_requests()
             else:
                 logger.warning(f"[_route_request] Unknown endpoint: {endpoint}")
                 raise ValueError(f"Unknown endpoint: {endpoint}")
@@ -261,6 +264,13 @@ class ServiceRequestConsumer:
                     return ResponseBuilder.success(
                         data=[trip.model_dump() for trip in trips] if trips else None,
                         message="Trips retrieved successfully"
+                    ).model_dump()
+                if "active" in endpoint:
+                    activeTrips = await trip_service.get_active_trips()
+                    logger.info(f"[_handle_trips_request] trip_service.get_active_trips() returned {len(trips) if trips else 0} trips")
+                    return ResponseBuilder.success(
+                        data=[Atrip.model_dump() for Atrip in activeTrips] if activeTrips else None,
+                        message="Active Trips retrieved successfully"
                     ).model_dump()
                 else:
                     raise ValueError(f"Unknown endpoint: {endpoint}")
@@ -324,6 +334,61 @@ class ServiceRequestConsumer:
                 message=f"Failed to process trips request: {str(e)}"
             ).model_dump()
 
+    async def _handle_analytics_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle analytics requests"""
+        logger.info(f"[_handle_trips_request] Entered with method={method}, endpoint={user_context.get('endpoint')}")
+        try:
+            from services.analytics_service import analytics_service
+            from schemas.responses import ResponseBuilder
+
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            logger.info(f"Data: {data}")
+
+            if method == "GET":
+                # Get timeframe from query parameters or use default
+                timeframe = data.get('timeframe', 'week')
+                
+                # Calculate date range based on timeframe
+                end_date = datetime.now(timezone.utc)
+                if timeframe == 'week':
+                    start_date = end_date - timedelta(days=7)
+                elif timeframe == 'month':
+                    start_date = end_date - timedelta(days=30)
+                elif timeframe == 'year':
+                    start_date = end_date - timedelta(days=365)
+                else:
+                    start_date = end_date - timedelta(days=30)  # Default to month
+
+                if "drivers" in endpoint:
+                    logger.info(f"[Analytics] Requesting driver analytics for timeframe: {timeframe}")
+                    driver_analytics = analytics_service.get_analytics_first(start_date, end_date)
+                    logger.info("[Analytics] Driver analytics calculation completed")
+                    logger.debug(f"[Analytics] Driver analytics response: {driver_analytics}")
+                    return ResponseBuilder.success(
+                        data=driver_analytics,
+                        message="Driver analytics retrieved successfully"
+                    ).model_dump()
+
+                if "vehicles" in endpoint:
+                    logger.info(f"[Analytics] Requesting vehicle analytics for timeframe: {timeframe}")
+                    vehicle_analytics = analytics_service.get_analytics_second(start_date, end_date)
+                    logger.info("[Analytics] Vehicle analytics calculation completed")
+                    logger.debug(f"[Analytics] Vehicle analytics response: {vehicle_analytics}")
+                    return ResponseBuilder.success(
+                        data=vehicle_analytics,
+                        message="Vehicle analytics retrieved successfully"
+                    ).model_dump()
+                
+                raise ValueError(f"Unknown endpoint: {endpoint}")
+            else:
+                    raise ValueError(f"Unknown endpoint: {endpoint}")
+        except Exception as e:
+                logger.error(f"[_handle_analytics_request] Exception: {e}")
+                return ResponseBuilder.error(
+                    error="AnalyticsRequestError",
+                    message=f"Failed to process analytics request: {str(e)}"
+                ).model_dump()
 
     async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle health check requests"""

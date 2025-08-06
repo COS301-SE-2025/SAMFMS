@@ -1,0 +1,271 @@
+/* Dashboard Canvas Styling */
+.dashboard-canvas {
+  background: var(--background);
+  min-height: calc(100vh - 80px); /* Account for toolbar height */
+}
+
+/* React Grid Layout Styling */
+.react-grid-layout {
+  position: relative;
+}
+
+.react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top;
+}
+
+.react-grid-item.cssTransforms {
+  transition-property: transform;
+}
+
+.react-grid-item > .react-resizable-handle {
+  position: absolute;
+  z-index: 10;
+  background: transparent;
+}
+
+/* Corner resize handles */
+.react-grid-item > .react-resizable-handle.react-resizable-handle-se {
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: se-resize;
+  background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNiIgaGVpZ2h0PSI2IiB2aWV3Qm94PSIwIDAgNiA2IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8ZG90cyBmaWxsPSIjOTk5IiBkPSJtNiA2aDZtLTEgMGgxbS0xIDBoMW0tMSAwaDFtLTEgMGgxbS0xIDBoMW0tMSAwaDEiLz4KPHN2Zz4=');
+  background-position: bottom right;
+  background-repeat: no-repeat;
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-sw {
+  bottom: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  cursor: sw-resize;
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-ne {
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: ne-resize;
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-nw {
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  cursor: nw-resize;
+}
+
+/* Edge resize handles */
+.react-grid-item > .react-resizable-handle.react-resizable-handle-n {
+  top: 0;
+  left: 20px;
+  right: 20px;
+  height: 10px;
+  cursor: n-resize;
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-s {
+  bottom: 0;
+  left: 20px;
+  right: 20px;
+  height: 10px;
+  cursor: s-resize;
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e {
+  top: 20px;
+  bottom: 20px;
+  right: 0;
+  width: 10px;
+  cursor: e-resize;
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-w {
+  top: 20px;
+  bottom: 20px;
+  left: 0;
+  width: 10px;
+  cursor: w-resize;
+}
+
+/* Show resize handles only in edit mode */
+.react-grid-layout:not(.edit-mode) .react-resizable-handle {
+  display: none !important;
+}
+
+/* Hover effect for resize handles */
+.react-grid-item:hover > .react-resizable-handle {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.dashboard-widget {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-widget:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Widget drag handle styling */
+.widget-drag-handle {
+  cursor: move;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+}
+
+.widget-drag-handle:hover {
+  opacity: 1;
+  background: var(--accent);
+}
+
+/* Grid layout styling */
+.dashboard-canvas .grid {
+  gap: 1rem;
+  padding: 1rem;
+}
+
+/* Widget library modal styling */
+.widget-library-modal {
+  backdrop-filter: blur(4px);
+}
+
+/* Utility classes for responsive widget content */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Widget content responsive utilities */
+.widget-content-responsive {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.widget-scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar for widget content */
+.widget-content::-webkit-scrollbar,
+.widget-scroll-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.widget-content::-webkit-scrollbar-track,
+.widget-scroll-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.widget-content::-webkit-scrollbar-thumb,
+.widget-scroll-content::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
+
+.widget-content::-webkit-scrollbar-thumb:hover,
+.widget-scroll-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}
+
+.widget-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
+}
+
+/* Animation for widget addition */
+@keyframes widget-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.dashboard-widget.new-widget {
+  animation: widget-appear 0.3s ease-out;
+}
+
+/* Status indicator colors */
+.status-active {
+  color: #10b981;
+  background-color: #d1fae5;
+}
+
+.status-maintenance {
+  color: #f59e0b;
+  background-color: #fef3c7;
+}
+
+.status-idle {
+  color: #6b7280;
+  background-color: #f3f4f6;
+}
+
+/* Priority indicator colors */
+.priority-high {
+  border-left-color: #ef4444;
+}
+
+.priority-medium {
+  border-left-color: #f59e0b;
+}
+
+.priority-low {
+  border-left-color: #3b82f6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .dashboard-canvas .grid {
+    grid-template-columns: 1fr;
+    padding: 0.5rem;
+  }
+
+  .dashboard-widget {
+    grid-column: span 1 !important;
+  }
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .widget-content::-webkit-scrollbar-thumb {
+    background: rgba(75, 85, 99, 0.5);
+  }
+
+  .widget-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(75, 85, 99, 0.7);
+  }
+}

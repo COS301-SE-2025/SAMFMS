@@ -92,11 +92,23 @@ class VehicleSimulator:
         
         return self.route.coordinates[-1]
     
+    def get_estimated_finish_time(self) -> datetime:
+        """Estimate when the trip will finish. Defaults to 50 km/h if speed is missing or invalid."""
+        if self.current_position >= 1.0:
+            return datetime.utcnow()
+        speed_ms = self.speed_ms if self.speed_ms and self.speed_ms > 0 else (50 / 3.6)
+        remaining_distance = self.route.distance * (1 - self.current_position)
+        remaining_time_sec = remaining_distance / speed_ms
+        return datetime.utcnow() + timedelta(seconds=remaining_time_sec)
+    
     async def update_position(self):
         """Update vehicle position and save to database"""
         if self.current_position >= 1.0:
             self.is_running = False
             logger.info(f"Trip {self.trip_id} completed")
+            
+            # Move trip to history when completed
+            await self._complete_trip()
             return False
         
         # Calculate how far we should have moved in 2 seconds
@@ -107,6 +119,8 @@ class VehicleSimulator:
         
         # Get current lat/lon
         lat, lon = self.get_current_location()
+
+        estimated_finish = self.get_estimated_finish_time()
         
         # Create location document matching the expected format
         current_time = datetime.utcnow()
@@ -134,6 +148,11 @@ class VehicleSimulator:
                 upsert=True
             )
 
+            await db_manager.trips.update_one(
+                {"_id": ObjectId(self.trip_id)},
+                {"$set": {"estimated_end_time": estimated_finish}}
+            )
+
             
             # Publish event
             #await event_publisher.publish("vehicle.location_updated", {
@@ -152,6 +171,39 @@ class VehicleSimulator:
             logger.error(f"Failed to update vehicle location: {e}")
         
         return True
+    
+    async def _complete_trip(self):
+        """Move completed trip to trip_history collection"""
+        try:
+            # Get the original trip document
+            trip_doc = await db_manager.trips.find_one({"_id": ObjectId(self.trip_id)})
+            
+            if not trip_doc:
+                logger.error(f"Trip {self.trip_id} not found in trips collection")
+                return
+            
+            # Add completion information
+            completion_time = datetime.utcnow()
+            trip_doc.update({
+                "actual_end_time": completion_time,
+                "status": "completed",
+                "completion_reason": "completed",
+                "moved_to_history_at": completion_time
+            })
+            
+            # Insert into trip_history collection
+            await db_manager.trip_history.insert_one(trip_doc)
+            logger.info(f"Trip {self.trip_id} moved to trip_history with status 'completed'")
+            
+            # Remove from active trips collection
+            await db_manager.trips.delete_one({"_id": ObjectId(self.trip_id)})
+            logger.info(f"Trip {self.trip_id} removed from active trips")
+            
+            # Clean up vehicle location (optional - you might want to keep last known location)
+            # await db_manager_gps.locations.delete_one({"vehicle_id": self.vehicle_id})
+            
+        except Exception as e:
+            logger.error(f"Failed to complete trip {self.trip_id}: {e}")
     
     def _calculate_heading(self) -> float:
         """Calculate current heading based on direction of travel"""
@@ -409,6 +461,8 @@ class SimulationService:
         for trip_id in completed_trips:
             del self.active_simulators[trip_id]
             logger.info(f"Completed simulation for trip {trip_id}")
+    
+    
     
     async def start_simulation_service(self):
         """Main simulation loop"""

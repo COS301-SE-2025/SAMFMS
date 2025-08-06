@@ -3,10 +3,10 @@ Analytics service for trip performance and statistics
 """
 import logging
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 
-from repositories.database import db_manager
+from repositories.database import db_manager, db_manager_management
 from schemas.entities import TripAnalytics, TripStatus
 from schemas.requests import AnalyticsRequest
 
@@ -18,6 +18,434 @@ class AnalyticsService:
     
     def __init__(self):
         self.db = db_manager
+    
+    async def _get_driver_names(driver_ids: List[str]) -> Dict[str, str]:
+        """
+        Get driver names from driver IDs.
+        """
+        try:
+            if not driver_ids:
+                return {}
+                
+            # Convert to ObjectIds if they are valid ObjectId strings, otherwise keep as strings
+            query_ids = []
+            for driver_id in driver_ids:
+                if len(driver_id) == 24:  # Standard ObjectId length
+                    try:
+                        query_ids.append(ObjectId(driver_id))
+                    except:
+                        query_ids.append(driver_id)
+                else:
+                    query_ids.append(driver_id)
+            
+            # Query drivers collection - adjust field names based on your schema
+            drivers_cursor = db_manager_management.drivers.find(
+                {"_id": {"$in": query_ids}},
+                {"first_name": 1, "last_name": 1}
+            )
+            
+            drivers_data = await drivers_cursor.to_list(None)
+            driver_names = {}
+            
+            for driver in drivers_data:
+                driver_id = str(driver["_id"])
+                
+                # Try different name field combinations based on your schema
+                name = (
+                    f"{driver.get('first_name', '')} {driver.get('last_name', '')}".strip()
+                )
+                
+                driver_names[driver_id] = name
+            
+            # Add default names for drivers not found in the drivers collection
+            for original_id in driver_ids:
+                if original_id not in driver_names:
+                    driver_names[original_id] = f"Driver {original_id}"
+            
+            return driver_names
+            
+        except Exception as e:
+            logger.warning(f"Failed to get driver names: {e}")
+            # Return default names
+            return {driver_id: f"Driver {driver_id}" for driver_id in driver_ids}
+    
+    async def get_analytics_first(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+        """
+        Retrieve analytics for trips within the specified date range from trip_history collection.
+        """
+        try:
+            logger.info(f"[DriverAnalytics] Starting analytics calculation for period: {start_date} to {end_date}")
+            
+            # Ensure dates are timezone-aware (UTC)
+            if start_date.tzinfo is None:
+                start_date = start_date.replace(tzinfo=timezone.utc)
+            if end_date.tzinfo is None:
+                end_date = end_date.replace(tzinfo=timezone.utc)
+            
+            logger.info(f"[DriverAnalytics] Executing MongoDB aggregation pipeline")
+            # MongoDB aggregation pipeline
+            pipeline = [
+                # Match trips within the date range
+                {
+                    "$match": {
+                        "moved_to_history_at": {
+                            "$gte": start_date,
+                            "$lte": end_date
+                        }
+                    }
+                },
+                # Add calculated fields
+                {
+                    "$addFields": {
+                        "trip_duration_hours": {
+                            "$cond": {
+                                "if": {"$and": ["$actual_start_time", "$actual_end_time"]},
+                                "then": {
+                                    "$divide": [
+                                        {"$subtract": ["$actual_end_time", "$actual_start_time"]},
+                                        3600000  # Convert milliseconds to hours
+                                    ]
+                                },
+                                "else": 0
+                            }
+                        },
+                        "is_completed": {"$eq": ["$status", "completed"]},
+                        "is_cancelled": {"$eq": ["$status", "cancelled"]}
+                    }
+                },
+                # Group by driver
+                {
+                    "$group": {
+                        "_id": "$driver_assignment",
+                        "completedTrips": {"$sum": {"$cond": ["$is_completed", 1, 0]}},
+                        "cancelledTrips": {"$sum": {"$cond": ["$is_cancelled", 1, 0]}},
+                        "totalHours": {"$sum": "$trip_duration_hours"},
+                        "totalTrips": {"$sum": 1}
+                    }
+                },
+                # Sort by driver ID
+                {"$sort": {"_id": 1}}
+            ]
+            
+            # Execute aggregation
+            driver_results = await db_manager.trip_history.aggregate(pipeline).to_list(None)
+            logger.info(f"[DriverAnalytics] Found {len(driver_results)} driver results")
+            
+            # Get driver names
+            logger.info("[DriverAnalytics] Fetching driver names")
+            driver_names = self._get_driver_names([result["_id"] for result in driver_results if result["_id"]])
+            
+            # Format driver analytics
+            drivers = []
+            total_trips = 0
+            total_completed = 0
+            
+            logger.info("[DriverAnalytics] Processing individual driver statistics")
+            for result in driver_results:
+                driver_id = result["_id"]
+                if not driver_id:
+                    logger.debug("[DriverAnalytics] Skipping entry without driver_id")
+                    continue
+                
+                driver_stats = {
+                    "driverId": driver_id,
+                    "driverName": driver_names.get(driver_id, f"Driver {driver_id}"),
+                    "completedTrips": result["completedTrips"],
+                    "cancelledTrips": result["cancelledTrips"],
+                    "totalHours": round(result["totalHours"], 2)
+                }
+                logger.debug(f"[DriverAnalytics] Processed stats for driver {driver_id}: {driver_stats}")
+                drivers.append(driver_stats)
+                
+                total_trips += result["totalTrips"]
+                total_completed += result["completedTrips"]
+            
+            # Calculate timeframe summary
+            logger.info("[DriverAnalytics] Calculating timeframe summary")
+            completion_rate = round((total_completed / total_trips * 100), 2) if total_trips > 0 else 0.0
+            days_in_range = (end_date - start_date).days + 1
+            average_trips_per_day = round((total_trips / days_in_range), 2) if days_in_range > 0 else 0.0
+            
+            response_data = {
+                "drivers": drivers,
+                "timeframeSummary": {
+                    "totalTrips": total_trips,
+                    "completionRate": completion_rate,
+                    "averageTripsPerDay": average_trips_per_day
+                }
+            }
+            
+            logger.info(f"[DriverAnalytics] Completed successfully. Total drivers: {len(drivers)}")
+            logger.debug(f"[DriverAnalytics] Response data: {response_data}")
+            return response_data
+        
+        except Exception as e:
+            logger.error(f"[DriverAnalytics] Error calculating analytics: {str(e)}", exc_info=True)
+            return {
+                "drivers": [],
+                "timeframeSummary": {
+                    "totalTrips": 0,
+                    "completionRate": 0.0,
+                    "averageTripsPerDay": 0.0
+                }
+            }
+
+    async def get_analytics_second(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+        """
+        Retrieve vehicle analytics for trips within the specified date range.
+        """
+        try:
+            logger.info(f"[VehicleAnalytics] Starting analytics calculation for period: {start_date} to {end_date}")
+            
+            # Ensure dates are timezone-aware (UTC)
+            if start_date.tzinfo is None:
+                start_date = start_date.replace(tzinfo=timezone.utc)
+            if end_date.tzinfo is None:
+                end_date = end_date.replace(tzinfo=timezone.utc)
+            
+            logger.info("[VehicleAnalytics] Executing MongoDB aggregation pipeline")
+            # MongoDB aggregation pipeline
+            pipeline = [
+                # Match trips within the date range
+                {
+                    "$match": {
+                        "moved_to_history_at": {
+                            "$gte": start_date,
+                            "$lte": end_date
+                        }
+                    }
+                },
+                # Add calculated fields for distance
+                {
+                    "$addFields": {
+                        "trip_distance": {
+                            "$cond": {
+                                "if": {"$gt": [{"$ifNull": ["$estimated_distance", 0]}, 0]},
+                                "then": "$estimated_distance",
+                                "else": {
+                                    "$cond": {
+                                        "if": {"$gt": [{"$ifNull": ["$actual_distance", 0]}, 0]},
+                                        "then": "$actual_distance",
+                                        "else": 0
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                # Group by vehicle
+                {
+                    "$group": {
+                        "_id": "$vehicle_id",
+                        "totalTrips": {"$sum": 1},
+                        "totalDistance": {"$sum": "$trip_distance"}
+                    }
+                },
+                # Sort by vehicle ID
+                {"$sort": {"_id": 1}}
+            ]
+            
+            # Execute aggregation
+            vehicle_results = await db_manager.trip_history.aggregate(pipeline).to_list(None)
+            logger.info(f"[VehicleAnalytics] Found {len(vehicle_results)} vehicle results")
+            
+            # Format vehicle analytics
+            vehicles = []
+            total_distance_sum = 0
+            
+            logger.info("[VehicleAnalytics] Processing individual vehicle statistics")
+            for result in vehicle_results:
+                vehicle_id = result["_id"]
+                if not vehicle_id:
+                    logger.debug("[VehicleAnalytics] Skipping entry without vehicle_id")
+                    continue
+                
+                total_trips = result["totalTrips"]
+                total_distance = round(result["totalDistance"], 2)
+                
+                vehicle_stats = {
+                    "vehicleId": vehicle_id,
+                    "totalTrips": total_trips,
+                    "totalDistance": total_distance
+                }
+                logger.debug(f"[VehicleAnalytics] Processed stats for vehicle {vehicle_id}: {vehicle_stats}")
+                vehicles.append(vehicle_stats)
+                
+                total_distance_sum += total_distance
+            
+            response_data = {
+                "vehicles": vehicles,
+                "timeframeSummary": {
+                    "totalDistance": round(total_distance_sum, 2)
+                }
+            }
+            
+            logger.info(f"[VehicleAnalytics] Completed successfully. Total vehicles: {len(vehicles)}")
+            logger.debug(f"[VehicleAnalytics] Response data: {response_data}")
+            return response_data
+        
+        except Exception as e:
+            logger.error(f"[VehicleAnalytics] Error calculating analytics: {str(e)}", exc_info=True)
+            return {
+                "vehicles": [],
+                "timeframeSummary": {
+                    "totalDistance": 0
+                }
+            }
+
+    async def get_vehicle_analytics_with_route_distance(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+        """
+        Alternative version that calculates distance from route coordinates if distance fields are not available.
+        This uses the Haversine formula to calculate distance from origin to destination coordinates.
+        """
+        try:
+            # Ensure dates are timezone-aware (UTC)
+            if start_date.tzinfo is None:
+                start_date = start_date.replace(tzinfo=timezone.utc)
+            if end_date.tzinfo is None:
+                end_date = end_date.replace(tzinfo=timezone.utc)
+            
+            # Get all trips in the date range
+            query = {
+                "moved_to_history_at": {
+                    "$gte": start_date,
+                    "$lte": end_date
+                }
+            }
+            
+            trips = await db_manager.trip_history.find(query).to_list(None)
+            
+            # Process each trip to calculate distances and group by vehicle
+            vehicle_stats = {}
+            
+            for trip in trips:
+                vehicle_id = trip.get("vehicle_id")
+                if not vehicle_id:
+                    continue
+                
+                if vehicle_id not in vehicle_stats:
+                    vehicle_stats[vehicle_id] = {
+                        "totalTrips": 0,
+                        "totalDistance": 0
+                    }
+                
+                vehicle_stats[vehicle_id]["totalTrips"] += 1
+                
+                # Try to get distance from stored fields first
+                distance = 0
+                #if trip.get("estimated_distance"):
+                 #   distance = trip["estimated_distance"]
+                #elif trip.get("actual_distance"):
+                 #   distance = trip["actual_distance"]
+                #else:
+                    # Calculate from coordinates if available
+                distance = self._calculate_trip_distance(trip)
+                
+                vehicle_stats[vehicle_id]["totalDistance"] += distance
+            
+            # Format results
+            vehicles = []
+            total_distance_sum = 0
+            
+            for vehicle_id, stats in vehicle_stats.items():
+                total_distance = round(stats["totalDistance"], 2)
+                
+                vehicles.append({
+                    "vehicleId": vehicle_id,
+                    "totalTrips": stats["totalTrips"],
+                    "totalDistance": total_distance
+                })
+                
+                total_distance_sum += total_distance
+            
+            # Sort by vehicle ID
+            vehicles.sort(key=lambda x: x["vehicleId"])
+            
+            return {
+                "vehicles": vehicles,
+                "timeframeSummary": {
+                    "totalDistance": round(total_distance_sum, 2)
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to get vehicle analytics with route distance: {e}")
+            return {
+                "vehicles": [],
+                "timeframeSummary": {
+                    "totalDistance": 0
+                }
+            }
+
+    def _calculate_trip_distance(trip: Dict[str, Any]) -> float:
+        """
+        Calculate trip distance from origin/destination coordinates using Haversine formula.
+        
+        Args:
+            trip: Trip document with origin and destination coordinates
+        
+        Returns:
+            Distance in kilometers
+        """
+        try:
+            origin = trip.get("origin", {})
+            destination = trip.get("destination", {})
+            
+            origin_coords = origin.get("location", {}).get("coordinates", [])
+            dest_coords = destination.get("location", {}).get("coordinates", [])
+            
+            if len(origin_coords) < 2 or len(dest_coords) < 2:
+                return 0
+            
+            # Coordinates are in [longitude, latitude] format (GeoJSON)
+            lon1, lat1 = origin_coords[0], origin_coords[1]
+            lon2, lat2 = dest_coords[0], dest_coords[1]
+            
+            # Haversine formula
+            import math
+            
+            R = 6371  # Earth's radius in kilometers
+            
+            lat1_rad = math.radians(lat1)
+            lat2_rad = math.radians(lat2)
+            delta_lat = math.radians(lat2 - lat1)
+            delta_lon = math.radians(lon2 - lon1)
+            
+            a = (math.sin(delta_lat / 2) ** 2 + 
+                math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2)
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+            
+            distance = R * c
+            
+            # Add waypoint distances if they exist
+            waypoints = trip.get("waypoints", [])
+            if waypoints:
+                all_points = [origin_coords] + [wp.get("location", {}).get("coordinates", []) for wp in waypoints] + [dest_coords]
+                total_distance = 0
+                
+                for i in range(len(all_points) - 1):
+                    if len(all_points[i]) >= 2 and len(all_points[i + 1]) >= 2:
+                        lon1, lat1 = all_points[i][0], all_points[i][1]
+                        lon2, lat2 = all_points[i + 1][0], all_points[i + 1][1]
+                        
+                        lat1_rad = math.radians(lat1)
+                        lat2_rad = math.radians(lat2)
+                        delta_lat = math.radians(lat2 - lat1)
+                        delta_lon = math.radians(lon2 - lon1)
+                        
+                        a = (math.sin(delta_lat / 2) ** 2 + 
+                            math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2)
+                        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+                        
+                        total_distance += R * c
+                
+                return total_distance
+            
+            return distance
+            
+        except Exception as e:
+            logger.warning(f"Failed to calculate trip distance: {e}")
+            return 
         
     async def get_trip_analytics(self, request: AnalyticsRequest) -> Dict[str, Any]:
         """Get comprehensive trip analytics"""
