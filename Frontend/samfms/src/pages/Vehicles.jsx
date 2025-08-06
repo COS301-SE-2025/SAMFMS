@@ -623,9 +623,7 @@ const Vehicles = () => {
         )}
         {/* Data visualization section */}
         <DataVisualization analytics={stats} />
-        <VehicleUsageStats stats={vehicleAnalytics} />
-        <DriverPerformanceCard stats={vehicleAnalytics} />
-        <CostAnalyticsCard stats={vehicleAnalytics} />
+
         {/* Analytics Cards Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
           <AssignmentMetricsCard data={vehicleAnalytics.assignment_metrics} />
@@ -640,3 +638,6 @@ export default Vehicles;
 //<FleetUtilizationCard data={analytics.fleet_utilization} />
 //<StatusBreakdownCard stats={analytics.status_breakdown} />
 //<MaintenanceAnalyticsCard data={analytics.maintenance_analytics} />
+//<VehicleUsageStats stats={vehicleAnalytics} />
+//<DriverPerformanceCard data={analytics.driver_performance} />
+//<CostAnalyticsCard stats={vehicleAnalytics} />
