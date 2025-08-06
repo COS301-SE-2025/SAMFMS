@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '../components/ui/button';
-import { useNavigate } from 'react-router-dom';
+import React, {useState, useEffect} from 'react';
+import {Button} from '../components/ui/button';
+import {useNavigate} from 'react-router-dom';
 import {
   login,
   isAuthenticated,
@@ -99,7 +99,7 @@ const Login = () => {
 
   // Handle blur events
   const handleBlur = field => {
-    setTouched({ ...touched, [field]: true });
+    setTouched({...touched, [field]: true});
 
     if (field === 'email') {
       setValidationErrors({
@@ -164,7 +164,7 @@ const Login = () => {
       await login(email, password);
       // Force a small delay to ensure cookies are set before navigation
       setTimeout(() => {
-        navigate('/dashboard', { replace: true });
+        navigate('/dashboard', {replace: true});
       }, 100);
     } catch (err) {
       setError(err.message);
@@ -186,8 +186,8 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row overflow-hidden bg-background">
-      {/* Left section - plain background */}
-      <div className="flex w-full md:w-1/2 flex-col justify-center items-center p-8 relative z-10 bg-background">
+      {/* Left section - plain background - hidden on mobile */}
+      <div className="hidden md:flex w-full md:w-1/2 flex-col justify-center items-center p-8 relative z-10 bg-background">
         <img
           src="/logo/logo_dark.svg"
           alt="SAMFMS Logo"
@@ -228,9 +228,10 @@ const Login = () => {
             e.currentTarget.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg)';
           }}
         >
+          {/* Mobile logo - only visible on mobile */}
           <div className="md:hidden mb-6 text-center">
             <img
-              src="/logo/logo_light.svg"
+              src="/logo/logo_dark.svg"
               alt="SAMFMS Logo"
               className="h-24 mx-auto mb-2 animate-fadeIn transition-all duration-300 drop-shadow-lg"
             />
@@ -261,9 +262,8 @@ const Login = () => {
                 onChange={e => handleChange('email', e.target.value)}
                 onBlur={() => handleBlur('email')}
                 required
-                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
-                  validationErrors.email && touched.email ? 'border-red-500' : 'border-primary-200'
-                }`}
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${validationErrors.email && touched.email ? 'border-red-500' : 'border-primary-200'
+                  }`}
               />
               {validationErrors.email && touched.email && (
                 <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>
@@ -281,11 +281,10 @@ const Login = () => {
                 onChange={e => handleChange('password', e.target.value)}
                 onBlur={() => handleBlur('password')}
                 required
-                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
-                  validationErrors.password && touched.password
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${validationErrors.password && touched.password
                     ? 'border-red-500'
                     : 'border-primary-200'
-                }`}
+                  }`}
               />{' '}
               {validationErrors.password && touched.password && (
                 <p className="text-red-500 text-xs mt-1">{validationErrors.password}</p>
