@@ -363,7 +363,7 @@ services:
       - '${FRONTEND_PORT:-21015}:3000'
     environment:
       - REACT_APP_CORE_PORT=${CORE_PORT:-21004}
-      - REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL:-http://localhost:21004/api}
+      - REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL:-http://localhost:21004}
       - REACT_APP_DOMAIN=${REACT_APP_DOMAIN:-localhost}
       - REACT_APP_WS_TARGET=${REACT_APP_WS_TARGET:-ws://localhost:21004}
       - CHOKIDAR_USEPOLLING=${HOT_RELOAD:-false}
