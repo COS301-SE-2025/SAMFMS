@@ -8,7 +8,7 @@ import DriverAssignmentModal from '../components/vehicles/DriverAssignmentModal'
 import DataVisualization from '../components/vehicles/DataVisualization';
 import AddVehicleModal from '../components/vehicles/AddVehicleModal';
 import EditVehicleModal from '../components/vehicles/EditVehicleModal';
-import { getVehicles, deleteVehicle, searchVehicles, getVehicleUsage } from '../backend/API';
+import { getVehicles, deleteVehicle, searchVehicles, getVehicleUsage, getAssignmentMetrics } from '../backend/API';
 import FleetUtilizationCard from '../components/analytics/FleetUtilizationCard';
 import VehicleUsageStats from '../components/analytics/VehicleUsageStats';
 import AssignmentMetricsCard from '../components/analytics/AssignmentMetricsCard';
@@ -107,20 +107,14 @@ const Vehicles = () => {
       try {
         setLoadingVehicleAnalytics(true);
         const response = await getVehicleUsage();
-        console.log('srjinhnbewng iwbhuoitbl uiertbueruberlbhu');
-        console.log(response);
+        const response2 = await getAssignmentMetrics();
         
         setVehicleAnalytics(
           {
-            totalVehicles: response.data.data.vehicles.length || 0,
-            totalVehiclesMaint: maintenanceVehicles.length || 0,
-            fleetUtil: vehicleUtil || 0,
-            statusBreakdown: response.data.data.vehicles.reduce((breakdown, vehicle) => {
-              breakdown[vehicle.status] = (breakdown[vehicle.status] || 0) + 1;
-              return breakdown;
-          })
+            assignment_metrics: response.data.data.dashboard.fleet_utilization || 0,
           }
          || {});
+         console.log(vehicleAnalytics.assignment_metrics);
         
       } catch (error) {
         console.log(`Error fetching data: ${error}`);
@@ -635,8 +629,7 @@ const Vehicles = () => {
         {/* Analytics Cards Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
           <StatusBreakdownCard stats={analytics.status_breakdown} />
-          <FleetUtilizationCard data={analytics.fleet_utilization} />
-          <AssignmentMetricsCard data={analytics.assignment_metrics} />
+          <AssignmentMetricsCard data={vehicleAnalytics.assignment_metrics} />
           <MaintenanceAnalyticsCard data={analytics.maintenance_analytics} />
         </div>
       </div>
@@ -645,3 +638,5 @@ const Vehicles = () => {
 };
 
 export default Vehicles;
+//<FleetUtilizationCard data={analytics.fleet_utilization} />
+
