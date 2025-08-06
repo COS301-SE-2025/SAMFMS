@@ -1,23 +1,24 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { useTheme } from '../../contexts/ThemeContext';
-import { Menu, X, Home, User, Package2, Car, Users, Map, Navigation, Wrench } from 'lucide-react';
-import { Button } from '../ui/button';
-import { cn } from '../../lib/utils';
+import React, {useState} from 'react';
+import {Link, useLocation} from 'react-router-dom';
+import {useTheme} from '../../contexts/ThemeContext';
+import {Menu, X, Home, User, Package2, Car, Users, Map, Navigation, Wrench} from 'lucide-react';
+import {Button} from '../ui/button';
+import {cn} from '../../lib/utils';
+import {createPortal} from 'react-dom';
 
 const MobileNav = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const { theme } = useTheme();
+  const {theme} = useTheme();
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: <Home size={20} /> },
-    { path: '/vehicles', label: 'Vehicles', icon: <Car size={20} /> },
-    { path: '/drivers', label: 'Drivers', icon: <Users size={20} /> },
-    { path: '/tracking', label: 'Tracking', icon: <Map size={20} /> },
-    { path: '/trips', label: 'Trips', icon: <Navigation size={20} /> },
-    { path: '/maintenance', label: 'Maintenance', icon: <Wrench size={20} /> },
-    { path: '/plugins', label: 'Plugins', icon: <Package2 size={20} /> },
-    { path: '/account', label: 'Account', icon: <User size={20} /> },
+    {path: '/dashboard', label: 'Dashboard', icon: <Home size={20} />},
+    {path: '/vehicles', label: 'Vehicles', icon: <Car size={20} />},
+    {path: '/drivers', label: 'Drivers', icon: <Users size={20} />},
+    {path: '/tracking', label: 'Tracking', icon: <Map size={20} />},
+    {path: '/trips', label: 'Trips', icon: <Navigation size={20} />},
+    {path: '/maintenance', label: 'Maintenance', icon: <Wrench size={20} />},
+    {path: '/plugins', label: 'Plugins', icon: <Package2 size={20} />},
+    {path: '/account', label: 'Account', icon: <User size={20} />},
   ];
 
   // Check if a path is active
@@ -41,23 +42,22 @@ const MobileNav = () => {
         <Menu size={20} />
       </Button>
 
-      {/* Mobile navigation overlay */}
-      {isOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          {/* Background overlay */}
+      {/* Mobile navigation overlay - rendered as portal to document body */}
+      {isOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] md:hidden">
+          {/* Background overlay - click to close */}
           <div
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
           />
-          {/* Navigation panel */}{' '}
-          <div className="fixed inset-y-0 left-0 w-3/4 max-w-xs bg-card border-r border-border shadow-lg">
+          {/* Navigation panel */}
+          <div className="fixed inset-y-0 left-0 w-3/4 max-w-xs bg-card border-r border-border shadow-xl z-[10000]">
             <div className="flex items-center justify-between p-4 border-b border-border">
-              {' '}
               <img
                 src={
                   theme === 'dark'
-                    ? '/logo/logo_horisontal_dark.png'
-                    : '/logo/logo_horisontal_light.png'
+                    ? '/logo/logo_horisontal_dark.svg'
+                    : '/logo/logo_horisontal_light.svg'
                 }
                 alt="SAMFMS Logo"
                 className="h-8"
@@ -89,7 +89,8 @@ const MobileNav = () => {
               </ul>
             </nav>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
