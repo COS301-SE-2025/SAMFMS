@@ -628,9 +628,8 @@ const Vehicles = () => {
         <CostAnalyticsCard stats={vehicleAnalytics} />
         {/* Analytics Cards Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-          <StatusBreakdownCard stats={analytics.status_breakdown} />
           <AssignmentMetricsCard data={vehicleAnalytics.assignment_metrics} />
-          <MaintenanceAnalyticsCard data={analytics.maintenance_analytics} />
+
         </div>
       </div>
     </div>
@@ -639,4 +638,5 @@ const Vehicles = () => {
 
 export default Vehicles;
 //<FleetUtilizationCard data={analytics.fleet_utilization} />
-
+//<StatusBreakdownCard stats={analytics.status_breakdown} />
+//<MaintenanceAnalyticsCard data={analytics.maintenance_analytics} />
