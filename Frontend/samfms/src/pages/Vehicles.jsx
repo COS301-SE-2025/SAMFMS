@@ -8,7 +8,7 @@ import DriverAssignmentModal from '../components/vehicles/DriverAssignmentModal'
 import DataVisualization from '../components/vehicles/DataVisualization';
 import AddVehicleModal from '../components/vehicles/AddVehicleModal';
 import EditVehicleModal from '../components/vehicles/EditVehicleModal';
-import { getVehicles, deleteVehicle, searchVehicles } from '../backend/API';
+import { getVehicles, deleteVehicle, searchVehicles, getVehicleUsage } from '../backend/API';
 import FleetUtilizationCard from '../components/analytics/FleetUtilizationCard';
 import VehicleUsageStats from '../components/analytics/VehicleUsageStats';
 import AssignmentMetricsCard from '../components/analytics/AssignmentMetricsCard';
@@ -40,8 +40,10 @@ const Vehicles = () => {
   });
   const [analytics, setAnalytics] = useState({});
   const [stats, setStats] = useState({});
+  const [vehicleAnalytics, setVehicleAnalytics] = useState({});
 
   const [loadingVehicles, setLoadingVehicles] = useState(true);
+  const [loadingVehicleAnalytics, setLoadingVehicleAnalytics] = useState(true);
   const [totalVehicles, setTotalVehicles] = useState({});
   const [totalVehiclesMaint, setTotalVehiclesMaint] = useState({});
   const [fleetUtil, setFleetUtil] = useState({});
@@ -101,12 +103,38 @@ const Vehicles = () => {
   // Load vehicles from API
   useEffect(() => {
 
+    const fetchVehicleAnalytics = async () => {
+      try {
+        setLoadingVehicleAnalytics(true);
+        const response = await getVehicleUsage();
+        console.log('srjinhnbewng iwbhuoitbl uiertbueruberlbhu');
+        console.log(response);
+        
+        setVehicleAnalytics(
+          {
+            totalVehicles: response.data.data.vehicles.length || 0,
+            totalVehiclesMaint: maintenanceVehicles.length || 0,
+            fleetUtil: vehicleUtil || 0,
+            statusBreakdown: response.data.data.vehicles.reduce((breakdown, vehicle) => {
+              breakdown[vehicle.status] = (breakdown[vehicle.status] || 0) + 1;
+              return breakdown;
+          })
+          }
+         || {});
+        
+      } catch (error) {
+        console.log(`Error fetching data: ${error}`);
+      } finally {
+        setLoadingVehicleAnalytics(false);
+      }
+    };
+    fetchVehicleAnalytics();
+
     const fetchTotalVehicles = async () => {
       try {
         setLoadingVehicles(true);
         const response = await getVehicles();
         setTotalVehicles(response.data.data.vehicles.length || 0);
-        console.log(response.data.data.vehicles.length);
 
         const maintenanceVehicles = response.data.data.vehicles.filter(vehicle => vehicle.status === 'maintenance');
         setTotalVehiclesMaint(maintenanceVehicles.length);
@@ -136,6 +164,7 @@ const Vehicles = () => {
       }
     };
     fetchTotalVehicles();
+    fetchVehicleAnalytics();
 
     const loadVehicles = async (retryCount = 3) => {
       try {
@@ -600,9 +629,9 @@ const Vehicles = () => {
         )}
         {/* Data visualization section */}
         <DataVisualization analytics={stats} />
-        <VehicleUsageStats stats={analytics.vehicle_usage} />
-        <DriverPerformanceCard stats={analytics.driver_performance} />
-        <CostAnalyticsCard stats={analytics.cost_analytics} />
+        <VehicleUsageStats stats={vehicleAnalytics} />
+        <DriverPerformanceCard stats={vehicleAnalytics} />
+        <CostAnalyticsCard stats={vehicleAnalytics} />
         {/* Analytics Cards Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
           <StatusBreakdownCard stats={analytics.status_breakdown} />
