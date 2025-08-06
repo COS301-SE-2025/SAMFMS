@@ -5,65 +5,94 @@
 @layer base {
   :root {
     /* Light mode - using our blue palette */
-    --background: 204 80% 98%; /* Light blue background (similar to #daeaf7) */
-    --foreground: 240 80% 8%; /* Very dark blue text (similar to #00022b) */
+    --background: 204 80% 98%;
+    /* Light blue background (similar to #daeaf7) */
+    --foreground: 240 80% 8%;
+    /* Very dark blue text (similar to #00022b) */
 
-    --card: 0 0% 100%; /* White card background */
-    --card-foreground: 240 80% 8%; /* Very dark blue text on cards */
+    --card: 0 0% 100%;
+    /* White card background */
+    --card-foreground: 240 80% 8%;
+    /* Very dark blue text on cards */
 
     --popover: 0 0% 100%;
     --popover-foreground: 240 80% 8%;
 
-    --primary: 210 80% 35%; /* Medium blue as primary (similar to #0855b1) */
-    --primary-foreground: 0 0% 100%; /* White text on primary buttons */
+    --primary: 210 80% 35%;
+    /* Medium blue as primary (similar to #0855b1) */
+    --primary-foreground: 0 0% 100%;
+    /* White text on primary buttons */
 
-    --secondary: 204 65% 90%; /* Light blue for secondary elements (lighter than #daeaf7) */
-    --secondary-foreground: 240 80% 20%; /* Dark blue text on secondary elements */
+    --secondary: 204 65% 90%;
+    /* Light blue for secondary elements (lighter than #daeaf7) */
+    --secondary-foreground: 240 80% 20%;
+    /* Dark blue text on secondary elements */
 
-    --muted: 204 60% 96%; /* Very light blue for muted areas */
-    --muted-foreground: 214 20% 46%; /* Medium gray-blue for muted text */
+    --muted: 204 60% 96%;
+    /* Very light blue for muted areas */
+    --muted-foreground: 214 20% 46%;
+    /* Medium gray-blue for muted text */
 
-    --accent: 204 80% 93%; /* Slightly more saturated light blue for accent */
+    --accent: 204 80% 93%;
+    /* Slightly more saturated light blue for accent */
     --accent-foreground: 240 80% 20%;
 
-    --destructive: 0 84% 60%; /* Keep red for destructive actions */
+    --destructive: 0 84% 60%;
+    /* Keep red for destructive actions */
     --destructive-foreground: 210 40% 98%;
 
-    --border: 204 70% 90%; /* Light blue border */
-    --input: 204 70% 90%; /* Light blue input borders */
-    --ring: 210 80% 35%; /* Medium blue for focus rings */
+    --border: 204 70% 90%;
+    /* Light blue border */
+    --input: 204 70% 90%;
+    /* Light blue input borders */
+    --ring: 210 80% 35%;
+    /* Medium blue for focus rings */
 
     --radius: 0.5rem;
   }
+
   .dark {
     /* Dark mode - using darker shades from our blue palette */
-    --background: 240 80% 8%; /* Very dark blue background (#00022b) */
-    --foreground: 204 80% 95%; /* Very light blue text (lighter than #daeaf7) */
+    --background: 200 30% 15%;
+    /* Dark background with the new blue tone */
+    --foreground: 200 40% 95%;
+    /* Very light blue text */
 
-    --card: 240 70% 12%; /* Slightly lighter dark blue for cards */
-    --card-foreground: 204 80% 95%;
+    --card: 200 25% 20%;
+    /* Slightly lighter dark blue for cards */
+    --card-foreground: 200 40% 95%;
 
-    --popover: 240 80% 8%;
-    --popover-foreground: 204 80% 95%;
+    --popover: 200 30% 15%;
+    --popover-foreground: 200 40% 95%;
 
-    --primary: 210 85% 42%; /* Medium-bright blue as primary (#0855b1) */
-    --primary-foreground: 0 0% 100%; /* White text on primary buttons */
+    --primary: 200 62% 57%;
+    /* Your new blue color #4fa4d7 */
+    --primary-foreground: 0 0% 100%;
+    /* White text on primary buttons */
 
-    --secondary: 240 50% 20%; /* Dark blue for secondary elements */
-    --secondary-foreground: 204 80% 95%;
+    --secondary: 200 35% 25%;
+    /* Dark blue for secondary elements */
+    --secondary-foreground: 200 40% 95%;
 
-    --muted: 240 50% 15%; /* Dark blue-gray for muted areas */
-    --muted-foreground: 204 40% 80%; /* Light blue-gray for muted text */
+    --muted: 200 30% 22%;
+    /* Dark blue-gray for muted areas */
+    --muted-foreground: 200 30% 75%;
+    /* Light blue-gray for muted text */
 
-    --accent: 240 50% 25%; /* Slightly brighter dark blue for accents */
-    --accent-foreground: 204 80% 95%;
+    --accent: 200 40% 30%;
+    /* Slightly brighter dark blue for accents */
+    --accent-foreground: 200 40% 95%;
 
-    --destructive: 0 70% 40%; /* Darker red for destructive actions */
+    --destructive: 0 70% 40%;
+    /* Darker red for destructive actions */
     --destructive-foreground: 210 40% 98%;
 
-    --border: 240 50% 18%; /* Dark blue border */
-    --input: 240 50% 18%; /* Dark blue input */
-    --ring: 204 70% 50%; /* Medium blue for focus rings */
+    --border: 200 30% 25%;
+    /* Dark blue border */
+    --input: 200 30% 25%;
+    /* Dark blue input */
+    --ring: 200 62% 57%;
+    /* Your new blue for focus rings */
   }
 }
 
@@ -71,6 +100,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
