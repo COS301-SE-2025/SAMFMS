@@ -1,6 +1,6 @@
-import React, {useState, useEffect, useRef} from 'react';
-import {Button} from '../components/ui/button.jsx';
-import {useAuth, ROLES} from '../components/auth/RBACUtils.jsx';
+import React, { useState, useEffect, useRef } from 'react';
+import { Button } from '../components/ui/button.jsx';
+import { useAuth, ROLES } from '../components/auth/RBACUtils.jsx';
 import {
   listUsers,
   updateUserPermissions,
@@ -11,16 +11,19 @@ import {
   resendInvitation,
   createUserManually,
   getUserInfo,
+  getDrivers,
 } from '../backend/API.js';
-import {Navigate} from 'react-router-dom';
-import UserTable from '../components/UserTable.jsx';
-import InviteUserModal from '../components/InviteUserModal.jsx';
-import ManualCreateUserModal from '../components/ManualCreateUserModal.jsx';
-import {useNotification} from '../contexts/NotificationContext.jsx';
+import { Navigate } from 'react-router-dom';
+import UserTable from '../components/user/UserTable.jsx';
+//import InviteUserModal from '../components/InviteUserModal.jsx';
+import ManualCreateUserModal from '../components/user/ManualCreateUserModal.jsx';
+import { useNotification } from '../contexts/NotificationContext.jsx';
+
+import { createDriver } from '../backend/api/drivers.js';
 
 const UserManagement = () => {
-  const {hasPermission, hasRole} = useAuth();
-  const {showNotification} = useNotification();
+  const { hasPermission, hasRole } = useAuth();
+  const { showNotification } = useNotification();
   const [adminUsers, setAdminUsers] = useState([]);
   const [managerUsers, setManagerUsers] = useState([]);
   const [driverUsers, setDriverUsers] = useState([]);
@@ -32,9 +35,9 @@ const UserManagement = () => {
   const [adminSearch, setAdminSearch] = useState('');
   const [managerSearch, setManagerSearch] = useState('');
   const [driverSearch, setDriverSearch] = useState('');
-  const [adminSort, setAdminSort] = useState({field: 'full_name', direction: 'asc'});
-  const [managerSort, setManagerSort] = useState({field: 'full_name', direction: 'asc'});
-  const [driverSort, setDriverSort] = useState({field: 'full_name', direction: 'asc'});
+  const [adminSort, setAdminSort] = useState({ field: 'full_name', direction: 'asc' });
+  const [managerSort, setManagerSort] = useState({ field: 'full_name', direction: 'asc' });
+  const [driverSort, setDriverSort] = useState({ field: 'full_name', direction: 'asc' });
 
   // Modal states
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -46,31 +49,11 @@ const UserManagement = () => {
     try {
       setLoading(true);
       const usersData = await listUsers();
-      const currentUserInfo = await getUserInfo();
-      setCurrentUser(currentUserInfo);
 
-      // Filter users by role and add current user indicator
-      const admins = usersData
-        .filter(user => user.role === ROLES.ADMIN)
-        .map(user => ({
-          ...user,
-          isCurrentUser:
-            user.id === currentUserInfo?.user_id || user.email === currentUserInfo?.email,
-        }));
-      const managers = usersData
-        .filter(user => user.role === ROLES.FLEET_MANAGER)
-        .map(user => ({
-          ...user,
-          isCurrentUser:
-            user.id === currentUserInfo?.user_id || user.email === currentUserInfo?.email,
-        }));
-      const drivers = usersData
-        .filter(user => user.role === ROLES.DRIVER)
-        .map(user => ({
-          ...user,
-          isCurrentUser:
-            user.id === currentUserInfo?.user_id || user.email === currentUserInfo?.email,
-        }));
+      // Filter users by role
+      const admins = usersData.filter(user => user.role === ROLES.ADMIN);
+      const managers = usersData.filter(user => user.role === ROLES.FLEET_MANAGER);
+      const drivers = usersData.filter(user => user.role === ROLES.DRIVER);
 
       setAdminUsers(admins);
       setManagerUsers(managers);
@@ -91,6 +74,33 @@ const UserManagement = () => {
       // Don't set error for invited users - it's optional data
     }
   }, []);
+
+  const loadDriversFromAPI = React.useCallback(async () => {
+    try {
+      // Load drivers from the drivers API if user has permission
+      if (hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) {
+        const driversData = await getDrivers({ limit: 100 });
+        // Transform driver data to match user table format
+        const transformedDrivers = driversData.map(driver => ({
+          id: driver.id || driver._id,
+          full_name: driver.user_info?.full_name || driver.name || 'Unknown',
+          email: driver.user_info?.email || driver.email || 'N/A',
+          phoneNo: driver.user_info?.phoneNo || driver.phone || 'N/A',
+          phone: driver.user_info?.phoneNo || driver.phone || 'N/A',
+          role: 'driver',
+          employee_id: driver.employee_id,
+          license_number: driver.license_number,
+          department: driver.department,
+          status: driver.status,
+        }));
+        setDriverUsers(transformedDrivers);
+      }
+    } catch (err) {
+      console.error('Failed to load drivers from API:', err);
+      // Fallback to drivers from user list if API fails
+    }
+  }, [hasRole]);
+
   useEffect(() => {
     // Check authentication status first
     if (!isAuthenticated()) {
@@ -107,6 +117,7 @@ const UserManagement = () => {
     // Load data
     loadUsers();
     loadInvitedUsers();
+    loadDriversFromAPI();
 
     // Load roles cache
     const fetchRoles = async () => {
@@ -117,7 +128,7 @@ const UserManagement = () => {
       }
     };
     fetchRoles();
-  }, [loadUsers, loadInvitedUsers, showNotification]);
+  }, [loadUsers, loadInvitedUsers, loadInvitedUsers, showNotification]);
 
   // Fleet managers should be redirected to the drivers page
   if (hasRole(ROLES.FLEET_MANAGER)) {
@@ -155,20 +166,32 @@ const UserManagement = () => {
   const handleManualCreateSubmit = async formData => {
     try {
       setLoading(true);
-
-      // Debug: Log the received form data
+      console.log('=== Starting user creation process ===');
       console.log('Received form data:', formData);
 
-      // Validate that we have the required fields
       if (!formData || !formData.full_name || !formData.email || !formData.password) {
-        console.error('Missing required form data:', formData);
-        showNotification(
-          'Missing required form data. Please fill in all required fields.',
-          'error'
-        );
-        return;
+        throw new Error('Missing required form data');
       }
 
+      // First create driver if role is driver
+      if (formData.role === "driver") {
+        console.log('Creating driver first...');
+        const driverData = {
+          full_name: formData.full_name.trim(),
+          email: formData.email.trim(),
+          phoneNo: formData.phoneNo ? formData.phoneNo.trim() : undefined
+        };
+
+        console.log('Driver data:', driverData);
+        const driverResponse = await createDriver(driverData);
+        console.log('Driver creation response:', driverResponse);
+
+        if (!driverResponse || !driverResponse.data || driverResponse.data.status !== "success") {
+          throw new Error('Failed to create driver in management system');
+        }
+      }
+
+      // Then create user account
       const userData = {
         full_name: formData.full_name.trim(),
         email: formData.email.trim(),
@@ -178,17 +201,19 @@ const UserManagement = () => {
         details: {},
       };
 
-      console.log('Sending user data:', userData);
+      console.log('Creating user account:', userData);
       await createUserManually(userData);
+
+      console.log('User creation successful');
       showNotification(`User ${formData.full_name} created successfully!`, 'success');
       setShowManualCreateModal(false);
-      // Refresh user list
       loadUsers();
     } catch (err) {
       console.error('Error in handleManualCreateSubmit:', err);
       showNotification(`Failed to create user: ${err.message}`, 'error');
     } finally {
       setLoading(false);
+      console.log('=== User creation process completed ===');
     }
   };
 
@@ -231,10 +256,102 @@ const UserManagement = () => {
   const handleOpenCreateModal = role => {
     setShowManualCreateModal(false);
     setTimeout(() => {
+      console.log("Opening create user modal with role:", role);
       setCreateUserRole(role);
       setShowManualCreateModal(true);
     }, 0);
   };
+
+  const handleRoleChange = async (userId, newRole) => {
+    try {
+      setLoading(true);
+      await updateUserPermissions({
+        user_id: userId,
+        role: newRole,
+      });
+      showNotification('User role updated successfully!', 'success');
+      loadUsers();
+    } catch (err) {
+      showNotification(`Failed to update user role: ${err.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelInvitation = async (invitationId, userName) => {
+    const userConfirmed = window.confirm(
+      `Are you sure you want to cancel the invitation for ${userName}?`
+    );
+
+    if (!userConfirmed) return;
+
+    try {
+      setLoading(true);
+      // Note: You may need to implement a cancel invitation API
+      showNotification(`Invitation for ${userName} has been cancelled.`, 'success');
+      loadInvitedUsers();
+    } catch (err) {
+      showNotification(`Failed to cancel invitation: ${err.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Define actions for different user types
+  const adminActions = [
+    {
+      label: 'Remove Admin',
+      variant: 'destructive',
+      onClick: user => handleRemoveUser(user.id, user.full_name),
+      disabled: () => loading,
+    },
+  ];
+
+  const managerActions = [
+    {
+      label: 'Promote to Admin',
+      variant: 'outline',
+      onClick: user => handleRoleChange(user.id, 'admin'),
+      disabled: () => loading,
+    },
+    {
+      label: 'Remove',
+      variant: 'destructive',
+      onClick: user => handleRemoveUser(user.id, user.full_name),
+      disabled: () => loading,
+    },
+  ];
+
+  const driverActions = [
+    {
+      label: 'View Details',
+      variant: 'outline',
+      onClick: user => {
+        // Navigate to drivers page or open driver details
+        window.location.href = '/drivers';
+      },
+      disabled: () => false,
+    },
+  ];
+
+  const invitationActions = invitation => [
+    ...(!invitation.is_expired && invitation.can_resend
+      ? [
+        {
+          label: 'Resend OTP',
+          variant: 'outline',
+          onClick: () => handleResendInvitation(invitation.email),
+          disabled: () => loading,
+        },
+      ]
+      : []),
+    {
+      label: 'Cancel',
+      variant: 'destructive',
+      onClick: () => handleCancelInvitation(invitation.id, invitation.full_name),
+      disabled: () => loading,
+    },
+  ];
 
   // Search and sort utility functions
   const filterAndSortUsers = (users, searchTerm, sortConfig) => {
@@ -268,7 +385,7 @@ const UserManagement = () => {
   const handleSort = (field, currentSort, setSortFunction) => {
     const newDirection =
       currentSort.field === field && currentSort.direction === 'asc' ? 'desc' : 'asc';
-    setSortFunction({field, direction: newDirection});
+    setSortFunction({ field, direction: newDirection });
   };
 
   // Get filtered and sorted users (recalculate on every render)
@@ -277,177 +394,145 @@ const UserManagement = () => {
   const filteredDrivers = filterAndSortUsers(driverUsers, driverSearch, driverSort);
 
   return (
-    <div className="relative container mx-auto py-8">
-      {/* Background pattern */}
-      <div
-        className="absolute inset-0 z-0 opacity-10 pointer-events-none"
-        style={{
-          backgroundImage: 'url("/logo/logo_icon_dark.svg")',
-          backgroundSize: '200px',
-          backgroundRepeat: 'repeat',
-          filter: 'blur(1px)',
-        }}
-        aria-hidden="true"
-      />
+    <div className="container mx-auto py-8">
+      <header className="mb-8">
+        <h1 className="text-4xl font-bold">User Management</h1>
+      </header>
 
-      <div className="relative z-10 container">
-        <header className="mb-8">
-          <h1 className="text-4xl font-bold">User Management</h1>
-        </header>{' '}
-        {/* Action Buttons */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-semibold">User Management Actions</h2>
-            <div className="space-x-2">
-              <Button
-                onClick={() => setShowInviteModal(true)}
-                className="bg-primary hover:bg-primary/90"
-                disabled={loading}
-              >
-                Invite User
-              </Button>
-            </div>
-          </div>
-        </div>{' '}
-        {/* Admin Users Table */}
-        {hasRole(ROLES.ADMIN) && (
-          <UserTable
-            title="Administrators"
-            users={filteredAdmins}
-            loading={loading && !adminUsers.length}
-            emptyMessage="No administrators found"
-            showActions={false}
-            actions={[]}
-            search={adminSearch}
-            setSearch={setAdminSearch}
-            sort={adminSort}
-            onSortChange={field => handleSort(field, adminSort, setAdminSort)}
-            showAddButton={true}
-            onAddUser={() => handleOpenCreateModal('admin')}
-          />
-        )}
-        {/* Fleet Managers Table */}
-        {hasRole(ROLES.ADMIN) && (
-          <UserTable
-            title="Fleet Managers"
-            users={filteredManagers}
-            loading={loading && !managerUsers.length}
-            emptyMessage="No fleet managers found"
-            showActions={false}
-            actions={[]}
-            search={managerSearch}
-            setSearch={setManagerSearch}
-            sort={managerSort}
-            onSortChange={field => handleSort(field, managerSort, setManagerSort)}
-            showAddButton={true}
-            onAddUser={() => handleOpenCreateModal('fleet_manager')}
-          />
-        )}
-        {/* Drivers Table */}
+      {/* User Actions Section */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">User Management Actions</h2>
+
+        </div>
+      </div>
+
+      {/* Admin Users Table - Only visible to Admins */}
+      {hasRole(ROLES.ADMIN) && (
+        <UserTable
+          title="Administrators"
+          users={adminUsers}
+          loading={loading && !adminUsers.length}
+          showActions={true}
+          showRole={false}
+          emptyMessage="No administrators found"
+          actions={adminActions}
+          onAddUser={() => handleOpenCreateModal('admin')}
+        />
+      )}
+
+      {/* Fleet Managers Table - Visible to Admins only */}
+      {hasRole(ROLES.ADMIN) && (
+        <UserTable
+          title="Fleet Managers"
+          users={managerUsers}
+          loading={loading && !managerUsers.length}
+          showActions={true}
+          showRole={false}
+          emptyMessage="No fleet managers found"
+          actions={managerActions}
+          onAddUser={() => handleOpenCreateModal('fleet_manager')}
+        />
+      )}
+
+      {/* Drivers Table */}
+      {(hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) && (
         <UserTable
           title="Drivers"
-          users={filteredDrivers}
+          users={driverUsers}
           loading={loading && !driverUsers.length}
+          showActions={true}
+          showRole={false}
           emptyMessage="No drivers found"
-          showActions={false}
-          actions={[]}
-          search={driverSearch}
-          setSearch={setDriverSearch}
-          sort={driverSort}
-          onSortChange={field => handleSort(field, driverSort, setDriverSort)}
-          showAddButton={true}
+          actions={driverActions}
           onAddUser={() => handleOpenCreateModal('driver')}
         />
-        {/* Pending Invitations Table */}
-        {(hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) && invitedUsers.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">Pending Invitations</h2>
-            <div className="bg-card rounded-lg border border-border overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Role
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Invited
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Expires
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {invitedUsers.map(invitation => (
-                    <tr key={invitation.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {invitation.full_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                        {invitation.email}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {invitation.role.replace('_', ' ').toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                        {new Date(invitation.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                        {new Date(invitation.expires_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        {!invitation.is_expired && invitation.can_resend && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleResendInvitation(invitation.email)}
-                            disabled={loading}
-                          >
-                            Resend OTP
-                          </Button>
-                        )}
+      )}
+
+      {/* Invited Users Table */}
+      {(hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) && invitedUsers.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold mb-4">Pending Invitations</h2>
+          <div className="bg-card rounded-lg border border-border overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Role
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Invited
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Expires
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {invitedUsers.map(invitation => (
+                  <tr key={invitation.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      {invitation.full_name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                      {invitation.email}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                        {invitation.role.replace('_', ' ').toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                      {new Date(invitation.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                      {new Date(invitation.expires_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                      {invitationActions(invitation).map((action, index) => (
                         <Button
-                          variant="destructive"
+                          key={index}
+                          variant={action.variant}
                           size="sm"
-                          onClick={() => handleRemoveUser(invitation.id, invitation.full_name)}
-                          disabled={loading}
+                          onClick={action.onClick}
+                          disabled={action.disabled()}
                         >
-                          Cancel
+                          {action.label}
                         </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      ))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-        {/* Modals */}
-        <InviteUserModal
-          isOpen={showInviteModal}
-          onClose={() => setShowInviteModal(false)}
-          onSubmit={handleInviteSubmit}
-          loading={loading}
-        />{' '}
-        <ManualCreateUserModal
-          isOpen={showManualCreateModal}
-          onClose={() => setShowManualCreateModal(false)}
-          onSubmit={handleManualCreateSubmit}
-          loading={loading}
-          preselectedRole={createUserRole}
-        />
-      </div>
+        </div>
+      )}
+
+      {/* Modals */}
+      {/* <InviteUserModal
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        onSubmit={handleInviteSubmit}
+        loading={loading}
+      /> */}
+
+      <ManualCreateUserModal
+        isOpen={showManualCreateModal}
+        onClose={() => setShowManualCreateModal(false)}
+        onSubmit={handleManualCreateSubmit}
+        loading={loading}
+        preselectedRole={createUserRole}
+      />
     </div>
   );
 };

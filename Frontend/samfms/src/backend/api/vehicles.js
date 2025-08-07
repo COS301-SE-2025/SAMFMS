@@ -13,6 +13,7 @@ const VEHICLE_ENDPOINTS = {
   update: API_ENDPOINTS.VEHICLES.UPDATE,
   delete: API_ENDPOINTS.VEHICLES.DELETE,
   search: API_ENDPOINTS.VEHICLES.SEARCH,
+  assign: API_ENDPOINTS.VEHICLES.ASSIGN
 };
 
 /**
@@ -141,6 +142,16 @@ export const vehiclesAPI = {
   deleteVehicle,
   searchVehicles,
 };
+
+export const assignDriver = async (data) => {
+  try {
+    console.log("Vehicle and driver data",data);
+    return await httpClient.post(VEHICLE_ENDPOINTS.assign, data);
+  } catch (error) {
+    console.error('Error assigning driver to vehicle: ', error);
+    throw error;
+  }
+}
 
 // Also export as default for alternative import syntax
 export default vehiclesAPI;

@@ -24,7 +24,7 @@ import Trips from './pages/Trips';
 import Maintenance from './pages/Maintenance';
 import Help from './pages/Help';
 import Landing from './pages/Landing';
-import UserManagement from './components/user/UserManagement';
+import UserManagement from './pages/UserManagement';
 
 function App() {
   return (

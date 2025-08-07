@@ -203,12 +203,12 @@ class DriverCreateRequest(BaseModel):
     first_name: str
     last_name: str
     email: str
-    phone: str
-    license_number: str
-    license_class: List[LicenseClass]
-    license_expiry: datetime
+    phone: Optional[str] = None
+    license_number: Optional[str] = None
+    license_class: Optional[List[str]] = None  
+    license_expiry: Optional[datetime] = None
     department: Optional[str] = None
-    hire_date: datetime
+    hire_date: Optional[datetime] = None
     emergency_contact: Optional[Dict] = None
     address: Optional[Dict] = None
 
@@ -218,14 +218,6 @@ class DriverCreateRequest(BaseModel):
         import re
         if not re.match(r'^(\+27|0)[6-8][0-9]{8}$', v):
             raise ValueError('Invalid South African phone number')
-        return v
-
-    @validator('license_number')
-    def validate_license(cls, v):
-        # Basic SA license number validation
-        import re
-        if not re.match(r'^[0-9]{8}[0-9]{2}$', v):
-            raise ValueError('Invalid South African license number format')
         return v
 
 
@@ -280,14 +272,14 @@ class DriverResponse(BaseModel):
     first_name: str
     last_name: str
     email: str
-    phone: str
-    license_number: str
-    license_class: List[LicenseClass]
-    license_expiry: datetime
-    status: DriverStatus
+    phone: Optional[str] = None
+    license_number: Optional[str] = None
+    license_class: Optional[List[str]] = None  
+    license_expiry: Optional[datetime] = None
     department: Optional[str] = None
-    current_vehicle_id: Optional[str] = None
-    hire_date: datetime
+    hire_date: Optional[datetime] = None
+    emergency_contact: Optional[Dict] = None
+    address: Optional[Dict] = None
 
 
 class AnalyticsResponse(BaseModel):

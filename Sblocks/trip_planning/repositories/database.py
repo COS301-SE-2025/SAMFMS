@@ -417,6 +417,8 @@ class DatabaseManagerManagement():
             raise RuntimeError("Database not connected")
         return self._db.drivers
 
+#class DatabaseManagerSecurity
+
 # Global database manager instance
 db_manager = DatabaseManager()
 db_manager_gps = DatabaseManagerGeo()

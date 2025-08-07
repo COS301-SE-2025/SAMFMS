@@ -12,6 +12,7 @@ const DRIVER_ENDPOINTS = {
   get: API_ENDPOINTS.DRIVERS.GET,
   update: API_ENDPOINTS.DRIVERS.UPDATE,
   delete: API_ENDPOINTS.DRIVERS.DELETE,
+  assign: API_ENDPOINTS.DRIVERS.ASSIGN,
 };
 
 /**
@@ -21,7 +22,9 @@ const DRIVER_ENDPOINTS = {
  */
 export const createDriver = async driverData => {
   try {
-    return await httpClient.post(DRIVER_ENDPOINTS.create, driverData);
+    const response = await httpClient.post(DRIVER_ENDPOINTS.create, driverData);
+    console.log("Response for create driver: ", response)
+    return response
   } catch (error) {
     console.error('Error creating driver:', error);
     throw error;
@@ -187,3 +190,14 @@ export const searchDrivers = async query => {
     throw error;
   }
 };
+
+
+export const assignVehicle = async (data) => {
+  try {
+    console.log("Vehicle and driver data",data);
+    return await httpClient.post(DRIVER_ENDPOINTS.assign, data);
+  } catch (error) {
+    console.error('Error assigning vehicle to driver: ', error);
+    throw error;
+  }
+}

@@ -293,7 +293,11 @@ const Trips = () => {
       const response = await createTrip(tripData);
       console.log('Trip created successfully:', response);
 
-      alert('Trip scheduled successfully!');
+      if(response.data.status == "success"){
+        alert('Trip scheduled successfully!');
+      } else {
+        alert('Failed to create trip: ', response.data.message);
+      }
       handleCloseModal();
     } catch (error) {
       console.error('Error scheduling trip:', error);

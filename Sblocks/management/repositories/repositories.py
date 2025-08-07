@@ -322,6 +322,31 @@ class DriverRepository(BaseRepository):
             filter_query=search_filter,
             sort=[("last_name", 1), ("first_name", 1)]
         )
+    
+    async def get_last_employee_id(self) -> str:
+        """
+        Get the last assigned employee ID to determine next ID in sequence.
+        Returns 'EMP000' if no employees exist.
+        """
+        try:
+            # Find the last document sorted by employee_id in descending order
+            result = await self.find(
+                filter_query={"employee_id": {"$regex": "^EMP\\d{3}$"}},
+                sort=[("employee_id", -1)],
+                limit=1
+            )
+            
+            if not result:
+                return "EMP000"
+            
+            last_id = result[0]["employee_id"]
+            # Extract the numeric part
+            last_number = int(last_id[3:])
+            return f"EMP{last_number:03d}"
+            
+        except Exception as e:
+            logger.error(f"Error getting last employee ID: {str(e)}")
+            return "EMP000"
 
 
 class AnalyticsRepository(BaseRepository):
