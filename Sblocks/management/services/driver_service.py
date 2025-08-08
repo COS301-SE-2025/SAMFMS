@@ -17,6 +17,51 @@ class DriverService:
     def __init__(self):
         self.driver_repo = DriverRepository()
     
+    async def get_all_drivers(self, filters: Dict[str, Any] = {}) -> Dict[str, Any]:
+        """Retrieve all drivers with optional filtering and pagination"""
+        try:
+            query = {}
+
+            # Map status_filter to internal status field
+            if "status_filter" in filters:
+                status = filters["status_filter"].lower()
+                if status in ["active", "inactive"]:
+                    query["status"] = status
+
+            # Filter by department
+            if "department_filter" in filters:
+                query["department"] = filters["department_filter"]
+
+            # Ensure pagination params are integers
+            skip = int(str(filters.get("skip", 0)).strip())
+            limit = int(str(filters.get("limit", 100)).strip())
+
+            # Query DB with validated integers
+            all_drivers = await self.driver_repo.find(
+                filter_query=query,
+                skip=skip,
+                limit=limit if limit > 0 else None
+            )
+
+            # Total count without pagination
+            total_count = await self.driver_repo.count(query)
+
+            return {
+                "drivers": all_drivers,
+                "total": total_count,
+                "skip": skip,
+                "limit": limit if limit > 0 else total_count,
+                "has_more": skip + limit < total_count if limit > 0 else False,
+            }
+
+        except ValueError as e:
+            logger.error(f"Error parsing pagination parameters: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error retrieving filtered drivers: {e}")
+            raise
+
+    
     async def create_driver(self, driver_request: DriverCreateRequest, created_by: str) -> Dict[str, Any]:
         """Create new driver with validation"""
         try:

@@ -31,6 +31,25 @@ export const createDriver = async driverData => {
   }
 };
 
+export const getAllDrivers = async (filters = {}) => {
+  try {
+    // Ensure numeric parameters are integers
+    const queryParams = {
+      ...filters,
+      limit: Number.parseInt(filters.limit || 100),  // Ensure integer
+      skip: Number.parseInt(filters.skip || 0)       // Ensure integer
+    };
+
+    console.log('Sending query params to getAllDrivers:', queryParams);
+    const response = await httpClient.get(DRIVER_ENDPOINTS.list, { params: queryParams });
+    console.log("Response received from backend:", response);
+    return response;
+  } catch (error) {
+    console.error('Error fetching all drivers:', error);
+    throw error;
+  }
+};
+
 /**
  * Get list of drivers with optional filters
  * Uses the auth/users endpoint and filters for users with driver role

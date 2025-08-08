@@ -340,28 +340,33 @@ class ServiceRequestConsumer:
                     status = data.get("status")
                     pagination = data.get("pagination", {"skip": 0, "limit": 50})
                     
+                    filters = {}
+
+                    # Normalize filters from request
                     if department:
-                        drivers = await driver_service.get_drivers_by_department(department)
-                    elif status == "active":
-                        drivers = await driver_service.get_active_drivers()
-                    else:
-                        # Use repository for filtered queries
-                        driver_repo = DriverRepository()
-                        filter_query = {}
-                        if status:
-                            filter_query["status"] = status
-                        
-                        drivers = await driver_repo.find(
-                            filter_query=filter_query,
-                            skip=pagination["skip"],
-                            limit=pagination["limit"],
-                            sort=[("last_name", 1), ("first_name", 1)]
-                        )
+                        filters["department_filter"] = department
+
+                    if status:
+                        filters["status_filter"] = status
+
+                    # Handle pagination
+                    pagination = data.get("pagination", {})
+                    if "skip" in pagination:
+                        filters["skip"] = pagination["skip"]
+                    if "limit" in pagination:
+                        filters["limit"] = pagination["limit"]
+                    
+                    logger.info(f"Filters: {filters}")
+
+                    # Get drivers using new filter-aware function
+                    drivers_result = await driver_service.get_all_drivers(filters)
+
                 
                 return ResponseBuilder.success(
-                    data=drivers,
+                    data=drivers_result,
                     message="Drivers retrieved successfully"
                 ).model_dump()
+
                 
             elif method == "POST":
                 if not data:

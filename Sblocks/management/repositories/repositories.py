@@ -273,6 +273,13 @@ class DriverRepository(BaseRepository):
     def __init__(self):
         super().__init__("drivers")
     
+    async def get_all(self) -> List[Dict[str, Any]]:
+        """Retrieve all drivers without any filter"""
+        return await self.find(
+            filter_query={}
+        )
+
+    
     async def get_by_employee_id(self, employee_id: str) -> Optional[Dict[str, Any]]:
         """Get driver by employee ID"""
         return await self.find_one({"employee_id": employee_id})

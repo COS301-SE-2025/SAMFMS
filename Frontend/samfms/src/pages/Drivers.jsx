@@ -8,6 +8,7 @@ import AddDriverModal from '../components/drivers/AddDriverModal';
 import EditDriverModal from '../components/drivers/EditDriverModal';
 
 import { getDrivers, deleteDriver, searchDrivers } from '../backend/api/drivers';
+import { getAllDrivers } from '../backend/api/drivers';
 
 const Drivers = () => {
   const [drivers, setDrivers] = useState([]);
@@ -33,23 +34,18 @@ const Drivers = () => {
 
   // Transform backend driver data to frontend format
   const transformDriverData = useCallback(backendDriver => {
-    // Handle auth service data structure
-    const driverId = backendDriver.id || backendDriver._id;
-
     return {
-      id: driverId,
-      name: backendDriver.full_name || 'Unknown',
-      licenseNumber: backendDriver.details?.license_number || 'N/A',
-      phone: backendDriver.phoneNo || 'N/A',
-      licenseExpiry: backendDriver.details?.license_expiry || 'N/A',
+      id: backendDriver._id,
+      name: `${backendDriver.first_name} ${backendDriver.last_name}`,
+      licenseNumber: backendDriver.license_number || 'N/A',
+      phone: backendDriver.phone || 'N/A',
+      licenseExpiry: backendDriver.license_expiry || 'N/A',
       email: backendDriver.email || 'N/A',
-      status: backendDriver.is_active ? 'Active' : 'Inactive',
-      employeeId: backendDriver.details?.employee_id || backendDriver.id || 'N/A',
-      department: backendDriver.details?.department || 'N/A',
-      licenseType: backendDriver.details?.license_type || 'N/A',
-      permissions: backendDriver.permissions || [],
+      status: backendDriver.status === 'active' ? 'Active' : 'Inactive',
+      employeeId: backendDriver.employee_id || 'N/A',
+      department: backendDriver.department || 'N/A',
+      licenseType: backendDriver.license_class || 'N/A',
       last_login: backendDriver.last_login,
-      preferences: backendDriver.preferences || {},
       role: backendDriver.role,
     };
   }, []);
@@ -67,11 +63,22 @@ const Drivers = () => {
         if (filters.department) {
           params.department_filter = filters.department;
         }
-        const response = await getDrivers(params);
-        const transformedDrivers = response.drivers.map(transformDriverData);
+
+        const response = await getAllDrivers(params);
+        console.log('Full response:', response); // Debug log
+
+        // Access the correct nested data structure
+        const driversData = response?.data?.data?.drivers || response?.drivers || [];
+
+        if (!Array.isArray(driversData)) {
+          throw new Error('Invalid response format: drivers data is not an array');
+        }
+
+        const transformedDrivers = driversData.map(transformDriverData);
         setDrivers(transformedDrivers);
         setFilteredDrivers([]); // Always reset filteredDrivers on load
       } catch (err) {
+        console.error('Error loading drivers:', err);
         setError(err.message || 'Failed to load drivers');
         setDrivers([]);
         setFilteredDrivers([]);
@@ -80,28 +87,36 @@ const Drivers = () => {
       }
     };
     loadDrivers();
-  }, [filters, transformDriverData]); // Reload when filters change  // Handle search functionality
+  }, [filters, transformDriverData]);
+
+  // Reload when filters change  // Handle search functionality
   const handleSearch = async searchQuery => {
     try {
       setLoading(true);
       setError(null);
       if (!searchQuery.trim()) {
-        const response = await getDrivers({
+        const response = await getAllDrivers({
           limit: 100,
           ...(filters.status && {
             status_filter: filters.status.toLowerCase().replace(/\s+/g, '_'),
           }),
           ...(filters.department && { department_filter: filters.department }),
         });
-        const transformedDrivers = response.drivers.map(transformDriverData);
+
+        // Access the correct nested data structure
+        const driversData = response?.data?.data?.drivers || response?.drivers || [];
+        const transformedDrivers = driversData.map(transformDriverData);
         setFilteredDrivers(transformedDrivers);
       } else {
         const searchResults = await searchDrivers(searchQuery);
-        const transformedResults = searchResults.map(transformDriverData);
+        // Handle search results - adjust based on your search API response format
+        const resultsData = searchResults?.data?.data?.drivers || searchResults?.drivers || searchResults || [];
+        const transformedResults = resultsData.map(transformDriverData);
         setFilteredDrivers(transformedResults);
       }
       setCurrentPage(1);
     } catch (err) {
+      console.error('Error searching drivers:', err);
       setError(err.message || 'Failed to search drivers');
     } finally {
       setLoading(false);
@@ -201,16 +216,18 @@ const Drivers = () => {
       console.error('Error processing new driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getDrivers({ limit: 100 });
-        const transformedDrivers = response.map(transformDriverData);
+        const response = await getAllDrivers({ limit: 100 });
+        const driversData = response?.data?.data?.drivers || response?.drivers || [];
+        const transformedDrivers = driversData.map(transformDriverData);
         setDrivers(transformedDrivers);
-        setFilteredDrivers(transformedDrivers);
+        setFilteredDrivers([]);
       } catch (refreshError) {
         console.error('Error refreshing drivers list:', refreshError);
         setError('Driver added but failed to refresh list. Please refresh the page.');
       }
     }
   };
+
 
   // Handle edit driver
   const handleEditDriver = driver => {
@@ -225,38 +242,39 @@ const Drivers = () => {
   };
   // Handle driver updated callback
   const handleDriverUpdated = async updatedDriver => {
+  try {
+    // Transform the updated driver data
+    const transformedDriver = transformDriverData(updatedDriver);
+
+    // Update the driver in both arrays using employee ID instead of MongoDB ID
+    setDrivers(prevDrivers =>
+      prevDrivers.map(driver =>
+        driver.employeeId === transformedDriver.employeeId ? transformedDriver : driver
+      )
+    );
+    setFilteredDrivers(prevFiltered =>
+      prevFiltered.map(driver =>
+        driver.employeeId === transformedDriver.employeeId ? transformedDriver : driver
+      )
+    );
+
+    // Show success message
+    alert(`Driver "${transformedDriver.name}" has been updated successfully!`);
+  } catch (error) {
+    console.error('Error processing updated driver:', error);
+    // Refresh the entire list as fallback
     try {
-      // Transform the updated driver data
-      const transformedDriver = transformDriverData(updatedDriver);
-
-      // Update the driver in both arrays using employee ID instead of MongoDB ID
-      setDrivers(prevDrivers =>
-        prevDrivers.map(driver =>
-          driver.employeeId === transformedDriver.employeeId ? transformedDriver : driver
-        )
-      );
-      setFilteredDrivers(prevFiltered =>
-        prevFiltered.map(driver =>
-          driver.employeeId === transformedDriver.employeeId ? transformedDriver : driver
-        )
-      );
-
-      // Show success message
-      alert(`Driver "${transformedDriver.name}" has been updated successfully!`);
-    } catch (error) {
-      console.error('Error processing updated driver:', error);
-      // Refresh the entire list as fallback
-      try {
-        const response = await getDrivers({ limit: 100 });
-        const transformedDrivers = response.map(transformDriverData);
-        setDrivers(transformedDrivers);
-        setFilteredDrivers(transformedDrivers);
-      } catch (refreshError) {
-        console.error('Error refreshing drivers list:', refreshError);
-        setError('Driver updated but failed to refresh list. Please refresh the page.');
-      }
+      const response = await getAllDrivers({ limit: 100 });
+      const driversData = response?.data?.data?.drivers || response?.drivers || [];
+      const transformedDrivers = driversData.map(transformDriverData);
+      setDrivers(transformedDrivers);
+      setFilteredDrivers([]);
+    } catch (refreshError) {
+      console.error('Error refreshing drivers list:', refreshError);
+      setError('Driver updated but failed to refresh list. Please refresh the page.');
     }
-  };
+  }
+};
 
   // Export selected drivers
   const exportSelectedDrivers = () => {
