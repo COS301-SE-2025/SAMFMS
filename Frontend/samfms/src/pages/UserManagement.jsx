@@ -18,6 +18,7 @@ import UserTable from '../components/user/UserTable.jsx';
 //import InviteUserModal from '../components/InviteUserModal.jsx';
 import ManualCreateUserModal from '../components/user/ManualCreateUserModal.jsx';
 import { useNotification } from '../contexts/NotificationContext.jsx';
+import FadeIn from '../components/ui/FadeIn.jsx';
 
 import { createDriver } from '../backend/api/drivers.js';
 
@@ -174,19 +175,19 @@ const UserManagement = () => {
       }
 
       // First create driver if role is driver
-      if (formData.role === "driver") {
+      if (formData.role === 'driver') {
         console.log('Creating driver first...');
         const driverData = {
           full_name: formData.full_name.trim(),
           email: formData.email.trim(),
-          phoneNo: formData.phoneNo ? formData.phoneNo.trim() : undefined
+          phoneNo: formData.phoneNo ? formData.phoneNo.trim() : undefined,
         };
 
         console.log('Driver data:', driverData);
         const driverResponse = await createDriver(driverData);
         console.log('Driver creation response:', driverResponse);
 
-        if (!driverResponse || !driverResponse.data || driverResponse.data.status !== "success") {
+        if (!driverResponse || !driverResponse.data || driverResponse.data.status !== 'success') {
           throw new Error('Failed to create driver in management system');
         }
       }
@@ -256,7 +257,7 @@ const UserManagement = () => {
   const handleOpenCreateModal = role => {
     setShowManualCreateModal(false);
     setTimeout(() => {
-      console.log("Opening create user modal with role:", role);
+      console.log('Opening create user modal with role:', role);
       setCreateUserRole(role);
       setShowManualCreateModal(true);
     }, 0);
@@ -337,13 +338,13 @@ const UserManagement = () => {
   const invitationActions = invitation => [
     ...(!invitation.is_expired && invitation.can_resend
       ? [
-        {
-          label: 'Resend OTP',
-          variant: 'outline',
-          onClick: () => handleResendInvitation(invitation.email),
-          disabled: () => loading,
-        },
-      ]
+          {
+            label: 'Resend OTP',
+            variant: 'outline',
+            onClick: () => handleResendInvitation(invitation.email),
+            disabled: () => loading,
+          },
+        ]
       : []),
     {
       label: 'Cancel',
@@ -394,146 +395,142 @@ const UserManagement = () => {
   const filteredDrivers = filterAndSortUsers(driverUsers, driverSearch, driverSort);
 
   return (
-    <div className="container mx-auto py-8">
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold">User Management</h1>
-      </header>
+    <FadeIn delay={0.1}>
+      <div className="container mx-auto py-8">
+        <FadeIn delay={0.2}>
+          <header className="mb-8">
+            <h1 className="text-4xl font-bold">User Management</h1>
+          </header>
+        </FadeIn>
 
-      {/* User Actions Section */}
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">User Management Actions</h2>
+        {/* Admin Users Table - Only visible to Admins */}
+        {hasRole(ROLES.ADMIN) && (
+          <UserTable
+            title="Administrators"
+            users={adminUsers}
+            loading={loading && !adminUsers.length}
+            showActions={true}
+            showRole={false}
+            emptyMessage="No administrators found"
+            actions={adminActions}
+            onAddUser={() => handleOpenCreateModal('admin')}
+          />
+        )}
 
-        </div>
-      </div>
+        {/* Fleet Managers Table - Visible to Admins only */}
+        {hasRole(ROLES.ADMIN) && (
+          <UserTable
+            title="Fleet Managers"
+            users={managerUsers}
+            loading={loading && !managerUsers.length}
+            showActions={true}
+            showRole={false}
+            emptyMessage="No fleet managers found"
+            actions={managerActions}
+            onAddUser={() => handleOpenCreateModal('fleet_manager')}
+          />
+        )}
 
-      {/* Admin Users Table - Only visible to Admins */}
-      {hasRole(ROLES.ADMIN) && (
-        <UserTable
-          title="Administrators"
-          users={adminUsers}
-          loading={loading && !adminUsers.length}
-          showActions={true}
-          showRole={false}
-          emptyMessage="No administrators found"
-          actions={adminActions}
-          onAddUser={() => handleOpenCreateModal('admin')}
-        />
-      )}
+        {/* Drivers Table */}
+        {(hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) && (
+          <UserTable
+            title="Drivers"
+            users={driverUsers}
+            loading={loading && !driverUsers.length}
+            showActions={true}
+            showRole={false}
+            emptyMessage="No drivers found"
+            actions={driverActions}
+            onAddUser={() => handleOpenCreateModal('driver')}
+          />
+        )}
 
-      {/* Fleet Managers Table - Visible to Admins only */}
-      {hasRole(ROLES.ADMIN) && (
-        <UserTable
-          title="Fleet Managers"
-          users={managerUsers}
-          loading={loading && !managerUsers.length}
-          showActions={true}
-          showRole={false}
-          emptyMessage="No fleet managers found"
-          actions={managerActions}
-          onAddUser={() => handleOpenCreateModal('fleet_manager')}
-        />
-      )}
-
-      {/* Drivers Table */}
-      {(hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) && (
-        <UserTable
-          title="Drivers"
-          users={driverUsers}
-          loading={loading && !driverUsers.length}
-          showActions={true}
-          showRole={false}
-          emptyMessage="No drivers found"
-          actions={driverActions}
-          onAddUser={() => handleOpenCreateModal('driver')}
-        />
-      )}
-
-      {/* Invited Users Table */}
-      {(hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) && invitedUsers.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4">Pending Invitations</h2>
-          <div className="bg-card rounded-lg border border-border overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Role
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Invited
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Expires
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {invitedUsers.map(invitation => (
-                  <tr key={invitation.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {invitation.full_name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      {invitation.email}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {invitation.role.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      {new Date(invitation.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      {new Date(invitation.expires_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                      {invitationActions(invitation).map((action, index) => (
-                        <Button
-                          key={index}
-                          variant={action.variant}
-                          size="sm"
-                          onClick={action.onClick}
-                          disabled={action.disabled()}
-                        >
-                          {action.label}
-                        </Button>
-                      ))}
-                    </td>
+        {/* Invited Users Table */}
+        {(hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) && invitedUsers.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-semibold mb-4">Pending Invitations</h2>
+            <div className="bg-card rounded-lg border border-border overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Invited
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Expires
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {invitedUsers.map(invitation => (
+                    <tr key={invitation.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        {invitation.full_name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                        {invitation.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                          {invitation.role.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                        {new Date(invitation.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                        {new Date(invitation.expires_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                        {invitationActions(invitation).map((action, index) => (
+                          <Button
+                            key={index}
+                            variant={action.variant}
+                            size="sm"
+                            onClick={action.onClick}
+                            disabled={action.disabled()}
+                          >
+                            {action.label}
+                          </Button>
+                        ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Modals */}
-      {/* <InviteUserModal
+        {/* Modals */}
+        {/* <InviteUserModal
         isOpen={showInviteModal}
         onClose={() => setShowInviteModal(false)}
         onSubmit={handleInviteSubmit}
         loading={loading}
       /> */}
 
-      <ManualCreateUserModal
-        isOpen={showManualCreateModal}
-        onClose={() => setShowManualCreateModal(false)}
-        onSubmit={handleManualCreateSubmit}
-        loading={loading}
-        preselectedRole={createUserRole}
-      />
-    </div>
+        <ManualCreateUserModal
+          isOpen={showManualCreateModal}
+          onClose={() => setShowManualCreateModal(false)}
+          onSubmit={handleManualCreateSubmit}
+          loading={loading}
+          preselectedRole={createUserRole}
+        />
+      </div>
+    </FadeIn>
   );
 };
 

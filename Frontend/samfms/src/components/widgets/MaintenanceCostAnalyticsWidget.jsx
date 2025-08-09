@@ -90,18 +90,18 @@ const MaintenanceCostAnalyticsWidget = ({ id, config = {} }) => {
       loading={loading}
       error={error}
     >
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Cost Overview Cards */}
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-3 gap-2">
           {analyticsCards.map((card, index) => (
-            <div key={index} className="bg-background p-3 rounded-md border border-border">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{card.title}</p>
-                  <p className={`text-lg font-bold ${card.color}`}>{card.value}</p>
-                  <p className="text-xs text-muted-foreground">{card.subtitle}</p>
+            <div key={index} className="bg-background p-2 rounded-md border border-border">
+              <div className="text-center">
+                <div className="flex items-center justify-center mb-1">
+                  {card.icon && <div className={`${card.color} mr-1`}>{card.icon}</div>}
+                  <p className="text-xs text-muted-foreground truncate">{card.title}</p>
                 </div>
-                {card.icon && <div className={card.color}>{card.icon}</div>}
+                <p className={`text-sm font-bold ${card.color} truncate`}>{card.value}</p>
+                <p className="text-xs text-muted-foreground truncate">{card.subtitle}</p>
               </div>
             </div>
           ))}
@@ -109,12 +109,12 @@ const MaintenanceCostAnalyticsWidget = ({ id, config = {} }) => {
 
         {/* Cost Breakdown */}
         {costData?.cost_breakdown && (
-          <div className="bg-background p-3 rounded-md border border-border">
-            <h4 className="font-medium mb-2 text-sm">Cost Breakdown</h4>
-            <div className="space-y-2">
+          <div className="bg-background p-2 rounded-md border border-border">
+            <h4 className="font-medium mb-2 text-xs">Cost Breakdown</h4>
+            <div className="space-y-1">
               {Object.entries(costData.cost_breakdown).map(([category, amount]) => (
-                <div key={category} className="flex justify-between text-sm">
-                  <span className="capitalize text-muted-foreground">
+                <div key={category} className="flex justify-between text-xs">
+                  <span className="capitalize text-muted-foreground truncate">
                     {category.replace('_', ' ')}
                   </span>
                   <span className="font-medium">{formatCurrency(amount)}</span>
@@ -133,9 +133,9 @@ registerWidget(WIDGET_TYPES.MAINTENANCE_COST_ANALYTICS, MaintenanceCostAnalytics
   title: 'Maintenance Cost Analytics',
   description: 'Detailed breakdown of maintenance costs and trends',
   category: WIDGET_CATEGORIES.MAINTENANCE,
-  defaultSize: { w: 3, h: 4 },
-  minSize: { w: 2, h: 3 },
-  maxSize: { w: 4, h: 5 },
+  defaultSize: { w: 3, h: 3 },
+  minSize: { w: 3, h: 2 },
+  maxSize: { w: 4, h: 4 },
   icon: <BarChart3 size={20} />,
   configSchema: {
     title: { type: 'string', default: 'Maintenance Cost Analytics' },

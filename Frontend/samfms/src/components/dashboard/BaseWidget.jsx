@@ -133,7 +133,7 @@ export const BaseWidget = ({
       </div>
 
       {/* Widget Content */}
-      <div className="p-4 flex-grow overflow-hidden">{children}</div>
+      <div className="p-4 flex-grow overflow-hidden min-h-[100px]">{children}</div>
 
       {/* Configuration Modal */}
       {isConfigOpen && (

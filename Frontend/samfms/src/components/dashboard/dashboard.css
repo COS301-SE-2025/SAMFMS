@@ -112,6 +112,8 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-width: 200px;
+  min-height: 150px;
 }
 
 .dashboard-widget:hover {
@@ -168,12 +170,14 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  min-height: 120px;
 }
 
 .widget-scroll-content {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  min-height: 0;
 }
 
 /* Custom scrollbar for widget content */

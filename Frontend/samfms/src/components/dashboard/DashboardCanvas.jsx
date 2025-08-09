@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import { useDashboard } from '../../contexts/DashboardContext';
 import { getWidget } from '../../utils/widgetRegistry';
+import FadeIn from '../ui/FadeIn';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
@@ -12,37 +13,63 @@ export const DashboardCanvas = () => {
 
   // Default layout configuration for common dashboard layouts
   const getDefaultLayout = widgets => {
-    const defaultPositions = [
-      { x: 0, y: 0, w: 4, h: 3 }, // Top left - larger widget
-      { x: 4, y: 0, w: 4, h: 2 }, // Top middle
-      { x: 8, y: 0, w: 4, h: 2 }, // Top right
-      { x: 0, y: 3, w: 3, h: 2 }, // Second row left
-      { x: 3, y: 3, w: 3, h: 2 }, // Second row middle-left
-      { x: 6, y: 3, w: 3, h: 2 }, // Second row middle-right
-      { x: 9, y: 3, w: 3, h: 2 }, // Second row right
-      { x: 0, y: 5, w: 6, h: 2 }, // Third row left (wide)
-      { x: 6, y: 5, w: 6, h: 2 }, // Third row right (wide)
-    ];
+    const occupiedPositions = new Set();
+    let maxY = 0;
 
-    return widgets.map((widget, index) => {
-      const defaultPos = defaultPositions[index] || {
-        x: (index * 2) % 12,
-        y: Math.floor(index / 6) * 2,
-        w: 2,
-        h: 2,
-      };
+    // Helper function to check if a position is occupied
+    const isPositionOccupied = (x, y, w, h) => {
+      for (let px = x; px < x + w; px++) {
+        for (let py = y; py < y + h; py++) {
+          if (occupiedPositions.has(`${px},${py}`)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    // Helper function to mark positions as occupied
+    const markPositionsOccupied = (x, y, w, h) => {
+      for (let px = x; px < x + w; px++) {
+        for (let py = y; py < y + h; py++) {
+          occupiedPositions.add(`${px},${py}`);
+        }
+      }
+      maxY = Math.max(maxY, y + h);
+    };
+
+    // Find next available position that fits the widget
+    const findNextPosition = (w, h) => {
+      // Try to place from top-left, scanning row by row
+      for (let y = 0; y <= maxY + 5; y++) {
+        for (let x = 0; x <= 12 - w; x++) {
+          if (!isPositionOccupied(x, y, w, h)) {
+            return { x, y };
+          }
+        }
+      }
+      // If no space found, place at bottom
+      return { x: 0, y: maxY + 1 };
+    };
+
+    return widgets.map(widget => {
       const widgetSize = widget.size || { w: 2, h: 2 };
+      const w = Math.max(Math.min(widgetSize.w || 2, 12), 2);
+      const h = Math.max(Math.min(widgetSize.h || 2, 8), 2);
+
+      const { x, y } = findNextPosition(w, h);
+      markPositionsOccupied(x, y, w, h);
 
       return {
         i: widget.id,
-        x: defaultPos.x,
-        y: defaultPos.y,
-        w: widgetSize.w || defaultPos.w,
-        h: widgetSize.h || defaultPos.h,
-        minW: 1,
-        minH: 1,
+        x,
+        y,
+        w,
+        h,
+        minW: 2,
+        minH: 2,
         maxW: 12,
-        maxH: 6,
+        maxH: 8,
       };
     });
   };
@@ -55,10 +82,30 @@ export const DashboardCanvas = () => {
   // Generate layouts for all breakpoints with proper error handling
   const allLayouts = {
     lg: layouts.lg,
-    md: layouts.lg.map(item => ({ ...item, w: Math.min(item?.w || 2, 10) })),
-    sm: layouts.lg.map(item => ({ ...item, w: Math.min(item?.w || 2, 6) })),
-    xs: layouts.lg.map(item => ({ ...item, w: Math.min(item?.w || 2, 4) })),
-    xxs: layouts.lg.map(item => ({ ...item, w: Math.min(item?.w || 2, 2) })),
+    md: layouts.lg.map(item => ({
+      ...item,
+      w: Math.max(Math.min(item?.w || 2, 10), 2),
+      minW: 2,
+      minH: 2,
+    })),
+    sm: layouts.lg.map(item => ({
+      ...item,
+      w: Math.max(Math.min(item?.w || 2, 6), 2),
+      minW: 2,
+      minH: 2,
+    })),
+    xs: layouts.lg.map(item => ({
+      ...item,
+      w: Math.max(Math.min(item?.w || 2, 4), 2),
+      minW: 2,
+      minH: 2,
+    })),
+    xxs: layouts.lg.map(item => ({
+      ...item,
+      w: Math.max(Math.min(item?.w || 2, 2), 2),
+      minW: 2,
+      minH: 2,
+    })),
   };
 
   const handleLayoutChange = useCallback(
@@ -133,7 +180,7 @@ export const DashboardCanvas = () => {
         preventCollision={false}
         useCSSTransforms={true}
       >
-        {state.widgets.map(widget => {
+        {state.widgets.map((widget, index) => {
           const widgetDefinition = getWidget(widget.type);
           if (!widgetDefinition) {
             return (
@@ -145,9 +192,9 @@ export const DashboardCanvas = () => {
 
           const WidgetComponent = widgetDefinition.component;
           return (
-            <div key={widget.id} className="dashboard-widget">
+            <FadeIn key={widget.id} delay={index * 0.1} className="dashboard-widget">
               <WidgetComponent id={widget.id} title={widget.title} config={widget.config} />
-            </div>
+            </FadeIn>
           );
         })}
       </ResponsiveGridLayout>

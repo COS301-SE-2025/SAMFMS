@@ -10,6 +10,10 @@ export const WIDGET_TYPES = {
   VEHICLE_STATUS: 'vehicle_status',
   VEHICLE_ANALYTICS: 'vehicle_analytics',
 
+  // Plugin Widgets
+  PLUGIN_HEALTH: 'plugin_health',
+  PLUGIN_COUNT: 'plugin_count',
+
   // General Stats
   STATS_CARD: 'stats_card',
   METRIC_CARD: 'metric_card',
@@ -23,6 +27,7 @@ export const WIDGET_TYPES = {
 export const WIDGET_CATEGORIES = {
   MAINTENANCE: 'Maintenance',
   VEHICLES: 'Vehicles',
+  PLUGINS: 'Plugins',
   ANALYTICS: 'Analytics',
   CHARTS: 'Charts',
   GENERAL: 'General',

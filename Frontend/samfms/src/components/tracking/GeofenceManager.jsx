@@ -238,7 +238,8 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
     <>
       <div className="bg-card rounded-lg shadow-md p-6 border border-border">
         <div className="flex justify-between items-center mb-4">
-          <div className="flex gap-2">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-semibold">Geofences</h2>
             <div className="relative">
               <input
                 type="text"
@@ -349,7 +350,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
 
       {/* Add/Edit Geofence Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-30 z-[9999] flex items-center justify-center">
           <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-semibold mb-4">
               {editingGeofence ? 'Edit Geofence' : 'Add New Geofence'}

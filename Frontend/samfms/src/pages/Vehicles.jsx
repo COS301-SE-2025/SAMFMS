@@ -454,9 +454,9 @@ const Vehicles = () => {
             <button
               className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
               onClick={() => setShowAddVehicleModal(true)}
+              title="Add Vehicle"
             >
               <PlusCircle size={18} />
-              <span>Add Vehicle</span>
             </button>
           </div>
           {/* Error Message */}

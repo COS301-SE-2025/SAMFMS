@@ -39,15 +39,16 @@ export const DashboardToolbar = () => {
               <button
                 onClick={() => setShowWidgetLibrary(true)}
                 className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                title="Add Widget"
               >
                 <Plus size={16} />
-                Add Widget
               </button>
 
               <button
                 onClick={handleResetToDefault}
                 className="flex items-center gap-2 px-3 py-2 border border-input rounded-md hover:bg-accent hover:text-accent-foreground"
                 disabled={state.widgets.length === 0}
+                title="Reset to Default"
               >
                 <RotateCcw size={16} />
                 Reset to Default
@@ -62,18 +63,9 @@ export const DashboardToolbar = () => {
                 ? 'bg-green-600 text-white hover:bg-green-700'
                 : 'border border-input hover:bg-accent hover:text-accent-foreground'
             }`}
+            title={state.isEditing ? 'Save & Exit' : 'Edit Dashboard'}
           >
-            {state.isEditing ? (
-              <>
-                <Save size={16} />
-                Save & Exit
-              </>
-            ) : (
-              <>
-                <Edit3 size={16} />
-                Edit Dashboard
-              </>
-            )}
+            {state.isEditing ? <Save size={16} /> : <Edit3 size={16} />}
           </button>
         </div>
       </div>

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import VehicleStatistics from '../components/trips/VehicleStatistics';
 import VehicleList from '../components/trips/VehicleList';
 import TrackingMap from '../components/tracking/TrackingMap';
 import GeofenceManager from '../components/tracking/GeofenceManager';
@@ -7,6 +6,7 @@ import LocationHistory from '../components/tracking/LocationHistory';
 import { listGeofences } from '../backend/api/geofences';
 import { listLocations } from '../backend/api/locations';
 import { getVehicles } from '../backend/api/vehicles';
+import FadeIn from '../components/ui/FadeIn';
 
 const Tracking = () => {
   const [locations, setLocations] = useState([]);
@@ -101,12 +101,6 @@ const Tracking = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Stats (basic for now)
-  const stats = {
-    activeVehicles: vehicles.filter(v => v.status === 'online').length,
-    idleVehicles: vehicles.filter(v => v.status === 'offline').length,
-  };
-
   const handleSelectVehicle = vehicle => {
     setSelectedVehicle(vehicle);
   };
@@ -126,80 +120,67 @@ const Tracking = () => {
   }
 
   return (
-    <div className="relative container mx-auto px-4 py-8">
-      <div
-        className="absolute inset-0 z-0 opacity-10 pointer-events-none"
-        style={{
-          backgroundImage: 'url("/logo/logo_icon_dark.svg")',
-          backgroundSize: '200px',
-          backgroundRepeat: 'repeat',
-          filter: 'blur(1px)',
-        }}
-        aria-hidden="true"
-      />
+    <FadeIn delay={0.1}>
+      <div className="relative container mx-auto px-4 py-8">
+        <div
+          className="absolute inset-0 z-0 opacity-10 pointer-events-none"
+          style={{
+            backgroundImage: 'url("/logo/logo_icon_dark.svg")',
+            backgroundSize: '200px',
+            backgroundRepeat: 'repeat',
+            filter: 'blur(1px)',
+          }}
+          aria-hidden="true"
+        />
 
-      <div className="relative z-10">
-        <h1 className="text-3xl font-bold mb-6">Vehicle Tracking</h1>
+        <div className="relative z-10">
+          <FadeIn delay={0.2}>
+            <h1 className="text-3xl font-bold mb-6">Vehicle Tracking</h1>
+          </FadeIn>
 
-        {error && (
-          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
-          </div>
-        )}
+          {error && (
+            <FadeIn delay={0.3}>
+              <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+                {error}
+              </div>
+            </FadeIn>
+          )}
 
-        {/* Analytics */}
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold mb-4">Tracking Analytics</h2>
-          <div className="bg-card rounded-lg shadow-md p-6 border border-border">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-4 bg-accent/10 rounded-md">
-                <p className="text-sm text-muted-foreground">Total Distance Today</p>
-                <p className="text-2xl font-bold">462 km</p>
+          {/* Map & list */}
+          <FadeIn delay={0.4}>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              <div className="lg:col-span-2">
+                <TrackingMap
+                  locations={locations}
+                  selectedVehicle={selectedVehicle}
+                  geofences={geofences}
+                />
               </div>
-              <div className="p-4 bg-accent/10 rounded-md">
-                <p className="text-sm text-muted-foreground">Avg. Speed</p>
-                <p className="text-2xl font-bold">55 km/h</p>
-              </div>
-              <div className="p-4 bg-accent/10 rounded-md">
-                <p className="text-sm text-muted-foreground">Fuel Used Today</p>
-                <p className="text-2xl font-bold">170 L</p>
-              </div>
-              <div className="p-4 bg-accent/10 rounded-md">
-                <p className="text-sm text-muted-foreground">Idle Time</p>
-                <p className="text-2xl font-bold">1.5 hrs</p>
+              <div className="lg:col-span-1">
+                <VehicleList vehicles={vehicles} onSelectVehicle={handleSelectVehicle} />
               </div>
             </div>
-          </div>
-        </div>
+          </FadeIn>
 
-        {/* Vehicle stats */}
-        <VehicleStatistics stats={stats} />
+          {/* Geofences */}
+          <FadeIn delay={0.5}>
+            <div className="mt-8">
+              <GeofenceManager
+                onGeofenceChange={handleGeofenceChange}
+                currentGeofences={geofences}
+              />
+            </div>
+          </FadeIn>
 
-        {/* Map & list */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <TrackingMap
-              locations={locations}
-              selectedVehicle={selectedVehicle}
-              geofences={geofences}
-            />
-          </div>
-          <div className="lg:col-span-1">
-            <VehicleList vehicles={vehicles} onSelectVehicle={handleSelectVehicle} />
-          </div>
-        </div>
-
-        {/* Geofences */}
-        <div className="mt-8">
-          <GeofenceManager onGeofenceChange={handleGeofenceChange} currentGeofences={geofences} />
-        </div>
-
-        {/* History */}
-        <div className="mt-8 mb-8">
-          <LocationHistory vehicles={locations} />
+          {/* History */}
+          <FadeIn delay={0.6}>
+            <div className="mt-8 mb-8">
+              <LocationHistory vehicles={locations} />
+            </div>
+          </FadeIn>
         </div>
       </div>
-    </div>
+    </FadeIn>
   );
 };
 
