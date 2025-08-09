@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { maintenanceAPI } from '../../backend/api/maintenance';
+import { Pagination } from '../vehicles/Pagination';
 
 const MaintenanceSchedules = ({ vehicles }) => {
   const [schedules, setSchedules] = useState([]);
@@ -10,6 +11,16 @@ const MaintenanceSchedules = ({ vehicles }) => {
   const [filters, setFilters] = useState({
     vehicleId: '',
   });
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+
+  // Calculate pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentSchedules = schedules.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(schedules.length / itemsPerPage);
 
   const [formData, setFormData] = useState({
     vehicle_id: '',
@@ -333,8 +344,8 @@ const MaintenanceSchedules = ({ vehicles }) => {
                 </tr>
               </thead>
               <tbody>
-                {schedules.length > 0 ? (
-                  schedules.map(schedule => (
+                {currentSchedules.length > 0 ? (
+                  currentSchedules.map(schedule => (
                     <tr key={schedule.id} className="border-b border-border hover:bg-accent/10">
                       <td className="py-3 px-4">{getVehicleName(schedule.vehicle_id)}</td>
                       <td className="py-3 px-4">
@@ -409,6 +420,17 @@ const MaintenanceSchedules = ({ vehicles }) => {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center mt-6">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
 

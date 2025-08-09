@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { maintenanceAPI } from '../../backend/api/maintenance';
+import { Pagination } from '../vehicles/Pagination';
 
 const LicenseManagement = ({ vehicles }) => {
   const [licenses, setLicenses] = useState([]);
@@ -11,6 +12,16 @@ const LicenseManagement = ({ vehicles }) => {
     vehicleId: '',
     licenseType: '',
   });
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+
+  // Calculate pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentLicenses = licenses.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(licenses.length / itemsPerPage);
 
   const [formData, setFormData] = useState({
     vehicle_id: '',
@@ -299,8 +310,8 @@ const LicenseManagement = ({ vehicles }) => {
                 </tr>
               </thead>
               <tbody>
-                {licenses.length > 0 ? (
-                  licenses.map(license => (
+                {currentLicenses.length > 0 ? (
+                  currentLicenses.map(license => (
                     <tr key={license.id} className="border-b border-border hover:bg-accent/10">
                       <td className="py-3 px-4">{getVehicleName(license.vehicle_id)}</td>
                       <td className="py-3 px-4">
@@ -372,6 +383,17 @@ const LicenseManagement = ({ vehicles }) => {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center mt-6">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
 

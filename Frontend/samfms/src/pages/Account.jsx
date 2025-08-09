@@ -493,7 +493,7 @@ const Account = () => {
         }}
       />
       <div className="relative z-10 container mx-auto py-8">
-        <header className="mb-8">
+        <header className="mb-8 animate-fade-in">
           <h1 className="text-4xl font-bold">Account</h1>
         </header>
         {loading && !isUploading ? (
@@ -507,7 +507,10 @@ const Account = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {' '}
               {/* Left Column - Profile Section */}
-              <div className="bg-card p-8 rounded-lg shadow-md border border-border h-fit">
+              <div
+                className="bg-card p-8 rounded-lg shadow-md border border-border h-fit animate-fade-in"
+                style={{ animationDelay: '0.1s' }}
+              >
                 {/* Profile Picture Section - Now at the top */}
                 <div className="flex flex-col items-center mb-8 pb-6 border-b border-border">
                   {/* Hidden file input for profile picture upload */}
@@ -634,7 +637,7 @@ const Account = () => {
                 </form>
               </div>
               {/* Right Column - Preferences Section */}
-              <div>
+              <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
                 <PreferencesSection />
               </div>
             </div>

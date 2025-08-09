@@ -6,6 +6,7 @@ import TripsHistory from '../components/trips/TripsHistory';
 import LocationAutocomplete from '../components/trips/LocationAutocomplete';
 import VehicleStatistics from '../components/trips/VehicleStatistics';
 import VehicleList from '../components/trips/VehicleList';
+import Pagination from '../components/vehicles/Pagination';
 import {
   createTrip,
   getActiveTrips,
@@ -13,7 +14,7 @@ import {
   getVehicleAnalytics,
 } from '../backend/api/trips';
 
-import { getVehicles } from '../backend/api/vehicles'
+import { getVehicles } from '../backend/api/vehicles';
 import { getDrivers } from '../backend/api/drivers';
 
 const Trips = () => {
@@ -30,20 +31,24 @@ const Trips = () => {
     timeframeSummary: {
       totalTrips: 0,
       completionRate: 0,
-      averageTripsPerDay: 0
-    }
+      averageTripsPerDay: 0,
+    },
   });
   const [vehicleAnalytics, setVehicleAnalytics] = useState({
     vehicles: [],
     timeframeSummary: {
-      totalDistance: 0
-    }
+      totalDistance: 0,
+    },
   });
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Pagination state for vehicle overview table
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   // Updated trip form state to match new API format
   const [tripForm, setTripForm] = useState({
@@ -61,7 +66,7 @@ const Trips = () => {
     temperatureControl: false,
     driverNote: '',
     timeWindowStart: '',
-    timeWindowEnd: ''
+    timeWindowEnd: '',
   });
 
   // Store coordinates for selected locations
@@ -79,7 +84,8 @@ const Trips = () => {
         const response = await getVehicles();
 
         // Extract vehicles from the nested response structure
-        const vehicleData = response?.data?.data?.data?.vehicles ||
+        const vehicleData =
+          response?.data?.data?.data?.vehicles ||
           response?.data?.data?.vehicles ||
           response?.data?.vehicles ||
           response?.vehicles ||
@@ -87,7 +93,6 @@ const Trips = () => {
 
         console.log('Loaded vehicles:', vehicleData);
         setVehicles(vehicleData);
-
       } catch (error) {
         console.error('Error loading vehicles:', error);
         setError('Failed to load vehicles');
@@ -114,7 +119,7 @@ const Trips = () => {
       try {
         const [driverData, vehicleData] = await Promise.all([
           getDriverAnalytics(analyticsTimeframe),
-          getVehicleAnalytics(analyticsTimeframe)
+          getVehicleAnalytics(analyticsTimeframe),
         ]);
 
         // No need to access .data since the API returns the correct structure
@@ -138,17 +143,17 @@ const Trips = () => {
     const loadDrivers = async () => {
       try {
         const response = await getDrivers();
-        console.log("Response received for drivers: ", response);
+        console.log('Response received for drivers: ', response);
 
         // Extract drivers from the nested response structure
         const driversData = response?.drivers || [];
 
         // Filter for available drivers (is_active: false)
-        const availableDrivers = driversData.filter(driver =>
-          driver.role === 'driver' && !driver.is_active
+        const availableDrivers = driversData.filter(
+          driver => driver.role === 'driver' && !driver.is_active
         );
 
-        console.log("Available drivers: ", availableDrivers);
+        console.log('Available drivers: ', availableDrivers);
         setDrivers(availableDrivers);
       } catch (error) {
         console.error('Error loading drivers:', error);
@@ -160,7 +165,26 @@ const Trips = () => {
 
   const stats = {
     activeVehicles: vehicles.filter(v => v.status === 'available' || v.status === 'active').length,
-    idleVehicles: vehicles.filter(v => v.status === 'inactive' || v.status === 'maintenance').length,
+    idleVehicles: vehicles.filter(v => v.status === 'inactive' || v.status === 'maintenance')
+      .length,
+  };
+
+  // Pagination logic for vehicle overview table
+  const totalPages = Math.ceil(vehicles.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentVehicles = vehicles.slice(startIndex, startIndex + itemsPerPage);
+
+  const goToNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  const goToPrevPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const changeItemsPerPage = e => {
+    setItemsPerPage(parseInt(e.target.value));
+    setCurrentPage(1); // Reset to first page
   };
 
   const handleSelectVehicle = vehicle => {
@@ -188,7 +212,7 @@ const Trips = () => {
       temperatureControl: false,
       driverNote: '',
       timeWindowStart: '',
-      timeWindowEnd: ''
+      timeWindowEnd: '',
     });
     setLocationCoords({
       start: null,
@@ -230,51 +254,60 @@ const Trips = () => {
       scheduled_end_time: endDateTime,
       origin: {
         location: {
-          type: "Point",
-          coordinates: [locationCoords.start?.lng, locationCoords.start?.lat]
+          type: 'Point',
+          coordinates: [locationCoords.start?.lng, locationCoords.start?.lat],
         },
         name: tripForm.startLocation,
-        order: 0
+        order: 0,
       },
       destination: {
         location: {
-          type: "Point",
-          coordinates: [locationCoords.end?.lng, locationCoords.end?.lat]
+          type: 'Point',
+          coordinates: [locationCoords.end?.lng, locationCoords.end?.lat],
         },
         name: tripForm.endLocation,
-        order: 99
+        order: 99,
       },
       waypoints: [], // Can be extended later for intermediate stops
       priority: tripForm.priority,
       vehicle_id: tripForm.vehicleId,
       driver_assignment: tripForm.driverId,
-      constraints: tripForm.timeWindowStart && tripForm.timeWindowEnd ? [
-        {
-          trip_id: "placeholder_trip_id", // Will be set by backend
-          type: "time_window",
-          value: {
-            start: tripForm.timeWindowStart,
-            end: tripForm.timeWindowEnd
-          },
-          priority: 1,
-          is_active: true
-        }
-      ] : [],
+      constraints:
+        tripForm.timeWindowStart && tripForm.timeWindowEnd
+          ? [
+              {
+                trip_id: 'placeholder_trip_id', // Will be set by backend
+                type: 'time_window',
+                value: {
+                  start: tripForm.timeWindowStart,
+                  end: tripForm.timeWindowEnd,
+                },
+                priority: 1,
+                is_active: true,
+              },
+            ]
+          : [],
       custom_fields: {
-        temperature_control: tripForm.temperatureControl ? "yes" : "no",
-        driver_note: tripForm.driverNote
-      }
+        temperature_control: tripForm.temperatureControl ? 'yes' : 'no',
+        driver_note: tripForm.driverNote,
+      },
     };
   };
 
-  const handleSubmitTrip = async (e) => {
+  const handleSubmitTrip = async e => {
     e.preventDefault();
 
     // Validate required fields
-    if (!tripForm.name || !tripForm.vehicleId || !tripForm.startLocation ||
-      !tripForm.endLocation || !tripForm.scheduledStartDate ||
-      !tripForm.scheduledStartTime || !tripForm.scheduledEndDate ||
-      !tripForm.scheduledEndTime) {
+    if (
+      !tripForm.name ||
+      !tripForm.vehicleId ||
+      !tripForm.startLocation ||
+      !tripForm.endLocation ||
+      !tripForm.scheduledStartDate ||
+      !tripForm.scheduledStartTime ||
+      !tripForm.scheduledEndDate ||
+      !tripForm.scheduledEndTime
+    ) {
       alert('Please fill in all required fields');
       return;
     }
@@ -293,7 +326,7 @@ const Trips = () => {
       const response = await createTrip(tripData);
       console.log('Trip created successfully:', response);
 
-      if(response.data.status == "success"){
+      if (response.data.status == 'success') {
         alert('Trip scheduled successfully!');
       } else {
         alert('Failed to create trip: ', response.data.message);
@@ -308,7 +341,7 @@ const Trips = () => {
   };
 
   const availableVehicles = vehicles.filter(v => v.status === 'available' || v.status === 'active');
-  const availableDrivers = drivers
+  const availableDrivers = drivers;
 
   if (loading) {
     return (
@@ -355,32 +388,25 @@ const Trips = () => {
 
       <div className="relative z-10">
         <h1 className="text-3xl font-bold mb-6">Trip Management</h1>
-
         <ActiveTripsPanel activeTrips={activeTrips} /> {/* Add active trips data */}
-
         <SchedulingPanel
           availableVehicles={availableVehicles.length}
           availableDrivers={availableDrivers.length}
           onScheduleClick={handleScheduleTrip}
         />
-
         <TripsAnalytics
           driverData={driverAnalytics} // Add driver analytics data
           vehicleData={vehicleAnalytics} // Add vehicle analytics data
           timeframe={analyticsTimeframe}
           onTimeframeChange={setAnalyticsTimeframe} // Add timeframe change handler
         />
-
         <TripsHistory trips={[]} /> {/* Add trips history data */}
-
         <VehicleStatistics stats={stats} />
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1">
             <VehicleList vehicles={vehicles} onSelectVehicle={handleSelectVehicle} />
           </div>
         </div>
-
         <div className="mt-6 flex justify-end">
           <button
             className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition"
@@ -389,7 +415,6 @@ const Trips = () => {
             Schedule New Trip
           </button>
         </div>
-
         {/* Updated Schedule Trip Modal */}
         {showScheduleModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
@@ -416,19 +441,17 @@ const Trips = () => {
                       <input
                         type="text"
                         value={tripForm.name}
-                        onChange={(e) => handleFormChange('name', e.target.value)}
+                        onChange={e => handleFormChange('name', e.target.value)}
                         placeholder="e.g., Morning Delivery Route"
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Priority
-                      </label>
+                      <label className="block text-sm font-medium mb-2">Priority</label>
                       <select
                         value={tripForm.priority}
-                        onChange={(e) => handleFormChange('priority', e.target.value)}
+                        onChange={e => handleFormChange('priority', e.target.value)}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         <option value="low">Low</option>
@@ -440,12 +463,10 @@ const Trips = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Description
-                    </label>
+                    <label className="block text-sm font-medium mb-2">Description</label>
                     <textarea
                       value={tripForm.description}
-                      onChange={(e) => handleFormChange('description', e.target.value)}
+                      onChange={e => handleFormChange('description', e.target.value)}
                       placeholder="Brief description of the trip purpose"
                       rows="2"
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
@@ -466,7 +487,8 @@ const Trips = () => {
                       <option value="">Choose a vehicle...</option>
                       {availableVehicles.map(vehicle => (
                         <option key={vehicle.id} value={vehicle.id}>
-                          {vehicle.make} {vehicle.model} ({vehicle.license_plate || vehicle.registration_number})
+                          {vehicle.make} {vehicle.model} (
+                          {vehicle.license_plate || vehicle.registration_number})
                         </option>
                       ))}
                     </select>
@@ -482,7 +504,7 @@ const Trips = () => {
                     </label>
                     <select
                       value={tripForm.driverId}
-                      onChange={(e) => handleFormChange('driverId', e.target.value)}
+                      onChange={e => handleFormChange('driverId', e.target.value)}
                       className="w-full p-2 border rounded-md focus:ring-primary focus:border-primary"
                       required
                     >
@@ -532,7 +554,7 @@ const Trips = () => {
                       <input
                         type="date"
                         value={tripForm.scheduledStartDate}
-                        onChange={(e) => handleFormChange('scheduledStartDate', e.target.value)}
+                        onChange={e => handleFormChange('scheduledStartDate', e.target.value)}
                         min={new Date().toISOString().split('T')[0]}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                         required
@@ -545,7 +567,7 @@ const Trips = () => {
                       <input
                         type="time"
                         value={tripForm.scheduledStartTime}
-                        onChange={(e) => handleFormChange('scheduledStartTime', e.target.value)}
+                        onChange={e => handleFormChange('scheduledStartTime', e.target.value)}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                         required
                       />
@@ -557,7 +579,7 @@ const Trips = () => {
                       <input
                         type="date"
                         value={tripForm.scheduledEndDate}
-                        onChange={(e) => handleFormChange('scheduledEndDate', e.target.value)}
+                        onChange={e => handleFormChange('scheduledEndDate', e.target.value)}
                         min={tripForm.scheduledStartDate || new Date().toISOString().split('T')[0]}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                         required
@@ -570,7 +592,7 @@ const Trips = () => {
                       <input
                         type="time"
                         value={tripForm.scheduledEndTime}
-                        onChange={(e) => handleFormChange('scheduledEndTime', e.target.value)}
+                        onChange={e => handleFormChange('scheduledEndTime', e.target.value)}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                         required
                       />
@@ -586,7 +608,7 @@ const Trips = () => {
                       <input
                         type="time"
                         value={tripForm.timeWindowStart}
-                        onChange={(e) => handleFormChange('timeWindowStart', e.target.value)}
+                        onChange={e => handleFormChange('timeWindowStart', e.target.value)}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
@@ -597,7 +619,7 @@ const Trips = () => {
                       <input
                         type="time"
                         value={tripForm.timeWindowEnd}
-                        onChange={(e) => handleFormChange('timeWindowEnd', e.target.value)}
+                        onChange={e => handleFormChange('timeWindowEnd', e.target.value)}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
@@ -610,7 +632,7 @@ const Trips = () => {
                         type="checkbox"
                         id="temperatureControl"
                         checked={tripForm.temperatureControl}
-                        onChange={(e) => handleFormChange('temperatureControl', e.target.checked)}
+                        onChange={e => handleFormChange('temperatureControl', e.target.checked)}
                         className="mr-2"
                       />
                       <label htmlFor="temperatureControl" className="text-sm font-medium">
@@ -618,12 +640,10 @@ const Trips = () => {
                       </label>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Driver Notes
-                      </label>
+                      <label className="block text-sm font-medium mb-2">Driver Notes</label>
                       <textarea
                         value={tripForm.driverNote}
-                        onChange={(e) => handleFormChange('driverNote', e.target.value)}
+                        onChange={e => handleFormChange('driverNote', e.target.value)}
                         placeholder="Special instructions for the driver..."
                         rows="3"
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
@@ -654,7 +674,6 @@ const Trips = () => {
             </div>
           </div>
         )}
-
         {/* Trip History Section */}
         <div className="mt-8">
           <h2 className="text-xl font-semibold mb-4">Vehicle Overview</h2>
@@ -673,19 +692,25 @@ const Trips = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {vehicles.length > 0 ? (
-                    vehicles.map(vehicle => (
+                  {currentVehicles.length > 0 ? (
+                    currentVehicles.map(vehicle => (
                       <tr key={vehicle.id} className="border-b border-border hover:bg-accent/10">
-                        <td className="py-3 px-4">{vehicle.license_plate || vehicle.registration_number}</td>
-                        <td className="py-3 px-4">{vehicle.make} {vehicle.model}</td>
+                        <td className="py-3 px-4">
+                          {vehicle.license_plate || vehicle.registration_number}
+                        </td>
+                        <td className="py-3 px-4">
+                          {vehicle.make} {vehicle.model}
+                        </td>
                         <td className="py-3 px-4">{vehicle.year}</td>
                         <td className="py-3 px-4">{vehicle.department}</td>
                         <td className="py-3 px-4">
-                          <span className={
-                            vehicle.status === 'available' || vehicle.status === 'active'
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 py-1 px-2 rounded-full text-xs"
-                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 py-1 px-2 rounded-full text-xs"
-                          }>
+                          <span
+                            className={
+                              vehicle.status === 'available' || vehicle.status === 'active'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 py-1 px-2 rounded-full text-xs'
+                                : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 py-1 px-2 rounded-full text-xs'
+                            }
+                          >
                             {vehicle.status.charAt(0).toUpperCase() + vehicle.status.slice(1)}
                           </span>
                         </td>
@@ -710,6 +735,17 @@ const Trips = () => {
                 </tbody>
               </table>
             </div>
+            {/* Add Pagination */}
+            {vehicles.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                itemsPerPage={itemsPerPage}
+                goToNextPage={goToNextPage}
+                goToPrevPage={goToPrevPage}
+                changeItemsPerPage={changeItemsPerPage}
+              />
+            )}
           </div>
         </div>
       </div>

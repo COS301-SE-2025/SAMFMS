@@ -17,8 +17,15 @@
 }
 
 @keyframes pulse-placeholder {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50% { opacity: 0.9; transform: scale(1.02); }
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.02);
+  }
 }
 
 .react-grid-item.react-draggable-dragging {
@@ -86,8 +93,12 @@
 }
 
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 @keyframes spin {
@@ -113,7 +124,13 @@
   width: 20px;
   height: 20px;
   cursor: se-resize;
-  background: linear-gradient(-45deg, transparent 0%, transparent 40%, rgba(59, 130, 246, 0.3) 50%, rgba(59, 130, 246, 0.6) 100%);
+  background: linear-gradient(
+    135deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(59, 130, 246, 0.3) 50%,
+    rgba(59, 130, 246, 0.6) 100%
+  );
   transition: all 0.2s ease;
   opacity: 0;
 }
@@ -128,7 +145,13 @@
   width: 20px;
   height: 20px;
   cursor: sw-resize;
-  background: linear-gradient(45deg, transparent 0%, transparent 40%, rgba(59, 130, 246, 0.3) 50%, rgba(59, 130, 246, 0.6) 100%);
+  background: linear-gradient(
+    -45deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(59, 130, 246, 0.3) 50%,
+    rgba(59, 130, 246, 0.6) 100%
+  );
   transition: all 0.2s ease;
   opacity: 0;
 }
@@ -143,7 +166,13 @@
   width: 20px;
   height: 20px;
   cursor: ne-resize;
-  background: linear-gradient(135deg, transparent 0%, transparent 40%, rgba(59, 130, 246, 0.3) 50%, rgba(59, 130, 246, 0.6) 100%);
+  background: linear-gradient(
+    135deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(59, 130, 246, 0.3) 50%,
+    rgba(59, 130, 246, 0.6) 100%
+  );
   transition: all 0.2s ease;
   opacity: 0;
 }
@@ -158,7 +187,13 @@
   width: 20px;
   height: 20px;
   cursor: nw-resize;
-  background: linear-gradient(-135deg, transparent 0%, transparent 40%, rgba(59, 130, 246, 0.3) 50%, rgba(59, 130, 246, 0.6) 100%);
+  background: linear-gradient(
+    135deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(59, 130, 246, 0.3) 50%,
+    rgba(59, 130, 246, 0.6) 100%
+  );
   transition: all 0.2s ease;
   opacity: 0;
 }
@@ -174,7 +209,7 @@
   right: 20px;
   height: 8px;
   cursor: n-resize;
-  background: linear-gradient(to bottom, rgba(59, 130, 246, 0.6), transparent);
+  background: linear-gradient(-135deg, rgba(59, 130, 246, 0.6), transparent);
   transition: all 0.2s ease;
   opacity: 0;
 }
@@ -189,7 +224,7 @@
   right: 20px;
   height: 8px;
   cursor: s-resize;
-  background: linear-gradient(to top, rgba(59, 130, 246, 0.6), transparent);
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.6), transparent);
   transition: all 0.2s ease;
   opacity: 0;
 }
@@ -204,7 +239,7 @@
   right: 0;
   width: 8px;
   cursor: e-resize;
-  background: linear-gradient(to left, rgba(59, 130, 246, 0.6), transparent);
+  background: linear-gradient(225deg, rgba(59, 130, 246, 0.6), transparent);
   transition: all 0.2s ease;
   opacity: 0;
 }
@@ -219,7 +254,7 @@
   left: 0;
   width: 8px;
   cursor: w-resize;
-  background: linear-gradient(to right, rgba(59, 130, 246, 0.6), transparent);
+  background: linear-gradient(45deg, rgba(59, 130, 246, 0.6), transparent);
   transition: all 0.2s ease;
   opacity: 0;
 }

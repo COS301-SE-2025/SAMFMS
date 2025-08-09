@@ -15,6 +15,7 @@ export const DashboardCanvas = () => {
   const [dragOverTrash, setDragOverTrash] = useState(false);
   const [draggingWidgetId, setDraggingWidgetId] = useState(null);
   const [newWidgetIds, setNewWidgetIds] = useState(new Set());
+  const prevWidgetIds = React.useRef([]);
 
   // Clear new widget IDs after animation
   React.useEffect(() => {
@@ -29,13 +30,12 @@ export const DashboardCanvas = () => {
   // Track new widgets
   React.useEffect(() => {
     const currentWidgetIds = state.widgets.map(w => w.id);
-    const prevWidgetIds = React.useRef([]);
-    
+
     const addedWidgets = currentWidgetIds.filter(id => !prevWidgetIds.current.includes(id));
     if (addedWidgets.length > 0) {
       setNewWidgetIds(new Set(addedWidgets));
     }
-    
+
     prevWidgetIds.current = currentWidgetIds;
   }, [state.widgets]);
 
@@ -115,11 +115,11 @@ export const DashboardCanvas = () => {
   };
 
   return (
-    <div className={`w-full h-screen p-5 bg-transparent overflow-hidden transition-all duration-300 ease-out ${
-      state.isEditing ? 'bg-gradient-to-br from-blue-50/20 to-indigo-50/20' : ''
-    }`}>
+    <div className={`w-full h-screen overflow-hidden transition-all duration-300 ease-out`}>
       <ResponsiveGridLayout
-        className={`min-h-96 bg-transparent transition-all duration-300 ease-out ${state.isEditing ? 'edit-mode' : ''}`}
+        className={`min-h-96 bg-transparent transition-all duration-300 ease-out ${
+          state.isEditing ? 'edit-mode' : ''
+        }`}
         layouts={layouts}
         breakpoints={{ lg: 1200 }}
         cols={{ lg: 12 }}
@@ -156,20 +156,20 @@ export const DashboardCanvas = () => {
             <div
               key={widget.id}
               className={`bg-white/90 backdrop-blur-sm border border-gray-200/50 rounded-lg shadow-sm h-full transition-all duration-200 ease-out ${
-                state.isEditing 
-                  ? 'cursor-grab active:cursor-grabbing hover:shadow-md hover:-translate-y-0.5 hover:bg-white/95 hover:scale-[1.02]' 
+                state.isEditing
+                  ? 'cursor-grab active:cursor-grabbing hover:shadow-md hover:-translate-y-0.5 hover:bg-white/95 hover:scale-[1.02]'
                   : 'hover:shadow-md hover:-translate-y-1 hover:scale-[1.01]'
               } ${
-                isDragging 
-                  ? 'shadow-2xl scale-105 rotate-1 z-50 bg-white/95 ring-2 ring-blue-500/30' 
+                isDragging
+                  ? 'shadow-2xl scale-105 rotate-1 z-50 bg-white/95 ring-2 ring-blue-500/30'
                   : ''
-              } ${
-                isNewWidget ? 'new-widget' : ''
-              }`}
+              } ${isNewWidget ? 'new-widget' : ''}`}
             >
-              <div className={`h-full p-3 overflow-auto transition-all duration-200 ${
-                isDragging ? 'pointer-events-none' : ''
-              }`}>
+              <div
+                className={`h-full p-3 overflow-auto transition-all duration-200 ${
+                  isDragging ? 'pointer-events-none' : ''
+                }`}
+              >
                 <WidgetComponent {...widget.config} />
               </div>
             </div>
@@ -181,8 +181,8 @@ export const DashboardCanvas = () => {
       {state.isEditing && (
         <div
           className={`fixed bottom-7 right-7 border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-sm font-medium z-[9999] pointer-events-none transition-all duration-300 ease-out transform backdrop-blur-sm ${
-            isDraggingWidget 
-              ? 'opacity-90 scale-100 pointer-events-auto translate-y-0 shadow-2xl' 
+            isDraggingWidget
+              ? 'opacity-90 scale-100 pointer-events-auto translate-y-0 shadow-2xl'
               : 'opacity-0 scale-75 translate-y-4'
           } ${
             dragOverTrash
@@ -193,15 +193,17 @@ export const DashboardCanvas = () => {
           onMouseEnter={handleTrashMouseEnter}
           onMouseLeave={handleTrashMouseLeave}
         >
-          <Trash2 
-            size={28} 
+          <Trash2
+            size={28}
             className={`transition-transform duration-200 ${
               dragOverTrash ? 'scale-110 animate-bounce' : 'scale-100'
-            }`} 
+            }`}
           />
-          <span className={`mt-2 text-center px-2 transition-all duration-200 ${
-            dragOverTrash ? 'font-bold text-xs' : 'text-xs'
-          }`}>
+          <span
+            className={`mt-2 text-center px-2 transition-all duration-200 ${
+              dragOverTrash ? 'font-bold text-xs' : 'text-xs'
+            }`}
+          >
             {dragOverTrash ? 'Release to Delete!' : 'Drop here to delete'}
           </span>
         </div>

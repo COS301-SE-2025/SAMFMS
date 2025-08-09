@@ -78,11 +78,22 @@ const dashboardReducer = (state, action) => {
         isEditing: action.payload,
       };
 
+    case 'UPDATE_WIDGET_CONFIG':
+      return {
+        ...state,
+        widgets: state.widgets.map(widget =>
+          widget.id === action.payload.id
+            ? { ...widget, config: { ...widget.config, ...action.payload.config } }
+            : widget
+        ),
+      };
+
     case 'LOAD_DASHBOARD':
       return {
         ...state,
         widgets: action.payload.widgets || [],
         layout: action.payload.layout || [],
+        isEditing: action.payload.isEditing || false,
       };
 
     default:
@@ -111,35 +122,178 @@ export const DashboardProvider = ({ children, dashboardId = 'default' }) => {
 
   // Load dashboard from localStorage on mount
   useEffect(() => {
-    try {
-      const savedDashboard = localStorage.getItem(`dashboard_${dashboardId}`);
-      if (savedDashboard) {
-        const data = JSON.parse(savedDashboard);
-        dispatch({ type: 'LOAD_DASHBOARD', payload: data });
+    const loadSavedDashboard = () => {
+      try {
+        const savedDashboard = localStorage.getItem(`dashboard_${dashboardId}`);
+        if (savedDashboard) {
+          const data = JSON.parse(savedDashboard);
+
+          // Validate saved data structure
+          if (data && Array.isArray(data.widgets) && Array.isArray(data.layout)) {
+            // Ensure widget IDs match layout IDs
+            const validatedLayout = data.layout.filter(layoutItem =>
+              data.widgets.some(widget => widget.id === layoutItem.i)
+            );
+
+            dispatch({
+              type: 'LOAD_DASHBOARD',
+              payload: {
+                widgets: data.widgets,
+                layout:
+                  validatedLayout.length > 0 ? validatedLayout : getDefaultLayout(data.widgets),
+                isEditing: data.isEditing || false,
+              },
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load saved dashboard:', error);
+        // If loading fails, keep the default dashboard
       }
-    } catch (error) {
-      console.error('Failed to load saved dashboard:', error);
-    }
+    };
+
+    loadSavedDashboard();
   }, [dashboardId]);
 
-  // Auto-save functionality
+  // Enhanced auto-save functionality with debouncing
   useEffect(() => {
-    try {
-      localStorage.setItem(
-        `dashboard_${dashboardId}`,
-        JSON.stringify({
+    const saveDashboard = () => {
+      try {
+        const dashboardData = {
           widgets: state.widgets,
           layout: state.layout,
-        })
-      );
-    } catch (error) {
-      console.error('Failed to save dashboard:', error);
-    }
-  }, [state.widgets, state.layout, dashboardId]);
+          isEditing: state.isEditing,
+          lastSaved: new Date().toISOString(),
+        };
 
-  return (
-    <DashboardContext.Provider value={{ state, dispatch }}>{children}</DashboardContext.Provider>
-  );
+        localStorage.setItem(`dashboard_${dashboardId}`, JSON.stringify(dashboardData));
+
+        // Also save a backup with timestamp
+        const backupKey = `dashboard_${dashboardId}_backup_${Date.now()}`;
+        localStorage.setItem(backupKey, JSON.stringify(dashboardData));
+
+        // Clean up old backups (keep only the last 3)
+        const backupKeys = Object.keys(localStorage)
+          .filter(key => key.startsWith(`dashboard_${dashboardId}_backup_`))
+          .sort()
+          .reverse();
+
+        if (backupKeys.length > 3) {
+          backupKeys.slice(3).forEach(key => localStorage.removeItem(key));
+        }
+      } catch (error) {
+        console.error('Failed to save dashboard:', error);
+        // Handle localStorage quota exceeded
+        if (error.name === 'QuotaExceededError') {
+          console.warn('localStorage quota exceeded, clearing old backups');
+          const backupKeys = Object.keys(localStorage).filter(key =>
+            key.startsWith(`dashboard_${dashboardId}_backup_`)
+          );
+          backupKeys.forEach(key => localStorage.removeItem(key));
+
+          // Try saving again without backups
+          try {
+            const dashboardData = {
+              widgets: state.widgets,
+              layout: state.layout,
+              isEditing: state.isEditing,
+              lastSaved: new Date().toISOString(),
+            };
+            localStorage.setItem(`dashboard_${dashboardId}`, JSON.stringify(dashboardData));
+          } catch (retryError) {
+            console.error('Failed to save dashboard even after cleanup:', retryError);
+          }
+        }
+      }
+    };
+
+    // Debounce saves to avoid excessive localStorage writes
+    const timeoutId = setTimeout(saveDashboard, 500);
+    return () => clearTimeout(timeoutId);
+  }, [state.widgets, state.layout, state.isEditing, dashboardId]);
+
+  // Manual save/load utilities
+  const saveDashboardManually = () => {
+    try {
+      const dashboardData = {
+        widgets: state.widgets,
+        layout: state.layout,
+        isEditing: state.isEditing,
+        lastSaved: new Date().toISOString(),
+      };
+      localStorage.setItem(`dashboard_${dashboardId}`, JSON.stringify(dashboardData));
+      return true;
+    } catch (error) {
+      console.error('Manual save failed:', error);
+      return false;
+    }
+  };
+
+  const resetDashboard = () => {
+    try {
+      localStorage.removeItem(`dashboard_${dashboardId}`);
+      const defaultDashboard = getDefaultDashboard();
+      dispatch({
+        type: 'LOAD_DASHBOARD',
+        payload: {
+          widgets: defaultDashboard.widgets,
+          layout: getDefaultLayout(defaultDashboard.widgets),
+          isEditing: false,
+        },
+      });
+      return true;
+    } catch (error) {
+      console.error('Reset dashboard failed:', error);
+      return false;
+    }
+  };
+
+  const exportDashboard = () => {
+    try {
+      const dashboardData = {
+        widgets: state.widgets,
+        layout: state.layout,
+        isEditing: state.isEditing,
+        exportedAt: new Date().toISOString(),
+      };
+      return JSON.stringify(dashboardData, null, 2);
+    } catch (error) {
+      console.error('Export dashboard failed:', error);
+      return null;
+    }
+  };
+
+  const importDashboard = dashboardJson => {
+    try {
+      const data = JSON.parse(dashboardJson);
+      if (data && Array.isArray(data.widgets) && Array.isArray(data.layout)) {
+        dispatch({
+          type: 'LOAD_DASHBOARD',
+          payload: {
+            widgets: data.widgets,
+            layout: data.layout,
+            isEditing: data.isEditing || false,
+          },
+        });
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Import dashboard failed:', error);
+      return false;
+    }
+  };
+
+  const contextValue = {
+    state,
+    dispatch,
+    saveDashboardManually,
+    resetDashboard,
+    exportDashboard,
+    importDashboard,
+  };
+
+  return <DashboardContext.Provider value={contextValue}>{children}</DashboardContext.Provider>;
 };
 
 export const useDashboard = () => {
