@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Settings, X, Maximize2, Minimize2, GripVertical } from 'lucide-react';
+import { X, GripVertical } from 'lucide-react';
 import { useDashboard } from '../../contexts/DashboardContext';
 
 export const BaseWidget = ({
@@ -16,7 +16,6 @@ export const BaseWidget = ({
 }) => {
   const { state, dispatch } = useDashboard();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
-  const [isMaximized, setIsMaximized] = useState(false);
 
   const handleRemove = useCallback(() => {
     dispatch({ type: 'REMOVE_WIDGET', payload: id });
@@ -151,59 +150,6 @@ export const BaseWidget = ({
       tabIndex={state.isEditing ? 0 : -1}
       onKeyDown={handleKeyDown}
     >
-      {/* Widget Header */}
-      <div className="flex items-center justify-between p-3 border-b border-border bg-card/50 flex-shrink-0">
-        <h3 className="font-medium text-card-foreground truncate" id={`widget-title-${id}`}>
-          {title}
-        </h3>
-
-        {state.isEditing && (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setIsConfigOpen(true)}
-              className="widget-config-button p-1 hover:bg-muted rounded"
-              title={`Configure ${title} widget`}
-              aria-label={`Configure ${title} widget`}
-            >
-              <Settings size={16} aria-hidden="true" />
-            </button>
-
-            <button
-              onClick={() => setIsMaximized(!isMaximized)}
-              className="p-1 hover:bg-muted rounded"
-              title={isMaximized ? `Minimize ${title}` : `Maximize ${title}`}
-              aria-label={isMaximized ? `Minimize ${title}` : `Maximize ${title}`}
-            >
-              {isMaximized ? (
-                <Minimize2 size={16} aria-hidden="true" />
-              ) : (
-                <Maximize2 size={16} aria-hidden="true" />
-              )}
-            </button>
-
-            {allowRemove && (
-              <button
-                onClick={handleRemove}
-                className="p-1 hover:bg-destructive hover:text-destructive-foreground rounded"
-                title={`Remove ${title} widget`}
-                aria-label={`Remove ${title} widget`}
-              >
-                <X size={16} aria-hidden="true" />
-              </button>
-            )}
-
-            <div
-              className="widget-drag-handle cursor-move p-1 hover:bg-muted rounded"
-              tabIndex={0}
-              role="button"
-              aria-label={`Drag ${title} widget`}
-            >
-              <GripVertical size={16} aria-hidden="true" />
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Widget Content */}
       <div className="p-4 flex-grow overflow-hidden min-h-[100px]" role="main">
         {children}
