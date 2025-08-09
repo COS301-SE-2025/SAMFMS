@@ -125,7 +125,7 @@
   height: 20px;
   cursor: se-resize;
   background: linear-gradient(
-    135deg,
+    -45deg,
     transparent 0%,
     transparent 40%,
     rgba(59, 130, 246, 0.3) 50%,
@@ -224,7 +224,7 @@
   right: 20px;
   height: 8px;
   cursor: s-resize;
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.6), transparent);
+  background: linear-gradient(-45deg, rgba(59, 130, 246, 0.6), transparent);
   transition: all 0.2s ease;
   opacity: 0;
 }

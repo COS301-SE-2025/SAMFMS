@@ -53,7 +53,7 @@ const UserTable = ({
                 <button
                   onClick={onAddUser}
                   type="button"
-                  className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
+                  className="bg-green-600 text-white p-3 rounded-md hover:bg-green-700 transition-colors"
                   title={`Add ${title.slice(0, -1)}`}
                 >
                   <Plus size={18} />
@@ -134,7 +134,7 @@ const UserTable = ({
               <button
                 onClick={onAddUser}
                 type="button"
-                className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
+                className="bg-green-600 text-white p-3 rounded-md hover:bg-green-700 transition-colors"
                 title={`Add ${title.slice(0, -1)}`}
               >
                 <Plus size={18} />

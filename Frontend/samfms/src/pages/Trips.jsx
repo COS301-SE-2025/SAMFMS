@@ -387,27 +387,40 @@ const Trips = () => {
       />
 
       <div className="relative z-10">
-        <h1 className="text-3xl font-bold mb-6">Trip Management</h1>
-        <ActiveTripsPanel activeTrips={activeTrips} /> {/* Add active trips data */}
-        <SchedulingPanel
-          availableVehicles={availableVehicles.length}
-          availableDrivers={availableDrivers.length}
-          onScheduleClick={handleScheduleTrip}
-        />
-        <TripsAnalytics
-          driverData={driverAnalytics} // Add driver analytics data
-          vehicleData={vehicleAnalytics} // Add vehicle analytics data
-          timeframe={analyticsTimeframe}
-          onTimeframeChange={setAnalyticsTimeframe} // Add timeframe change handler
-        />
-        <TripsHistory trips={[]} /> {/* Add trips history data */}
-        <VehicleStatistics stats={stats} />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <h1 className="text-3xl font-bold mb-6 animate-fade-in">Trip Management</h1>
+        <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <ActiveTripsPanel activeTrips={activeTrips} />
+        </div>
+        <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <SchedulingPanel
+            availableVehicles={availableVehicles.length}
+            availableDrivers={availableDrivers.length}
+            onScheduleClick={handleScheduleTrip}
+          />
+        </div>
+        <div className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          <TripsAnalytics
+            driverData={driverAnalytics} // Add driver analytics data
+            vehicleData={vehicleAnalytics} // Add vehicle analytics data
+            timeframe={analyticsTimeframe}
+            onTimeframeChange={setAnalyticsTimeframe} // Add timeframe change handler
+          />
+        </div>
+        <div className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
+          <TripsHistory trips={[]} />
+        </div>
+        <div className="animate-fade-in" style={{ animationDelay: '0.5s' }}>
+          <VehicleStatistics stats={stats} />
+        </div>
+        <div
+          className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in"
+          style={{ animationDelay: '0.6s' }}
+        >
           <div className="lg:col-span-1">
             <VehicleList vehicles={vehicles} onSelectVehicle={handleSelectVehicle} />
           </div>
         </div>
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex justify-end animate-fade-in" style={{ animationDelay: '0.7s' }}>
           <button
             className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition"
             onClick={handleScheduleTrip}

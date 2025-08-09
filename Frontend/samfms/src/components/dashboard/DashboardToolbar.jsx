@@ -7,7 +7,7 @@ import './dashboard.css';
 export const DashboardToolbar = () => {
   const { state, dispatch, saveDashboardManually, resetDashboard } = useDashboard();
   const [showWidgetLibrary, setShowWidgetLibrary] = useState(false);
-  const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
+  const [saveStatus, setSaveStatus] = useState(''); // '', 'saved', 'saving', 'error'
 
   const toggleEditMode = () => {
     dispatch({
@@ -22,7 +22,8 @@ export const DashboardToolbar = () => {
     setSaveStatus(success ? 'saved' : 'error');
 
     if (success) {
-      setTimeout(() => setSaveStatus('saved'), 2000);
+      // Hide saved indicator after 5 seconds
+      setTimeout(() => setSaveStatus(''), 5000);
     }
   };
 
@@ -37,7 +38,8 @@ export const DashboardToolbar = () => {
       setSaveStatus(success ? 'saved' : 'error');
 
       if (success) {
-        setTimeout(() => setSaveStatus('saved'), 2000);
+        // Hide saved indicator after 5 seconds
+        setTimeout(() => setSaveStatus(''), 5000);
       }
     }
   };
@@ -61,7 +63,7 @@ export const DashboardToolbar = () => {
   // Show save status indicator
   useEffect(() => {
     if (saveStatus === 'error') {
-      const timer = setTimeout(() => setSaveStatus('saved'), 5000);
+      const timer = setTimeout(() => setSaveStatus(''), 5000);
       return () => clearTimeout(timer);
     }
   }, [saveStatus]);
@@ -79,24 +81,26 @@ export const DashboardToolbar = () => {
                 </span>
               )}
               {/* Save Status Indicator */}
-              <span
-                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
-                  saveStatus === 'saved'
-                    ? 'bg-green-100 text-green-800'
-                    : saveStatus === 'saving'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-red-100 text-red-800'
-                }`}
-              >
-                {saveStatus === 'saved' && '✓ Saved'}
-                {saveStatus === 'saving' && (
-                  <>
-                    <RefreshCw size={12} className="mr-1 animate-spin" />
-                    Saving...
-                  </>
-                )}
-                {saveStatus === 'error' && '⚠ Save Failed'}
-              </span>
+              {saveStatus && (
+                <span
+                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
+                    saveStatus === 'saved'
+                      ? 'bg-green-100 text-green-800'
+                      : saveStatus === 'saving'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}
+                >
+                  {saveStatus === 'saved' && '✓ Saved'}
+                  {saveStatus === 'saving' && (
+                    <>
+                      <RefreshCw size={12} className="mr-1 animate-spin" />
+                      Saving...
+                    </>
+                  )}
+                  {saveStatus === 'error' && '⚠ Save Failed'}
+                </span>
+              )}
             </div>
           </div>
 

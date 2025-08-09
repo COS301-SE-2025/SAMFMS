@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Plus } from 'lucide-react';
 import { maintenanceAPI } from '../../backend/api/maintenance';
 import { Pagination } from '../vehicles/Pagination';
 
@@ -274,9 +275,10 @@ const MaintenanceSchedules = ({ vehicles }) => {
             resetForm();
             setShowModal(true);
           }}
-          className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition"
+          className="bg-green-600 text-white p-3 rounded-md hover:bg-green-700 transition-colors"
+          title="Create New Schedule"
         >
-          Create New Schedule
+          <Plus size={20} />
         </button>
       </div>
 
