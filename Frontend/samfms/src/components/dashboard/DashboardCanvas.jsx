@@ -1,156 +1,215 @@
-import React, { useCallback } from 'react';
+import React, { useState } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout';
+import { Trash2 } from 'lucide-react';
 import { useDashboard } from '../../contexts/DashboardContext';
 import { getWidget } from '../../utils/widgetRegistry';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+import './dashboard.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 export const DashboardCanvas = () => {
   const { state, dispatch } = useDashboard();
+  const [isDraggingWidget, setIsDraggingWidget] = useState(false);
+  const [dragOverTrash, setDragOverTrash] = useState(false);
+  const [draggingWidgetId, setDraggingWidgetId] = useState(null);
+  const [newWidgetIds, setNewWidgetIds] = useState(new Set());
+  const prevWidgetIds = React.useRef([]);
 
-  // Default layout configuration for common dashboard layouts
+  // Clear new widget IDs after animation
+  React.useEffect(() => {
+    if (newWidgetIds.size > 0) {
+      const timer = setTimeout(() => {
+        setNewWidgetIds(new Set());
+      }, 500); // Match animation duration
+      return () => clearTimeout(timer);
+    }
+  }, [newWidgetIds]);
+
+  // Track new widgets
+  React.useEffect(() => {
+    const currentWidgetIds = state.widgets.map(w => w.id);
+
+    const addedWidgets = currentWidgetIds.filter(id => !prevWidgetIds.current.includes(id));
+    if (addedWidgets.length > 0) {
+      setNewWidgetIds(new Set(addedWidgets));
+    }
+
+    prevWidgetIds.current = currentWidgetIds;
+  }, [state.widgets]);
+
+  // Simple default layout - no overlapping
   const getDefaultLayout = widgets => {
-    const defaultPositions = [
-      { x: 0, y: 0, w: 4, h: 3 }, // Top left - larger widget
-      { x: 4, y: 0, w: 4, h: 2 }, // Top middle
-      { x: 8, y: 0, w: 4, h: 2 }, // Top right
-      { x: 0, y: 3, w: 3, h: 2 }, // Second row left
-      { x: 3, y: 3, w: 3, h: 2 }, // Second row middle-left
-      { x: 6, y: 3, w: 3, h: 2 }, // Second row middle-right
-      { x: 9, y: 3, w: 3, h: 2 }, // Second row right
-      { x: 0, y: 5, w: 6, h: 2 }, // Third row left (wide)
-      { x: 6, y: 5, w: 6, h: 2 }, // Third row right (wide)
-    ];
-
-    return widgets.map((widget, index) => {
-      const defaultPos = defaultPositions[index] || {
-        x: (index * 2) % 12,
-        y: Math.floor(index / 6) * 2,
-        w: 2,
-        h: 2,
-      };
-      const widgetSize = widget.size || { w: 2, h: 2 };
-
-      return {
-        i: widget.id,
-        x: defaultPos.x,
-        y: defaultPos.y,
-        w: widgetSize.w || defaultPos.w,
-        h: widgetSize.h || defaultPos.h,
-        minW: 1,
-        minH: 1,
-        maxW: 12,
-        maxH: 6,
-      };
-    });
+    return widgets.map((widget, index) => ({
+      i: widget.id,
+      x: (index % 5) * 8, // 5 widgets per row, each 8 columns wide
+      y: Math.floor(index / 5) * 6, // Each row is 6 units tall for more spacing
+      w: 8, // Default width (increased for better proportion with 40 columns)
+      h: 6, // Default height (increased for better visibility)
+    }));
   };
 
-  // Convert widget sizes to grid layout format
+  const handleLayoutChange = layouts => {
+    if (state.isEditing) {
+      dispatch({
+        type: 'UPDATE_LAYOUT',
+        payload: layouts,
+      });
+    }
+  };
+
+  const handleDragStart = (layout, oldItem) => {
+    if (state.isEditing) {
+      setIsDraggingWidget(true);
+      setDraggingWidgetId(oldItem.i);
+    }
+  };
+
+  const handleDragStop = (layout, oldItem, newItem) => {
+    // Check if the widget was dropped over the trash zone
+    if (dragOverTrash && draggingWidgetId) {
+      // Remove the widget instead of updating layout
+      dispatch({ type: 'REMOVE_WIDGET', payload: draggingWidgetId });
+    } else {
+      // Normal drag - update layout
+      if (state.isEditing) {
+        dispatch({
+          type: 'UPDATE_LAYOUT',
+          payload: layout,
+        });
+      }
+    }
+
+    // Reset drag states
+    setIsDraggingWidget(false);
+    setDraggingWidgetId(null);
+    setDragOverTrash(false);
+  };
+
+  const handleResizeStart = (layout, oldItem, newItem, placeholder) => {
+    // Optional: Add any resize start logic here
+  };
+
+  const handleResizeStop = (layout, oldItem, newItem, placeholder) => {
+    // Update layout after resize to ensure accommodation
+    if (state.isEditing) {
+      dispatch({
+        type: 'UPDATE_LAYOUT',
+        payload: layout,
+      });
+    }
+  };
+
+  const handleTrashMouseEnter = () => {
+    if (isDraggingWidget && draggingWidgetId) {
+      setDragOverTrash(true);
+    }
+  };
+
+  const handleTrashMouseLeave = () => {
+    setDragOverTrash(false);
+  }; // Simple layouts object for responsive grid
   const layouts = {
-    lg: state.layout && state.layout.length > 0 ? state.layout : getDefaultLayout(state.widgets),
+    lg: state.layout || getDefaultLayout(state.widgets),
   };
-
-  // Generate layouts for all breakpoints with proper error handling
-  const allLayouts = {
-    lg: layouts.lg,
-    md: layouts.lg.map(item => ({ ...item, w: Math.min(item?.w || 2, 10) })),
-    sm: layouts.lg.map(item => ({ ...item, w: Math.min(item?.w || 2, 6) })),
-    xs: layouts.lg.map(item => ({ ...item, w: Math.min(item?.w || 2, 4) })),
-    xxs: layouts.lg.map(item => ({ ...item, w: Math.min(item?.w || 2, 2) })),
-  };
-
-  const handleLayoutChange = useCallback(
-    (layout, allLayouts) => {
-      if (state.isEditing) {
-        dispatch({ type: 'UPDATE_LAYOUT', payload: layout });
-      }
-    },
-    [dispatch, state.isEditing]
-  );
-
-  const handleResizeStop = useCallback(
-    (layout, oldItem, newItem, placeholder, e, element) => {
-      if (state.isEditing) {
-        dispatch({ type: 'UPDATE_LAYOUT', payload: layout });
-      }
-    },
-    [dispatch, state.isEditing]
-  );
-
-  const handleDragStop = useCallback(
-    (layout, oldItem, newItem, placeholder, e, element) => {
-      if (state.isEditing) {
-        dispatch({ type: 'UPDATE_LAYOUT', payload: layout });
-      }
-    },
-    [dispatch, state.isEditing]
-  );
-
-  const handleBreakpointChange = useCallback((newBreakpoint, newCols) => {
-    // Handle breakpoint changes if needed
-  }, []);
-
-  if (state.widgets.length === 0) {
-    return (
-      <div className="dashboard-canvas p-4">
-        <div className="flex items-center justify-center h-64 border-2 border-dashed border-border rounded-lg">
-          <div className="text-center">
-            <h3 className="text-lg font-medium text-muted-foreground mb-2">
-              Your dashboard is empty
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {state.isEditing
-                ? "Click 'Add Widget' to get started"
-                : 'Enable edit mode to customize your dashboard'}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="dashboard-canvas p-4">
+    <div className={`w-full min-h-screen overflow-auto transition-all duration-300 ease-out`}>
       <ResponsiveGridLayout
-        className={`layout ${state.isEditing ? 'edit-mode' : ''}`}
-        layouts={allLayouts}
-        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-        cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-        rowHeight={100}
-        margin={[16, 16]}
-        containerPadding={[0, 0]}
+        className={`min-h-[300vh] bg-none transition-all duration-300 ease-out ${
+          state.isEditing ? 'edit-mode' : ''
+        }`}
+        layouts={layouts}
+        breakpoints={{ lg: 1200 }}
+        cols={{ lg: 40 }}
+        rowHeight={30}
+        onLayoutChange={layout => handleLayoutChange(layout)}
+        onDragStart={handleDragStart}
+        onDragStop={handleDragStop}
+        onResizeStart={handleResizeStart}
+        onResizeStop={handleResizeStop}
         isDraggable={state.isEditing}
         isResizable={state.isEditing}
-        onLayoutChange={handleLayoutChange}
-        onDragStop={handleDragStop}
-        onResizeStop={handleResizeStop}
-        onBreakpointChange={handleBreakpointChange}
-        draggableHandle=".widget-drag-handle"
+        preventCollision={false} // Allow widgets to push others around
+        compactType="vertical" // Enable vertical compaction for better accommodation
+        margin={[8, 8]} // Reduced margin for tighter spacing
         resizeHandles={['se', 'sw', 'ne', 'nw', 's', 'n', 'e', 'w']}
-        compactType="vertical"
-        preventCollision={false}
-        useCSSTransforms={true}
+        useCSSTransforms={true} // Enable smooth CSS transforms for better drag experience
+        transformScale={1} // Ensure proper scaling
+        verticalCompact={true} // Enable vertical compaction
+        autoSize={true} // Auto-resize container
+        isBounded={false} // Allow widgets to be dragged outside bounds temporarily
+        allowOverlap={false} // Prevent overlapping
+        draggableHandle="" // Allow dragging from anywhere on the widget
+        draggableCancel=".no-drag" // Prevent dragging from elements with this class
+        droppingItem={{ i: '__dropping-elem__', h: 2, w: 2 }} // Configure dropping item
+        isDroppable={true} // Enable dropping
       >
         {state.widgets.map(widget => {
           const widgetDefinition = getWidget(widget.type);
-          if (!widgetDefinition) {
-            return (
-              <div key={widget.id} className="bg-card border border-border rounded-lg p-4">
-                <p className="text-destructive">Unknown widget type: {widget.type}</p>
-              </div>
-            );
-          }
+          if (!widgetDefinition || !widgetDefinition.component) return null;
 
           const WidgetComponent = widgetDefinition.component;
+          const isDragging = draggingWidgetId === widget.id;
+          const isNewWidget = newWidgetIds.has(widget.id);
+
           return (
-            <div key={widget.id} className="dashboard-widget">
-              <WidgetComponent id={widget.id} title={widget.title} config={widget.config} />
+            <div
+              key={widget.id}
+              className={`bg-white/90 backdrop-blur-sm rounded-md shadow-sm h-full transition-all duration-200 ease-out ${
+                state.isEditing
+                  ? 'cursor-grab active:cursor-grabbing hover:shadow-md hover:-translate-y-0.5 hover:bg-white/95 hover:scale-[1.02]'
+                  : 'hover:shadow-md hover:-translate-y-1 hover:scale-[1.01]'
+              } ${
+                isDragging
+                  ? 'shadow-2xl scale-105 rotate-1 z-50 bg-white/95 ring-2 ring-blue-500/30'
+                  : ''
+              } ${isNewWidget ? 'new-widget' : ''}`}
+            >
+              <div
+                className={`h-full overflow-auto transition-all duration-200 ${
+                  isDragging ? 'pointer-events-none' : ''
+                }`}
+              >
+                <WidgetComponent {...widget.config} />
+              </div>
             </div>
           );
         })}
       </ResponsiveGridLayout>
+
+      {/* Trash Drop Zone - only visible in edit mode */}
+      {state.isEditing && (
+        <div
+          className={`fixed bottom-7 right-7 border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-sm font-medium z-[9999] pointer-events-none transition-all duration-300 ease-out transform backdrop-blur-sm ${
+            isDraggingWidget
+              ? 'opacity-90 scale-100 pointer-events-auto translate-y-0 shadow-2xl'
+              : 'opacity-0 scale-75 translate-y-4'
+          } ${
+            dragOverTrash
+              ? 'border-red-400 bg-red-500/90 text-white scale-110 shadow-2xl shadow-red-500/40 animate-pulse ring-4 ring-red-500/30'
+              : 'border-red-300 bg-red-50/80 text-red-700 hover:bg-red-100/90'
+          }`}
+          style={{ width: '140px', height: '100px' }}
+          onMouseEnter={handleTrashMouseEnter}
+          onMouseLeave={handleTrashMouseLeave}
+        >
+          <Trash2
+            size={28}
+            className={`transition-transform duration-200 ${
+              dragOverTrash ? 'scale-110 animate-bounce' : 'scale-100'
+            }`}
+          />
+          <span
+            className={`mt-2 text-center px-2 transition-all duration-200 ${
+              dragOverTrash ? 'font-bold text-xs' : 'text-xs'
+            }`}
+          >
+            {dragOverTrash ? 'Release to Delete!' : 'Drop here to delete'}
+          </span>
+        </div>
+      )}
     </div>
   );
 };

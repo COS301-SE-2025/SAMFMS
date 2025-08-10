@@ -112,7 +112,7 @@ export const API_ENDPOINTS = {
     UPDATE: id => `/management/vehicles/${id}`,
     DELETE: id => `/management/vehicles/${id}`,
     SEARCH: query => `/management/vehicles/search/${query}`,
-    ASSIGNMENTS: id => `/management/vehicles/${id}/assignments`,
+    ASSIGN: '/management/vehicles/assign-driver',
     USAGE: id => `/management/vehicles/${id}/usage`,
   },
 
@@ -125,7 +125,7 @@ export const API_ENDPOINTS = {
     DELETE: id => `/management/drivers/${id}`,
     SEARCH: query => `/management/drivers/search/${query}`,
     ACTIVATE: id => `/management/${id}/activate`,
-    ASSIGN: id => `/management/${id}/assign-vehicle`,
+    ASSIGN: '/management/assign-vehicle',
   },
 
   // Vehicle Assignments

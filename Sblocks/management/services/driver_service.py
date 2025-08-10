@@ -17,6 +17,51 @@ class DriverService:
     def __init__(self):
         self.driver_repo = DriverRepository()
     
+    async def get_all_drivers(self, filters: Dict[str, Any] = {}) -> Dict[str, Any]:
+        """Retrieve all drivers with optional filtering and pagination"""
+        try:
+            query = {}
+
+            # Map status_filter to internal status field
+            if "status_filter" in filters:
+                status = filters["status_filter"].lower()
+                if status in ["active", "inactive"]:
+                    query["status"] = status
+
+            # Filter by department
+            if "department_filter" in filters:
+                query["department"] = filters["department_filter"]
+
+            # Ensure pagination params are integers
+            skip = int(str(filters.get("skip", 0)).strip())
+            limit = int(str(filters.get("limit", 100)).strip())
+
+            # Query DB with validated integers
+            all_drivers = await self.driver_repo.find(
+                filter_query=query,
+                skip=skip,
+                limit=limit if limit > 0 else None
+            )
+
+            # Total count without pagination
+            total_count = await self.driver_repo.count(query)
+
+            return {
+                "drivers": all_drivers,
+                "total": total_count,
+                "skip": skip,
+                "limit": limit if limit > 0 else total_count,
+                "has_more": skip + limit < total_count if limit > 0 else False,
+            }
+
+        except ValueError as e:
+            logger.error(f"Error parsing pagination parameters: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error retrieving filtered drivers: {e}")
+            raise
+
+    
     async def create_driver(self, driver_request: DriverCreateRequest, created_by: str) -> Dict[str, Any]:
         """Create new driver with validation"""
         try:
@@ -30,22 +75,33 @@ class DriverService:
             if existing_email:
                 raise ValueError(f"Driver with email {driver_request.email} already exists")
             
-            # Check if license number already exists
-            existing_license = await self.driver_repo.get_by_license_number(driver_request.license_number)
-            if existing_license:
-                raise ValueError(f"Driver with license number {driver_request.license_number} already exists")
+            # Check if license number already exists (only if license number is provided)
+            if driver_request.license_number and driver_request.license_number.strip():
+                existing_license = await self.driver_repo.get_by_license_number(driver_request.license_number)
+                if existing_license:
+                    raise ValueError(f"Driver with license number {driver_request.license_number} already exists")
+            
             
             # Convert to dict and add metadata
             driver_data = driver_request.model_dump()
-            driver_data["status"] = "active"
+            driver_data["status"] = "inactive"  # Set initial status
+
+            if not driver_data.get("license_number"):
+                driver_data.pop("license_number", None)
             
             # Create driver
             driver_id = await self.driver_repo.create(driver_data)
+
+            logger.info(f"Created driver: {driver_id}")
+            
+            # Get full driver data for event publishing
             driver = await self.driver_repo.get_by_id(driver_id)
+            logger.info(f"Driver returned by id: {driver}")
             
-            # Publish event
-            await event_publisher.publish_driver_created(driver, created_by)
-            
+            # Transform response for API (change _id to id)
+            if driver and '_id' in driver:
+                driver['id'] = str(driver.pop('_id'))
+        
             logger.info(f"Created driver: {driver_id}")
             return driver
             
@@ -104,8 +160,8 @@ class DriverService:
             if not driver:
                 raise ValueError("Driver not found")
             
-            if driver["status"] != "active":
-                raise ValueError("Cannot assign vehicle to inactive driver")
+            #if driver["status"] != "active":
+                #raise ValueError("Cannot assign vehicle to inactive driver")
             
             # Check if driver already has a vehicle
             if driver.get("current_vehicle_id"):
@@ -213,6 +269,26 @@ class DriverService:
         except Exception as e:
             logger.error(f"Error deleting driver {driver_id}: {e}")
             raise
+    
+    async def generate_next_employee_id(self) -> str:
+        """Generate next sequential employee ID"""
+        try:
+            last_id = await self.driver_repo.get_last_employee_id()
+            logger.debug(f"Last employee ID found: {last_id}")
+
+            if last_id == "EMP000":
+                return "EMP001"
+
+            # Extract numeric part and increment
+            numeric_part = int(last_id[3:])
+            next_id = numeric_part + 1
+
+            # Format with leading zeros to maintain 3 digits
+            return f"EMP{next_id:03d}"
+
+        except Exception as e:
+            logger.error(f"Error generating next employee ID: {str(e)}")
+            return "EMP001"  # Fallback to first ID if error occurs
 
 
 # Global service instance

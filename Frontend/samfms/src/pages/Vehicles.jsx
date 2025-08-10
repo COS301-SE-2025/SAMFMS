@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, use } from 'react';
-import { PlusCircle } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import VehicleList from '../components/vehicles/VehicleList';
 import VehicleSearch from '../components/vehicles/VehicleSearch';
 import VehicleActions from '../components/vehicles/VehicleActions';
@@ -227,17 +227,31 @@ const Vehicles = () => {
           ...(filters.status && { status_filter: filters.status.toLowerCase() }),
           ...(filters.make && { make_filter: filters.make }),
         });
-        // Handle both array and object response formats
-        const vehiclesArray = response.vehicles || response || [];
-        const transformedVehicles = vehiclesArray.map(transformVehicleData);
+        // Handle both array and object response formats with proper nesting
+        const vehiclesArray =
+          response.data?.data?.vehicles ||
+          response.vehicles ||
+          response.data?.vehicles ||
+          response ||
+          [];
+        const transformedVehicles = Array.isArray(vehiclesArray)
+          ? vehiclesArray.map(transformVehicleData).filter(v => v !== null)
+          : [];
         setVehicles(transformedVehicles);
       } else {
         // Search vehicles
         const results = await searchVehicles(searchQuery);
-        // Handle both array and object response formats
-        const vehiclesArray = results.vehicles || results || [];
-        if (vehiclesArray) {
-          const transformedResults = vehiclesArray.map(transformVehicleData);
+        // Handle both array and object response formats with proper nesting
+        const vehiclesArray =
+          results.data?.data?.vehicles ||
+          results.vehicles ||
+          results.data?.vehicles ||
+          results ||
+          [];
+        if (Array.isArray(vehiclesArray) && vehiclesArray.length > 0) {
+          const transformedResults = vehiclesArray
+            .map(transformVehicleData)
+            .filter(v => v !== null);
           setVehicles(transformedResults);
         } else {
           setVehicles([]); // Clear vehicles if no results found
@@ -512,10 +526,12 @@ const Vehicles = () => {
           filter: 'blur(1px)',
         }}
       />
-      <div className="relative z-10 container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">Fleet Vehicles</h1>
-        <div className="bg-card rounded-lg shadow-md p-6">
-          <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <div className="relative z-10 container mx-auto px-4 py-8 animate-in fade-in duration-700">
+        <h1 className="text-3xl font-bold mb-6 animate-in slide-in-from-top-4 duration-500">
+          Fleet Vehicles
+        </h1>
+        <div className="bg-card rounded-lg shadow-md p-6 animate-in slide-in-from-bottom-4 duration-700 delay-150">
+          <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 animate-in fade-in duration-500 delay-300">
             <h2 className="text-xl font-semibold">Manage Vehicles</h2>
             <div className="flex-1 mx-4">
               <VehicleSearch
@@ -525,11 +541,11 @@ const Vehicles = () => {
               />
             </div>
             <button
-              className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
+              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
               onClick={() => setShowAddVehicleModal(true)}
+              title="Add Vehicle"
             >
-              <PlusCircle size={18} />
-              <span>Add Vehicle</span>
+              <Plus size={18} />
             </button>
           </div>
           {/* Error Message */}
@@ -538,50 +554,54 @@ const Vehicles = () => {
               <p>{error}</p>
             </div>
           )}
-          {/* Vehicle actions buttons and bulk actions */}{' '}
-          <VehicleActions
-            selectedVehicles={selectedVehicles}
-            openAssignmentModal={openAssignmentModal}
-            exportSelectedVehicles={exportSelectedVehicles}
-            onDeleteSelected={() => {
-              if (
-                selectedVehicles.length > 0 &&
-                window.confirm(
-                  `Are you sure you want to delete ${selectedVehicles.length} vehicle(s)?`
-                )
-              ) {
-                selectedVehicles.forEach(vehicleId => handleDeleteVehicle(vehicleId));
-              }
-            }}
-          />
+          {/* Vehicle actions buttons and bulk actions */}
+          <div className="animate-in fade-in duration-500 delay-500">
+            <VehicleActions
+              selectedVehicles={selectedVehicles}
+              openAssignmentModal={openAssignmentModal}
+              exportSelectedVehicles={exportSelectedVehicles}
+              onDeleteSelected={() => {
+                if (
+                  selectedVehicles.length > 0 &&
+                  window.confirm(
+                    `Are you sure you want to delete ${selectedVehicles.length} vehicle(s)?`
+                  )
+                ) {
+                  selectedVehicles.forEach(vehicleId => handleDeleteVehicle(vehicleId));
+                }
+              }}
+            />
+          </div>
           {/* Loading State */}
           {loading && vehicles.length === 0 ? (
-            <div className="text-center py-8">
+            <div className="text-center py-8 animate-in fade-in duration-500">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
               <p className="text-muted-foreground">Loading vehicles...</p>
             </div>
           ) : (
             /* Vehicle list with pagination */
-            <VehicleList
-              vehicles={currentVehicles}
-              selectedVehicles={selectedVehicles}
-              handleSelectVehicle={handleSelectVehicle}
-              selectAll={selectAll}
-              handleSelectAll={handleSelectAll}
-              sortField={sortField}
-              sortDirection={sortDirection}
-              handleSort={handleSort}
-              openVehicleDetails={openVehicleDetails}
-              onEditVehicle={handleEditVehicle}
-              onDeleteVehicle={handleDeleteVehicle}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              itemsPerPage={itemsPerPage}
-              changeItemsPerPage={changeItemsPerPage}
-              goToNextPage={goToNextPage}
-              goToPrevPage={goToPrevPage}
-              totalVehicles={sortedVehicles.length}
-            />
+            <div className="animate-in slide-in-from-bottom-6 duration-700 delay-700">
+              <VehicleList
+                vehicles={currentVehicles}
+                selectedVehicles={selectedVehicles}
+                handleSelectVehicle={handleSelectVehicle}
+                selectAll={selectAll}
+                handleSelectAll={handleSelectAll}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                handleSort={handleSort}
+                openVehicleDetails={openVehicleDetails}
+                onEditVehicle={handleEditVehicle}
+                onDeleteVehicle={handleDeleteVehicle}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                itemsPerPage={itemsPerPage}
+                changeItemsPerPage={changeItemsPerPage}
+                goToNextPage={goToNextPage}
+                goToPrevPage={goToPrevPage}
+                totalVehicles={sortedVehicles.length}
+              />
+            </div>
           )}
         </div>
         {/* Vehicle Details Modal */}
@@ -622,19 +642,31 @@ const Vehicles = () => {
           />
         )}
         {/* Data visualization section */}
-        <DataVisualization analytics={stats} />
-
+        <div className="animate-in slide-in-from-bottom-8 duration-700 delay-1000">
+          <DataVisualization analytics={stats} />
+        </div>
+        <div className="animate-in fade-in duration-500 delay-1200">
+          <VehicleUsageStats stats={analytics.vehicle_usage} />
+        </div>
+        <div className="animate-in fade-in duration-500 delay-1300">
+          <DriverPerformanceCard stats={analytics.driver_performance} />
+        </div>
+        <div className="animate-in fade-in duration-500 delay-1400">
+          <CostAnalyticsCard stats={analytics.cost_analytics} />
+        </div>
         {/* Analytics Cards Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-          <AssignmentMetricsCard data={vehicleAnalytics.assignment_metrics} />
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 animate-in slide-in-from-bottom-6 duration-700 delay-1500">
+          <StatusBreakdownCard stats={analytics.status_breakdown} />
+          <FleetUtilizationCard data={analytics.fleet_utilization} />
+          <AssignmentMetricsCard data={analytics.assignment_metrics} />
+          <MaintenanceAnalyticsCard data={analytics.maintenance_analytics} />
         </div>
       </div>
     </div>
   );
 };
 
-export default Vehicles;
+export default Vehicles;s
 //<FleetUtilizationCard data={analytics.fleet_utilization} />
 //<StatusBreakdownCard stats={analytics.status_breakdown} />
 //<MaintenanceAnalyticsCard data={analytics.maintenance_analytics} />

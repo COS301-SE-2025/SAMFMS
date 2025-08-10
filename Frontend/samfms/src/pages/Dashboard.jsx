@@ -7,22 +7,45 @@ import { DashboardCanvas } from '../components/dashboard/DashboardCanvas';
 import '../components/widgets';
 import '../components/dashboard/dashboard.css';
 
-// Dashboard component that initializes with defaults if empty
 const DashboardContent = () => {
-  const { state, dispatch } = useDashboard();
+  const { state, dispatch, saveDashboardManually } = useDashboard();
 
   useEffect(() => {
-    // Initialize with default dashboard if empty and no saved data
-    if (state.widgets.length === 0) {
-      const savedDashboard = localStorage.getItem('dashboard_main');
-      if (!savedDashboard) {
-        dispatch({ type: 'RESET_TO_DEFAULT' });
+    // Handle automatic save and exit edit mode when leaving the dashboard
+    const handleBeforeUnload = () => {
+      if (state.isEditing) {
+        // Save the dashboard
+        saveDashboardManually();
+        // Exit edit mode
+        dispatch({
+          type: 'SET_EDIT_MODE',
+          payload: false,
+        });
       }
-    }
-  }, [state.widgets.length, dispatch]);
+    };
+
+    // Handle navigation away from the dashboard
+    const handleUnload = () => {
+      handleBeforeUnload();
+    };
+
+    // Add event listeners
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('unload', handleUnload);
+
+    // Cleanup function
+    return () => {
+      // Auto-save and exit edit mode when component unmounts
+      handleBeforeUnload();
+
+      // Remove event listeners
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('unload', handleUnload);
+    };
+  }, [state.isEditing, dispatch, saveDashboardManually]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <DashboardToolbar />
       <DashboardCanvas />
     </div>

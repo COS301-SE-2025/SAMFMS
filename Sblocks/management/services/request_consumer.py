@@ -246,18 +246,23 @@ class ServiceRequestConsumer:
                 if not data:
                     raise ValueError("Request data is required for POST operation")
                 
-                # Create vehicle
-                vehicle_request = VehicleCreateRequest(**data)
-                created_by = current_user["user_id"]
-                result = await vehicle_service.create_vehicle(vehicle_request, created_by)
+                if "assign-driver" in endpoint:
+                    logger.info(f"Data received for driver assignment: {data} ")
+                else:
+                    # Create vehicle
+                    vehicle_request = VehicleCreateRequest(**data)
+                    created_by = current_user["user_id"]
+                    result = await vehicle_service.create_vehicle(vehicle_request, created_by)
+                    
+                    # Transform _id to id for frontend compatibility
+                    result = self._transform_vehicle_data(result)
+                    
+                    return ResponseBuilder.success(
+                        data=result,
+                        message="Vehicle created successfully"
+                    ).model_dump()
+
                 
-                # Transform _id to id for frontend compatibility
-                result = self._transform_vehicle_data(result)
-                
-                return ResponseBuilder.success(
-                    data=result,
-                    message="Vehicle created successfully"
-                ).model_dump()
                 
             elif method == "PUT":
                 vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
@@ -335,35 +340,58 @@ class ServiceRequestConsumer:
                     status = data.get("status")
                     pagination = data.get("pagination", {"skip": 0, "limit": 50})
                     
+                    filters = {}
+
+                    # Normalize filters from request
                     if department:
-                        drivers = await driver_service.get_drivers_by_department(department)
-                    elif status == "active":
-                        drivers = await driver_service.get_active_drivers()
-                    else:
-                        # Use repository for filtered queries
-                        driver_repo = DriverRepository()
-                        filter_query = {}
-                        if status:
-                            filter_query["status"] = status
-                        
-                        drivers = await driver_repo.find(
-                            filter_query=filter_query,
-                            skip=pagination["skip"],
-                            limit=pagination["limit"],
-                            sort=[("last_name", 1), ("first_name", 1)]
-                        )
+                        filters["department_filter"] = department
+
+                    if status:
+                        filters["status_filter"] = status
+
+                    # Handle pagination
+                    pagination = data.get("pagination", {})
+                    if "skip" in pagination:
+                        filters["skip"] = pagination["skip"]
+                    if "limit" in pagination:
+                        filters["limit"] = pagination["limit"]
+                    
+                    logger.info(f"Filters: {filters}")
+
+                    # Get drivers using new filter-aware function
+                    drivers_result = await driver_service.get_all_drivers(filters)
+
                 
                 return ResponseBuilder.success(
-                    data=drivers,
+                    data=drivers_result,
                     message="Drivers retrieved successfully"
                 ).model_dump()
+
                 
             elif method == "POST":
                 if not data:
                     raise ValueError("Request data is required for POST operation")
                 
+                logger.info(f"Data received for POST operation: ")
+                
+                # Create and employee id based on the last employeeid in the driver collection
+                employee_id = await driver_service.generate_next_employee_id()
+                logger.info(f"Generated employee_id: {employee_id}")
+                # Split full name from data into first and last names
+                full_name = data["full_name"]  # Changed from data.full_name to data["full_name"]
+                parts = full_name.strip().split()
+                first_name = parts[0]
+                last_name = " ".join(parts[1:])
+                # Create new data
+                driver_data = {
+                    "employee_id": employee_id,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "email": data["email"],
+                    "phone": data["phoneNo"]
+                }
                 # Create driver
-                driver_request = DriverCreateRequest(**data)
+                driver_request = DriverCreateRequest(**driver_data)
                 created_by = current_user["user_id"]
                 result = await driver_service.create_driver(driver_request, created_by)
                 

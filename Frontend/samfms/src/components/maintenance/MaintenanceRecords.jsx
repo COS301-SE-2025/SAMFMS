@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { maintenanceAPI } from '../../backend/api/maintenance';
 
 const MaintenanceRecords = ({ vehicles }) => {
@@ -11,7 +12,7 @@ const MaintenanceRecords = ({ vehicles }) => {
     vehicleId: '',
     status: '',
     page: 1,
-    size: 20,
+    size: 5,
   });
   const [pagination, setPagination] = useState({
     total: 0,
@@ -220,9 +221,10 @@ const MaintenanceRecords = ({ vehicles }) => {
             resetForm();
             setShowModal(true);
           }}
-          className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition"
+          className="bg-green-600 text-white p-3 rounded-md hover:bg-green-700 transition-colors"
+          title="Add New Record"
         >
-          Add New Record
+          <Plus size={20} />
         </button>
       </div>
 
@@ -261,7 +263,7 @@ const MaintenanceRecords = ({ vehicles }) => {
           </div>
           <div className="flex items-end">
             <button
-              onClick={() => setFilters({ vehicleId: '', status: '', page: 1, size: 20 })}
+              onClick={() => setFilters({ vehicleId: '', status: '', page: 1, size: 5 })}
               className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition"
             >
               Clear Filters
@@ -291,12 +293,12 @@ const MaintenanceRecords = ({ vehicles }) => {
         </div>
       ) : (
         <>
-          {/* Records Table */}
-          <div className="bg-card rounded-lg shadow-md overflow-hidden">
+          {/* Records Table - matching vehicles page structure */}
+          <div className="bg-card rounded-lg shadow-md p-6 border border-border">
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted">
-                  <tr>
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
                     <th className="text-left py-3 px-4 font-medium">Vehicle</th>
                     <th className="text-left py-3 px-4 font-medium">Type</th>
                     <th className="text-left py-3 px-4 font-medium">Date</th>
@@ -357,37 +359,58 @@ const MaintenanceRecords = ({ vehicles }) => {
                 </tbody>
               </table>
             </div>
-          </div>
 
-          {/* Pagination */}
-          {pagination.pages > 1 && (
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                Showing {(pagination.current_page - 1) * filters.size + 1} to{' '}
-                {Math.min(pagination.current_page * filters.size, pagination.total)} of{' '}
-                {pagination.total} records
+            {/* Pagination - matching vehicles page style */}
+            {pagination.pages > 1 && (
+              <div className="mt-6 flex items-center justify-between">
+                <div>
+                  <select
+                    value={filters.size}
+                    onChange={e =>
+                      setFilters(prev => ({ ...prev, size: Number(e.target.value), page: 1 }))
+                    }
+                    className="border border-border rounded-md bg-background py-1 pl-2 pr-8"
+                  >
+                    <option value="5">5 per page</option>
+                    <option value="10">10 per page</option>
+                    <option value="20">20 per page</option>
+                    <option value="50">50 per page</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    Page {pagination.current_page} of {pagination.pages}
+                  </span>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
+                      disabled={pagination.current_page <= 1}
+                      className={`p-1 rounded ${
+                        pagination.current_page <= 1
+                          ? 'text-muted-foreground cursor-not-allowed'
+                          : 'hover:bg-accent'
+                      }`}
+                      title="Previous page"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <button
+                      onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
+                      disabled={pagination.current_page >= pagination.pages}
+                      className={`p-1 rounded ${
+                        pagination.current_page >= pagination.pages
+                          ? 'text-muted-foreground cursor-not-allowed'
+                          : 'hover:bg-accent'
+                      }`}
+                      title="Next page"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
-                  disabled={pagination.current_page <= 1}
-                  className="px-3 py-1 border border-border rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <span className="px-3 py-1">
-                  Page {pagination.current_page} of {pagination.pages}
-                </span>
-                <button
-                  onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
-                  disabled={pagination.current_page >= pagination.pages}
-                  className="px-3 py-1 border border-border rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </>
       )}
 

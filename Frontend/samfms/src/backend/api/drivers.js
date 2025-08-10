@@ -12,6 +12,7 @@ const DRIVER_ENDPOINTS = {
   get: API_ENDPOINTS.DRIVERS.GET,
   update: API_ENDPOINTS.DRIVERS.UPDATE,
   delete: API_ENDPOINTS.DRIVERS.DELETE,
+  assign: API_ENDPOINTS.DRIVERS.ASSIGN,
 };
 
 /**
@@ -21,9 +22,30 @@ const DRIVER_ENDPOINTS = {
  */
 export const createDriver = async driverData => {
   try {
-    return await httpClient.post(DRIVER_ENDPOINTS.create, driverData);
+    const response = await httpClient.post(DRIVER_ENDPOINTS.create, driverData);
+    console.log("Response for create driver: ", response)
+    return response
   } catch (error) {
     console.error('Error creating driver:', error);
+    throw error;
+  }
+};
+
+export const getAllDrivers = async (filters = {}) => {
+  try {
+    // Ensure numeric parameters are integers
+    const queryParams = {
+      ...filters,
+      limit: Number.parseInt(filters.limit || 100),  // Ensure integer
+      skip: Number.parseInt(filters.skip || 0)       // Ensure integer
+    };
+
+    console.log('Sending query params to getAllDrivers:', queryParams);
+    const response = await httpClient.get(DRIVER_ENDPOINTS.list, { params: queryParams });
+    console.log("Response received from backend:", response);
+    return response;
+  } catch (error) {
+    console.error('Error fetching all drivers:', error);
     throw error;
   }
 };
@@ -43,6 +65,7 @@ export const getDrivers = async (params = {}) => {
 
     // Filter for users with 'driver' role
     const drivers = allUsers.filter(user => user.role === 'driver');
+    console.log(drivers);
 
     console.log(`Found ${drivers.length} drivers out of ${allUsers.length} total users`);
 
@@ -186,3 +209,14 @@ export const searchDrivers = async query => {
     throw error;
   }
 };
+
+
+export const assignVehicle = async (data) => {
+  try {
+    console.log("Vehicle and driver data",data);
+    return await httpClient.post(DRIVER_ENDPOINTS.assign, data);
+  } catch (error) {
+    console.error('Error assigning vehicle to driver: ', error);
+    throw error;
+  }
+}
