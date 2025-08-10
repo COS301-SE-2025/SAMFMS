@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { maintenanceAPI } from '../../backend/api/maintenance';
-import { Pagination } from '../vehicles/Pagination';
 
 const LicenseManagement = ({ vehicles }) => {
   const [licenses, setLicenses] = useState([]);
@@ -16,13 +15,27 @@ const LicenseManagement = ({ vehicles }) => {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Calculate pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentLicenses = licenses.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(licenses.length / itemsPerPage);
+
+  // Pagination functions
+  const goToNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  const goToPrevPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const changeItemsPerPage = e => {
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1);
+  };
 
   const [formData, setFormData] = useState({
     vehicle_id: '',
@@ -296,106 +309,140 @@ const LicenseManagement = ({ vehicles }) => {
           <span className="ml-3">Loading license records...</span>
         </div>
       ) : (
-        <div className="bg-card rounded-lg shadow-md overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-muted">
-                <tr>
-                  <th className="text-left py-3 px-4 font-medium">Vehicle</th>
-                  <th className="text-left py-3 px-4 font-medium">License Type</th>
-                  <th className="text-left py-3 px-4 font-medium">License Number</th>
-                  <th className="text-left py-3 px-4 font-medium">Issued Date</th>
-                  <th className="text-left py-3 px-4 font-medium">Expiry Date</th>
-                  <th className="text-left py-3 px-4 font-medium">Status</th>
-                  <th className="text-left py-3 px-4 font-medium">Cost</th>
-                  <th className="text-left py-3 px-4 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentLicenses.length > 0 ? (
-                  currentLicenses.map(license => (
-                    <tr key={license.id} className="border-b border-border hover:bg-accent/10">
-                      <td className="py-3 px-4">{getVehicleName(license.vehicle_id)}</td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <p className="font-medium">{license.license_type?.replace('_', ' ')}</p>
-                          {license.issuing_authority && (
-                            <p className="text-sm text-muted-foreground">
-                              {license.issuing_authority}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">{license.license_number || 'N/A'}</td>
-                      <td className="py-3 px-4">
-                        {license.issued_date
-                          ? new Date(license.issued_date).toLocaleDateString()
-                          : 'N/A'}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <p>
-                            {license.expiry_date
-                              ? new Date(license.expiry_date).toLocaleDateString()
-                              : 'N/A'}
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-4 font-medium">Vehicle</th>
+                <th className="text-left py-3 px-4 font-medium">License Type</th>
+                <th className="text-left py-3 px-4 font-medium">License Number</th>
+                <th className="text-left py-3 px-4 font-medium">Issued Date</th>
+                <th className="text-left py-3 px-4 font-medium">Expiry Date</th>
+                <th className="text-left py-3 px-4 font-medium">Status</th>
+                <th className="text-left py-3 px-4 font-medium">Cost</th>
+                <th className="text-left py-3 px-4 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentLicenses.length > 0 ? (
+                currentLicenses.map(license => (
+                  <tr key={license.id} className="border-b border-border hover:bg-muted/30">
+                    <td className="py-3 px-4">{getVehicleName(license.vehicle_id)}</td>
+                    <td className="py-3 px-4">
+                      <div>
+                        <p className="font-medium">{license.license_type?.replace('_', ' ')}</p>
+                        {license.issuing_authority && (
+                          <p className="text-sm text-muted-foreground">
+                            {license.issuing_authority}
                           </p>
-                          {license.expiry_date && (
-                            <p className="text-xs text-muted-foreground">
-                              {getDaysUntilExpiry(license.expiry_date)}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="space-y-1">
-                          {getExpiryStatus(license.expiry_date)}
-                          {!license.is_active && (
-                            <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 block">
-                              Inactive
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">R{license.cost?.toLocaleString() || 0}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEdit(license)}
-                            className="text-blue-600 hover:text-blue-800 text-sm"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(license.id)}
-                            className="text-red-600 hover:text-red-800 text-sm"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="8" className="py-8 text-center text-muted-foreground">
-                      No license records found
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">{license.license_number || 'N/A'}</td>
+                    <td className="py-3 px-4">
+                      {license.issued_date
+                        ? new Date(license.issued_date).toLocaleDateString()
+                        : 'N/A'}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div>
+                        <p>
+                          {license.expiry_date
+                            ? new Date(license.expiry_date).toLocaleDateString()
+                            : 'N/A'}
+                        </p>
+                        {license.expiry_date && (
+                          <p className="text-xs text-muted-foreground">
+                            {getDaysUntilExpiry(license.expiry_date)}
+                          </p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="space-y-1">
+                        {getExpiryStatus(license.expiry_date)}
+                        {!license.is_active && (
+                          <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 block">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">R{license.cost?.toLocaleString() || 0}</td>
+                    <td className="py-3 px-4">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEdit(license)}
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(license.id)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8" className="py-8 text-center text-muted-foreground">
+                    No license records found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Pagination */}
+      {/* Pagination - matching vehicles page style */}
       {totalPages > 1 && (
-        <div className="flex justify-center mt-6">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
+        <div className="mt-6 flex items-center justify-between">
+          <div>
+            <select
+              value={itemsPerPage}
+              onChange={changeItemsPerPage}
+              className="border border-border rounded-md bg-background py-1 pl-2 pr-8"
+            >
+              <option value="5">5 per page</option>
+              <option value="10">10 per page</option>
+              <option value="20">20 per page</option>
+              <option value="50">50 per page</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </span>
+            <div className="flex gap-1">
+              <button
+                onClick={goToPrevPage}
+                disabled={currentPage === 1}
+                className={`p-1 rounded ${
+                  currentPage === 1 ? 'text-muted-foreground cursor-not-allowed' : 'hover:bg-accent'
+                }`}
+                title="Previous page"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className={`p-1 rounded ${
+                  currentPage === totalPages
+                    ? 'text-muted-foreground cursor-not-allowed'
+                    : 'hover:bg-accent'
+                }`}
+                title="Next page"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

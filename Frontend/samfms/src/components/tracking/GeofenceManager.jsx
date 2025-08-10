@@ -1,14 +1,53 @@
 import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import { Search, Plus, Edit2, Trash2 } from 'lucide-react';
 import { addGeofence, deleteGeofence, updateGeofence } from '../../backend/api/geofences';
+
+// Fix for default markers in react-leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Component to handle map clicks
+const MapClickHandler = ({ onLocationSelect }) => {
+  useMapEvents({
+    click: e => {
+      const { lat, lng } = e.latlng;
+      onLocationSelect({
+        lat: parseFloat(lat.toFixed(6)),
+        lng: parseFloat(lng.toFixed(6)),
+      });
+    },
+  });
+  return null;
+};
+
+// Component to handle map centering when coordinates change
+const MapUpdater = ({ center }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (center && center[0] !== 0 && center[1] !== 0) {
+      map.setView(center, 15);
+    }
+  }, [map, center]);
+
+  return null;
+};
 
 const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   // State for the component
   const [geofences, setGeofences] = useState(currentGeofences || []);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [editingGeofence, setEditingGeofence] = useState(null);
+  const [addressSearch, setAddressSearch] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const [newGeofence, setNewGeofence] = useState({
     name: '',
     description: '',
@@ -33,6 +72,42 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
       onGeofenceChange(geofences);
     }
   }, [geofences, onGeofenceChange]);
+
+  // Handle address search using Nominatim geocoding service
+  const handleAddressSearch = async () => {
+    if (!addressSearch.trim()) return;
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          addressSearch
+        )}&limit=1`
+      );
+      const data = await response.json();
+
+      if (data && data.length > 0) {
+        const result = data[0];
+        const lat = parseFloat(result.lat);
+        const lng = parseFloat(result.lon);
+
+        setNewGeofence({
+          ...newGeofence,
+          coordinates: {
+            lat: parseFloat(lat.toFixed(6)),
+            lng: parseFloat(lng.toFixed(6)),
+          },
+        });
+      } else {
+        alert('Address not found. Please try a different search term.');
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      alert('Error searching for address. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   // Handle adding a new geofence
   const handleAddGeofence = async () => {
@@ -104,7 +179,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
       };
 
       setGeofences(prev => [...prev, newGeofenceForUI]);
-      setShowAddModal(false);
+      setShowAddForm(false);
       resetForm();
     } catch (error) {
       console.error('Error creating geofence:', error);
@@ -185,7 +260,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
 
       resetForm();
       setEditingGeofence(null);
-      setShowAddModal(false);
+      setShowAddForm(false);
     } catch (error) {
       console.error('Error updating geofence:', error);
       alert(`Failed to update geofence: ${error.message || error}`);
@@ -218,7 +293,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
       radius: geofence.radius,
       status: geofence.status,
     });
-    setShowAddModal(true);
+    setShowAddForm(true);
   };
 
   // Reset the form
@@ -240,278 +315,364 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-4">
             <h2 className="text-xl font-semibold">Geofences</h2>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search geofences..."
-                className="px-4 py-2 pl-10 rounded-md border border-input bg-background text-sm"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-              <Search
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
-                size={16}
-              />
-            </div>
-            <select
-              className="px-4 py-2 rounded-md border border-input bg-background text-sm"
-              value={filterType}
-              onChange={e => setFilterType(e.target.value)}
-            >
-              <option value="">All types</option>
-              <option value="depot">Depot</option>
-              <option value="service">Service</option>
-              <option value="delivery">Delivery</option>
-              <option value="restricted">Restricted</option>
-              <option value="emergency">Emergency</option>
-            </select>
-          </div>
-          <button
-            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
-            onClick={() => setShowAddModal(true)}
-          >
-            <Plus size={16} /> Add Geofence
-          </button>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-3 px-4">Name</th>
-                <th className="text-left py-3 px-4">Type</th>
-                <th className="text-left py-3 px-4">Shape</th>
-                <th className="text-left py-3 px-4">Size</th>
-                <th className="text-left py-3 px-4">Coordinates</th>
-                <th className="text-left py-3 px-4">Status</th>
-                <th className="text-left py-3 px-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredGeofences.length > 0 ? (
-                filteredGeofences.map(geofence => (
-                  <tr key={geofence.id} className="border-b border-border hover:bg-accent/10">
-                    <td className="py-3 px-4">{geofence.name}</td>
-                    <td className="py-3 px-4">
-                      {geofence.type.charAt(0).toUpperCase() + geofence.type.slice(1)}
-                    </td>
-                    <td className="py-3 px-4">
-                      {(geofence.geometryType || geofence.geometry?.type || 'circle')
-                        .charAt(0)
-                        .toUpperCase() +
-                        (geofence.geometryType || geofence.geometry?.type || 'circle').slice(1)}
-                    </td>
-                    <td className="py-3 px-4">
-                      {geofence.radius ? `${geofence.radius}m` : 'Custom'}
-                    </td>
-                    <td className="py-3 px-4">
-                      {geofence.coordinates.lat.toFixed(4)}, {geofence.coordinates.lng.toFixed(4)}
-                    </td>
-                    <td className="py-3 px-4">
-                      {geofence.status === 'active' ? (
-                        <span className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 py-1 px-2 rounded-full text-xs">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 py-1 px-2 rounded-full text-xs">
-                          Inactive
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 space-x-2">
-                      <button
-                        className="text-primary hover:text-primary/80 text-sm"
-                        onClick={() => startEditGeofence(geofence)}
-                      >
-                        <Edit2 size={16} className="inline mr-1" />
-                        Edit
-                      </button>
-                      <button
-                        className="text-destructive hover:text-destructive/80 text-sm"
-                        onClick={() => handleDeleteGeofence(geofence.id)}
-                      >
-                        <Trash2 size={16} className="inline mr-1" />
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="7" className="py-8 text-center text-muted-foreground">
-                    No geofences found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Add/Edit Geofence Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 z-[9999] flex items-center justify-center">
-          <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-semibold mb-4">
-              {editingGeofence ? 'Edit Geofence' : 'Add New Geofence'}
-            </h3>
-            <div className="space-y-4">
-              {/* Name */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Name</label>
-                <input
-                  type="text"
-                  value={newGeofence.name}
-                  onChange={e => setNewGeofence({ ...newGeofence, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                  placeholder="Geofence name"
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Description</label>
-                <input
-                  type="text"
-                  value={newGeofence.description}
-                  onChange={e => setNewGeofence({ ...newGeofence, description: e.target.value })}
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                  placeholder="Geofence description"
-                />
-              </div>
-
-              {/* Category */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Category</label>
+            {/* Show search and filter only when table is visible */}
+            {!showAddForm && (
+              <>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search geofences..."
+                    className="px-4 py-2 pl-10 rounded-md border border-input bg-background text-sm"
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                  />
+                  <Search
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
+                    size={16}
+                  />
+                </div>
                 <select
-                  value={newGeofence.type}
-                  onChange={e => setNewGeofence({ ...newGeofence, type: e.target.value })}
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                  className="px-4 py-2 rounded-md border border-input bg-background text-sm"
+                  value={filterType}
+                  onChange={e => setFilterType(e.target.value)}
                 >
+                  <option value="">All types</option>
                   <option value="depot">Depot</option>
                   <option value="service">Service</option>
                   <option value="delivery">Delivery</option>
                   <option value="restricted">Restricted</option>
                   <option value="emergency">Emergency</option>
                 </select>
-              </div>
+              </>
+            )}
+          </div>
+          {/* Show Add button only when table is visible */}
+          {!showAddForm && (
+            <button
+              className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
+              onClick={() => setShowAddForm(true)}
+            >
+              <Plus size={16} /> Add Geofence
+            </button>
+          )}
+        </div>
 
-              {/* Geometry Type */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Shape</label>
-                <select
-                  value={newGeofence.geometryType}
-                  onChange={e => setNewGeofence({ ...newGeofence, geometryType: e.target.value })}
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                >
-                  <option value="circle">Circle</option>
-                  <option value="polygon">Polygon</option>
-                  <option value="rectangle">Rectangle</option>
-                </select>
-              </div>
-
-              {/* Radius (only for circle) */}
-              {newGeofence.geometryType === 'circle' && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Radius (meters)</label>
+        {/* Conditional rendering: show form when adding, otherwise show table */}
+        {showAddForm ? (
+          /* Add Geofence Form */
+          <div className="space-y-4">
+            <h3 className="text-xl font-semibold mb-4">
+              {editingGeofence ? 'Edit Geofence' : 'Add New Geofence'}
+            </h3>
+            <div className="flex gap-6">
+              {/* Map Section - Left Side */}
+              <div className="flex-1 space-y-3">
+                {/* Address Search Bar */}
+                <div className="flex gap-2">
                   <input
-                    type="number"
-                    value={newGeofence.radius}
-                    onChange={e =>
-                      setNewGeofence({ ...newGeofence, radius: parseInt(e.target.value) })
-                    }
+                    type="text"
+                    placeholder="Search for an address..."
+                    value={addressSearch}
+                    onChange={e => setAddressSearch(e.target.value)}
+                    onKeyPress={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddressSearch();
+                      }
+                    }}
+                    className="flex-1 px-3 py-2 rounded-md border border-input bg-background text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddressSearch}
+                    disabled={isSearching || !addressSearch.trim()}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSearching ? (
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Search size={16} />
+                    )}
+                    {isSearching ? 'Searching...' : 'Search'}
+                  </button>
+                </div>
+
+                {/* Map Container */}
+                <div className="h-96 border border-input rounded-md overflow-hidden">
+                  <MapContainer
+                    center={[
+                      newGeofence.coordinates.lat || 37.7749,
+                      newGeofence.coordinates.lng || -122.4194,
+                    ]}
+                    zoom={13}
+                    style={{ height: '100%', width: '100%' }}
+                    className="rounded-md"
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <MapClickHandler
+                      onLocationSelect={coords => {
+                        setNewGeofence({
+                          ...newGeofence,
+                          coordinates: coords,
+                        });
+                      }}
+                    />
+                    <MapUpdater
+                      center={[newGeofence.coordinates.lat, newGeofence.coordinates.lng]}
+                    />
+                    {/* Show marker if coordinates are set */}
+                    {newGeofence.coordinates.lat !== 0 && newGeofence.coordinates.lng !== 0 && (
+                      <Marker
+                        position={[newGeofence.coordinates.lat, newGeofence.coordinates.lng]}
+                      />
+                    )}
+                  </MapContainer>
+                </div>
+              </div>
+
+              {/* Form Inputs - Right Side */}
+              <div className="flex-1 space-y-4">
+                {/* Name */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={newGeofence.name}
+                    onChange={e => setNewGeofence({ ...newGeofence, name: e.target.value })}
                     className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                    min="10"
-                    max="10000"
+                    placeholder="Geofence name"
                   />
                 </div>
-              )}
 
-              {/* Coordinates (center for now) */}
-              <div className="grid grid-cols-2 gap-4">
+                {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium mb-1">Latitude</label>
+                  <label className="block text-sm font-medium mb-1">Description</label>
                   <input
-                    type="number"
-                    value={newGeofence.coordinates.lat}
-                    onChange={e =>
-                      setNewGeofence({
-                        ...newGeofence,
-                        coordinates: {
-                          ...newGeofence.coordinates,
-                          lat: parseFloat(e.target.value),
-                        },
-                      })
-                    }
+                    type="text"
+                    value={newGeofence.description}
+                    onChange={e => setNewGeofence({ ...newGeofence, description: e.target.value })}
                     className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                    step="0.0001"
-                    min="-90"
-                    max="90"
+                    placeholder="Geofence description"
                   />
                 </div>
+
+                {/* Category */}
                 <div>
-                  <label className="block text-sm font-medium mb-1">Longitude</label>
-                  <input
-                    type="number"
-                    value={newGeofence.coordinates.lng}
-                    onChange={e =>
-                      setNewGeofence({
-                        ...newGeofence,
-                        coordinates: {
-                          ...newGeofence.coordinates,
-                          lng: parseFloat(e.target.value),
-                        },
-                      })
-                    }
+                  <label className="block text-sm font-medium mb-1">Category</label>
+                  <select
+                    value={newGeofence.type}
+                    onChange={e => setNewGeofence({ ...newGeofence, type: e.target.value })}
                     className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                    step="0.0001"
-                    min="-180"
-                    max="180"
-                  />
+                  >
+                    <option value="depot">Depot</option>
+                    <option value="service">Service</option>
+                    <option value="delivery">Delivery</option>
+                    <option value="restricted">Restricted</option>
+                    <option value="emergency">Emergency</option>
+                  </select>
                 </div>
-              </div>
 
-              {/* Status */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Status</label>
-                <select
-                  value={newGeofence.status}
-                  onChange={e => setNewGeofence({ ...newGeofence, status: e.target.value })}
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="draft">Draft</option>
-                </select>
-              </div>
+                {/* Geometry Type */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Shape</label>
+                  <select
+                    value={newGeofence.geometryType}
+                    onChange={e => setNewGeofence({ ...newGeofence, geometryType: e.target.value })}
+                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                  >
+                    <option value="circle">Circle</option>
+                    <option value="polygon">Polygon</option>
+                    <option value="rectangle">Rectangle</option>
+                  </select>
+                </div>
 
-              {/* Buttons */}
-              <div className="flex justify-end gap-2 mt-6">
-                <button
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setEditingGeofence(null);
-                    resetForm();
-                  }}
-                  className="px-4 py-2 border border-input rounded-md"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={editingGeofence ? handleEditGeofence : handleAddGeofence}
-                  className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition"
-                  disabled={
-                    !newGeofence.name ||
-                    (newGeofence.geometryType === 'circle' && isNaN(newGeofence.radius))
-                  }
-                >
-                  {editingGeofence ? 'Update' : 'Add'} Geofence
-                </button>
+                {/* Radius Slider (only for circle) */}
+                {newGeofence.geometryType === 'circle' && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Radius: {newGeofence.radius} meters
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100000"
+                      step="100"
+                      value={newGeofence.radius}
+                      onChange={e =>
+                        setNewGeofence({ ...newGeofence, radius: parseInt(e.target.value) })
+                      }
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>0m</span>
+                      <span>100,000m</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Status */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Status</label>
+                  <select
+                    value={newGeofence.status}
+                    onChange={e => setNewGeofence({ ...newGeofence, status: e.target.value })}
+                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="draft">Draft</option>
+                  </select>
+                </div>
+
+                {/* Coordinates Display */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Latitude</label>
+                    <input
+                      type="number"
+                      value={newGeofence.coordinates.lat}
+                      onChange={e =>
+                        setNewGeofence({
+                          ...newGeofence,
+                          coordinates: {
+                            ...newGeofence.coordinates,
+                            lat: parseFloat(e.target.value) || 0,
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                      step="0.0001"
+                      min="-90"
+                      max="90"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Longitude</label>
+                    <input
+                      type="number"
+                      value={newGeofence.coordinates.lng}
+                      onChange={e =>
+                        setNewGeofence({
+                          ...newGeofence,
+                          coordinates: {
+                            ...newGeofence.coordinates,
+                            lng: parseFloat(e.target.value) || 0,
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                      step="0.0001"
+                      min="-180"
+                      max="180"
+                    />
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-2 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setEditingGeofence(null);
+                      resetForm();
+                    }}
+                    className="flex-1 px-4 py-2 border border-input rounded-md hover:bg-accent transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={editingGeofence ? handleEditGeofence : handleAddGeofence}
+                    className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition"
+                    disabled={
+                      !newGeofence.name ||
+                      (newGeofence.geometryType === 'circle' && isNaN(newGeofence.radius))
+                    }
+                  >
+                    {editingGeofence ? 'Update' : 'Add'} Geofence
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        ) : (
+          /* Geofence Table */
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-3 px-4">Name</th>
+                  <th className="text-left py-3 px-4">Type</th>
+                  <th className="text-left py-3 px-4">Shape</th>
+                  <th className="text-left py-3 px-4">Size</th>
+                  <th className="text-left py-3 px-4">Coordinates</th>
+                  <th className="text-left py-3 px-4">Status</th>
+                  <th className="text-left py-3 px-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredGeofences.length > 0 ? (
+                  filteredGeofences.map(geofence => (
+                    <tr key={geofence.id} className="border-b border-border hover:bg-accent/10">
+                      <td className="py-3 px-4">{geofence.name}</td>
+                      <td className="py-3 px-4">
+                        {geofence.type.charAt(0).toUpperCase() + geofence.type.slice(1)}
+                      </td>
+                      <td className="py-3 px-4">
+                        {(geofence.geometryType || geofence.geometry?.type || 'circle')
+                          .charAt(0)
+                          .toUpperCase() +
+                          (geofence.geometryType || geofence.geometry?.type || 'circle').slice(1)}
+                      </td>
+                      <td className="py-3 px-4">
+                        {geofence.radius ? `${geofence.radius}m` : 'Custom'}
+                      </td>
+                      <td className="py-3 px-4">
+                        {geofence.coordinates.lat.toFixed(4)}, {geofence.coordinates.lng.toFixed(4)}
+                      </td>
+                      <td className="py-3 px-4">
+                        {geofence.status === 'active' ? (
+                          <span className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 py-1 px-2 rounded-full text-xs">
+                            Active
+                          </span>
+                        ) : (
+                          <span className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 py-1 px-2 rounded-full text-xs">
+                            Inactive
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 space-x-2">
+                        <button
+                          className="text-primary hover:text-primary/80 text-sm"
+                          onClick={() => startEditGeofence(geofence)}
+                        >
+                          <Edit2 size={16} className="inline mr-1" />
+                          Edit
+                        </button>
+                        <button
+                          className="text-destructive hover:text-destructive/80 text-sm"
+                          onClick={() => handleDeleteGeofence(geofence.id)}
+                        >
+                          <Trash2 size={16} className="inline mr-1" />
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" className="py-8 text-center text-muted-foreground">
+                      No geofences found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </>
   );
 };

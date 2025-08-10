@@ -100,7 +100,7 @@ export const BaseWidget = ({
         aria-label={`${title} - Error`}
         aria-describedby={`error-desc-${id}`}
       >
-        <div className="flex items-center justify-between p-3 border-b border-border bg-card/50 flex-shrink-0">
+        <div className="flex items-center justify-between border-b border-border bg-card/50 flex-shrink-0">
           <h3 className="font-medium text-card-foreground truncate" id={`widget-title-${id}`}>
             {title}
           </h3>

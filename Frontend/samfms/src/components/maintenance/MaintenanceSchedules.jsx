@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { maintenanceAPI } from '../../backend/api/maintenance';
-import { Pagination } from '../vehicles/Pagination';
 
 const MaintenanceSchedules = ({ vehicles }) => {
   const [schedules, setSchedules] = useState([]);
@@ -15,13 +14,27 @@ const MaintenanceSchedules = ({ vehicles }) => {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Calculate pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentSchedules = schedules.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(schedules.length / itemsPerPage);
+
+  // Pagination functions
+  const goToNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  const goToPrevPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const changeItemsPerPage = e => {
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1);
+  };
 
   const [formData, setFormData] = useState({
     vehicle_id: '',
@@ -331,108 +344,142 @@ const MaintenanceSchedules = ({ vehicles }) => {
           <span className="ml-3">Loading maintenance schedules...</span>
         </div>
       ) : (
-        <div className="bg-card rounded-lg shadow-md overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-muted">
-                <tr>
-                  <th className="text-left py-3 px-4 font-medium">Vehicle</th>
-                  <th className="text-left py-3 px-4 font-medium">Maintenance Type</th>
-                  <th className="text-left py-3 px-4 font-medium">Interval</th>
-                  <th className="text-left py-3 px-4 font-medium">Last Service</th>
-                  <th className="text-left py-3 px-4 font-medium">Next Due</th>
-                  <th className="text-left py-3 px-4 font-medium">Status</th>
-                  <th className="text-left py-3 px-4 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentSchedules.length > 0 ? (
-                  currentSchedules.map(schedule => (
-                    <tr key={schedule.id} className="border-b border-border hover:bg-accent/10">
-                      <td className="py-3 px-4">{getVehicleName(schedule.vehicle_id)}</td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <p className="font-medium">
-                            {schedule.maintenance_type?.replace('_', ' ')}
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-4 font-medium">Vehicle</th>
+                <th className="text-left py-3 px-4 font-medium">Maintenance Type</th>
+                <th className="text-left py-3 px-4 font-medium">Interval</th>
+                <th className="text-left py-3 px-4 font-medium">Last Service</th>
+                <th className="text-left py-3 px-4 font-medium">Next Due</th>
+                <th className="text-left py-3 px-4 font-medium">Status</th>
+                <th className="text-left py-3 px-4 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentSchedules.length > 0 ? (
+                currentSchedules.map(schedule => (
+                  <tr key={schedule.id} className="border-b border-border hover:bg-accent/10">
+                    <td className="py-3 px-4">{getVehicleName(schedule.vehicle_id)}</td>
+                    <td className="py-3 px-4">
+                      <div>
+                        <p className="font-medium">
+                          {schedule.maintenance_type?.replace('_', ' ')}
+                        </p>
+                        {schedule.description && (
+                          <p className="text-sm text-muted-foreground">{schedule.description}</p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="text-sm">
+                        <p>
+                          Every {schedule.interval_value}{' '}
+                          {schedule.interval_type === 'mileage' ? 'km' : 'days'}
+                        </p>
+                        <p className="text-muted-foreground">({schedule.interval_type})</p>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="text-sm">
+                        {schedule.last_service_date && (
+                          <p>{new Date(schedule.last_service_date).toLocaleDateString()}</p>
+                        )}
+                        {schedule.last_service_mileage && (
+                          <p className="text-muted-foreground">
+                            {schedule.last_service_mileage.toLocaleString()} km
                           </p>
-                          {schedule.description && (
-                            <p className="text-sm text-muted-foreground">{schedule.description}</p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="text-sm">
-                          <p>
-                            Every {schedule.interval_value}{' '}
-                            {schedule.interval_type === 'mileage' ? 'km' : 'days'}
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="text-sm">
+                        {schedule.next_due_date && (
+                          <p>{new Date(schedule.next_due_date).toLocaleDateString()}</p>
+                        )}
+                        {schedule.next_due_mileage && (
+                          <p className="text-muted-foreground">
+                            {schedule.next_due_mileage.toLocaleString()} km
                           </p>
-                          <p className="text-muted-foreground">({schedule.interval_type})</p>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="text-sm">
-                          {schedule.last_service_date && (
-                            <p>{new Date(schedule.last_service_date).toLocaleDateString()}</p>
-                          )}
-                          {schedule.last_service_mileage && (
-                            <p className="text-muted-foreground">
-                              {schedule.last_service_mileage.toLocaleString()} km
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="text-sm">
-                          {schedule.next_due_date && (
-                            <p>{new Date(schedule.next_due_date).toLocaleDateString()}</p>
-                          )}
-                          {schedule.next_due_mileage && (
-                            <p className="text-muted-foreground">
-                              {schedule.next_due_mileage.toLocaleString()} km
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">{getStatusIndicator(schedule)}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEdit(schedule)}
-                            className="text-blue-600 hover:text-blue-800 text-sm"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(schedule.id)}
-                            className="text-red-600 hover:text-red-800 text-sm"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="7" className="py-8 text-center text-muted-foreground">
-                      No maintenance schedules found
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">{getStatusIndicator(schedule)}</td>
+                    <td className="py-3 px-4">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEdit(schedule)}
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(schedule.id)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="7" className="py-8 text-center text-muted-foreground">
+                    No maintenance schedules found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Pagination */}
+      {/* Pagination - matching vehicles page style */}
       {totalPages > 1 && (
-        <div className="flex justify-center mt-6">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
+        <div className="mt-6 flex items-center justify-between">
+          <div>
+            <select
+              value={itemsPerPage}
+              onChange={changeItemsPerPage}
+              className="border border-border rounded-md bg-background py-1 pl-2 pr-8"
+            >
+              <option value="5">5 per page</option>
+              <option value="10">10 per page</option>
+              <option value="20">20 per page</option>
+              <option value="50">50 per page</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </span>
+            <div className="flex gap-1">
+              <button
+                onClick={goToPrevPage}
+                disabled={currentPage === 1}
+                className={`p-1 rounded ${
+                  currentPage === 1 ? 'text-muted-foreground cursor-not-allowed' : 'hover:bg-accent'
+                }`}
+                title="Previous page"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className={`p-1 rounded ${
+                  currentPage === totalPages
+                    ? 'text-muted-foreground cursor-not-allowed'
+                    : 'hover:bg-accent'
+                }`}
+                title="Next page"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

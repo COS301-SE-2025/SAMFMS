@@ -70,10 +70,10 @@ export const DashboardToolbar = () => {
 
   return (
     <>
-      <div className="border-b border-gray-200 bg-white/80 backdrop-blur-sm shadow-sm relative">
+      <div className="relative">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold m-0 text-gray-900 tracking-tight">Fleet Dashboard</h1>
+            <h1 className="text-2xl font-bold m-0 text-black tracking-tight">Fleet Dashboard</h1>
             <div className="flex items-center gap-2">
               {state.isEditing && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 animate-pulse">

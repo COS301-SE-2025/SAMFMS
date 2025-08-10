@@ -3,9 +3,9 @@ import { generateWidgetId, WIDGET_TYPES } from '../utils/widgetRegistry';
 
 const DashboardContext = createContext();
 
-// Simple default dashboard configuration
-const getDefaultDashboard = () => ({
-  widgets: [
+// Rich default dashboard configuration with all available widgets
+const getDefaultDashboard = () => {
+  const widgets = [
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.MAINTENANCE_SUMMARY,
@@ -21,13 +21,68 @@ const getDefaultDashboard = () => ({
       type: WIDGET_TYPES.MAINTENANCE_ALERTS,
       config: { title: 'Maintenance Alerts' },
     },
-  ],
-  layout: [
-    { i: '', x: 0, y: 0, w: 4, h: 4 },
-    { i: '', x: 4, y: 0, w: 4, h: 4 },
-    { i: '', x: 8, y: 0, w: 4, h: 4 },
-  ],
-});
+    {
+      id: generateWidgetId(),
+      type: WIDGET_TYPES.MAINTENANCE_RECORDS,
+      config: { title: 'Maintenance Records' },
+    },
+    {
+      id: generateWidgetId(),
+      type: WIDGET_TYPES.MAINTENANCE_COST_ANALYTICS,
+      config: { title: 'Cost Analytics' },
+    },
+    {
+      id: generateWidgetId(),
+      type: WIDGET_TYPES.PLUGIN_HEALTH,
+      config: { title: 'Plugin Health' },
+    },
+    {
+      id: generateWidgetId(),
+      type: WIDGET_TYPES.PLUGIN_COUNT,
+      config: { title: 'Plugin Count' },
+    },
+    {
+      id: generateWidgetId(),
+      type: WIDGET_TYPES.STATS_CARD,
+      config: { title: 'Statistics' },
+    },
+    {
+      id: generateWidgetId(),
+      type: WIDGET_TYPES.VEHICLE_ANALYTICS,
+      config: { title: 'Vehicle Analytics' },
+    },
+    {
+      id: generateWidgetId(),
+      type: WIDGET_TYPES.METRIC_CARD,
+      config: { title: 'Key Metrics' },
+    },
+    {
+      id: generateWidgetId(),
+      type: WIDGET_TYPES.LINE_CHART,
+      config: { title: 'Performance Trends' },
+    },
+    {
+      id: generateWidgetId(),
+      type: WIDGET_TYPES.BAR_CHART,
+      config: { title: 'Fleet Comparison' },
+    },
+    {
+      id: generateWidgetId(),
+      type: WIDGET_TYPES.PIE_CHART,
+      config: { title: 'Distribution Analysis' },
+    },
+  ];
+
+  const layout = widgets.map((widget, index) => ({
+    i: widget.id,
+    x: (index % 4) * 3, // 4 widgets per row, each 3 columns wide for more density
+    y: Math.floor(index / 4) * 3, // Each row is 3 units tall for more compact layout
+    w: 3, // Slightly narrower width for more widgets per row
+    h: 3, // Slightly shorter height for more compact layout
+  }));
+
+  return { widgets, layout };
+};
 
 const dashboardReducer = (state, action) => {
   switch (action.type) {

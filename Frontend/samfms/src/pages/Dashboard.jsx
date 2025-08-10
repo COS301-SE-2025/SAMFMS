@@ -45,7 +45,7 @@ const DashboardContent = () => {
   }, [state.isEditing, dispatch, saveDashboardManually]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <DashboardToolbar />
       <DashboardCanvas />
     </div>

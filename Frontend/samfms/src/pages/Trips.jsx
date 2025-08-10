@@ -24,7 +24,6 @@ const Trips = () => {
   // New state for features
   const [activeTrips, setActiveTrips] = useState([]);
   const [drivers, setDrivers] = useState([]);
-  const [tripsHistory, setTripsHistory] = useState([]);
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState('week');
   const [driverAnalytics, setDriverAnalytics] = useState({
     drivers: [],
@@ -326,7 +325,7 @@ const Trips = () => {
       const response = await createTrip(tripData);
       console.log('Trip created successfully:', response);
 
-      if (response.data.status == 'success') {
+      if (response.data.status === 'success') {
         alert('Trip scheduled successfully!');
       } else {
         alert('Failed to create trip: ', response.data.message);
@@ -387,7 +386,7 @@ const Trips = () => {
       />
 
       <div className="relative z-10">
-        <h1 className="text-3xl font-bold mb-6 animate-fade-in">Trip Management</h1>
+        <h1 className="text-3xl font-bold mb-6 animate-fade-in text-foreground">Trip Management</h1>
         <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <ActiveTripsPanel activeTrips={activeTrips} />
         </div>
@@ -430,14 +429,14 @@ const Trips = () => {
         </div>
         {/* Updated Schedule Trip Modal */}
         {showScheduleModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
+            <div className="bg-card dark:bg-card rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-border">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold">Schedule New Trip</h2>
+                  <h2 className="text-2xl font-bold text-foreground">Schedule New Trip</h2>
                   <button
                     onClick={handleCloseModal}
-                    className="text-gray-400 hover:text-gray-600 text-2xl"
+                    className="text-muted-foreground hover:text-foreground text-2xl transition-colors"
                     disabled={isSubmitting}
                   >
                     ×
@@ -448,7 +447,7 @@ const Trips = () => {
                   {/* Trip Details Section */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">
+                      <label className="block text-sm font-medium mb-2 text-foreground">
                         Trip Name <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -456,16 +455,18 @@ const Trips = () => {
                         value={tripForm.name}
                         onChange={e => handleFormChange('name', e.target.value)}
                         placeholder="e.g., Morning Delivery Route"
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">Priority</label>
+                      <label className="block text-sm font-medium mb-2 text-foreground">
+                        Priority
+                      </label>
                       <select
                         value={tripForm.priority}
                         onChange={e => handleFormChange('priority', e.target.value)}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                       >
                         <option value="low">Low</option>
                         <option value="normal">Normal</option>
@@ -476,25 +477,27 @@ const Trips = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">Description</label>
+                    <label className="block text-sm font-medium mb-2 text-foreground">
+                      Description
+                    </label>
                     <textarea
                       value={tripForm.description}
                       onChange={e => handleFormChange('description', e.target.value)}
                       placeholder="Brief description of the trip purpose"
                       rows="2"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                     />
                   </div>
 
                   {/* Vehicle Selection */}
                   <div>
-                    <label className="block text-sm font-medium mb-2">
+                    <label className="block text-sm font-medium mb-2 text-foreground">
                       Select Vehicle <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={tripForm.vehicleId}
                       onChange={e => handleFormChange('vehicleId', e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                       required
                     >
                       <option value="">Choose a vehicle...</option>
@@ -512,13 +515,13 @@ const Trips = () => {
 
                   {/* Add driver selection dropdown */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium mb-1 text-foreground">
                       Select Driver
                     </label>
                     <select
                       value={tripForm.driverId}
                       onChange={e => handleFormChange('driverId', e.target.value)}
-                      className="w-full p-2 border rounded-md focus:ring-primary focus:border-primary"
+                      className="w-full p-2 border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
                       required
                     >
                       <option value="">Select a driver</option>
@@ -533,26 +536,26 @@ const Trips = () => {
                   {/* Location Section */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">
+                      <label className="block text-sm font-medium mb-2 text-foreground">
                         Start Location <span className="text-red-500">*</span>
                       </label>
                       <LocationAutocomplete
                         value={tripForm.startLocation}
                         onChange={handleStartLocationChange}
                         placeholder="Enter start location or address"
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">
+                      <label className="block text-sm font-medium mb-2 text-foreground">
                         End Location <span className="text-red-500">*</span>
                       </label>
                       <LocationAutocomplete
                         value={tripForm.endLocation}
                         onChange={handleEndLocationChange}
                         placeholder="Enter destination location or address"
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         required
                       />
                     </div>
@@ -561,7 +564,7 @@ const Trips = () => {
                   {/* Schedule Section */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">
+                      <label className="block text-sm font-medium mb-2 text-foreground">
                         Start Date <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -569,24 +572,24 @@ const Trips = () => {
                         value={tripForm.scheduledStartDate}
                         onChange={e => handleFormChange('scheduledStartDate', e.target.value)}
                         min={new Date().toISOString().split('T')[0]}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">
+                      <label className="block text-sm font-medium mb-2 text-foreground">
                         Start Time <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="time"
                         value={tripForm.scheduledStartTime}
                         onChange={e => handleFormChange('scheduledStartTime', e.target.value)}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">
+                      <label className="block text-sm font-medium mb-2 text-foreground">
                         End Date <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -594,19 +597,19 @@ const Trips = () => {
                         value={tripForm.scheduledEndDate}
                         onChange={e => handleFormChange('scheduledEndDate', e.target.value)}
                         min={tripForm.scheduledStartDate || new Date().toISOString().split('T')[0]}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">
+                      <label className="block text-sm font-medium mb-2 text-foreground">
                         End Time <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="time"
                         value={tripForm.scheduledEndTime}
                         onChange={e => handleFormChange('scheduledEndTime', e.target.value)}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         required
                       />
                     </div>
@@ -615,25 +618,25 @@ const Trips = () => {
                   {/* Time Window Constraints (Optional) */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">
+                      <label className="block text-sm font-medium mb-2 text-foreground">
                         Time Window Start (Optional)
                       </label>
                       <input
                         type="time"
                         value={tripForm.timeWindowStart}
                         onChange={e => handleFormChange('timeWindowStart', e.target.value)}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">
+                      <label className="block text-sm font-medium mb-2 text-foreground">
                         Time Window End (Optional)
                       </label>
                       <input
                         type="time"
                         value={tripForm.timeWindowEnd}
                         onChange={e => handleFormChange('timeWindowEnd', e.target.value)}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -648,18 +651,23 @@ const Trips = () => {
                         onChange={e => handleFormChange('temperatureControl', e.target.checked)}
                         className="mr-2"
                       />
-                      <label htmlFor="temperatureControl" className="text-sm font-medium">
+                      <label
+                        htmlFor="temperatureControl"
+                        className="text-sm font-medium text-foreground"
+                      >
                         Temperature Control Required
                       </label>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">Driver Notes</label>
+                      <label className="block text-sm font-medium mb-2 text-foreground">
+                        Driver Notes
+                      </label>
                       <textarea
                         value={tripForm.driverNote}
                         onChange={e => handleFormChange('driverNote', e.target.value)}
                         placeholder="Special instructions for the driver..."
                         rows="3"
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -669,14 +677,14 @@ const Trips = () => {
                     <button
                       type="button"
                       onClick={handleCloseModal}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition"
+                      className="px-4 py-2 border border-input rounded-md text-foreground bg-background hover:bg-accent transition-colors"
                       disabled={isSubmitting}
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition disabled:opacity-50"
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
                       disabled={availableVehicles.length === 0 || isSubmitting}
                     >
                       {isSubmitting ? 'Scheduling...' : 'Schedule Trip'}

@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button } from '../components/ui/button.jsx';
 import { useAuth, ROLES } from '../components/auth/RBACUtils.jsx';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   listUsers,
   updateUserPermissions,
   getRoles,
   isAuthenticated,
-  sendInvitation,
   getPendingInvitations,
   resendInvitation,
   createUserManually,
-  getUserInfo,
   getDrivers,
 } from '../backend/API.js';
 import { Navigate } from 'react-router-dom';
@@ -30,20 +28,14 @@ const UserManagement = () => {
   const [driverUsers, setDriverUsers] = useState([]);
   const [invitedUsers, setInvitedUsers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
-
-  // Search and sort states
-  const [adminSearch, setAdminSearch] = useState('');
-  const [managerSearch, setManagerSearch] = useState('');
-  const [driverSearch, setDriverSearch] = useState('');
-  const [adminSort, setAdminSort] = useState({ field: 'full_name', direction: 'asc' });
-  const [managerSort, setManagerSort] = useState({ field: 'full_name', direction: 'asc' });
-  const [driverSort, setDriverSort] = useState({ field: 'full_name', direction: 'asc' });
 
   // Modal states
-  const [showInviteModal, setShowInviteModal] = useState(false);
   const [showManualCreateModal, setShowManualCreateModal] = useState(false);
   const [createUserRole, setCreateUserRole] = useState('driver'); // Track which role to create
+
+  // Pagination states for invited users table
+  const [invitedUsersCurrentPage, setInvitedUsersCurrentPage] = useState(1);
+  const [invitedUsersPerPage, setInvitedUsersPerPage] = useState(5);
 
   const hasMounted = useRef(false);
   const loadUsers = React.useCallback(async () => {
@@ -129,7 +121,7 @@ const UserManagement = () => {
       }
     };
     fetchRoles();
-  }, [loadUsers, loadInvitedUsers, loadInvitedUsers, showNotification]);
+  }, [loadUsers, loadInvitedUsers, loadDriversFromAPI, showNotification]);
 
   // Fleet managers should be redirected to the drivers page
   if (hasRole(ROLES.FLEET_MANAGER)) {
@@ -146,24 +138,7 @@ const UserManagement = () => {
       </div>
     );
   } // Handler functions for modals
-  const handleInviteSubmit = async formData => {
-    try {
-      setLoading(true);
-      await sendInvitation(formData);
-      showNotification(
-        `Invitation sent to ${formData.email}! They will receive an OTP to complete registration.`,
-        'success'
-      );
-      setShowInviteModal(false);
-      // Refresh data
-      loadUsers();
-      loadInvitedUsers();
-    } catch (err) {
-      showNotification(`Failed to send invitation: ${err.message}`, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+
   const handleManualCreateSubmit = async formData => {
     try {
       setLoading(true);
@@ -354,45 +329,24 @@ const UserManagement = () => {
     },
   ];
 
-  // Search and sort utility functions
-  const filterAndSortUsers = (users, searchTerm, sortConfig) => {
-    let filtered = users;
+  // Pagination logic for invited users
+  const invitedUsersIndexOfLast = invitedUsersCurrentPage * invitedUsersPerPage;
+  const invitedUsersIndexOfFirst = invitedUsersIndexOfLast - invitedUsersPerPage;
+  const currentInvitedUsers = invitedUsers.slice(invitedUsersIndexOfFirst, invitedUsersIndexOfLast);
+  const invitedUsersTotalPages = Math.ceil(invitedUsers.length / invitedUsersPerPage);
 
-    // Apply search filter
-    if (searchTerm) {
-      filtered = users.filter(
-        user =>
-          user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.phoneNo?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Apply sort
-    filtered.sort((a, b) => {
-      const aValue = a[sortConfig.field] || '';
-      const bValue = b[sortConfig.field] || '';
-
-      if (sortConfig.direction === 'asc') {
-        return aValue.toString().localeCompare(bValue.toString());
-      } else {
-        return bValue.toString().localeCompare(aValue.toString());
-      }
-    });
-
-    return filtered;
+  const goToInvitedUsersPrevPage = () => {
+    setInvitedUsersCurrentPage(prev => Math.max(prev - 1, 1));
   };
 
-  const handleSort = (field, currentSort, setSortFunction) => {
-    const newDirection =
-      currentSort.field === field && currentSort.direction === 'asc' ? 'desc' : 'asc';
-    setSortFunction({ field, direction: newDirection });
+  const goToInvitedUsersNextPage = () => {
+    setInvitedUsersCurrentPage(prev => Math.min(prev + 1, invitedUsersTotalPages));
   };
 
-  // Get filtered and sorted users (recalculate on every render)
-  const filteredAdmins = filterAndSortUsers(adminUsers, adminSearch, adminSort);
-  const filteredManagers = filterAndSortUsers(managerUsers, managerSearch, managerSort);
-  const filteredDrivers = filterAndSortUsers(driverUsers, driverSearch, driverSort);
+  const changeInvitedUsersItemsPerPage = e => {
+    setInvitedUsersPerPage(Number(e.target.value));
+    setInvitedUsersCurrentPage(1);
+  };
 
   return (
     <FadeIn delay={0.1}>
@@ -447,71 +401,117 @@ const UserManagement = () => {
 
         {/* Invited Users Table */}
         {(hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) && invitedUsers.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">Pending Invitations</h2>
-            <div className="bg-card rounded-lg border border-border overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Role
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Invited
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Expires
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {invitedUsers.map(invitation => (
-                    <tr key={invitation.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {invitation.full_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                        {invitation.email}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {invitation.role.replace('_', ' ').toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                        {new Date(invitation.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                        {new Date(invitation.expires_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        {invitationActions(invitation).map((action, index) => (
-                          <Button
-                            key={index}
-                            variant={action.variant}
-                            size="sm"
-                            onClick={action.onClick}
-                            disabled={action.disabled()}
-                          >
-                            {action.label}
-                          </Button>
-                        ))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <FadeIn delay={0.6}>
+            <div className="mb-8">
+              <h2 className="text-2xl font-semibold mb-4">Pending Invitations</h2>
+              <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-3 px-4">Name</th>
+                        <th className="text-left py-3 px-4">Email</th>
+                        <th className="text-left py-3 px-4">Role</th>
+                        <th className="text-left py-3 px-4">Invited</th>
+                        <th className="text-left py-3 px-4">Expires</th>
+                        <th className="text-left py-3 px-4">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentInvitedUsers.map(invitation => (
+                        <tr
+                          key={invitation.id}
+                          className="border-b border-border hover:bg-accent/10 cursor-pointer"
+                        >
+                          <td className="py-3 px-4">{invitation.full_name}</td>
+                          <td className="py-3 px-4">{invitation.email}</td>
+                          <td className="py-3 px-4">
+                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
+                              {invitation.role.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            {new Date(invitation.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 px-4">
+                            {new Date(invitation.expires_at).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 px-4" onClick={e => e.stopPropagation()}>
+                            <div className="flex space-x-2">
+                              {invitationActions(invitation).map((action, index) => (
+                                <button
+                                  key={index}
+                                  className={
+                                    action.variant === 'destructive'
+                                      ? 'text-destructive hover:text-destructive/80'
+                                      : 'text-primary hover:text-primary/80'
+                                  }
+                                  title={action.label}
+                                  onClick={action.onClick}
+                                  disabled={action.disabled()}
+                                >
+                                  {action.label}
+                                </button>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination for invited users table */}
+                {invitedUsersTotalPages > 1 && (
+                  <div className="mt-6 flex items-center justify-between">
+                    <div>
+                      <select
+                        value={invitedUsersPerPage}
+                        onChange={changeInvitedUsersItemsPerPage}
+                        className="border border-border rounded-md bg-background py-1 pl-2 pr-8"
+                      >
+                        <option value="5">5 per page</option>
+                        <option value="10">10 per page</option>
+                        <option value="20">20 per page</option>
+                        <option value="50">50 per page</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        Page {invitedUsersCurrentPage} of {invitedUsersTotalPages}
+                      </span>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={goToInvitedUsersPrevPage}
+                          disabled={invitedUsersCurrentPage === 1}
+                          className={`p-1 rounded ${
+                            invitedUsersCurrentPage === 1
+                              ? 'text-muted-foreground cursor-not-allowed'
+                              : 'hover:bg-accent'
+                          }`}
+                          title="Previous page"
+                        >
+                          <ChevronLeft size={18} />
+                        </button>
+                        <button
+                          onClick={goToInvitedUsersNextPage}
+                          disabled={invitedUsersCurrentPage === invitedUsersTotalPages}
+                          className={`p-1 rounded ${
+                            invitedUsersCurrentPage === invitedUsersTotalPages
+                              ? 'text-muted-foreground cursor-not-allowed'
+                              : 'hover:bg-accent'
+                          }`}
+                          title="Next page"
+                        >
+                          <ChevronRight size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </FadeIn>
         )}
 
         {/* Modals */}

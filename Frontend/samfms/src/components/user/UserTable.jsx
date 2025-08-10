@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import FadeIn from '../ui/FadeIn';
 
 const UserTable = ({
@@ -20,7 +20,7 @@ const UserTable = ({
   const [filteredUsers, setFilteredUsers] = useState(users);
   const [searchField, setSearchField] = useState(search);
   const [currentPage, setCurrentPage] = useState(1);
-  const [usersPerPage, setUsersPerPage] = useState(10);
+  const [usersPerPage, setUsersPerPage] = useState(5);
 
   useEffect(() => {
     setFilteredUsers(users);
@@ -70,9 +70,9 @@ const UserTable = ({
   const getSortIcon = field => {
     if (sort.field !== field) return null;
     return sort.direction === 'asc' ? (
-      <ChevronUp className="inline-block h-4 w-4 ml-1" />
+      <ArrowUp className="inline ml-1" size={14} />
     ) : (
-      <ChevronDown className="inline-block h-4 w-4 ml-1" />
+      <ArrowDown className="inline ml-1" size={14} />
     );
   };
 
@@ -144,127 +144,148 @@ const UserTable = ({
         </div>
 
         {/* Table exactly matching vehicles table */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-border">
-                <th
-                  className={`text-left py-3 px-4 ${
-                    onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                  }`}
-                  onClick={() => handleHeaderClick('full_name')}
-                >
-                  Name {getSortIcon('full_name')}
-                </th>
-                <th
-                  className={`text-left py-3 px-4 ${
-                    onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                  }`}
-                  onClick={() => handleHeaderClick('email')}
-                >
-                  Email {getSortIcon('email')}
-                </th>
-                {showRole && (
+        <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-border">
                   <th
                     className={`text-left py-3 px-4 ${
-                      onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
+                      onSortChange ? 'cursor-pointer hover:bg-accent/10' : ''
                     }`}
-                    onClick={() => handleHeaderClick('role')}
+                    onClick={() => handleHeaderClick('full_name')}
                   >
-                    Role {getSortIcon('role')}
+                    Name {getSortIcon('full_name')}
                   </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={showRole ? 3 : 2}
-                    className="px-4 py-8 text-center text-muted-foreground"
+                  <th
+                    className={`text-left py-3 px-4 ${
+                      onSortChange ? 'cursor-pointer hover:bg-accent/10' : ''
+                    }`}
+                    onClick={() => handleHeaderClick('email')}
                   >
-                    {emptyMessage}
-                  </td>
+                    Email {getSortIcon('email')}
+                  </th>
+                  {showRole && (
+                    <th
+                      className={`text-left py-3 px-4 ${
+                        onSortChange ? 'cursor-pointer hover:bg-accent/10' : ''
+                      }`}
+                      onClick={() => handleHeaderClick('role')}
+                    >
+                      Role {getSortIcon('role')}
+                    </th>
+                  )}
+                  {showActions && actions.length > 0 && (
+                    <th className="text-left py-3 px-4">Actions</th>
+                  )}
                 </tr>
-              ) : (
-                currentUsers.map(user => (
-                  <tr
-                    key={user.id || user.email}
-                    className="border-b border-border hover:bg-muted/30"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="text-sm font-medium text-foreground">
-                        {user.full_name || 'Unknown'}
-                        {user.isCurrentUser && (
-                          <span className="ml-2 text-xs text-blue-600 font-semibold">(you)</span>
-                        )}
-                      </div>
+              </thead>
+              <tbody>
+                {filteredUsers.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={2 + (showRole ? 1 : 0) + (showActions && actions.length > 0 ? 1 : 0)}
+                      className="px-4 py-8 text-center text-muted-foreground"
+                    >
+                      {emptyMessage}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm text-muted-foreground">{user.email}</div>
-                    </td>
-                    {showRole && (
-                      <td className="px-4 py-3">
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
-                          {user.role?.replace('_', ' ') || 'N/A'}
-                        </span>
-                      </td>
-                    )}
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  currentUsers.map(user => (
+                    <tr
+                      key={user.id || user.email}
+                      className="border-b border-border hover:bg-accent/10 cursor-pointer"
+                    >
+                      <td className="py-3 px-4">
+                        <div className="text-sm font-medium text-foreground">
+                          {user.full_name || 'Unknown'}
+                          {user.isCurrentUser && (
+                            <span className="ml-2 text-xs text-blue-600 font-semibold">(you)</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="text-sm text-muted-foreground">{user.email}</div>
+                      </td>
+                      {showRole && (
+                        <td className="py-3 px-4">
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
+                            {user.role?.replace('_', ' ') || 'N/A'}
+                          </span>
+                        </td>
+                      )}
+                      {showActions && actions.length > 0 && (
+                        <td className="py-3 px-4" onClick={e => e.stopPropagation()}>
+                          <div className="flex space-x-2">
+                            {actions.map((action, index) => (
+                              <button
+                                key={index}
+                                className={action.className || 'text-primary hover:text-primary/80'}
+                                title={action.title}
+                                onClick={() => action.onClick(user)}
+                              >
+                                {action.icon}
+                              </button>
+                            ))}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        {/* Pagination exactly matching vehicles table */}
-        {totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-between">
-            <div>
-              <select
-                value={usersPerPage}
-                onChange={changeItemsPerPage}
-                className="border border-border rounded-md bg-background py-1 pl-2 pr-8"
-              >
-                <option value="5">5 per page</option>
-                <option value="10">10 per page</option>
-                <option value="20">20 per page</option>
-                <option value="50">50 per page</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">
-                Page {currentPage} of {totalPages}
-              </span>
-              <div className="flex gap-1">
-                <button
-                  onClick={goToPrevPage}
-                  disabled={currentPage === 1}
-                  className={`p-1 rounded ${
-                    currentPage === 1
-                      ? 'text-muted-foreground cursor-not-allowed'
-                      : 'hover:bg-accent'
-                  }`}
-                  title="Previous page"
+          {/* Pagination exactly matching vehicles table */}
+          {totalPages > 1 && (
+            <div className="mt-6 flex items-center justify-between">
+              <div>
+                <select
+                  value={usersPerPage}
+                  onChange={changeItemsPerPage}
+                  className="border border-border rounded-md bg-background py-1 pl-2 pr-8"
                 >
-                  <ChevronLeft size={18} />
-                </button>
-                <button
-                  onClick={goToNextPage}
-                  disabled={currentPage === totalPages}
-                  className={`p-1 rounded ${
-                    currentPage === totalPages
-                      ? 'text-muted-foreground cursor-not-allowed'
-                      : 'hover:bg-accent'
-                  }`}
-                  title="Next page"
-                >
-                  <ChevronRight size={18} />
-                </button>
+                  <option value="5">5 per page</option>
+                  <option value="10">10 per page</option>
+                  <option value="20">20 per page</option>
+                  <option value="50">50 per page</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={goToPrevPage}
+                    disabled={currentPage === 1}
+                    className={`p-1 rounded ${
+                      currentPage === 1
+                        ? 'text-muted-foreground cursor-not-allowed'
+                        : 'hover:bg-accent'
+                    }`}
+                    title="Previous page"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    onClick={goToNextPage}
+                    disabled={currentPage === totalPages}
+                    className={`p-1 rounded ${
+                      currentPage === totalPages
+                        ? 'text-muted-foreground cursor-not-allowed'
+                        : 'hover:bg-accent'
+                    }`}
+                    title="Next page"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </FadeIn>
   );

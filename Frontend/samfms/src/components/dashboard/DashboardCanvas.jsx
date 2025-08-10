@@ -43,10 +43,10 @@ export const DashboardCanvas = () => {
   const getDefaultLayout = widgets => {
     return widgets.map((widget, index) => ({
       i: widget.id,
-      x: (index % 3) * 4, // 3 widgets per row, each 4 columns wide
-      y: Math.floor(index / 3) * 4, // Each row is 4 units tall
-      w: 4, // Default width
-      h: 4, // Default height
+      x: (index % 5) * 8, // 5 widgets per row, each 8 columns wide
+      y: Math.floor(index / 5) * 6, // Each row is 6 units tall for more spacing
+      w: 8, // Default width (increased for better proportion with 40 columns)
+      h: 6, // Default height (increased for better visibility)
     }));
   };
 
@@ -115,14 +115,14 @@ export const DashboardCanvas = () => {
   };
 
   return (
-    <div className={`w-full h-screen overflow-hidden transition-all duration-300 ease-out`}>
+    <div className={`w-full min-h-screen overflow-auto transition-all duration-300 ease-out`}>
       <ResponsiveGridLayout
-        className={`min-h-96 bg-transparent transition-all duration-300 ease-out ${
+        className={`min-h-[300vh] bg-none transition-all duration-300 ease-out ${
           state.isEditing ? 'edit-mode' : ''
         }`}
         layouts={layouts}
         breakpoints={{ lg: 1200 }}
-        cols={{ lg: 12 }}
+        cols={{ lg: 40 }}
         rowHeight={30}
         onLayoutChange={layout => handleLayoutChange(layout)}
         onDragStart={handleDragStart}
@@ -143,6 +143,8 @@ export const DashboardCanvas = () => {
         allowOverlap={false} // Prevent overlapping
         draggableHandle="" // Allow dragging from anywhere on the widget
         draggableCancel=".no-drag" // Prevent dragging from elements with this class
+        droppingItem={{ i: '__dropping-elem__', h: 2, w: 2 }} // Configure dropping item
+        isDroppable={true} // Enable dropping
       >
         {state.widgets.map(widget => {
           const widgetDefinition = getWidget(widget.type);
@@ -166,7 +168,7 @@ export const DashboardCanvas = () => {
               } ${isNewWidget ? 'new-widget' : ''}`}
             >
               <div
-                className={`h-full p-3 overflow-auto transition-all duration-200 ${
+                className={`h-full overflow-auto transition-all duration-200 ${
                   isDragging ? 'pointer-events-none' : ''
                 }`}
               >
