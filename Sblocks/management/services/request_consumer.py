@@ -493,6 +493,13 @@ class ServiceRequestConsumer:
                         data=costs_data,
                         message="Maintenance costs data retrieved successfully"
                     ).model_dump()
+                
+                elif "vehicle-usage" in endpoint or "vehicle_usage" in endpoint:
+                    usage_data = await analytics_service.get_vehicle_usage_analytics(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=usage_data,
+                        message="Vehicle usage data retrieved successfully"
+                    ).model_dump()
                     
                 elif "fuel-consumption" in endpoint or "fuel_consumption" in endpoint:
                     fuel_data = await analytics_service.get_fuel_consumption(use_cache=use_cache)

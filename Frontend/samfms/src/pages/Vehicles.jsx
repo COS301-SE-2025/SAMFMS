@@ -666,7 +666,7 @@ const Vehicles = () => {
   );
 };
 
-export default Vehicles;s
+export default Vehicles;
 //<FleetUtilizationCard data={analytics.fleet_utilization} />
 //<StatusBreakdownCard stats={analytics.status_breakdown} />
 //<MaintenanceAnalyticsCard data={analytics.maintenance_analytics} />
