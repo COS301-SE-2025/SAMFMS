@@ -159,17 +159,31 @@ const Vehicles = () => {
           ...(filters.status && { status_filter: filters.status.toLowerCase() }),
           ...(filters.make && { make_filter: filters.make }),
         });
-        // Handle both array and object response formats
-        const vehiclesArray = response.vehicles || response || [];
-        const transformedVehicles = vehiclesArray.map(transformVehicleData);
+        // Handle both array and object response formats with proper nesting
+        const vehiclesArray =
+          response.data?.data?.vehicles ||
+          response.vehicles ||
+          response.data?.vehicles ||
+          response ||
+          [];
+        const transformedVehicles = Array.isArray(vehiclesArray)
+          ? vehiclesArray.map(transformVehicleData).filter(v => v !== null)
+          : [];
         setVehicles(transformedVehicles);
       } else {
         // Search vehicles
         const results = await searchVehicles(searchQuery);
-        // Handle both array and object response formats
-        const vehiclesArray = results.vehicles || results || [];
-        if (vehiclesArray) {
-          const transformedResults = vehiclesArray.map(transformVehicleData);
+        // Handle both array and object response formats with proper nesting
+        const vehiclesArray =
+          results.data?.data?.vehicles ||
+          results.vehicles ||
+          results.data?.vehicles ||
+          results ||
+          [];
+        if (Array.isArray(vehiclesArray) && vehiclesArray.length > 0) {
+          const transformedResults = vehiclesArray
+            .map(transformVehicleData)
+            .filter(v => v !== null);
           setVehicles(transformedResults);
         } else {
           setVehicles([]); // Clear vehicles if no results found

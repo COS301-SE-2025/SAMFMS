@@ -344,95 +344,97 @@ const MaintenanceSchedules = ({ vehicles }) => {
           <span className="ml-3">Loading maintenance schedules...</span>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-3 px-4 font-medium">Vehicle</th>
-                <th className="text-left py-3 px-4 font-medium">Maintenance Type</th>
-                <th className="text-left py-3 px-4 font-medium">Interval</th>
-                <th className="text-left py-3 px-4 font-medium">Last Service</th>
-                <th className="text-left py-3 px-4 font-medium">Next Due</th>
-                <th className="text-left py-3 px-4 font-medium">Status</th>
-                <th className="text-left py-3 px-4 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentSchedules.length > 0 ? (
-                currentSchedules.map(schedule => (
-                  <tr key={schedule.id} className="border-b border-border hover:bg-accent/10">
-                    <td className="py-3 px-4">{getVehicleName(schedule.vehicle_id)}</td>
-                    <td className="py-3 px-4">
-                      <div>
-                        <p className="font-medium">
-                          {schedule.maintenance_type?.replace('_', ' ')}
-                        </p>
-                        {schedule.description && (
-                          <p className="text-sm text-muted-foreground">{schedule.description}</p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="text-sm">
-                        <p>
-                          Every {schedule.interval_value}{' '}
-                          {schedule.interval_type === 'mileage' ? 'km' : 'days'}
-                        </p>
-                        <p className="text-muted-foreground">({schedule.interval_type})</p>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="text-sm">
-                        {schedule.last_service_date && (
-                          <p>{new Date(schedule.last_service_date).toLocaleDateString()}</p>
-                        )}
-                        {schedule.last_service_mileage && (
-                          <p className="text-muted-foreground">
-                            {schedule.last_service_mileage.toLocaleString()} km
+        <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-3 px-4 font-medium">Vehicle</th>
+                  <th className="text-left py-3 px-4 font-medium">Maintenance Type</th>
+                  <th className="text-left py-3 px-4 font-medium">Interval</th>
+                  <th className="text-left py-3 px-4 font-medium">Last Service</th>
+                  <th className="text-left py-3 px-4 font-medium">Next Due</th>
+                  <th className="text-left py-3 px-4 font-medium">Status</th>
+                  <th className="text-left py-3 px-4 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentSchedules.length > 0 ? (
+                  currentSchedules.map(schedule => (
+                    <tr key={schedule.id} className="border-b border-border hover:bg-accent/10">
+                      <td className="py-3 px-4">{getVehicleName(schedule.vehicle_id)}</td>
+                      <td className="py-3 px-4">
+                        <div>
+                          <p className="font-medium">
+                            {schedule.maintenance_type?.replace('_', ' ')}
                           </p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="text-sm">
-                        {schedule.next_due_date && (
-                          <p>{new Date(schedule.next_due_date).toLocaleDateString()}</p>
-                        )}
-                        {schedule.next_due_mileage && (
-                          <p className="text-muted-foreground">
-                            {schedule.next_due_mileage.toLocaleString()} km
+                          {schedule.description && (
+                            <p className="text-sm text-muted-foreground">{schedule.description}</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="text-sm">
+                          <p>
+                            Every {schedule.interval_value}{' '}
+                            {schedule.interval_type === 'mileage' ? 'km' : 'days'}
                           </p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">{getStatusIndicator(schedule)}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEdit(schedule)}
-                          className="text-blue-600 hover:text-blue-800 text-sm"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(schedule.id)}
-                          className="text-red-600 hover:text-red-800 text-sm"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                          <p className="text-muted-foreground">({schedule.interval_type})</p>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="text-sm">
+                          {schedule.last_service_date && (
+                            <p>{new Date(schedule.last_service_date).toLocaleDateString()}</p>
+                          )}
+                          {schedule.last_service_mileage && (
+                            <p className="text-muted-foreground">
+                              {schedule.last_service_mileage.toLocaleString()} km
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="text-sm">
+                          {schedule.next_due_date && (
+                            <p>{new Date(schedule.next_due_date).toLocaleDateString()}</p>
+                          )}
+                          {schedule.next_due_mileage && (
+                            <p className="text-muted-foreground">
+                              {schedule.next_due_mileage.toLocaleString()} km
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">{getStatusIndicator(schedule)}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEdit(schedule)}
+                            className="text-blue-600 hover:text-blue-800 text-sm"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(schedule.id)}
+                            className="text-red-600 hover:text-red-800 text-sm"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" className="py-8 text-center text-muted-foreground">
+                      No maintenance schedules found
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="7" className="py-8 text-center text-muted-foreground">
-                    No maintenance schedules found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

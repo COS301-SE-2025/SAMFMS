@@ -48,6 +48,9 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   const [editingGeofence, setEditingGeofence] = useState(null);
   const [addressSearch, setAddressSearch] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState(null);
   const [newGeofence, setNewGeofence] = useState({
     name: '',
     description: '',
@@ -72,6 +75,66 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
       onGeofenceChange(geofences);
     }
   }, [geofences, onGeofenceChange]);
+
+  // Handle search suggestions as user types
+  const handleAddressInputChange = value => {
+    setAddressSearch(value);
+
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    if (value.trim().length < 3) {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    // Set new timeout for debounced search
+    const timeout = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            value
+          )}&limit=5`
+        );
+        const data = await response.json();
+
+        if (data && data.length > 0) {
+          setSearchSuggestions(data);
+          setShowSuggestions(true);
+        } else {
+          setSearchSuggestions([]);
+          setShowSuggestions(false);
+        }
+      } catch (error) {
+        console.error('Suggestion search error:', error);
+        setSearchSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 500); // 500ms debounce
+
+    setSearchTimeout(timeout);
+  };
+
+  // Handle selecting a suggestion
+  const handleSuggestionSelect = suggestion => {
+    const lat = parseFloat(suggestion.lat);
+    const lng = parseFloat(suggestion.lon);
+
+    setAddressSearch(suggestion.display_name);
+    setNewGeofence({
+      ...newGeofence,
+      coordinates: {
+        lat: parseFloat(lat.toFixed(6)),
+        lng: parseFloat(lng.toFixed(6)),
+      },
+    });
+
+    setShowSuggestions(false);
+    setSearchSuggestions([]);
+  };
 
   // Handle address search using Nominatim geocoding service
   const handleAddressSearch = async () => {
@@ -349,10 +412,10 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
           {/* Show Add button only when table is visible */}
           {!showAddForm && (
             <button
-              className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
+              className="bg-green-600 text-white p-2 rounded-md hover:bg-green-700 transition flex items-center"
               onClick={() => setShowAddForm(true)}
             >
-              <Plus size={16} /> Add Geofence
+              <Plus size={16} />
             </button>
           )}
         </div>
@@ -364,41 +427,99 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
             <h3 className="text-xl font-semibold mb-4">
               {editingGeofence ? 'Edit Geofence' : 'Add New Geofence'}
             </h3>
-            <div className="flex gap-6">
-              {/* Map Section - Left Side */}
-              <div className="flex-1 space-y-3">
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Map Section - Left Side / Top on Mobile */}
+              <div className="flex-1 lg:max-w-md space-y-3">
                 {/* Address Search Bar */}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Search for an address..."
-                    value={addressSearch}
-                    onChange={e => setAddressSearch(e.target.value)}
-                    onKeyPress={e => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
+                <div className="relative">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      placeholder="Search for an address..."
+                      value={addressSearch}
+                      onChange={e => handleAddressInputChange(e.target.value)}
+                      onFocus={() => {
+                        if (searchSuggestions.length > 0) {
+                          setShowSuggestions(true);
+                        }
+                      }}
+                      onBlur={e => {
+                        // Only hide if not clicking on a suggestion
+                        if (!e.relatedTarget || !e.relatedTarget.closest('.suggestion-item')) {
+                          setTimeout(() => setShowSuggestions(false), 150);
+                        }
+                      }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddressSearch();
+                          setShowSuggestions(false);
+                        }
+                        if (e.key === 'Escape') {
+                          setShowSuggestions(false);
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 rounded-md border border-input bg-background text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
                         handleAddressSearch();
-                      }
-                    }}
-                    className="flex-1 px-3 py-2 rounded-md border border-input bg-background text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddressSearch}
-                    disabled={isSearching || !addressSearch.trim()}
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSearching ? (
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <Search size={16} />
-                    )}
-                    {isSearching ? 'Searching...' : 'Search'}
-                  </button>
+                        setShowSuggestions(false);
+                      }}
+                      disabled={isSearching || !addressSearch.trim()}
+                      className="w-full sm:w-auto px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSearching ? (
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Search size={16} />
+                      )}
+                      {isSearching ? 'Searching...' : 'Search'}
+                    </button>
+                  </div>
+
+                  {/* Search Suggestions Dropdown */}
+                  {showSuggestions && searchSuggestions.length > 0 && (
+                    <div className="absolute z-[9999] w-full mt-1 bg-background border border-input rounded-md shadow-lg max-h-48 overflow-y-auto">
+                      {searchSuggestions.map((suggestion, index) => (
+                        <div
+                          key={index}
+                          className="suggestion-item px-3 py-2 hover:bg-accent cursor-pointer border-b border-border last:border-b-0 focus:bg-accent focus:outline-none"
+                          tabIndex={0}
+                          onMouseDown={e => {
+                            // Prevent blur event on input when clicking suggestions
+                            e.preventDefault();
+                          }}
+                          onClick={() => {
+                            handleSuggestionSelect(suggestion);
+                            setShowSuggestions(false);
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleSuggestionSelect(suggestion);
+                              setShowSuggestions(false);
+                            }
+                          }}
+                        >
+                          <div className="text-sm font-medium text-foreground truncate">
+                            {suggestion.display_name}
+                          </div>
+                          {suggestion.type && (
+                            <div className="text-xs text-muted-foreground capitalize">
+                              {suggestion.type}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Map Container */}
-                <div className="h-96 border border-input rounded-md overflow-hidden">
+                <div className="h-64 sm:h-80 lg:h-96 border border-input rounded-md overflow-hidden">
                   <MapContainer
                     center={[
                       newGeofence.coordinates.lat || 37.7749,
@@ -434,7 +555,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
               </div>
 
               {/* Form Inputs - Right Side */}
-              <div className="flex-1 space-y-4">
+              <div className="flex-1 space-y-4 lg:ml-4">
                 {/* Name */}
                 <div>
                   <label className="block text-sm font-medium mb-1">Name</label>
@@ -459,34 +580,53 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                   />
                 </div>
 
-                {/* Category */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">Category</label>
-                  <select
-                    value={newGeofence.type}
-                    onChange={e => setNewGeofence({ ...newGeofence, type: e.target.value })}
-                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                  >
-                    <option value="depot">Depot</option>
-                    <option value="service">Service</option>
-                    <option value="delivery">Delivery</option>
-                    <option value="restricted">Restricted</option>
-                    <option value="emergency">Emergency</option>
-                  </select>
-                </div>
+                {/* Category, Shape, and Status - Side by Side */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {/* Category */}
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Category</label>
+                    <select
+                      value={newGeofence.type}
+                      onChange={e => setNewGeofence({ ...newGeofence, type: e.target.value })}
+                      className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                    >
+                      <option value="depot">Depot</option>
+                      <option value="service">Service</option>
+                      <option value="delivery">Delivery</option>
+                      <option value="restricted">Restricted</option>
+                      <option value="emergency">Emergency</option>
+                    </select>
+                  </div>
 
-                {/* Geometry Type */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">Shape</label>
-                  <select
-                    value={newGeofence.geometryType}
-                    onChange={e => setNewGeofence({ ...newGeofence, geometryType: e.target.value })}
-                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                  >
-                    <option value="circle">Circle</option>
-                    <option value="polygon">Polygon</option>
-                    <option value="rectangle">Rectangle</option>
-                  </select>
+                  {/* Geometry Type */}
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Shape</label>
+                    <select
+                      value={newGeofence.geometryType}
+                      onChange={e =>
+                        setNewGeofence({ ...newGeofence, geometryType: e.target.value })
+                      }
+                      className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                    >
+                      <option value="circle">Circle</option>
+                      <option value="polygon">Polygon</option>
+                      <option value="rectangle">Rectangle</option>
+                    </select>
+                  </div>
+
+                  {/* Status */}
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Status</label>
+                    <select
+                      value={newGeofence.status}
+                      onChange={e => setNewGeofence({ ...newGeofence, status: e.target.value })}
+                      className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="draft">Draft</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* Radius Slider (only for circle) */}
@@ -513,22 +653,8 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                   </div>
                 )}
 
-                {/* Status */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">Status</label>
-                  <select
-                    value={newGeofence.status}
-                    onChange={e => setNewGeofence({ ...newGeofence, status: e.target.value })}
-                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="draft">Draft</option>
-                  </select>
-                </div>
-
                 {/* Coordinates Display */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <label className="block text-sm font-medium mb-1">Latitude</label>
                     <input

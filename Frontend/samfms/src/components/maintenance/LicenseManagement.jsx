@@ -309,93 +309,95 @@ const LicenseManagement = ({ vehicles }) => {
           <span className="ml-3">Loading license records...</span>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-3 px-4 font-medium">Vehicle</th>
-                <th className="text-left py-3 px-4 font-medium">License Type</th>
-                <th className="text-left py-3 px-4 font-medium">License Number</th>
-                <th className="text-left py-3 px-4 font-medium">Issued Date</th>
-                <th className="text-left py-3 px-4 font-medium">Expiry Date</th>
-                <th className="text-left py-3 px-4 font-medium">Status</th>
-                <th className="text-left py-3 px-4 font-medium">Cost</th>
-                <th className="text-left py-3 px-4 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentLicenses.length > 0 ? (
-                currentLicenses.map(license => (
-                  <tr key={license.id} className="border-b border-border hover:bg-muted/30">
-                    <td className="py-3 px-4">{getVehicleName(license.vehicle_id)}</td>
-                    <td className="py-3 px-4">
-                      <div>
-                        <p className="font-medium">{license.license_type?.replace('_', ' ')}</p>
-                        {license.issuing_authority && (
-                          <p className="text-sm text-muted-foreground">
-                            {license.issuing_authority}
+        <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-3 px-4 font-medium">Vehicle</th>
+                  <th className="text-left py-3 px-4 font-medium">License Type</th>
+                  <th className="text-left py-3 px-4 font-medium">License Number</th>
+                  <th className="text-left py-3 px-4 font-medium">Issued Date</th>
+                  <th className="text-left py-3 px-4 font-medium">Expiry Date</th>
+                  <th className="text-left py-3 px-4 font-medium">Status</th>
+                  <th className="text-left py-3 px-4 font-medium">Cost</th>
+                  <th className="text-left py-3 px-4 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentLicenses.length > 0 ? (
+                  currentLicenses.map(license => (
+                    <tr key={license.id} className="border-b border-border hover:bg-muted/30">
+                      <td className="py-3 px-4">{getVehicleName(license.vehicle_id)}</td>
+                      <td className="py-3 px-4">
+                        <div>
+                          <p className="font-medium">{license.license_type?.replace('_', ' ')}</p>
+                          {license.issuing_authority && (
+                            <p className="text-sm text-muted-foreground">
+                              {license.issuing_authority}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">{license.license_number || 'N/A'}</td>
+                      <td className="py-3 px-4">
+                        {license.issued_date
+                          ? new Date(license.issued_date).toLocaleDateString()
+                          : 'N/A'}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div>
+                          <p>
+                            {license.expiry_date
+                              ? new Date(license.expiry_date).toLocaleDateString()
+                              : 'N/A'}
                           </p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">{license.license_number || 'N/A'}</td>
-                    <td className="py-3 px-4">
-                      {license.issued_date
-                        ? new Date(license.issued_date).toLocaleDateString()
-                        : 'N/A'}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div>
-                        <p>
-                          {license.expiry_date
-                            ? new Date(license.expiry_date).toLocaleDateString()
-                            : 'N/A'}
-                        </p>
-                        {license.expiry_date && (
-                          <p className="text-xs text-muted-foreground">
-                            {getDaysUntilExpiry(license.expiry_date)}
-                          </p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="space-y-1">
-                        {getExpiryStatus(license.expiry_date)}
-                        {!license.is_active && (
-                          <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 block">
-                            Inactive
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">R{license.cost?.toLocaleString() || 0}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEdit(license)}
-                          className="text-blue-600 hover:text-blue-800 text-sm"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(license.id)}
-                          className="text-red-600 hover:text-red-800 text-sm"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                          {license.expiry_date && (
+                            <p className="text-xs text-muted-foreground">
+                              {getDaysUntilExpiry(license.expiry_date)}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="space-y-1">
+                          {getExpiryStatus(license.expiry_date)}
+                          {!license.is_active && (
+                            <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 block">
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">R{license.cost?.toLocaleString() || 0}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEdit(license)}
+                            className="text-blue-600 hover:text-blue-800 text-sm"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(license.id)}
+                            className="text-red-600 hover:text-red-800 text-sm"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="8" className="py-8 text-center text-muted-foreground">
+                      No license records found
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="8" className="py-8 text-center text-muted-foreground">
-                    No license records found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

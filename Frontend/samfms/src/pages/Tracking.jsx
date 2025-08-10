@@ -1,33 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import VehicleList from '../components/trips/VehicleList';
-import TrackingMap from '../components/tracking/TrackingMap';
+import TrackingMapWithSidebar from '../components/tracking/TrackingMapWithSidebar';
 import GeofenceManager from '../components/tracking/GeofenceManager';
 import LocationHistory from '../components/tracking/LocationHistory';
 import { listGeofences } from '../backend/api/geofences';
 import { listLocations } from '../backend/api/locations';
-import { getVehicles } from '../backend/api/vehicles';
 import FadeIn from '../components/ui/FadeIn';
 
 const Tracking = () => {
   const [locations, setLocations] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
-  const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [geofences, setGeofences] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Load vehicle data
-  useEffect(() => {
-    const loadVehicles = async () => {
-      try {
-        const response = await getVehicles();
-        setVehicles(response.vehicles || []);
-      } catch (err) {
-        console.error('Failed to load vehicles:', err);
-      }
-    };
-    loadVehicles();
-  }, []);
 
   // Load geofences on mount
   useEffect(() => {
@@ -101,10 +84,6 @@ const Tracking = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleSelectVehicle = vehicle => {
-    setSelectedVehicle(vehicle);
-  };
-
   const handleGeofenceChange = updatedGeofences => {
     setGeofences(updatedGeofences);
   };
@@ -146,20 +125,9 @@ const Tracking = () => {
             </FadeIn>
           )}
 
-          {/* Map & list */}
+          {/* Map with Sidebar */}
           <FadeIn delay={0.4}>
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
-              <div className="lg:col-span-2">
-                <TrackingMap
-                  locations={locations}
-                  selectedVehicle={selectedVehicle}
-                  geofences={geofences}
-                />
-              </div>
-              <div className="lg:col-span-3">
-                <VehicleList vehicles={vehicles} onSelectVehicle={handleSelectVehicle} />
-              </div>
-            </div>
+            <TrackingMapWithSidebar />
           </FadeIn>
 
           {/* Geofences */}

@@ -133,7 +133,7 @@ export const DashboardCanvas = () => {
         isResizable={state.isEditing}
         preventCollision={false} // Allow widgets to push others around
         compactType="vertical" // Enable vertical compaction for better accommodation
-        margin={[12, 12]} // Slightly larger margin for better visual spacing
+        margin={[8, 8]} // Reduced margin for tighter spacing
         resizeHandles={['se', 'sw', 'ne', 'nw', 's', 'n', 'e', 'w']}
         useCSSTransforms={true} // Enable smooth CSS transforms for better drag experience
         transformScale={1} // Ensure proper scaling
@@ -157,7 +157,7 @@ export const DashboardCanvas = () => {
           return (
             <div
               key={widget.id}
-              className={`bg-white/90 backdrop-blur-sm border border-gray-200/50 rounded-lg shadow-sm h-full transition-all duration-200 ease-out ${
+              className={`bg-white/90 backdrop-blur-sm rounded-md shadow-sm h-full transition-all duration-200 ease-out ${
                 state.isEditing
                   ? 'cursor-grab active:cursor-grabbing hover:shadow-md hover:-translate-y-0.5 hover:bg-white/95 hover:scale-[1.02]'
                   : 'hover:shadow-md hover:-translate-y-1 hover:scale-[1.01]'

@@ -3,7 +3,7 @@
 /* React grid item basic styling for drag and drop functionality */
 .react-grid-item {
   transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-  border-radius: 8px;
+  border-radius: 6px;
   touch-action: none;
 }
 
