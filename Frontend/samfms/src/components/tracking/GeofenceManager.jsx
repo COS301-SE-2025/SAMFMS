@@ -40,8 +40,11 @@ const MapUpdater = ({ center }) => {
 };
 
 const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
-  // State for the component
-  const [geofences, setGeofences] = useState(currentGeofences || []);
+  // State for the component - ensure currentGeofences is properly structured
+  const safeCurrentGeofences = (currentGeofences || []).filter(
+    geofence => geofence && typeof geofence === 'object'
+  );
+  const [geofences, setGeofences] = useState(safeCurrentGeofences);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -63,8 +66,15 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
 
   // Filter geofences based on search and type filter
   const filteredGeofences = geofences.filter(geofence => {
-    const matchesSearch = geofence.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === '' || geofence.type === filterType;
+    if (!geofence || typeof geofence !== 'object') return false;
+
+    const geofenceName = geofence.name || '';
+    const geofenceType = geofence.type || '';
+    const searchTermSafe = (searchTerm || '').toLowerCase();
+
+    const matchesSearch =
+      searchTermSafe === '' || geofenceName.toLowerCase().includes(searchTermSafe);
+    const matchesType = filterType === '' || geofenceType === filterType;
 
     return matchesSearch && matchesType;
   });
@@ -742,9 +752,11 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                 {filteredGeofences.length > 0 ? (
                   filteredGeofences.map(geofence => (
                     <tr key={geofence.id} className="border-b border-border hover:bg-accent/10">
-                      <td className="py-3 px-4">{geofence.name}</td>
+                      <td className="py-3 px-4">{geofence?.name || 'N/A'}</td>
                       <td className="py-3 px-4">
-                        {geofence.type.charAt(0).toUpperCase() + geofence.type.slice(1)}
+                        {geofence?.type
+                          ? geofence.type.charAt(0).toUpperCase() + geofence.type.slice(1)
+                          : 'Unknown'}
                       </td>
                       <td className="py-3 px-4">
                         {(geofence.geometryType || geofence.geometry?.type || 'circle')

@@ -18,8 +18,9 @@ const Tracking = () => {
       try {
         setLoading(true);
         const response = await listGeofences();
-        const transformedGeofences =
-          response.data?.data?.map(geofence => {
+        const transformedGeofences = (response.data?.data || [])
+          .filter(geofence => geofence && typeof geofence === 'object') // Filter out invalid geofences
+          .map(geofence => {
             let coordinates = { lat: 0, lng: 0 };
             let radius = 500;
             let geometryType = 'circle';
@@ -42,17 +43,17 @@ const Tracking = () => {
             }
 
             return {
-              id: geofence.id,
-              name: geofence.name,
-              description: geofence.description,
-              type: geofence.type,
-              status: geofence.status,
+              id: geofence.id || `temp-${Date.now()}`,
+              name: geofence.name || 'Unnamed Geofence',
+              description: geofence.description || '',
+              type: geofence.type || 'depot',
+              status: geofence.status || 'active',
               geometry: geofence.geometry,
               geometryType: geometryType,
               coordinates: coordinates,
               radius: radius,
             };
-          }) || [];
+          });
 
         setGeofences(transformedGeofences);
         setError(null);
@@ -100,7 +101,7 @@ const Tracking = () => {
 
   return (
     <FadeIn delay={0.1}>
-      <div className="relative container mx-auto px-4 py-8">
+      <div className="relative container mx-auto">
         <div
           className="absolute inset-0 z-0 opacity-10 pointer-events-none"
           style={{
@@ -113,10 +114,6 @@ const Tracking = () => {
         />
 
         <div className="relative z-10">
-          <FadeIn delay={0.2}>
-            <h1 className="text-3xl font-bold mb-6">Vehicle Tracking</h1>
-          </FadeIn>
-
           {error && (
             <FadeIn delay={0.3}>
               <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
@@ -137,13 +134,6 @@ const Tracking = () => {
                 onGeofenceChange={handleGeofenceChange}
                 currentGeofences={geofences}
               />
-            </div>
-          </FadeIn>
-
-          {/* History */}
-          <FadeIn delay={0.6}>
-            <div className="mt-8 mb-8">
-              <LocationHistory vehicles={locations} />
             </div>
           </FadeIn>
         </div>

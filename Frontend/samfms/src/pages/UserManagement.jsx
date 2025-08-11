@@ -13,7 +13,6 @@ import {
 } from '../backend/API.js';
 import { Navigate } from 'react-router-dom';
 import UserTable from '../components/user/UserTable.jsx';
-//import InviteUserModal from '../components/InviteUserModal.jsx';
 import ManualCreateUserModal from '../components/user/ManualCreateUserModal.jsx';
 import { useNotification } from '../contexts/NotificationContext.jsx';
 import FadeIn from '../components/ui/FadeIn.jsx';
