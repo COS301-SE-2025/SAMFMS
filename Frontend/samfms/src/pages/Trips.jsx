@@ -14,9 +14,8 @@ import {
   getVehicleAnalytics,
 } from '../backend/api/trips';
 
-import { getVehicles } from '../backend/api/vehicles'
+import { getVehicles } from '../backend/api/vehicles';
 import { getAllDrivers } from '../backend/api/drivers';
-
 
 const Trips = () => {
   // Existing state
@@ -143,16 +142,14 @@ const Trips = () => {
     const loadDrivers = async () => {
       try {
         const response = await getAllDrivers();
-        console.log("Response received for drivers: ", response);
+        console.log('Response received for drivers: ', response);
 
         const data = response.data.data;
         // Extract drivers from the nested response structure
         const driversData = data?.drivers || [];
 
         // Filter for available drivers (is_active: false)
-        const availableDrivers = driversData.filter(driver =>
-          driver.status === "available"
-        );
+        const availableDrivers = driversData.filter(driver => driver.status === 'available');
 
         console.log('Available drivers: ', availableDrivers);
         setDrivers(availableDrivers);
@@ -327,7 +324,7 @@ const Trips = () => {
       const response = await createTrip(tripData);
       console.log('Trip created successfully:', response);
 
-      if (response.data.status == "success") {
+      if (response.data.status === 'success') {
         alert('Trip scheduled successfully!');
       } else {
         alert('Failed to create trip: ', response.data.message);
@@ -341,8 +338,10 @@ const Trips = () => {
     }
   };
 
-  const availableVehicles = vehicles.filter(v => v.status === 'available' || v.status === 'unavailable');
-  const availableDrivers = drivers
+  const availableVehicles = vehicles.filter(
+    v => v.status === 'available' || v.status === 'unavailable'
+  );
+  const availableDrivers = drivers;
 
   if (loading) {
     return (
@@ -514,7 +513,6 @@ const Trips = () => {
                       <p className="text-sm text-red-500 mt-1">No available vehicles</p>
                     )}
                   </div>
-
 
                   {/* Add driver selection dropdown */}
                   <div>

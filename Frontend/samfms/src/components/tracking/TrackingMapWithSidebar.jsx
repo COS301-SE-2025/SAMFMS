@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -9,12 +9,23 @@ import {
   FeatureGroup,
   useMap,
 } from 'react-leaflet';
-import { Search, Navigation, Car, Shield, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Search,
+  Navigation,
+  Car,
+  Shield,
+  Menu,
+  Plus,
+  Edit2,
+  Trash2,
+  ChevronUp,
+} from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { getVehicles } from '../../backend/api/vehicles';
-import { listGeofences } from '../../backend/api/geofences';
+import { listGeofences, deleteGeofence } from '../../backend/api/geofences';
 import { listLocations } from '../../backend/api/locations';
+import GeofenceManager from './GeofenceManager';
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -106,12 +117,55 @@ const TrackingMapWithSidebar = () => {
   const [vehicles, setVehicles] = useState([]);
   const [geofences, setGeofences] = useState([]);
   const [showGeofences, setShowGeofences] = useState(true);
+  const [showVehicles, setShowVehicles] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showAddGeofenceModal, setShowAddGeofenceModal] = useState(false);
+  const [editingGeofence, setEditingGeofence] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [mapCenter, setMapCenter] = useState([37.7749, -122.4194]); // Default to San Francisco
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // Address search state
+  const [addressSearch, setAddressSearch] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchBarCollapsed, setSearchBarCollapsed] = useState(true);
+
+  // Ref for search container to handle click outside
+  const searchContainerRef = useRef(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    // Keyboard shortcut to toggle search bar (Ctrl/Cmd + K)
+    const handleKeyDown = event => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+        event.preventDefault();
+        setSearchBarCollapsed(prev => !prev);
+      }
+    };
+
+    // Handle click outside search bar to collapse it
+    const handleClickOutside = event => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        setSearchBarCollapsed(true);
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      if (window.addressSearchTimeout) {
+        clearTimeout(window.addressSearchTimeout);
+      }
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Load vehicles data
   const loadVehicles = useCallback(async () => {
@@ -242,16 +296,111 @@ const TrackingMapWithSidebar = () => {
             geofence.type.toLowerCase().includes(searchTerm.toLowerCase())
         );
 
+  // Handle geofence changes from the GeofenceManager
+  const handleGeofenceChange = useCallback(
+    async updatedGeofences => {
+      setGeofences(updatedGeofences);
+      // Reload geofences to get the latest data
+      await loadGeofences();
+    },
+    [loadGeofences]
+  );
+
   // Handle item selection and map centering
   const handleItemSelect = item => {
     setSelectedItem(item);
     setMapCenter([item.coordinates.lat, item.coordinates.lng]);
   };
 
+  // Handle geofence editing
+  const handleEditGeofence = (geofence, event) => {
+    event.stopPropagation(); // Prevent item selection
+    setEditingGeofence(geofence);
+    setShowAddGeofenceModal(true);
+  };
+
+  // Handle geofence deletion
+  const handleDeleteGeofence = async (geofenceId, event) => {
+    event.stopPropagation(); // Prevent item selection
+
+    if (window.confirm('Are you sure you want to delete this geofence?')) {
+      try {
+        await deleteGeofence(geofenceId);
+        setGeofences(prev => prev.filter(g => g.id !== geofenceId));
+      } catch (error) {
+        console.error('Error deleting geofence:', error);
+        alert('Failed to delete geofence. Please try again.');
+      }
+    }
+  };
+
+  // Address search functionality
+  const handleAddressSearch = async query => {
+    if (!query.trim()) {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      // Using Nominatim (OpenStreetMap) geocoding service
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          query
+        )}&limit=5&addressdetails=1`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const suggestions = data.map(item => ({
+          display_name: item.display_name,
+          lat: parseFloat(item.lat),
+          lon: parseFloat(item.lon),
+          place_id: item.place_id,
+        }));
+
+        setSearchSuggestions(suggestions);
+        setShowSuggestions(suggestions.length > 0);
+      }
+    } catch (error) {
+      console.error('Error searching address:', error);
+      setSearchSuggestions([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Handle address selection from suggestions
+  const handleAddressSelect = suggestion => {
+    setMapCenter([suggestion.lat, suggestion.lon]);
+    setAddressSearch(suggestion.display_name);
+    setShowSuggestions(false);
+    setSearchSuggestions([]);
+    // Keep the search bar expanded after selection so user can see the selected address
+  };
+
+  // Handle input change with debounced search
+  const handleAddressInputChange = value => {
+    setAddressSearch(value);
+
+    // Clear previous timeout
+    if (window.addressSearchTimeout) {
+      clearTimeout(window.addressSearchTimeout);
+    }
+
+    // Set new timeout for search
+    window.addressSearchTimeout = setTimeout(() => {
+      handleAddressSearch(value);
+    }, 300);
+  };
   if (loading && vehicles.length === 0 && geofences.length === 0) {
     return (
-      <div className="bg-card shadow-md p-6 mb-6">
-        <div className="flex items-center justify-center h-96">
+      <div
+        className="w-full flex items-center justify-center"
+        style={{ height: 'calc(100vh - 70px)' }}
+      >
+        <div className="flex items-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-3"></div>
           <span>Loading map data...</span>
         </div>
@@ -261,8 +410,11 @@ const TrackingMapWithSidebar = () => {
 
   if (error) {
     return (
-      <div className="bg-card shadow-md p-6 mb-6">
-        <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3">
+      <div
+        className="w-full flex items-center justify-center p-6"
+        style={{ height: 'calc(100vh - 70px)' }}
+      >
+        <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded max-w-md w-full text-center">
           <p>{error}</p>
         </div>
       </div>
@@ -270,10 +422,130 @@ const TrackingMapWithSidebar = () => {
   }
 
   return (
-    <div className="bg-card shadow-md mb-6">
-      <div className="flex flex-col lg:flex-row gap-0 relative" style={{ height: '85vh' }}>
+    <div className="w-full" style={{ height: 'calc(100vh - 70px)' }}>
+      <div className="flex flex-col lg:flex-row gap-0 relative h-full">
         {/* Map */}
         <div className="flex-1 border border-border overflow-hidden relative">
+          {/* Floating Address Search Bar and Toggle Buttons */}
+          <div className="absolute top-4 left-4 right-4 z-[1000]">
+            <div className="flex items-center gap-3">
+              {/* Search Bar Container */}
+              <div className="flex-1" ref={searchContainerRef}>
+                <div className="transition-all duration-300 ease-in-out">
+                  {/* Collapsed state - just the toggle button */}
+                  {searchBarCollapsed ? (
+                    <button
+                      onClick={() => {
+                        setSearchBarCollapsed(false);
+                        // Focus input after expanding
+                        setTimeout(() => {
+                          const input = searchContainerRef.current?.querySelector('input');
+                          input?.focus();
+                        }, 350);
+                      }}
+                      className="flex items-center justify-center bg-white hover:bg-gray-50 border border-gray-300 rounded-lg shadow-lg p-3 transition-all duration-300 ease-in-out hover:scale-105 active:scale-95"
+                      title="Search for address (Ctrl+K)"
+                    >
+                      <Search className="w-4 h-4 text-gray-600 transition-transform duration-300" />
+                    </button>
+                  ) : (
+                    <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                      {/* Expanded search bar */}
+                      <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-lg transition-all duration-300 ease-in-out">
+                        <Search className="absolute left-3 text-gray-500 w-4 h-4 transition-colors duration-200" />
+                        <input
+                          type="text"
+                          placeholder="Search for an address..."
+                          value={addressSearch}
+                          onChange={e => handleAddressInputChange(e.target.value)}
+                          onFocus={() => {
+                            if (searchSuggestions.length > 0) {
+                              setShowSuggestions(true);
+                            }
+                          }}
+                          className="w-full pl-10 pr-12 py-3 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-gray-900 text-sm placeholder-gray-500 transition-all duration-200"
+                          onKeyDown={e => {
+                            if (e.key === 'Escape') {
+                              setAddressSearch('');
+                              setShowSuggestions(false);
+                              setSearchSuggestions([]);
+                              setSearchBarCollapsed(true);
+                            }
+                          }}
+                        />
+                        {/* Collapse button */}
+                        <button
+                          onClick={() => {
+                            setSearchBarCollapsed(true);
+                            setShowSuggestions(false);
+                            setSearchSuggestions([]);
+                          }}
+                          className="absolute right-8 text-gray-500 hover:text-gray-700 p-1 transition-all duration-200 hover:scale-110 active:scale-95"
+                          title="Collapse search"
+                        >
+                          <ChevronUp className="w-4 h-4 transition-transform duration-200" />
+                        </button>
+                        {/* Loading spinner */}
+                        {isSearching && (
+                          <div className="absolute right-3 transition-opacity duration-200">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Search Suggestions Dropdown */}
+                      {showSuggestions && searchSuggestions.length > 0 && (
+                        <div className="bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto z-[1001] animate-in fade-in slide-in-from-top-1 duration-200">
+                          {searchSuggestions.map((suggestion, index) => (
+                            <button
+                              key={suggestion.place_id}
+                              onClick={() => handleAddressSelect(suggestion)}
+                              className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-all duration-200 border-b border-gray-100 last:border-b-0 focus:outline-none focus:bg-gray-50 transform hover:translate-x-1"
+                              style={{ animationDelay: `${index * 50}ms` }}
+                            >
+                              <div className="text-sm font-medium text-gray-900 truncate transition-colors duration-200">
+                                {suggestion.display_name}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Toggle Buttons */}
+              <div className="flex items-center gap-2">
+                {/* Vehicles Toggle */}
+                <button
+                  onClick={() => setShowVehicles(!showVehicles)}
+                  className={`p-3 rounded-lg shadow-lg border transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 ${
+                    showVehicles
+                      ? 'bg-green-500 hover:bg-green-600 border-green-600 text-white'
+                      : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600'
+                  }`}
+                  title={`${showVehicles ? 'Hide' : 'Show'} Vehicles`}
+                >
+                  <Car className="w-4 h-4 transition-transform duration-200" />
+                </button>
+
+                {/* Geofences Toggle */}
+                <button
+                  onClick={() => setShowGeofences(!showGeofences)}
+                  className={`p-3 rounded-lg shadow-lg border transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 ${
+                    showGeofences
+                      ? 'bg-blue-500 hover:bg-blue-600 border-blue-600 text-white'
+                      : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600'
+                  }`}
+                  title={`${showGeofences ? 'Hide' : 'Show'} Geofences`}
+                >
+                  <Shield className="w-4 h-4 transition-transform duration-200" />
+                </button>
+              </div>
+            </div>
+          </div>
+
           <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -282,7 +554,7 @@ const TrackingMapWithSidebar = () => {
             <MapUpdater center={mapCenter} />
 
             {/* Vehicle Markers */}
-            {activeTab === 'vehicles' &&
+            {showVehicles &&
               vehicles.map(vehicle => (
                 <Marker
                   key={`vehicle-${vehicle.id}`}
@@ -367,31 +639,33 @@ const TrackingMapWithSidebar = () => {
           {/* Sidebar Toggle Button */}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="absolute top-4 right-4 z-[1000] bg-white border border-border shadow-md p-2 hover:bg-accent"
+            className="absolute top-4 right-4 z-[1000] bg-white border border-border shadow-md p-2 hover:bg-accent transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 rounded-md"
             title={sidebarCollapsed ? 'Show Sidebar' : 'Hide Sidebar'}
           >
-            {sidebarCollapsed ? (
-              <ChevronLeft className="w-4 h-4" />
-            ) : (
-              <ChevronRight className="w-4 h-4" />
-            )}
+            <Menu
+              className={`w-4 h-4 text-black transition-transform duration-300 ${
+                sidebarCollapsed ? 'rotate-0' : 'rotate-180'
+              }`}
+            />
           </button>
         </div>
 
         {/* Sidebar */}
         <div
-          className={`${
-            sidebarCollapsed ? 'w-0' : 'w-full lg:w-80'
-          } transition-all duration-300 overflow-hidden flex flex-col bg-card border-l border-border`}
+          className={`w-full lg:w-80 flex flex-col bg-card border-l border-border transition-all duration-500 ease-in-out transform ${
+            sidebarCollapsed
+              ? 'translate-x-full opacity-0 lg:translate-x-full'
+              : 'translate-x-0 opacity-100'
+          }`}
         >
-          <div className="flex flex-col h-full p-4">
+          <div className="flex flex-col h-full p-4 animate-in slide-in-from-right-4 duration-300">
             {/* Tabs */}
             <div className="flex border-b border-border mb-4">
               <button
-                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-all duration-300 ease-in-out ${
                   activeTab === 'vehicles'
-                    ? 'border-primary text-primary bg-primary/5'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                    ? 'border-primary text-primary bg-primary/5 transform scale-105'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-accent/50'
                 }`}
                 onClick={() => {
                   setActiveTab('vehicles');
@@ -399,14 +673,18 @@ const TrackingMapWithSidebar = () => {
                   setSelectedItem(null);
                 }}
               >
-                <Car className="w-4 h-4 inline mr-2" />
+                <Car
+                  className={`w-4 h-4 inline mr-2 transition-transform duration-200 ${
+                    activeTab === 'vehicles' ? 'scale-110' : ''
+                  }`}
+                />
                 Vehicles ({vehicles.length})
               </button>
               <button
-                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-all duration-300 ease-in-out ${
                   activeTab === 'geofences'
-                    ? 'border-primary text-primary bg-primary/5'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                    ? 'border-primary text-primary bg-primary/5 transform scale-105'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-accent/50'
                 }`}
                 onClick={() => {
                   setActiveTab('geofences');
@@ -414,90 +692,95 @@ const TrackingMapWithSidebar = () => {
                   setSelectedItem(null);
                 }}
               >
-                <Shield className="w-4 h-4 inline mr-2" />
-                Geofences ({geofences.length})
-              </button>
-            </div>
-
-            {/* Geofence Toggle */}
-            <div className="flex items-center justify-between mb-4 px-2">
-              <span className="text-sm text-muted-foreground">Show Geofences</span>
-              <button
-                onClick={() => setShowGeofences(!showGeofences)}
-                className={`relative inline-flex h-6 w-11 items-center transition-colors ${
-                  showGeofences ? 'bg-primary' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform bg-white transition-transform ${
-                    showGeofences ? 'translate-x-6' : 'translate-x-1'
+                <Shield
+                  className={`w-4 h-4 inline mr-2 transition-transform duration-200 ${
+                    activeTab === 'geofences' ? 'scale-110' : ''
                   }`}
                 />
+                Geofences ({geofences.length})
               </button>
             </div>
 
             {/* Search */}
             <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 transition-colors duration-200" />
               <input
                 type="text"
                 placeholder={`Search ${activeTab}...`}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full pl-10 pr-4 py-2 border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200 rounded-md"
               />
             </div>
+
+            {/* Add Geofence Button - Only show when geofences tab is active */}
+            {activeTab === 'geofences' && (
+              <div className="mb-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                <button
+                  onClick={() => setShowAddGeofenceModal(true)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 ease-in-out text-sm font-medium rounded-md hover:scale-105 active:scale-95"
+                >
+                  <Plus className="w-4 h-4 transition-transform duration-200" />
+                  Add Geofence
+                </button>
+              </div>
+            )}
 
             {/* Items List */}
             <div className="flex-1 overflow-y-auto space-y-2">
               {filteredItems.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-muted-foreground animate-in fade-in duration-300">
                   <p>No {activeTab} found</p>
                   {searchTerm && <p className="text-xs mt-1">Try adjusting your search</p>}
                 </div>
               ) : (
-                filteredItems.map(item => (
+                filteredItems.map((item, index) => (
                   <div
                     key={item.id}
-                    className={`p-3 border border-border cursor-pointer transition-colors hover:bg-accent ${
-                      selectedItem?.id === item.id ? 'bg-primary/10 border-primary' : ''
+                    className={`p-3 border border-border cursor-pointer transition-all duration-300 ease-in-out hover:bg-accent hover:scale-[1.02] hover:shadow-md transform animate-in fade-in slide-in-from-left-2 ${
+                      selectedItem?.id === item.id
+                        ? 'bg-primary/10 border-primary scale-[1.02] shadow-md'
+                        : ''
                     }`}
+                    style={{ animationDelay: `${index * 50}ms` }}
                     onClick={() => handleItemSelect(item)}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h4 className="font-medium text-sm truncate">{item.name}</h4>
+                        <h4 className="font-medium text-sm truncate transition-colors duration-200">
+                          {item.name}
+                        </h4>
                         {activeTab === 'vehicles' ? (
-                          <div className="mt-1">
-                            <p className="text-xs text-muted-foreground">
+                          <div className="mt-1 space-y-1">
+                            <p className="text-xs text-muted-foreground transition-colors duration-200">
                               {item.make} {item.model}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-muted-foreground transition-colors duration-200">
                               Plate: {item.license_plate}
                             </p>
                             <div className="flex items-center mt-1">
                               <div
-                                className={`w-2 h-2 rounded-full mr-2 ${
+                                className={`w-2 h-2 rounded-full mr-2 transition-all duration-300 ${
                                   item.status === 'active'
-                                    ? 'bg-green-500'
+                                    ? 'bg-green-500 animate-pulse'
                                     : item.status === 'inactive'
                                     ? 'bg-red-500'
-                                    : 'bg-yellow-500'
+                                    : 'bg-yellow-500 animate-pulse'
                                 }`}
                               ></div>
-                              <span className="text-xs capitalize text-muted-foreground">
+                              <span className="text-xs capitalize text-muted-foreground transition-colors duration-200">
                                 {item.status}
                               </span>
                             </div>
                           </div>
                         ) : (
-                          <div className="mt-1">
-                            <p className="text-xs text-muted-foreground truncate">
+                          <div className="mt-1 space-y-1">
+                            <p className="text-xs text-muted-foreground truncate transition-colors duration-200">
                               {item.description || 'No description'}
                             </p>
                             <div className="flex items-center mt-1">
                               <div
-                                className={`w-2 h-2 rounded-full mr-2 ${
+                                className={`w-2 h-2 rounded-full mr-2 transition-all duration-300 ${
                                   item.type === 'depot'
                                     ? 'bg-blue-500'
                                     : item.type === 'restricted'
@@ -505,14 +788,35 @@ const TrackingMapWithSidebar = () => {
                                     : 'bg-purple-500'
                                 }`}
                               ></div>
-                              <span className="text-xs capitalize text-muted-foreground">
+                              <span className="text-xs capitalize text-muted-foreground transition-colors duration-200">
                                 {item.type}
                               </span>
                             </div>
                           </div>
                         )}
                       </div>
-                      <Navigation className="w-4 h-4 text-muted-foreground ml-2 flex-shrink-0" />
+                      <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                        {activeTab === 'geofences' ? (
+                          <>
+                            <button
+                              onClick={e => handleEditGeofence(item, e)}
+                              className="p-1 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded transition-all duration-200 hover:scale-110"
+                              title="Edit geofence"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={e => handleDeleteGeofence(item.id, e)}
+                              className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-all duration-200 hover:scale-110"
+                              title="Delete geofence"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </>
+                        ) : (
+                          <Navigation className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-hover:scale-110" />
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -521,6 +825,24 @@ const TrackingMapWithSidebar = () => {
           </div>
         </div>
       </div>
+
+      {/* Add Geofence Modal */}
+      {showAddGeofenceModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-lg shadow-lg max-w-5xl w-full max-h-[90vh] overflow-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ease-out">
+            <GeofenceManager
+              showFormOnly={true}
+              onCancel={() => {
+                setShowAddGeofenceModal(false);
+                setEditingGeofence(null);
+              }}
+              onGeofenceChange={handleGeofenceChange}
+              currentGeofences={geofences}
+              editingGeofence={editingGeofence}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

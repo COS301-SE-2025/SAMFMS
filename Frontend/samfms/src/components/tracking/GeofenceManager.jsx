@@ -39,7 +39,13 @@ const MapUpdater = ({ center }) => {
   return null;
 };
 
-const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
+const GeofenceManager = ({
+  showFormOnly = false,
+  onCancel,
+  currentGeofences = [],
+  onGeofenceChange,
+  editingGeofence: propEditingGeofence,
+}) => {
   // State for the component - ensure currentGeofences is properly structured
   const safeCurrentGeofences = (currentGeofences || []).filter(
     geofence => geofence && typeof geofence === 'object'
@@ -47,8 +53,8 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   const [geofences, setGeofences] = useState(safeCurrentGeofences);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [editingGeofence, setEditingGeofence] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(showFormOnly);
+  const [editingGeofence, setEditingGeofence] = useState(propEditingGeofence);
   const [addressSearch, setAddressSearch] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState([]);
@@ -63,6 +69,24 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
     coordinates: { lat: 37.7749, lng: -122.4194 },
     status: 'active',
   });
+
+  // Handle external editing geofence prop changes
+  useEffect(() => {
+    if (propEditingGeofence) {
+      setEditingGeofence(propEditingGeofence);
+      setShowAddForm(true);
+      // Populate form with editing geofence data
+      setNewGeofence({
+        name: propEditingGeofence.name || '',
+        description: propEditingGeofence.description || '',
+        type: propEditingGeofence.type || 'depot',
+        geometryType: propEditingGeofence.geometryType || 'circle',
+        radius: propEditingGeofence.radius || 500,
+        coordinates: propEditingGeofence.coordinates || { lat: 37.7749, lng: -122.4194 },
+        status: propEditingGeofence.status || 'active',
+      });
+    }
+  }, [propEditingGeofence]);
 
   // Filter geofences based on search and type filter
   const filteredGeofences = geofences.filter(geofence => {
@@ -252,7 +276,15 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
       };
 
       setGeofences(prev => [...prev, newGeofenceForUI]);
-      setShowAddForm(false);
+
+      if (showFormOnly && onCancel) {
+        // When in form-only mode, close the modal after successful creation
+        onCancel();
+      } else {
+        // Normal behavior - just hide the form
+        setShowAddForm(false);
+      }
+
       resetForm();
     } catch (error) {
       console.error('Error creating geofence:', error);
@@ -333,7 +365,14 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
 
       resetForm();
       setEditingGeofence(null);
-      setShowAddForm(false);
+
+      if (showFormOnly && onCancel) {
+        // When in form-only mode, close the modal after successful update
+        onCancel();
+      } else {
+        // Normal behavior - just hide the form
+        setShowAddForm(false);
+      }
     } catch (error) {
       console.error('Error updating geofence:', error);
       alert(`Failed to update geofence: ${error.message || error}`);
@@ -384,62 +423,65 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
 
   return (
     <>
-      <div className="bg-card rounded-lg shadow-md p-6 border border-border">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold">Geofences</h2>
-            {/* Show search and filter only when table is visible */}
+      <div className="bg-card p-6 border border-border w-full">
+        {/* When showFormOnly is true, skip the header and go straight to the form */}
+        {!showFormOnly && (
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-4">
+              <h2 className="text-xl font-semibold">Geofences</h2>
+              {/* Show search and filter only when table is visible */}
+              {!showAddForm && (
+                <>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search geofences..."
+                      className="px-4 py-2 pl-10 rounded-md border border-input bg-background text-sm"
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                    />
+                    <Search
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
+                      size={16}
+                    />
+                  </div>
+                  <select
+                    className="px-4 py-2 rounded-md border border-input bg-background text-sm"
+                    value={filterType}
+                    onChange={e => setFilterType(e.target.value)}
+                  >
+                    <option value="">All types</option>
+                    <option value="depot">Depot</option>
+                    <option value="service">Service</option>
+                    <option value="delivery">Delivery</option>
+                    <option value="restricted">Restricted</option>
+                    <option value="emergency">Emergency</option>
+                  </select>
+                </>
+              )}
+            </div>
+            {/* Show Add button only when table is visible */}
             {!showAddForm && (
-              <>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search geofences..."
-                    className="px-4 py-2 pl-10 rounded-md border border-input bg-background text-sm"
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                  />
-                  <Search
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
-                    size={16}
-                  />
-                </div>
-                <select
-                  className="px-4 py-2 rounded-md border border-input bg-background text-sm"
-                  value={filterType}
-                  onChange={e => setFilterType(e.target.value)}
-                >
-                  <option value="">All types</option>
-                  <option value="depot">Depot</option>
-                  <option value="service">Service</option>
-                  <option value="delivery">Delivery</option>
-                  <option value="restricted">Restricted</option>
-                  <option value="emergency">Emergency</option>
-                </select>
-              </>
+              <button
+                className="bg-green-600 text-white p-2 rounded-md hover:bg-green-700 transition flex items-center"
+                onClick={() => setShowAddForm(true)}
+              >
+                <Plus size={16} />
+              </button>
             )}
           </div>
-          {/* Show Add button only when table is visible */}
-          {!showAddForm && (
-            <button
-              className="bg-green-600 text-white p-2 rounded-md hover:bg-green-700 transition flex items-center"
-              onClick={() => setShowAddForm(true)}
-            >
-              <Plus size={16} />
-            </button>
-          )}
-        </div>
+        )}
 
-        {/* Conditional rendering: show form when adding, otherwise show table */}
-        {showAddForm ? (
+        {/* Conditional rendering: show form when adding or when showFormOnly is true, otherwise show table */}
+        {showAddForm || showFormOnly ? (
           /* Add Geofence Form */
           <div className="space-y-4">
             <h3 className="text-xl font-semibold mb-4">
               {editingGeofence ? 'Edit Geofence' : 'Add New Geofence'}
             </h3>
-            <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex flex-col xl:flex-row gap-6">
               {/* Map Section - Left Side / Top on Mobile */}
-              <div className="flex-1 lg:max-w-md space-y-3">
+              <div className="flex-1 xl:max-w-lg space-y-3">
                 {/* Address Search Bar */}
                 <div className="relative">
                   <div className="flex flex-col sm:flex-row gap-2">
@@ -695,9 +737,15 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                 <div className="flex gap-2 mt-6">
                   <button
                     onClick={() => {
-                      setShowAddForm(false);
-                      setEditingGeofence(null);
-                      resetForm();
+                      if (showFormOnly && onCancel) {
+                        // When in form-only mode, call the parent's onCancel to close the modal
+                        onCancel();
+                      } else {
+                        // Normal behavior - just hide the form
+                        setShowAddForm(false);
+                        setEditingGeofence(null);
+                        resetForm();
+                      }
                     }}
                     className="flex-1 px-4 py-2 border border-input rounded-md hover:bg-accent transition"
                   >
