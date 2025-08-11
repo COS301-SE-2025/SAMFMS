@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Settings, X, Maximize2, Minimize2, GripVertical } from 'lucide-react';
+import { X, GripVertical } from 'lucide-react';
 import { useDashboard } from '../../contexts/DashboardContext';
 
 export const BaseWidget = ({
@@ -16,7 +16,6 @@ export const BaseWidget = ({
 }) => {
   const { state, dispatch } = useDashboard();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
-  const [isMaximized, setIsMaximized] = useState(false);
 
   const handleRemove = useCallback(() => {
     dispatch({ type: 'REMOVE_WIDGET', payload: id });
@@ -34,21 +33,59 @@ export const BaseWidget = ({
     [dispatch, id, onConfigChange]
   );
 
+  // Keyboard event handlers for accessibility
+  const handleKeyDown = useCallback(
+    e => {
+      if (!state.isEditing) return;
+
+      switch (e.key) {
+        case 'Delete':
+        case 'Backspace':
+          if (allowRemove && e.target === e.currentTarget) {
+            handleRemove();
+          }
+          break;
+        case 'Enter':
+        case ' ':
+          if (e.target.classList.contains('widget-config-button')) {
+            setIsConfigOpen(true);
+          }
+          break;
+        default:
+          break;
+      }
+    },
+    [state.isEditing, allowRemove, handleRemove]
+  );
+
   if (loading) {
     return (
       <div
         className={`bg-card border border-border rounded-lg shadow-sm overflow-hidden h-full flex flex-col ${className}`}
+        role="region"
+        aria-label={`${title} - Loading`}
+        aria-busy="true"
       >
         <div className="flex items-center justify-between p-3 border-b border-border bg-card/50 flex-shrink-0">
-          <h3 className="font-medium text-card-foreground truncate">{title}</h3>
+          <h3 className="font-medium text-card-foreground truncate" id={`widget-title-${id}`}>
+            {title}
+          </h3>
           {state.isEditing && (
-            <div className="widget-drag-handle cursor-move p-1 hover:bg-muted rounded">
-              <GripVertical size={16} />
+            <div
+              className="widget-drag-handle cursor-move p-1 hover:bg-muted rounded"
+              tabIndex={0}
+              role="button"
+              aria-label={`Drag ${title} widget`}
+            >
+              <GripVertical size={16} aria-hidden="true" />
             </div>
           )}
         </div>
-        <div className="p-4 flex items-center justify-center flex-grow">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="p-4 flex items-center justify-center flex-grow" role="status">
+          <div
+            className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
+            aria-hidden="true"
+          ></div>
           <span className="ml-3 text-muted-foreground">Loading...</span>
         </div>
       </div>
@@ -59,30 +96,46 @@ export const BaseWidget = ({
     return (
       <div
         className={`bg-card border border-border rounded-lg shadow-sm overflow-hidden h-full flex flex-col ${className}`}
+        role="region"
+        aria-label={`${title} - Error`}
+        aria-describedby={`error-desc-${id}`}
       >
-        <div className="flex items-center justify-between p-3 border-b border-border bg-card/50 flex-shrink-0">
-          <h3 className="font-medium text-card-foreground truncate">{title}</h3>
+        <div className="flex items-center justify-between border-b border-border bg-card/50 flex-shrink-0">
+          <h3 className="font-medium text-card-foreground truncate" id={`widget-title-${id}`}>
+            {title}
+          </h3>
           {state.isEditing && (
             <div className="flex items-center gap-1">
-              <div className="widget-drag-handle cursor-move p-1 hover:bg-muted rounded">
-                <GripVertical size={16} />
+              <div
+                className="widget-drag-handle cursor-move p-1 hover:bg-muted rounded"
+                tabIndex={0}
+                role="button"
+                aria-label={`Drag ${title} widget`}
+              >
+                <GripVertical size={16} aria-hidden="true" />
               </div>
               {allowRemove && (
                 <button
                   onClick={handleRemove}
                   className="p-1 hover:bg-destructive hover:text-destructive-foreground rounded"
-                  title="Remove Widget"
+                  title={`Remove ${title} widget`}
+                  aria-label={`Remove ${title} widget`}
                 >
-                  <X size={16} />
+                  <X size={16} aria-hidden="true" />
                 </button>
               )}
             </div>
           )}
         </div>
         <div className="p-4 flex-grow flex items-center justify-center">
-          <div className="bg-destructive/10 border border-destructive text-destructive rounded-md p-3 w-full">
+          <div
+            className="bg-destructive/10 border border-destructive text-destructive rounded-md p-3 w-full"
+            role="alert"
+          >
             <p className="font-medium">Error</p>
-            <p className="text-sm mt-1">{error}</p>
+            <p className="text-sm mt-1" id={`error-desc-${id}`}>
+              {error}
+            </p>
           </div>
         </div>
       </div>
@@ -92,48 +145,15 @@ export const BaseWidget = ({
   return (
     <div
       className={`bg-card border border-border rounded-lg shadow-sm overflow-hidden h-full flex flex-col ${className}`}
+      role="region"
+      aria-labelledby={`widget-title-${id}`}
+      tabIndex={state.isEditing ? 0 : -1}
+      onKeyDown={handleKeyDown}
     >
-      {/* Widget Header */}
-      <div className="flex items-center justify-between p-3 border-b border-border bg-card/50 flex-shrink-0">
-        <h3 className="font-medium text-card-foreground truncate">{title}</h3>
-
-        {state.isEditing && (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setIsConfigOpen(true)}
-              className="p-1 hover:bg-muted rounded"
-              title="Widget Settings"
-            >
-              <Settings size={16} />
-            </button>
-
-            <button
-              onClick={() => setIsMaximized(!isMaximized)}
-              className="p-1 hover:bg-muted rounded"
-              title={isMaximized ? 'Minimize' : 'Maximize'}
-            >
-              {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-            </button>
-
-            {allowRemove && (
-              <button
-                onClick={handleRemove}
-                className="p-1 hover:bg-destructive hover:text-destructive-foreground rounded"
-                title="Remove Widget"
-              >
-                <X size={16} />
-              </button>
-            )}
-
-            <div className="widget-drag-handle cursor-move p-1 hover:bg-muted rounded">
-              <GripVertical size={16} />
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Widget Content */}
-      <div className="p-4 flex-grow overflow-hidden">{children}</div>
+      <div className="p-4 flex-grow overflow-hidden min-h-[100px]" role="main">
+        {children}
+      </div>
 
       {/* Configuration Modal */}
       {isConfigOpen && (
@@ -147,12 +167,55 @@ export const BaseWidget = ({
   );
 };
 
-// Simple configuration modal component
+// Enhanced configuration modal component with validation
 const WidgetConfigModal = ({ config, onSave, onClose }) => {
   const [localConfig, setLocalConfig] = useState(config);
+  const [validationErrors, setValidationErrors] = useState({});
+
+  // Validate configuration
+  const validateConfig = configData => {
+    const errors = {};
+
+    if (configData.title && configData.title.trim().length === 0) {
+      errors.title = 'Title cannot be empty';
+    }
+
+    if (configData.title && configData.title.length > 50) {
+      errors.title = 'Title cannot exceed 50 characters';
+    }
+
+    const refreshInterval = parseInt(configData.refreshInterval);
+    if (isNaN(refreshInterval) || refreshInterval < 5) {
+      errors.refreshInterval = 'Refresh interval must be at least 5 seconds';
+    }
+
+    if (refreshInterval > 3600) {
+      errors.refreshInterval = 'Refresh interval cannot exceed 1 hour';
+    }
+
+    return errors;
+  };
 
   const handleSave = () => {
-    onSave(localConfig);
+    const errors = validateConfig(localConfig);
+    setValidationErrors(errors);
+
+    if (Object.keys(errors).length === 0) {
+      onSave(localConfig);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setLocalConfig(prev => ({ ...prev, [field]: value }));
+
+    // Clear validation error when user starts typing
+    if (validationErrors[field]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
   };
 
   return (
@@ -172,22 +235,35 @@ const WidgetConfigModal = ({ config, onSave, onClose }) => {
               <label className="block text-sm font-medium mb-2">Widget Title</label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-input rounded-md"
+                className={`w-full px-3 py-2 border rounded-md ${
+                  validationErrors.title ? 'border-destructive' : 'border-input'
+                }`}
                 value={localConfig.title || ''}
-                onChange={e => setLocalConfig(prev => ({ ...prev, title: e.target.value }))}
+                onChange={e => handleInputChange('title', e.target.value)}
+                placeholder="Enter widget title"
               />
+              {validationErrors.title && (
+                <p className="text-destructive text-sm mt-1">{validationErrors.title}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">Refresh Interval (seconds)</label>
               <input
                 type="number"
-                className="w-full px-3 py-2 border border-input rounded-md"
+                className={`w-full px-3 py-2 border rounded-md ${
+                  validationErrors.refreshInterval ? 'border-destructive' : 'border-input'
+                }`}
                 value={localConfig.refreshInterval || 30}
-                onChange={e =>
-                  setLocalConfig(prev => ({ ...prev, refreshInterval: parseInt(e.target.value) }))
-                }
+                onChange={e => handleInputChange('refreshInterval', parseInt(e.target.value))}
                 min="5"
+                max="3600"
               />
+              {validationErrors.refreshInterval && (
+                <p className="text-destructive text-sm mt-1">{validationErrors.refreshInterval}</p>
+              )}
+              <p className="text-muted-foreground text-xs mt-1">
+                How often the widget should refresh its data (5-3600 seconds)
+              </p>
             </div>
           </div>
         </div>
@@ -201,8 +277,9 @@ const WidgetConfigModal = ({ config, onSave, onClose }) => {
           <button
             onClick={handleSave}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+            disabled={Object.keys(validationErrors).length > 0}
           >
-            Save
+            Save Changes
           </button>
         </div>
       </div>

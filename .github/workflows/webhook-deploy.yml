@@ -1,0 +1,68 @@
+name: GitHub Webhook Deploy
+
+on:
+  push:
+    branches: 
+      - main
+      - master
+      - code-cleanup
+      - develop
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - master
+      - code-cleanup
+
+jobs:
+  webhook-deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    
+    steps:
+      - name: Call SAMDS Webhook
+        run: |
+          echo "🚀 Triggering deployment via SAMDS webhook..."
+          echo "Repository: ${{ github.repository }}"
+          echo "Event: ${{ github.event_name }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          
+          # Prepare webhook payload
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BRANCH="${{ github.base_ref }}"
+            EVENT="pull_request_merge"
+          else
+            BRANCH="${{ github.ref_name }}"
+            EVENT="push"
+          fi
+          
+          # Call webhook endpoint
+          response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
+            -H "x-api-key: ${{ secrets.SAMDS_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"repository\": \"${{ github.repository }}\",
+              \"branch\": \"$BRANCH\",
+              \"commit\": \"${{ github.sha }}\",
+              \"pusher\": \"${{ github.actor }}\",
+              \"event\": \"$EVENT\",
+              \"workflow_run_id\": \"${{ github.run_id }}\"
+            }" \
+            "${{ secrets.SAMDS_ENDPOINT }}/webhook/github")
+          
+          # Parse response
+          http_code=$(echo $response | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+          body=$(echo $response | sed -e 's/HTTPSTATUS\:.*//g')
+          
+          echo "Response Code: $http_code"
+          echo "Response Body: $body"
+          
+          if [ "$http_code" = "200" ]; then
+            echo "✅ Webhook deployment successful!"
+            echo "🎉 SAMFMS has been updated and deployed!"
+          else
+            echo "❌ Webhook deployment failed with HTTP code: $http_code"
+            echo "Error details: $body"
+            exit 1
+          fi

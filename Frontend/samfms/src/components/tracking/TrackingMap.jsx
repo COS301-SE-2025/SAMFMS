@@ -26,7 +26,7 @@ const TrackingMap = ({
   locations = [], // Now the ONLY live data
   geofences = [],
   paths = [],
-  onMapReady
+  onMapReady,
 }) => {
   const [mapReady, setMapReady] = useState(false);
   const [followMode, setFollowMode] = useState(false);
@@ -66,7 +66,8 @@ const TrackingMap = ({
       default:
         return {
           url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         };
     }
   };
@@ -74,7 +75,7 @@ const TrackingMap = ({
   const currentMapLayer = getMapLayer();
 
   return (
-    <div className="bg-card rounded-lg shadow-md border border-border overflow-hidden h-[550px] relative">
+    <div className="bg-card rounded-lg shadow-md border border-border overflow-hidden h-[500px] relative">
       {!mapReady ? (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/20">
           <div className="animate-pulse text-primary">Loading map...</div>
@@ -139,10 +140,18 @@ const TrackingMap = ({
               >
                 <Popup>
                   <div>
-                    <p><strong>Vehicle:</strong> {loc.vehicle_id}</p>
-                    <p><strong>Speed:</strong> {loc.speed} km/h</p>
-                    <p><strong>Heading:</strong> {loc.heading}</p>
-                    <p><strong>Updated:</strong> {new Date(loc.updated_at).toLocaleString()}</p>
+                    <p>
+                      <strong>Vehicle:</strong> {loc.vehicle_id}
+                    </p>
+                    <p>
+                      <strong>Speed:</strong> {loc.speed} km/h
+                    </p>
+                    <p>
+                      <strong>Heading:</strong> {loc.heading}
+                    </p>
+                    <p>
+                      <strong>Updated:</strong> {new Date(loc.updated_at).toLocaleString()}
+                    </p>
                   </div>
                 </Popup>
               </Marker>
@@ -179,7 +188,9 @@ const TrackingMap = ({
             <div className="bg-card p-2 rounded-md shadow-md border border-border">
               <button
                 className={`p-2 rounded-md w-8 h-8 flex items-center justify-center ${
-                  mapType === 'streets' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent/50'
+                  mapType === 'streets'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-accent/50'
                 }`}
                 onClick={() => setMapType('streets')}
                 title="Street map"
@@ -188,7 +199,9 @@ const TrackingMap = ({
               </button>
               <button
                 className={`p-2 rounded-md w-8 h-8 flex items-center justify-center mt-1 ${
-                  mapType === 'satellite' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent/50'
+                  mapType === 'satellite'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-accent/50'
                 }`}
                 onClick={() => setMapType('satellite')}
                 title="Satellite map"
@@ -197,13 +210,24 @@ const TrackingMap = ({
               </button>
               <button
                 className={`p-2 rounded-md w-8 h-8 flex items-center justify-center mt-1 ${
-                  mapType === 'terrain' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent/50'
+                  mapType === 'terrain'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-accent/50'
                 }`}
                 onClick={() => setMapType('terrain')}
                 title="Terrain map"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="m2 22 10-10 10 10M12 12V3" />
                   <path d="m9 6 3-3 3 3" />
                 </svg>

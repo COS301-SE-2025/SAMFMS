@@ -161,21 +161,25 @@ app = FastAPI(
 
 # CORS Configuration
 origins = [
-    "http://localhost:3000",     # React dev server
-    "http://127.0.0.1:3000",     # React dev server (alternative)
-    "http://localhost:21015",    # Frontend production port
-    "http://127.0.0.1:21015",    # Frontend production port (alternative)
-    "https://samfms.local",      # Local HTTPS
+    "http://localhost:3000",
+    "http://127.0.0.1:3000", 
+    "http://localhost:21015",
+    "http://127.0.0.1:21015",
+    "https://samfms.local",
+    "http://capstone-samfms.dns.net.za:21015",    # Add this line
+    "https://capstone-samfms.dns.net.za:21015",   # And this for HTTPS
 ]
 
 # Add environment-specific origins
 if config.environment.value == "development":
     origins.extend([
-        "http://localhost:*",
-        "http://127.0.0.1:*",
-        "https://hoppscotch.io",     # Hoppscotch web app
-        "http://localhost:3100",     # Hoppscotch local
-        "http://127.0.0.1:3100"      # Hoppscotch local alternative
+        "http://localhost:3000",
+        "http://127.0.0.1:3000", 
+        "http://localhost:21015",
+        "http://127.0.0.1:21015",
+        "https://samfms.local",
+        "http://capstone-samfms.dns.net.za:21015",    # Add this line
+        "https://capstone-samfms.dns.net.za:21015",   # And this for HTTPS
     ])
     # For development, allow all origins for API testing
     origins = ["*"]

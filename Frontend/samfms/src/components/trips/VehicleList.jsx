@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Search, Filter, ChevronDown, Check } from 'lucide-react';
+import { Search, Filter, ChevronDown, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const VehicleList = ({ vehicles, onSelectVehicle }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [sortBy, setSortBy] = useState('id');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [vehiclesPerPage] = useState(8); // Show 8 vehicles per page
 
   // Filter and sort vehicles
   const filteredVehicles = vehicles
@@ -31,6 +33,17 @@ const VehicleList = ({ vehicles, onSelectVehicle }) => {
       }
       return 0;
     });
+
+  // Calculate pagination values
+  const indexOfLastVehicle = currentPage * vehiclesPerPage;
+  const indexOfFirstVehicle = indexOfLastVehicle - vehiclesPerPage;
+  const currentVehicles = filteredVehicles.slice(indexOfFirstVehicle, indexOfLastVehicle);
+  const totalPages = Math.ceil(filteredVehicles.length / vehiclesPerPage);
+
+  // Reset to first page when search/filter changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedStatus, sortBy]);
 
   const handleSearch = e => {
     e.preventDefault();
@@ -195,35 +208,96 @@ const VehicleList = ({ vehicles, onSelectVehicle }) => {
       </div>
 
       {/* Vehicle list */}
-      <div className="overflow-y-auto flex-grow">
-        {filteredVehicles.length > 0 ? (
-          filteredVehicles.map(vehicle => (
-            <div
-              key={vehicle.id}
-              className="p-4 border-b border-border hover:bg-accent/10 cursor-pointer transition-colors"
-              onClick={() => onSelectVehicle(vehicle)}
-            >
-              <div className="flex items-center mb-2">
-                <div
-                  className={`w-2 h-2 rounded-full ${getStatusIndicatorClass(vehicle.status)} mr-2`}
-                ></div>
-                <span className="font-medium">{vehicle.id}</span>
-                <span className="ml-auto text-xs bg-muted px-2 py-0.5 rounded">
-                  {getStatusLabel(vehicle.status)}
-                </span>
+      <div className="flex-grow flex flex-col">
+        <div className="overflow-y-auto flex-grow">
+          {currentVehicles.length > 0 ? (
+            currentVehicles.map(vehicle => (
+              <div
+                key={vehicle.id}
+                className="p-4 border-b border-border hover:bg-accent/10 cursor-pointer transition-colors"
+                onClick={() => onSelectVehicle(vehicle)}
+              >
+                <div className="flex items-center mb-2">
+                  <div
+                    className={`w-2 h-2 rounded-full ${getStatusIndicatorClass(
+                      vehicle.status
+                    )} mr-2`}
+                  ></div>
+                  <span className="font-medium">{vehicle.id}</span>
+                  <span className="ml-auto text-xs bg-muted px-2 py-0.5 rounded">
+                    {getStatusLabel(vehicle.status)}
+                  </span>
+                </div>
+                <div className="text-sm mb-1">{vehicle.model}</div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{vehicle.driver || 'No driver assigned'}</span>
+                  <span>{vehicle.lastUpdate || 'Unknown'}</span>
+                </div>
               </div>
-              <div className="text-sm mb-1">
-                {vehicle.model}
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{vehicle.driver || 'No driver assigned'}</span>
-                <span>{vehicle.lastUpdate || 'Unknown'}</span>
-              </div>
+            ))
+          ) : (
+            <div className="p-8 text-center text-muted-foreground">
+              No vehicles match your search criteria
             </div>
-          ))
-        ) : (
-          <div className="p-8 text-center text-muted-foreground">
-            No vehicles match your search criteria
+          )}
+        </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="px-4 py-3 border-t border-border flex items-center justify-between bg-muted/30">
+            <div className="text-sm text-muted-foreground">
+              Showing {indexOfFirstVehicle + 1} to{' '}
+              {Math.min(indexOfLastVehicle, filteredVehicles.length)} of {filteredVehicles.length}{' '}
+              vehicles
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0 border border-input bg-background hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 rounded-md flex items-center justify-center text-sm font-medium"
+                title="Previous page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+
+              {/* Page numbers */}
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNumber;
+                if (totalPages <= 5) {
+                  pageNumber = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNumber = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNumber = totalPages - 4 + i;
+                } else {
+                  pageNumber = currentPage - 2 + i;
+                }
+
+                return (
+                  <button
+                    key={pageNumber}
+                    onClick={() => setCurrentPage(pageNumber)}
+                    className={`h-8 w-8 p-0 text-sm font-medium rounded-md flex items-center justify-center ${
+                      currentPage === pageNumber
+                        ? 'bg-primary text-primary-foreground'
+                        : 'border border-input bg-background hover:bg-accent hover:text-accent-foreground'
+                    }`}
+                    title={`Go to page ${pageNumber}`}
+                  >
+                    {pageNumber}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0 border border-input bg-background hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 rounded-md flex items-center justify-center text-sm font-medium"
+                title="Next page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>
