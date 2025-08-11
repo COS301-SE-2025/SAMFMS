@@ -18,7 +18,8 @@ import {
   Plus,
   Edit2,
   Trash2,
-  ChevronUp,
+  Locate,
+  LocateFixed,
 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -124,34 +125,33 @@ const TrackingMapWithSidebar = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [mapCenter, setMapCenter] = useState([37.7749, -122.4194]); // Default to San Francisco
+  const [mapCenter, setMapCenter] = useState([37.7749, -122.4194]); // Default to San Francisco, will be updated with user location
   const [selectedItem, setSelectedItem] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
+  const [showUserLocation, setShowUserLocation] = useState(false);
 
   // Address search state
   const [addressSearch, setAddressSearch] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [searchBarCollapsed, setSearchBarCollapsed] = useState(true);
 
   // Ref for search container to handle click outside
   const searchContainerRef = useRef(null);
 
   // Cleanup timeout on unmount
   useEffect(() => {
-    // Keyboard shortcut to toggle search bar (Ctrl/Cmd + K)
-    const handleKeyDown = event => {
-      if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
-        event.preventDefault();
-        setSearchBarCollapsed(prev => !prev);
+    // Handle click outside search bar to hide suggestions
+    const handleClickOutside = event => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        setShowSuggestions(false);
       }
     };
 
-    // Handle click outside search bar to collapse it
-    const handleClickOutside = event => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
-        setSearchBarCollapsed(true);
-        setShowSuggestions(false);
+    // Close sidebar with Escape key
+    const handleKeyDown = event => {
+      if (event.key === 'Escape' && !sidebarCollapsed) {
+        setSidebarCollapsed(true);
       }
     };
 
@@ -165,6 +165,35 @@ const TrackingMapWithSidebar = () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('mousedown', handleClickOutside);
     };
+  }, [sidebarCollapsed]);
+
+  // Get user's location on mount
+  useEffect(() => {
+    const getUserLocation = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          position => {
+            const { latitude, longitude } = position.coords;
+            const locationArray = [latitude, longitude];
+            setUserLocation(locationArray);
+            setMapCenter(locationArray);
+          },
+          error => {
+            console.warn('Could not get user location:', error);
+            // Keep default location (San Francisco) if geolocation fails
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 300000, // 5 minutes
+          }
+        );
+      } else {
+        console.warn('Geolocation is not supported by this browser.');
+      }
+    };
+
+    getUserLocation();
   }, []);
 
   // Load vehicles data
@@ -394,6 +423,36 @@ const TrackingMapWithSidebar = () => {
       handleAddressSearch(value);
     }, 300);
   };
+
+  // Handle location button click
+  const handleLocationButtonClick = () => {
+    if (userLocation && userLocation[0] && userLocation[1]) {
+      setMapCenter([userLocation[0], userLocation[1]]);
+      setShowUserLocation(!showUserLocation);
+    } else {
+      // Try to get location again if we don't have it
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          position => {
+            const { latitude, longitude } = position.coords;
+            const locationArray = [latitude, longitude];
+            setUserLocation(locationArray);
+            setMapCenter(locationArray);
+            setShowUserLocation(true);
+          },
+          error => {
+            console.warn('Could not get user location:', error);
+            alert('Unable to get your location. Please check your browser permissions.');
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 300000,
+          }
+        );
+      }
+    }
+  };
   if (loading && vehicles.length === 0 && geofences.length === 0) {
     return (
       <div
@@ -423,130 +482,136 @@ const TrackingMapWithSidebar = () => {
 
   return (
     <div className="w-full" style={{ height: 'calc(100vh - 70px)' }}>
-      <div className="flex flex-col lg:flex-row gap-0 relative h-full">
-        {/* Map */}
-        <div className="flex-1 border border-border overflow-hidden relative">
+      <div className="relative h-full">
+        {/* Map - Full Width */}
+        <div className="w-full h-full border border-border overflow-hidden relative">
           {/* Floating Address Search Bar and Toggle Buttons */}
           <div className="absolute top-4 left-4 right-4 z-[1000]">
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
+              {/* Location Button */}
+              <button
+                onClick={handleLocationButtonClick}
+                className={`flex items-center justify-center rounded-lg shadow-lg border px-3 py-2 h-10 transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 ${
+                  showUserLocation
+                    ? 'bg-blue-500 hover:bg-blue-600 border-blue-600 text-white'
+                    : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300'
+                }`}
+                title="Go to my location"
+              >
+                {showUserLocation ? (
+                  <LocateFixed className="w-4 h-4 transition-transform duration-200" />
+                ) : (
+                  <Locate className="w-4 h-4 transition-transform duration-200" />
+                )}
+              </button>
+
               {/* Search Bar Container */}
               <div className="flex-1" ref={searchContainerRef}>
                 <div className="transition-all duration-300 ease-in-out">
-                  {/* Collapsed state - just the toggle button */}
-                  {searchBarCollapsed ? (
-                    <button
-                      onClick={() => {
-                        setSearchBarCollapsed(false);
-                        // Focus input after expanding
-                        setTimeout(() => {
-                          const input = searchContainerRef.current?.querySelector('input');
-                          input?.focus();
-                        }, 350);
-                      }}
-                      className="flex items-center justify-center bg-white hover:bg-gray-50 border border-gray-300 rounded-lg shadow-lg p-3 transition-all duration-300 ease-in-out hover:scale-105 active:scale-95"
-                      title="Search for address (Ctrl+K)"
-                    >
-                      <Search className="w-4 h-4 text-gray-600 transition-transform duration-300" />
-                    </button>
-                  ) : (
-                    <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
-                      {/* Expanded search bar */}
-                      <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-lg transition-all duration-300 ease-in-out">
-                        <Search className="absolute left-3 text-gray-500 w-4 h-4 transition-colors duration-200" />
-                        <input
-                          type="text"
-                          placeholder="Search for an address..."
-                          value={addressSearch}
-                          onChange={e => handleAddressInputChange(e.target.value)}
-                          onFocus={() => {
-                            if (searchSuggestions.length > 0) {
-                              setShowSuggestions(true);
-                            }
-                          }}
-                          className="w-full pl-10 pr-12 py-3 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-gray-900 text-sm placeholder-gray-500 transition-all duration-200"
-                          onKeyDown={e => {
-                            if (e.key === 'Escape') {
-                              setAddressSearch('');
-                              setShowSuggestions(false);
-                              setSearchSuggestions([]);
-                              setSearchBarCollapsed(true);
-                            }
-                          }}
-                        />
-                        {/* Collapse button */}
-                        <button
-                          onClick={() => {
-                            setSearchBarCollapsed(true);
+                  <div className="space-y-2">
+                    {/* Search bar */}
+                    <div className="flex items-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg transition-all duration-300 ease-in-out h-10">
+                      <Search className="absolute left-3 text-gray-500 dark:text-gray-400 w-4 h-4 transition-colors duration-200" />
+                      <input
+                        type="text"
+                        placeholder="Search for an address..."
+                        value={addressSearch}
+                        onChange={e => handleAddressInputChange(e.target.value)}
+                        onFocus={() => {
+                          if (searchSuggestions.length > 0) {
+                            setShowSuggestions(true);
+                          }
+                        }}
+                        className="w-full pl-10 pr-12 py-3 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent text-gray-900 dark:text-gray-100 text-sm placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
+                        onKeyDown={e => {
+                          if (e.key === 'Escape') {
+                            setAddressSearch('');
                             setShowSuggestions(false);
                             setSearchSuggestions([]);
-                          }}
-                          className="absolute right-8 text-gray-500 hover:text-gray-700 p-1 transition-all duration-200 hover:scale-110 active:scale-95"
-                          title="Collapse search"
-                        >
-                          <ChevronUp className="w-4 h-4 transition-transform duration-200" />
-                        </button>
-                        {/* Loading spinner */}
-                        {isSearching && (
-                          <div className="absolute right-3 transition-opacity duration-200">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Search Suggestions Dropdown */}
-                      {showSuggestions && searchSuggestions.length > 0 && (
-                        <div className="bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto z-[1001] animate-in fade-in slide-in-from-top-1 duration-200">
-                          {searchSuggestions.map((suggestion, index) => (
-                            <button
-                              key={suggestion.place_id}
-                              onClick={() => handleAddressSelect(suggestion)}
-                              className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-all duration-200 border-b border-gray-100 last:border-b-0 focus:outline-none focus:bg-gray-50 transform hover:translate-x-1"
-                              style={{ animationDelay: `${index * 50}ms` }}
-                            >
-                              <div className="text-sm font-medium text-gray-900 truncate transition-colors duration-200">
-                                {suggestion.display_name}
-                              </div>
-                            </button>
-                          ))}
+                          }
+                        }}
+                      />
+                      {/* Loading spinner */}
+                      {isSearching && (
+                        <div className="absolute right-3 transition-opacity duration-200">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                         </div>
                       )}
                     </div>
-                  )}
+
+                    {/* Search Suggestions Dropdown */}
+                    {showSuggestions && searchSuggestions.length > 0 && (
+                      <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto z-[1001] animate-in fade-in slide-in-from-top-1 duration-200">
+                        {searchSuggestions.map((suggestion, index) => (
+                          <button
+                            key={suggestion.place_id}
+                            onClick={() => handleAddressSelect(suggestion)}
+                            className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 border-b border-gray-100 dark:border-gray-600 last:border-b-0 focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-700 transform hover:translate-x-1"
+                            style={{ animationDelay: `${index * 50}ms` }}
+                          >
+                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate transition-colors duration-200">
+                              {suggestion.display_name}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Toggle Buttons */}
-              <div className="flex items-center gap-2">
+              {/* Control Buttons Container - Fixed height regardless of search state */}
+              <div className="flex items-center gap-2 h-10">
                 {/* Vehicles Toggle */}
                 <button
                   onClick={() => setShowVehicles(!showVehicles)}
-                  className={`p-3 rounded-lg shadow-lg border transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 ${
+                  className={`flex items-center gap-2 px-3 py-2 h-10 rounded-lg shadow-lg border transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 ${
                     showVehicles
                       ? 'bg-green-500 hover:bg-green-600 border-green-600 text-white'
-                      : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600'
+                      : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300'
                   }`}
                   title={`${showVehicles ? 'Hide' : 'Show'} Vehicles`}
                 >
                   <Car className="w-4 h-4 transition-transform duration-200" />
+                  <span className="text-sm font-medium hidden sm:inline">Vehicles</span>
                 </button>
 
                 {/* Geofences Toggle */}
                 <button
                   onClick={() => setShowGeofences(!showGeofences)}
-                  className={`p-3 rounded-lg shadow-lg border transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 ${
+                  className={`flex items-center gap-2 px-3 py-2 h-10 rounded-lg shadow-lg border transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 ${
                     showGeofences
                       ? 'bg-blue-500 hover:bg-blue-600 border-blue-600 text-white'
-                      : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600'
+                      : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300'
                   }`}
                   title={`${showGeofences ? 'Hide' : 'Show'} Geofences`}
                 >
                   <Shield className="w-4 h-4 transition-transform duration-200" />
+                  <span className="text-sm font-medium hidden sm:inline">Geofences</span>
+                </button>
+
+                {/* Sidebar Toggle Button */}
+                <button
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  className="flex items-center justify-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-lg px-3 py-2 h-10 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 rounded-lg"
+                  title={sidebarCollapsed ? 'Show Sidebar' : 'Hide Sidebar'}
+                >
+                  <Menu
+                    className={`w-4 h-4 text-gray-600 dark:text-gray-300 transition-transform duration-300 ${
+                      sidebarCollapsed ? 'rotate-0' : 'rotate-180'
+                    }`}
+                  />
                 </button>
               </div>
             </div>
           </div>
 
-          <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
+          <MapContainer
+            center={mapCenter}
+            zoom={13}
+            style={{ height: '100%', width: '100%' }}
+            zoomControl={false}
+          >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -584,6 +649,36 @@ const TrackingMapWithSidebar = () => {
                   </Popup>
                 </Marker>
               ))}
+
+            {/* User Location Marker */}
+            {showUserLocation && userLocation && userLocation[0] && userLocation[1] && (
+              <Marker
+                position={[userLocation[0], userLocation[1]]}
+                icon={L.divIcon({
+                  className: 'user-location-marker',
+                  html: `<div style="
+                    width: 16px; 
+                    height: 16px; 
+                    background: #3b82f6; 
+                    border: 2px solid white; 
+                    border-radius: 50%; 
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    position: relative;
+                    top: -8px;
+                    left: -8px;
+                  "></div>`,
+                  iconSize: [16, 16],
+                  iconAnchor: [8, 8],
+                })}
+              >
+                <Popup>
+                  <div className="text-sm">
+                    <h4 className="font-medium">Your Location</h4>
+                    <p className="text-muted-foreground">Current position</p>
+                  </div>
+                </Popup>
+              </Marker>
+            )}
 
             {/* Geofence Circles and Markers - Always show when enabled */}
             {showGeofences && geofences.length > 0 && (
@@ -635,27 +730,20 @@ const TrackingMapWithSidebar = () => {
               </LayerGroup>
             )}
           </MapContainer>
-
-          {/* Sidebar Toggle Button */}
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="absolute top-4 right-4 z-[1000] bg-white border border-border shadow-md p-2 hover:bg-accent transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 rounded-md"
-            title={sidebarCollapsed ? 'Show Sidebar' : 'Hide Sidebar'}
-          >
-            <Menu
-              className={`w-4 h-4 text-black transition-transform duration-300 ${
-                sidebarCollapsed ? 'rotate-0' : 'rotate-180'
-              }`}
-            />
-          </button>
         </div>
 
-        {/* Sidebar */}
+        {/* Sidebar Backdrop - More prominent on mobile */}
+        {!sidebarCollapsed && (
+          <div
+            className="absolute inset-0 bg-black bg-opacity-10 sm:bg-opacity-10 z-[998] transition-opacity duration-300"
+            onClick={() => setSidebarCollapsed(true)}
+          />
+        )}
+
+        {/* Sidebar - Overlay on top of map */}
         <div
-          className={`w-full lg:w-80 flex flex-col bg-card border-l border-border transition-all duration-500 ease-in-out transform ${
-            sidebarCollapsed
-              ? 'translate-x-full opacity-0 lg:translate-x-full'
-              : 'translate-x-0 opacity-100'
+          className={`absolute top-20 right-4 w-full sm:w-80 h-[calc(100vh-174px)] bg-card border border-border shadow-xl rounded-2xl z-[999] transition-all duration-500 ease-in-out transform ${
+            sidebarCollapsed ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'
           }`}
         >
           <div className="flex flex-col h-full p-4 animate-in slide-in-from-right-4 duration-300">
@@ -737,7 +825,7 @@ const TrackingMapWithSidebar = () => {
                 filteredItems.map((item, index) => (
                   <div
                     key={item.id}
-                    className={`p-3 border border-border cursor-pointer transition-all duration-300 ease-in-out hover:bg-accent hover:scale-[1.02] hover:shadow-md transform animate-in fade-in slide-in-from-left-2 ${
+                    className={`w-full p-3 border border-border cursor-pointer transition-all duration-300 ease-in-out hover:bg-accent hover:scale-[1.02] hover:shadow-md transform animate-in fade-in slide-in-from-left-2 rounded-xl ${
                       selectedItem?.id === item.id
                         ? 'bg-primary/10 border-primary scale-[1.02] shadow-md'
                         : ''
