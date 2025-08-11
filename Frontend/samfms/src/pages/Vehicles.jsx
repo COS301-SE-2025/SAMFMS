@@ -16,6 +16,7 @@ import MaintenanceAnalyticsCard from '../components/analytics/MaintenanceAnalyti
 import DriverPerformanceCard from '../components/analytics/DriverPerformanceCard';
 import CostAnalyticsCard from '../components/analytics/CostAnalyticsCard';
 import StatusBreakdownCard from '../components/analytics/StatusBreakdownCard';
+import TotalDriversCard from '../components/analytics/TotalDriversCard';
 
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
@@ -660,6 +661,12 @@ const Vehicles = () => {
           <FleetUtilizationCard data={analytics.fleet_utilization} />
           <AssignmentMetricsCard data={analytics.assignment_metrics} />
           <MaintenanceAnalyticsCard data={analytics.maintenance_analytics} />
+          
+
+
+
+          
+          <TotalDriversCard data={"N/A"} />
         </div>
       </div>
     </div>

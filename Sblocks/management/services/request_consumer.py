@@ -220,6 +220,19 @@ class ServiceRequestConsumer:
                     # vehicles/{id} pattern
                     vehicle_id = endpoint.split('/')[-1]
                     vehicles = await vehicle_service.get_vehicle_by_id(vehicle_id)
+
+                elif "vehicles-total" in endpoint or "vehicles_total" in endpoint:
+                    usage_data = await vehicle_service.get_num_vehicles(
+                        department=data.get("department"),
+                        status=data.get("status"),
+                        vehicle_type=data.get("vehicle_type"),
+                        pagination=data.get("pagination", {"skip": 0, "limit": 50})
+                    )
+                    return ResponseBuilder.success(
+                        data=usage_data,
+                        message="Total vehicles data retrieved successfully penis"
+                    ).model_dump()
+
                 else:
                     # Get all vehicles with optional filters
                     department = data.get("department")
@@ -500,6 +513,8 @@ class ServiceRequestConsumer:
                         data=usage_data,
                         message="Vehicle usage data retrieved successfully"
                     ).model_dump()
+                
+
                     
                 elif "fuel-consumption" in endpoint or "fuel_consumption" in endpoint:
                     fuel_data = await analytics_service.get_fuel_consumption(use_cache=use_cache)
