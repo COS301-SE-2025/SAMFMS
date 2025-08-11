@@ -161,3 +161,34 @@
     transform: translateX(0);
   }
 }
+
+/* Custom styles for geofence visualization */
+.geofence-center-marker {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.geofence-center-marker div {
+  position: relative;
+}
+
+/* Ensure leaflet map elements are styled properly */
+.leaflet-container {
+  font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+}
+
+/* Custom location icon styling */
+.custom-location-icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.custom-location-icon div {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}

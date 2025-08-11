@@ -84,7 +84,7 @@ const Layout = () => {
         </nav>
 
         {/* Main content area */}
-        <main className="flex-1 overflow-auto bg-background p-6">
+        <main className="flex-1 overflow-auto bg-background">
           <Outlet />
         </main>
       </div>

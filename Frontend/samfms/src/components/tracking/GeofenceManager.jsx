@@ -590,8 +590,8 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                   />
                 </div>
 
-                {/* Category, Shape, and Status - Side by Side */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {/* Category and Status - Side by Side */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {/* Category */}
                   <div>
                     <label className="block text-sm font-medium mb-1">Category</label>
@@ -605,22 +605,6 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                       <option value="delivery">Delivery</option>
                       <option value="restricted">Restricted</option>
                       <option value="emergency">Emergency</option>
-                    </select>
-                  </div>
-
-                  {/* Geometry Type */}
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Shape</label>
-                    <select
-                      value={newGeofence.geometryType}
-                      onChange={e =>
-                        setNewGeofence({ ...newGeofence, geometryType: e.target.value })
-                      }
-                      className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                    >
-                      <option value="circle">Circle</option>
-                      <option value="polygon">Polygon</option>
-                      <option value="rectangle">Rectangle</option>
                     </select>
                   </div>
 
@@ -647,9 +631,9 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                     </label>
                     <input
                       type="range"
-                      min="0"
-                      max="100000"
-                      step="100"
+                      min="50"
+                      max="10000"
+                      step="50"
                       value={newGeofence.radius}
                       onChange={e =>
                         setNewGeofence({ ...newGeofence, radius: parseInt(e.target.value) })
@@ -657,8 +641,8 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
                     />
                     <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>0m</span>
-                      <span>100,000m</span>
+                      <span>50m</span>
+                      <span>10,000m</span>
                     </div>
                   </div>
                 )}

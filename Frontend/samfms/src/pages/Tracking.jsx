@@ -101,7 +101,7 @@ const Tracking = () => {
 
   return (
     <FadeIn delay={0.1}>
-      <div className="relative container mx-auto">
+      <div className="relative container p-0 mx-auto">
         <div
           className="absolute inset-0 z-0 opacity-10 pointer-events-none"
           style={{
