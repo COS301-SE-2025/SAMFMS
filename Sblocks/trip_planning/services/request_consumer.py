@@ -248,7 +248,6 @@ class ServiceRequestConsumer:
     
     async def _handle_trips_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle trips-related requests by calling route logic"""
-        logger.info(f"[_handle_trips_request] Entered with method={method}, endpoint={user_context.get('endpoint')}")
         try:
             from services.trip_service import trip_service
             from schemas.responses import ResponseBuilder
@@ -284,8 +283,29 @@ class ServiceRequestConsumer:
                     from schemas.requests import CreateTripRequest
                     trip_request = CreateTripRequest(**data)
                     created_by = user_context.get("user_id", "system")
+                    
+                    # Create trip in trips collection
                     trip = await trip_service.create_trip(trip_request, created_by)
-                    logger.info(f"[_handle_trips_request] trip_service.create_trip() succeeded for trip {trip.id if hasattr(trip, 'id') else 'unknown'}")
+                    trip_id = trip.id
+
+                    # Update driver and vehicle collections to make them unavailable
+                    # driver part
+                    from services.driver_service import driver_service
+                    driver_id = trip.driver_assignment
+                    await driver_service.deactivateDriver(driver_id)
+                    
+                    # vehicle part
+                    from services.vehicle_service import vehicle_service
+                    vehicle_id = trip.vehicle_id
+                    await vehicle_service.deactiveVehicle(vehicle_id) 
+
+                    # Create a record in vehicle_assignments
+                    from services.vehicle_assignments_services import vehicle_assignment_service
+                    assignment = await vehicle_assignment_service.createAssignment(trip_id, vehicle_id, driver_id)  
+                    
+                    logger.info(f"Assignment created successfully: {assignment}")
+
+                    logger.info(f"[_handle_trips_request] trip_service.create_trip() succeeded for trip {trip.id}")
                     return ResponseBuilder.success(
                         data=trip.model_dump(),
                         message="Trip created successfully"

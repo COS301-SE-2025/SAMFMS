@@ -84,7 +84,7 @@ class DriverService:
             
             # Convert to dict and add metadata
             driver_data = driver_request.model_dump()
-            driver_data["status"] = "inactive"  # Set initial status
+            driver_data["status"] = "available"  # Set initial status
 
             if not driver_data.get("license_number"):
                 driver_data.pop("license_number", None)

@@ -14,8 +14,9 @@ import {
   getVehicleAnalytics,
 } from '../backend/api/trips';
 
-import { getVehicles } from '../backend/api/vehicles';
-import { getDrivers } from '../backend/api/drivers';
+import { getVehicles } from '../backend/api/vehicles'
+import { getAllDrivers } from '../backend/api/drivers';
+
 
 const Trips = () => {
   // Existing state
@@ -141,15 +142,16 @@ const Trips = () => {
   useEffect(() => {
     const loadDrivers = async () => {
       try {
-        const response = await getDrivers();
-        console.log('Response received for drivers: ', response);
+        const response = await getAllDrivers();
+        console.log("Response received for drivers: ", response);
 
+        const data = response.data.data;
         // Extract drivers from the nested response structure
-        const driversData = response?.drivers || [];
+        const driversData = data?.drivers || [];
 
         // Filter for available drivers (is_active: false)
-        const availableDrivers = driversData.filter(
-          driver => driver.role === 'driver' && !driver.is_active
+        const availableDrivers = driversData.filter(driver =>
+          driver.status === "available"
         );
 
         console.log('Available drivers: ', availableDrivers);
@@ -325,7 +327,7 @@ const Trips = () => {
       const response = await createTrip(tripData);
       console.log('Trip created successfully:', response);
 
-      if (response.data.status === 'success') {
+      if (response.data.status == "success") {
         alert('Trip scheduled successfully!');
       } else {
         alert('Failed to create trip: ', response.data.message);
@@ -339,8 +341,8 @@ const Trips = () => {
     }
   };
 
-  const availableVehicles = vehicles.filter(v => v.status === 'available' || v.status === 'active');
-  const availableDrivers = drivers;
+  const availableVehicles = vehicles.filter(v => v.status === 'available' || v.status === 'unavailable');
+  const availableDrivers = drivers
 
   if (loading) {
     return (
@@ -513,6 +515,7 @@ const Trips = () => {
                     )}
                   </div>
 
+
                   {/* Add driver selection dropdown */}
                   <div>
                     <label className="block text-sm font-medium mb-1 text-foreground">
@@ -526,8 +529,8 @@ const Trips = () => {
                     >
                       <option value="">Select a driver</option>
                       {drivers.map(driver => (
-                        <option key={driver.id} value={driver.id}>
-                          {driver.full_name}
+                        <option key={driver._id} value={driver.employee_id}>
+                          {`${driver.first_name} ${driver.last_name} (${driver.employee_id})`}
                         </option>
                       ))}
                     </select>
