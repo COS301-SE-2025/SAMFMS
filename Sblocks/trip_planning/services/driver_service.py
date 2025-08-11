@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from bson import ObjectId
 
-from repositories.database import db_manager
+from repositories.database import db_manager, db_manager_management
 from schemas.entities import DriverAssignment, Trip, TripStatus
 from schemas.requests import AssignDriverRequest, DriverAvailabilityRequest
 from events.publisher import event_publisher
@@ -19,6 +19,47 @@ class DriverService:
     
     def __init__(self):
         self.db = db_manager
+        self.db_management = db_manager_management
+    
+    async def deactivateDriver(self, driver_id: str):
+        """Use this function when a driver was assigned to a trip"""
+        try:
+            driver = await self.db_management.drivers.find_one({"employee_id": driver_id})
+            if not driver:
+                raise ValueError("Driver not found")
+
+            await self.db_management.drivers.update_one(
+                {"employee_id": driver_id},
+                {"$set": {"status": "unavailable", "updated_at": datetime.utcnow()}}
+            )
+
+            logger.info(f"Driver {driver_id} deactivated successfully")
+
+        except Exception as e:
+            logger.error(f"Error deactivating driver {driver_id}: {e}")
+            raise
+    
+    async def activateDriver(self, driver_id: str):
+        """Use this function to mark a driver as active/available"""
+        try:
+            driver = await self.db_management.drivers.find_one({"employee_id": driver_id})
+            if not driver:
+                raise ValueError("Driver not found")
+
+            await self.db_management.drivers.update_one(
+                {"employee_id": driver_id},
+                {"$set": {"status": "available", "updated_at": datetime.utcnow()}}
+            )
+
+            logger.info(f"Driver {driver_id} activated successfully")
+
+        except Exception as e:
+            logger.error(f"Error activating driver {driver_id}: {e}")
+            raise
+
+
+            
+
         
     async def assign_driver_to_trip(
         self,
