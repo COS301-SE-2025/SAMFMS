@@ -384,6 +384,93 @@ class AnalyticsService:
             logger.error(f"Error getting analytics data: {e}")
             raise
 
+    async def handle_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle analytics-related requests from request consumer"""
+        try:
+            from schemas.responses import ResponseBuilder
+            
+            # Extract data and endpoint from user_context
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            use_cache = data.get("use_cache", True)
+            
+            # Create mock user for service calls
+            current_user = {"user_id": user_context.get("user_id", "system")}
+            
+            # Handle HTTP methods and route to appropriate analytics logic
+            if method == "GET":
+                # Route based on specific analytics endpoint (mimic route structure)
+                if "dashboard" in endpoint:
+                    dashboard_data = await self.get_dashboard_summary(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=dashboard_data,
+                        message="Dashboard analytics retrieved successfully"
+                    ).model_dump()
+                    
+                elif "fleet-utilization" in endpoint or "fleet_utilization" in endpoint:
+                    utilization_data = await self.get_fleet_utilization(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=utilization_data,
+                        message="Fleet utilization data retrieved successfully"
+                    ).model_dump()
+                    
+                elif "driver-performance" in endpoint or "driver_performance" in endpoint:
+                    performance_data = await self.get_driver_performance(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=performance_data,
+                        message="Driver performance data retrieved successfully"
+                    ).model_dump()
+                    
+                elif "maintenance-costs" in endpoint or "maintenance_costs" in endpoint:
+                    costs_data = await self.get_maintenance_costs(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=costs_data,
+                        message="Maintenance costs data retrieved successfully"
+                    ).model_dump()
+                
+                elif "vehicle-usage" in endpoint or "vehicle_usage" in endpoint:
+                    usage_data = await self.get_vehicle_usage_analytics(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=usage_data,
+                        message="Vehicle usage data retrieved successfully"
+                    ).model_dump()
+                
+
+                    
+                elif "fuel-consumption" in endpoint or "fuel_consumption" in endpoint:
+                    fuel_data = await self.get_fuel_consumption(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=fuel_data,
+                        message="Fuel consumption data retrieved successfully"
+                    ).model_dump()
+                    
+                else:
+                    # Default analytics data
+                    analytics_data = await self.get_analytics_data(data)
+                    return ResponseBuilder.success(
+                        data=analytics_data,
+                        message="Analytics data retrieved successfully"
+                    ).model_dump()
+                    
+            elif method == "POST":
+                # POST for custom analytics queries
+                analytics_data = await self.get_analytics_data(data)
+                return ResponseBuilder.success(
+                    data=analytics_data,
+                    message="Custom analytics query processed successfully"
+                ).model_dump()
+                
+            else:
+                raise ValueError(f"Unsupported HTTP method for analytics: {method}")
+                
+        except Exception as e:
+            from schemas.responses import ResponseBuilder
+            logger.error(f"Error handling analytics request {method} {endpoint}: {e}")
+            return ResponseBuilder.error(
+                error="AnalyticsRequestError",
+                message=f"Failed to process analytics request: {str(e)}"
+            ).model_dump()
+
 
 # Global analytics service instance
 analytics_service = AnalyticsService()

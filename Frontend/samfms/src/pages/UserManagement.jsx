@@ -93,6 +93,23 @@ const UserManagement = () => {
     }
   }, [hasRole]);
 
+  // Comprehensive refresh function to update all user data
+  const refreshAllUserData = React.useCallback(async () => {
+    try {
+      const promises = [loadUsers()];
+
+      // Only load drivers API if user has permission
+      if (hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) {
+        promises.push(loadDriversFromAPI());
+        promises.push(loadInvitedUsers());
+      }
+
+      await Promise.all(promises);
+    } catch (err) {
+      console.error('Failed to refresh user data:', err);
+    }
+  }, [loadUsers, loadDriversFromAPI, loadInvitedUsers, hasRole]);
+
   useEffect(() => {
     // Check authentication status first
     if (!isAuthenticated()) {
@@ -182,7 +199,9 @@ const UserManagement = () => {
       console.log('User creation successful');
       showNotification(`User ${formData.full_name} created successfully!`, 'success');
       setShowManualCreateModal(false);
-      loadUsers();
+
+      // Refresh all user data to ensure UI is fully updated
+      await refreshAllUserData();
     } catch (err) {
       console.error('Error in handleManualCreateSubmit:', err);
       showNotification(`Failed to create user: ${err.message}`, 'error');
@@ -220,7 +239,9 @@ const UserManagement = () => {
         is_active: false,
       });
       showNotification(`User has been removed from the system.`, 'success');
-      loadUsers();
+
+      // Refresh all user data to ensure UI is fully updated
+      await refreshAllUserData();
     } catch (err) {
       showNotification(`Failed to remove user: ${err.message}`, 'error');
     } finally {
@@ -245,7 +266,9 @@ const UserManagement = () => {
         role: newRole,
       });
       showNotification('User role updated successfully!', 'success');
-      loadUsers();
+
+      // Refresh all user data to ensure UI is fully updated
+      await refreshAllUserData();
     } catch (err) {
       showNotification(`Failed to update user role: ${err.message}`, 'error');
     } finally {

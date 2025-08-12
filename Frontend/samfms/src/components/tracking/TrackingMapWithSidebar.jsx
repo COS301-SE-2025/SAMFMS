@@ -218,6 +218,17 @@ const TrackingMapWithSidebar = () => {
         locationsResponse.data ||
         [];
 
+      console.log('Locations response structure:', locationsResponse);
+      console.log('Extracted locationsData:', locationsData);
+      console.log('Is locationsData an array?', Array.isArray(locationsData));
+
+      // Ensure locationsData is an array before using forEach
+      if (!Array.isArray(locationsData)) {
+        console.warn('locationsData is not an array:', typeof locationsData, locationsData);
+        setVehicles([]); // Set empty array if no valid location data
+        return;
+      }
+
       // Create a map of vehicle locations by vehicle_id
       const locationMap = {};
       locationsData.forEach(location => {

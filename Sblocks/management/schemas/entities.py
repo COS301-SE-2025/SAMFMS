@@ -148,6 +148,84 @@ class AnalyticsSnapshot(BaseModel):
         json_encoders = {ObjectId: str}
 
 
+class FuelRecord(BaseModel):
+    """Fuel record entity"""
+    id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    vehicle_id: str
+    driver_id: str
+    liters: float
+    cost: float
+    fuel_type: str = "petrol"
+    station_name: Optional[str] = None
+    location: Optional[str] = None
+    receipt_number: Optional[str] = None
+    notes: Optional[str] = None
+    purchase_date: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None
+    created_by: str
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+class MileageRecord(BaseModel):
+    """Vehicle mileage record entity"""
+    id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    vehicle_id: str
+    driver_id: str
+    previous_mileage: int
+    new_mileage: int
+    mileage_difference: int
+    reading_date: datetime = Field(default_factory=datetime.utcnow)
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by: str
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+class NotificationStatus(str, Enum):
+    """Notification status"""
+    UNREAD = "unread"
+    READ = "read"
+    ARCHIVED = "archived"
+
+class NotificationPriority(str, Enum):
+    """Notification priority levels"""
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
+
+class Notification(BaseModel):
+    """Notification entity"""
+    id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    recipient_id: str
+    recipient_type: str  # driver, manager, admin
+    title: str
+    message: str
+    notification_type: str  # fuel, assignment, maintenance, etc.
+    priority: NotificationPriority = NotificationPriority.NORMAL
+    status: NotificationStatus = NotificationStatus.UNREAD
+    related_entity_id: Optional[str] = None
+    related_entity_type: Optional[str] = None
+    action_required: bool = False
+    is_read: bool = False
+    is_archived: bool = False
+    read_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
 class AuditLog(BaseModel):
     """Audit trail entity"""
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")

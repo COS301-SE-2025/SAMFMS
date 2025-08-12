@@ -23,6 +23,12 @@ from api.routes.analytics import router as analytics_router
 from api.routes.drivers import router as drivers_router
 from api.routes.vehicles import router as vehicles_router
 
+# Import new service routes
+from routes.fuel_routes import router as fuel_router
+from routes.mileage_routes import router as mileage_router
+from routes.assignment_routes import router as assignment_router
+from routes.notification_routes import router as notification_router
+
 # Import enhanced middleware and exception handlers
 from middleware import (
     RequestContextMiddleware, LoggingMiddleware, SecurityHeadersMiddleware,
@@ -307,6 +313,12 @@ app.add_middleware(
 app.include_router(analytics_router, tags=["analytics"])
 app.include_router(drivers_router, tags=["drivers"])
 app.include_router(vehicles_router, tags=["vehicles"])
+
+# Include new service routers
+app.include_router(fuel_router, tags=["fuel"])
+app.include_router(mileage_router, tags=["mileage"])
+app.include_router(assignment_router, tags=["assignments"])
+app.include_router(notification_router, tags=["notifications"])
 
 
 @app.get("/")

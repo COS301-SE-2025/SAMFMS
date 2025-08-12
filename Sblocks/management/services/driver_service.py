@@ -3,6 +3,8 @@ Driver management service
 """
 import logging
 from typing import Dict, Any, List, Optional
+import aiohttp
+import os
 
 from repositories.repositories import DriverRepository
 from events.publisher import event_publisher
@@ -16,6 +18,38 @@ class DriverService:
     
     def __init__(self):
         self.driver_repo = DriverRepository()
+        self.security_service_url = os.getenv("SECURITY_SERVICE_URL", "http://security:21002")
+    
+    async def _create_user_account(self, driver_data: Dict[str, Any]) -> bool:
+        """Create a user account for the driver in the security service"""
+        try:
+            # Prepare signup request (uses the public signup endpoint)
+            signup_data = {
+                "email": driver_data["email"],
+                "password": "TempPassword123!",  # Temporary password - should be changed on first login
+                "full_name": driver_data["full_name"],
+                "role": "driver"
+            }
+            
+            # Make request to security service signup endpoint (no auth required)
+            async with aiohttp.ClientSession() as session:
+                url = f"{self.security_service_url}/auth/signup"
+                headers = {"Content-Type": "application/json"}
+                
+                async with session.post(url, json=signup_data, headers=headers) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        logger.info(f"Successfully created user account for driver: {driver_data['email']}")
+                        return True
+                    else:
+                        error_text = await response.text()
+                        logger.warning(f"Failed to create user account (driver record still created): {response.status} - {error_text}")
+                        # Don't fail the entire driver creation if user account creation fails
+                        return False
+                        
+        except Exception as e:
+            logger.error(f"Error creating user account for driver: {e}")
+            return False
 
 
 
@@ -91,16 +125,25 @@ class DriverService:
             
             
             # Convert to dict and add metadata
-            driver_data = driver_request.model_dump()
+            driver_data = driver_request.model_dump(exclude_unset=True)
             driver_data["status"] = "available"  # Set initial status
 
-            if not driver_data.get("license_number"):
+            # Ensure license_number is completely removed if it's empty or None
+            if "license_number" in driver_data and (
+                driver_data["license_number"] is None or 
+                not str(driver_data["license_number"]).strip()
+            ):
                 driver_data.pop("license_number", None)
             
             # Create driver
             driver_id = await self.driver_repo.create(driver_data)
 
             logger.info(f"Created driver: {driver_id}")
+            
+            # Create user account in security service
+            user_created = await self._create_user_account(driver_data)
+            if not user_created:
+                logger.warning(f"Failed to create user account for driver {driver_id}, but driver record was created")
             
             # Get full driver data for event publishing
             driver = await self.driver_repo.get_by_id(driver_id)
@@ -297,6 +340,137 @@ class DriverService:
         except Exception as e:
             logger.error(f"Error generating next employee ID: {str(e)}")
             return "EMP001"  # Fallback to first ID if error occurs
+
+    async def handle_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle driver-related requests from request consumer"""
+        try:
+            from schemas.requests import DriverCreateRequest, DriverUpdateRequest
+            from schemas.responses import ResponseBuilder
+            from repositories.repositories import DriverRepository
+            
+            # Extract data and endpoint from user_context
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            # Create mock user for service calls
+            current_user = {"user_id": user_context.get("user_id", "system")}
+            
+            # Handle HTTP methods and route to appropriate logic
+            if method == "GET":
+                # Parse endpoint for specific driver operations
+                if "search" in endpoint:
+                    query = data.get("query", "")
+                    drivers = await self.search_drivers(query)
+                elif endpoint.count('/') > 0 and endpoint.split('/')[-1] and endpoint.split('/')[-1] != "drivers":
+                    # drivers/{id} pattern
+                    driver_id = endpoint.split('/')[-1]
+                    drivers = await self.get_driver_by_id(driver_id)
+                else:
+                    # Get drivers with optional filters (mimic route logic)
+                    department = data.get("department")
+                    status = data.get("status")
+                    pagination = data.get("pagination", {"skip": 0, "limit": 50})
+                    
+                    filters = {}
+
+                    # Normalize filters from request
+                    if department:
+                        filters["department_filter"] = department
+
+                    if status:
+                        filters["status_filter"] = status
+
+                    # Handle pagination
+                    pagination = data.get("pagination", {})
+                    if "skip" in pagination:
+                        filters["skip"] = pagination["skip"]
+                    if "limit" in pagination:
+                        filters["limit"] = pagination["limit"]
+                    
+                    logger.info(f"Filters: {filters}")
+
+                    # Get drivers using new filter-aware function
+                    drivers_result = await self.get_all_drivers(filters)
+
+                
+                return ResponseBuilder.success(
+                    data=drivers_result,
+                    message="Drivers retrieved successfully"
+                ).model_dump()
+
+                
+            elif method == "POST":
+                if not data:
+                    raise ValueError("Request data is required for POST operation")
+                
+                logger.info(f"Data received for POST operation: ")
+                
+                # Create and employee id based on the last employeeid in the driver collection
+                employee_id = await self.generate_next_employee_id()
+                logger.info(f"Generated employee_id: {employee_id}")
+                # Split full name from data into first and last names
+                full_name = data["full_name"]  # Changed from data.full_name to data["full_name"]
+                parts = full_name.strip().split()
+                first_name = parts[0]
+                last_name = " ".join(parts[1:])
+                # Create new data
+                driver_data = {
+                    "employee_id": employee_id,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "email": data["email"],
+                    "phone": data["phoneNo"]
+                }
+                # Create driver
+                driver_request = DriverCreateRequest(**driver_data)
+                created_by = current_user["user_id"]
+                result = await self.create_driver(driver_request, created_by)
+                
+                return ResponseBuilder.success(
+                    data=result,
+                    message="Driver created successfully"
+                ).model_dump()
+                
+            elif method == "PUT":
+                driver_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not driver_id:
+                    raise ValueError("Driver ID is required for PUT operation")
+                if not data:
+                    raise ValueError("Request data is required for PUT operation")
+                
+                # Update driver
+                driver_update_request = DriverUpdateRequest(**data)
+                updated_by = current_user["user_id"]
+                result = await self.update_driver(driver_id, driver_update_request, updated_by)
+                
+                return ResponseBuilder.success(
+                    data=result,
+                    message="Driver updated successfully"
+                ).model_dump()
+                
+            elif method == "DELETE":
+                driver_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not driver_id:
+                    raise ValueError("Driver ID is required for DELETE operation")
+                
+                # Delete driver
+                result = await self.delete_driver(driver_id)
+                
+                return ResponseBuilder.success(
+                    data=result,
+                    message="Driver deleted successfully"
+                ).model_dump()
+                
+            else:
+                raise ValueError(f"Unsupported HTTP method for drivers: {method}")
+                
+        except Exception as e:
+            from schemas.responses import ResponseBuilder
+            logger.error(f"Error handling drivers request {method} {endpoint}: {e}")
+            return ResponseBuilder.error(
+                error="DriverRequestError",
+                message=f"Failed to process driver request: {str(e)}"
+            ).model_dump()
 
 
 # Global service instance

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Crosshair, Layers, Navigation, Target } from 'lucide-react';
+import { Crosshair, Layers, Navigation } from 'lucide-react';
 
 // Fix for marker icons in React-Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -32,7 +32,6 @@ const TrackingMap = ({
   const [followMode, setFollowMode] = useState(false);
   const [mapType, setMapType] = useState('streets');
   const [focusLocation, setFocusLocation] = useState(null);
-  const [showRadiusLabels, setShowRadiusLabels] = useState(true);
 
   useEffect(() => {
     if (mapReady && onMapReady) onMapReady(true);
@@ -110,10 +109,7 @@ const TrackingMap = ({
                       : geofence.type === 'customer'
                       ? '#BFDBFE'
                       : '#A7F3D0',
-                  fillOpacity: 0.3,
-                  weight: 3,
-                  opacity: 0.8,
-                  dashArray: geofence.status === 'restricted' ? '10, 10' : null,
+                  fillOpacity: 0.5,
                 }}
               >
                 <Popup>
@@ -122,72 +118,9 @@ const TrackingMap = ({
                     <p>Type: {geofence.type}</p>
                     <p>Radius: {geofence.radius}m</p>
                     <p>Status: {geofence.status}</p>
-                    {geofence.description && <p>Description: {geofence.description}</p>}
                   </div>
                 </Popup>
               </Circle>
-            ))}
-
-            {/* Geofence center markers for better visibility */}
-            {geofences.map(geofence => (
-              <Marker
-                key={`marker-${geofence.id}`}
-                position={[geofence.coordinates.lat, geofence.coordinates.lng]}
-                icon={L.divIcon({
-                  className: 'geofence-center-marker',
-                  html: `
-                    <div style="
-                      background: ${
-                        geofence.status === 'restricted'
-                          ? '#EF4444'
-                          : geofence.type === 'depot'
-                          ? '#8B5CF6'
-                          : geofence.type === 'customer'
-                          ? '#3B82F6'
-                          : '#10B981'
-                      };
-                      width: 12px;
-                      height: 12px;
-                      border-radius: 50%;
-                      border: 2px solid white;
-                      box-shadow: 0 0 4px rgba(0,0,0,0.3);
-                    "></div>
-                    ${
-                      showRadiusLabels
-                        ? `
-                    <div style="
-                      position: absolute;
-                      top: 16px;
-                      left: -20px;
-                      background: rgba(255, 255, 255, 0.95);
-                      border: 1px solid #ccc;
-                      border-radius: 4px;
-                      padding: 2px 6px;
-                      font-size: 11px;
-                      font-weight: bold;
-                      color: #333;
-                      white-space: nowrap;
-                      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                      backdrop-filter: blur(2px);
-                    ">${geofence.radius}m</div>
-                    `
-                        : ''
-                    }
-                  `,
-                  iconSize: [12, 12],
-                  iconAnchor: [6, 6],
-                })}
-              >
-                <Popup>
-                  <div>
-                    <h3 className="font-medium">{geofence.name}</h3>
-                    <p>Type: {geofence.type}</p>
-                    <p>Radius: {geofence.radius}m</p>
-                    <p>Status: {geofence.status}</p>
-                    {geofence.description && <p>Description: {geofence.description}</p>}
-                  </div>
-                </Popup>
-              </Marker>
             ))}
 
             {/* Live vehicle locations */}
@@ -250,17 +183,6 @@ const TrackingMap = ({
                 title={followMode ? 'Disable follow mode' : 'Enable follow mode'}
               >
                 <Crosshair size={16} />
-              </button>
-            </div>
-            <div className="bg-card p-2 rounded-md shadow-md border border-border">
-              <button
-                className={`p-2 rounded-md w-8 h-8 flex items-center justify-center ${
-                  showRadiusLabels ? 'bg-primary text-primary-foreground' : 'hover:bg-accent/50'
-                }`}
-                onClick={() => setShowRadiusLabels(!showRadiusLabels)}
-                title={showRadiusLabels ? 'Hide radius labels' : 'Show radius labels'}
-              >
-                <Target size={16} />
               </button>
             </div>
             <div className="bg-card p-2 rounded-md shadow-md border border-border">

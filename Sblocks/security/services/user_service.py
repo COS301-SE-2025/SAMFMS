@@ -246,9 +246,8 @@ class UserService:
             from utils.auth_utils import get_password_hash
             password_hash = get_password_hash(user_data.password)
 
+            # All manually created users should be active by default
             is_active_determine = True
-            if(user_data.role == "driver"):
-                is_active_determine = False
             
             # Create user in security database
             now = datetime.utcnow()
