@@ -16,6 +16,9 @@ class DriverService:
     
     def __init__(self):
         self.driver_repo = DriverRepository()
+
+
+
     
     async def get_all_drivers(self, filters: Dict[str, Any] = {}) -> Dict[str, Any]:
         """Retrieve all drivers with optional filtering and pagination"""
@@ -60,6 +63,11 @@ class DriverService:
         except Exception as e:
             logger.error(f"Error retrieving filtered drivers: {e}")
             raise
+
+    async def get_num_drivers(self, filters: Dict[str, Any] = {}) -> Dict[str, Any]:
+        """Retrieve total number of drivers based on filters"""
+        response = await self.get_all_drivers(filters)
+        return {"total": response["total"]}
 
     
     async def create_driver(self, driver_request: DriverCreateRequest, created_by: str) -> Dict[str, Any]:

@@ -64,6 +64,46 @@ async def get_vehicles(
                 request_id=request_id,
                 execution_time_ms=timer.execution_time_ms
             ).model_dump()
+        
+@router.get("/vehicles-total")
+async def get_vehicles_total(
+    request: Request,
+    department: Optional[str] = Query(None, description="Filter by department"),
+    status: Optional[str] = Query(None, description="Filter by status"),
+    vehicle_type: Optional[str] = Query(None, description="Filter by vehicle type"),
+    pagination = Depends(get_pagination_params),
+    current_user = Depends(require_permission("vehicles:read"))
+):
+    """Get total number ofvehicles with optional filters and enhanced response format"""
+    request_id = await get_request_id(request)
+    
+    with RequestTimer() as timer:
+        try:
+            logger.info(f"Vehicles list requested by user {current_user.get('user_id')}")
+            
+            vehicles = await vehicle_service.get_num_vehicles(
+                department=department,
+                status=status,
+                vehicle_type=vehicle_type,
+                pagination=pagination
+            )
+            
+            return ResponseBuilder.success(
+                data=vehicles,
+                message="Total vehicles retrieved successfully",
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+            
+        except Exception as e:
+            logger.error(f"Error getting vehicles: {e}")
+            return ResponseBuilder.error(
+                error="VehicleRetrievalError",
+                message="Failed to retrieve vehicles",
+                details={"error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
 
 
 @router.post("/vehicles")

@@ -74,7 +74,22 @@ class VehicleService:
         except Exception as e:
             logger.error(f"Error getting vehicles: {e}")
             raise
+
+
+    async def get_num_vehicles(self, 
+        department: Optional[str] = None,
+        status: Optional[str] = None, 
+        vehicle_type: Optional[str] = None,
+        pagination: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        response = await self.get_vehicles(department, status, vehicle_type, pagination)
+        total_vehicles = len(response["vehicles"])
+
+        return {
+            "Total vehicles": total_vehicles,
+        }
     
+
     async def create_vehicle(self, vehicle_request: VehicleCreateRequest, created_by: str) -> Dict[str, Any]:
         """Create new vehicle with validation"""
         try:

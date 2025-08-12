@@ -11,17 +11,11 @@ const AssignmentMetricsCard = ({data}) => {
           <tbody>
             <tr className="border-b border-border">
               <th className="py-3 px-4 text-left bg-muted/50 w-1/2">Active Assignments</th>
-              <td className="py-3 px-4">{data.active}</td>
+              <td className="py-3 px-4">{data.active_assignments}</td>
             </tr>
             <tr className="border-b border-border">
               <th className="py-3 px-4 text-left bg-muted/50">Completed Assignments</th>
-              <td className="py-3 px-4">{data.completed}</td>
-            </tr>
-            <tr>
-              <th className="py-3 px-4 text-left bg-muted/50">Average Duration</th>
-              <td className="py-3 px-4">
-                {(data.average_duration_ms / (1000 * 60 * 60)).toFixed(2)} hours
-              </td>
+              <td className="py-3 px-4">{data.completed_assignments}</td>
             </tr>
           </tbody>
         </table>
@@ -31,3 +25,10 @@ const AssignmentMetricsCard = ({data}) => {
 };
 
 export default AssignmentMetricsCard;
+
+{/* <tr>
+<th className="py-3 px-4 text-left bg-muted/50">Average Duration</th>
+<td className="py-3 px-4">
+  {(data.average_duration_ms / (1000 * 60 * 60)).toFixed(2)} hours
+</td>
+</tr> */}

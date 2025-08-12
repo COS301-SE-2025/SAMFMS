@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, use } from 'react';
 import { Plus } from 'lucide-react';
 import VehicleList from '../components/vehicles/VehicleList';
 import VehicleSearch from '../components/vehicles/VehicleSearch';
@@ -8,7 +8,7 @@ import DriverAssignmentModal from '../components/vehicles/DriverAssignmentModal'
 import DataVisualization from '../components/vehicles/DataVisualization';
 import AddVehicleModal from '../components/vehicles/AddVehicleModal';
 import EditVehicleModal from '../components/vehicles/EditVehicleModal';
-import { getVehicles, deleteVehicle, searchVehicles } from '../backend/API';
+import { getVehicles, deleteVehicle, searchVehicles, getVehicleUsage, getAssignmentMetrics } from '../backend/API';
 import FleetUtilizationCard from '../components/analytics/FleetUtilizationCard';
 import VehicleUsageStats from '../components/analytics/VehicleUsageStats';
 import AssignmentMetricsCard from '../components/analytics/AssignmentMetricsCard';
@@ -16,6 +16,7 @@ import MaintenanceAnalyticsCard from '../components/analytics/MaintenanceAnalyti
 import DriverPerformanceCard from '../components/analytics/DriverPerformanceCard';
 import CostAnalyticsCard from '../components/analytics/CostAnalyticsCard';
 import StatusBreakdownCard from '../components/analytics/StatusBreakdownCard';
+import TotalDriversCard from '../components/analytics/TotalDriversCard';
 
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
@@ -39,6 +40,16 @@ const Vehicles = () => {
     make: '',
   });
   const [analytics, setAnalytics] = useState({});
+  const [stats, setStats] = useState({});
+  const [vehicleAnalytics, setVehicleAnalytics] = useState({});
+
+  const [loadingVehicles, setLoadingVehicles] = useState(true);
+  const [loadingVehicleAnalytics, setLoadingVehicleAnalytics] = useState(true);
+  const [totalVehicles, setTotalVehicles] = useState({});
+  const [totalVehiclesMaint, setTotalVehiclesMaint] = useState({});
+  const [fleetUtil, setFleetUtil] = useState({});
+
+
 
   // Enhanced error handling with retry logic
   const handleAPIError = async (error, retryFn, maxRetries = 3) => {
@@ -92,6 +103,64 @@ const Vehicles = () => {
 
   // Load vehicles from API
   useEffect(() => {
+
+    const fetchVehicleAnalytics = async () => {
+      try {
+        setLoadingVehicleAnalytics(true);
+        const response = await getVehicleUsage();
+        const response2 = await getAssignmentMetrics();
+        
+        setVehicleAnalytics(
+          {
+            assignment_metrics: response.data.data.dashboard.fleet_utilization || 0,
+          }
+         || {});
+         console.log(vehicleAnalytics.assignment_metrics);
+        
+      } catch (error) {
+        console.log(`Error fetching data: ${error}`);
+      } finally {
+        setLoadingVehicleAnalytics(false);
+      }
+    };
+    fetchVehicleAnalytics();
+
+    const fetchTotalVehicles = async () => {
+      try {
+        setLoadingVehicles(true);
+        const response = await getVehicles();
+        setTotalVehicles(response.data.data.vehicles.length || 0);
+
+        const maintenanceVehicles = response.data.data.vehicles.filter(vehicle => vehicle.status === 'maintenance');
+        setTotalVehiclesMaint(maintenanceVehicles.length);
+        console.log(maintenanceVehicles.length);
+
+        const vehicleUtil = (1 - (maintenanceVehicles.length / response.data.data.vehicles.length));
+        setFleetUtil(vehicleUtil);
+
+        setStats(
+          {
+            totalVehicles: response.data.data.vehicles.length || 0,
+            totalVehiclesMaint: maintenanceVehicles.length || 0,
+            fleetUtil: vehicleUtil || 0,
+            statusBreakdown: response.data.data.vehicles.reduce((breakdown, vehicle) => {
+              breakdown[vehicle.status] = (breakdown[vehicle.status] || 0) + 1;
+              return breakdown;
+          })
+          }
+         || {});
+        console.log(stats);
+        
+      } catch (error) {
+        console.log(`Error fetching data: ${error}`);
+        setTotalVehicles('N/A');
+      } finally {
+        setLoadingVehicles(false);
+      }
+    };
+    fetchTotalVehicles();
+    fetchVehicleAnalytics();
+
     const loadVehicles = async (retryCount = 3) => {
       try {
         setLoading(true);
@@ -221,6 +290,11 @@ const Vehicles = () => {
       setLoading(false);
     }
   };
+
+  
+
+
+
 
   // Handle filter changes
   const handleApplyFilters = async newFilters => {
@@ -570,7 +644,7 @@ const Vehicles = () => {
         )}
         {/* Data visualization section */}
         <div className="animate-in slide-in-from-bottom-8 duration-700 delay-1000">
-          <DataVisualization analytics={analytics} />
+          <DataVisualization analytics={stats} />
         </div>
         <div className="animate-in fade-in duration-500 delay-1200">
           <VehicleUsageStats stats={analytics.vehicle_usage} />
@@ -587,6 +661,12 @@ const Vehicles = () => {
           <FleetUtilizationCard data={analytics.fleet_utilization} />
           <AssignmentMetricsCard data={analytics.assignment_metrics} />
           <MaintenanceAnalyticsCard data={analytics.maintenance_analytics} />
+          
+
+
+
+          
+          <TotalDriversCard data={"N/A"} />
         </div>
       </div>
     </div>
@@ -594,3 +674,9 @@ const Vehicles = () => {
 };
 
 export default Vehicles;
+//<FleetUtilizationCard data={analytics.fleet_utilization} />
+//<StatusBreakdownCard stats={analytics.status_breakdown} />
+//<MaintenanceAnalyticsCard data={analytics.maintenance_analytics} />
+//<VehicleUsageStats stats={vehicleAnalytics} />
+//<DriverPerformanceCard data={analytics.driver_performance} />
+//<CostAnalyticsCard stats={vehicleAnalytics} />

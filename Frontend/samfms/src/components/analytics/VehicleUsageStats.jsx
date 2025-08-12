@@ -1,7 +1,7 @@
 import React from 'react';
 
 const VehicleUsageStats = ({stats}) => {
-  if (!stats) return <div>Loading...</div>;
+  if (!stats || !stats.map) return <div>Loading...</div>;
 
   return (
     <div className="bg-card rounded-lg shadow-md p-6 border border-border mt-8">
@@ -20,10 +20,10 @@ const VehicleUsageStats = ({stats}) => {
           <tbody>
             {stats.map(row => (
               <tr key={row._id} className="border-b border-border hover:bg-accent/10">
-                <td className="py-3 px-4">{row._id}</td>
-                <td className="py-3 px-4">{row.total_distance}</td>
-                <td className="py-3 px-4">{row.total_fuel}</td>
-                <td className="py-3 px-4">{row.trip_count}</td>
+                <td className="py-3 px-4">{row._id || 0}</td>
+                <td className="py-3 px-4">{row.total_distance || 0}</td>
+                <td className="py-3 px-4">{row.total_fuel || 0}</td>
+                <td className="py-3 px-4">{row.trip_count || 0}</td>
                 <td className="py-3 px-4">{row.average_trip_length?.toFixed(2) ?? '0.00'}</td>
               </tr>
             ))}

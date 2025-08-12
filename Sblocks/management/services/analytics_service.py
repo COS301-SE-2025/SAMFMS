@@ -33,6 +33,8 @@ class AnalyticsService:
             "driver_performance": 30,  # 30 minutes
             "cost_analytics": 60      # 1 hour
         }
+
+
     
     async def get_fleet_utilization(self, use_cache: bool = True) -> Dict[str, Any]:
         """Get fleet utilization metrics"""
@@ -80,7 +82,7 @@ class AnalyticsService:
         """Get vehicle usage analytics"""
         metric_type = "vehicle_usage"
         
-        if use_cache:
+        if not use_cache:#remove not for prod
             cached = await self.analytics_repo.get_cached_metric(metric_type)
             if cached:
                 logger.info(f"Returning cached {metric_type}")
