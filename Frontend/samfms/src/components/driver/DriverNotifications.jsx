@@ -1,7 +1,9 @@
-import React from 'react';
-import { Bell, AlertCircle, Info, CheckCircle, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bell, AlertCircle, Info, CheckCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 
 const DriverNotifications = () => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   // Static notifications data for now
   const notifications = [
     {
@@ -87,64 +89,83 @@ const DriverNotifications = () => {
             <Bell className="h-5 w-5 text-foreground" />
             <h3 className="text-base sm:text-lg font-semibold text-foreground">Notifications</h3>
           </div>
-          {unreadCount > 0 && (
-            <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
-              {unreadCount}
-            </span>
-          )}
+          <div className="flex items-center space-x-2">
+            {unreadCount > 0 && (
+              <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                {unreadCount}
+              </span>
+            )}
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="p-1 hover:bg-accent rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50"
+              aria-label={isCollapsed ? 'Expand notifications' : 'Collapse notifications'}
+            >
+              {isCollapsed ? (
+                <ChevronDown className="h-5 w-5" />
+              ) : (
+                <ChevronUp className="h-5 w-5" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Notifications List */}
-      <div className="max-h-[280px] sm:max-h-[400px] overflow-y-auto overscroll-contain">
-        {notifications.length === 0 ? (
-          <div className="p-6 text-center text-muted-foreground">
-            <Bell className="h-12 w-12 mx-auto mb-2 opacity-50" />
-            <p>No notifications</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {notifications.map(notification => (
-              <div
-                key={notification.id}
-                className={`py-3 px-3 sm:p-4 hover:bg-accent/50 transition-colors cursor-pointer ${getNotificationBgColor(
-                  notification.type,
-                  notification.read
-                )}`}
-              >
-                <div className="flex items-start space-x-2 sm:space-x-3">
-                  <div className="flex-shrink-0 mt-0.5 sm:mt-1">{getNotificationIcon(notification.type)}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-0.5 sm:mb-1">
+      {/* Notifications List - Collapsible */}
+      {!isCollapsed && (
+        <div className="max-h-[280px] sm:max-h-[400px] overflow-y-auto overscroll-contain">
+          {notifications.length === 0 ? (
+            <div className="p-6 text-center text-muted-foreground">
+              <Bell className="h-12 w-12 mx-auto mb-2 opacity-50" />
+              <p>No notifications</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {notifications.map(notification => (
+                <div
+                  key={notification.id}
+                  className={`py-3 px-3 sm:p-4 hover:bg-accent/50 transition-colors cursor-pointer ${getNotificationBgColor(
+                    notification.type,
+                    notification.read
+                  )}`}
+                >
+                  <div className="flex items-start space-x-2 sm:space-x-3">
+                    <div className="flex-shrink-0 mt-0.5 sm:mt-1">
+                      {getNotificationIcon(notification.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-0.5 sm:mb-1">
+                        <p
+                          className={`text-xs sm:text-sm font-medium ${
+                            notification.read ? 'text-muted-foreground' : 'text-foreground'
+                          }`}
+                        >
+                          {notification.title}
+                        </p>
+                        {!notification.read && (
+                          <div className="w-1.5 sm:w-2 h-1.5 sm:h-2 bg-primary rounded-full flex-shrink-0 ml-2"></div>
+                        )}
+                      </div>
                       <p
-                        className={`text-xs sm:text-sm font-medium ${
+                        className={`text-xs sm:text-sm line-clamp-2 ${
                           notification.read ? 'text-muted-foreground' : 'text-foreground'
                         }`}
                       >
-                        {notification.title}
+                        {notification.message}
                       </p>
-                      {!notification.read && (
-                        <div className="w-1.5 sm:w-2 h-1.5 sm:h-2 bg-primary rounded-full flex-shrink-0 ml-2"></div>
-                      )}
+                      <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
+                        {notification.time}
+                      </p>
                     </div>
-                    <p
-                      className={`text-xs sm:text-sm line-clamp-2 ${
-                        notification.read ? 'text-muted-foreground' : 'text-foreground'
-                      }`}
-                    >
-                      {notification.message}
-                    </p>
-                    <p className="text-2xs sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">{notification.time}</p>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Footer */}
-      {notifications.length > 0 && (
+      {!isCollapsed && notifications.length > 0 && (
         <div className="p-3 border-t border-border">
           <button className="w-full text-sm text-primary hover:text-primary/80 font-medium transition-colors">
             View All Notifications

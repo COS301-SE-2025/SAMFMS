@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
-import { Search, Filter, ChevronDown, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Search,
+  Filter,
+  ChevronDown,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Car,
+  AlertCircle,
+  CheckCircle,
+} from 'lucide-react';
 
 const VehicleList = ({ vehicles, onSelectVehicle }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -7,7 +17,8 @@ const VehicleList = ({ vehicles, onSelectVehicle }) => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [sortBy, setSortBy] = useState('id');
   const [currentPage, setCurrentPage] = useState(1);
-  const [vehiclesPerPage] = useState(8); // Show 8 vehicles per page
+  const [vehiclesPerPage] = useState(5); // Show 5 vehicles per page for better readability
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
 
   // Filter and sort vehicles
   const filteredVehicles = vehicles

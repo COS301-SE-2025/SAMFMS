@@ -324,16 +324,16 @@ const TrackingMapWithSidebar = () => {
     activeTab === 'vehicles'
       ? vehicles.filter(
           vehicle =>
-            vehicle.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            vehicle.make.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            vehicle.license_plate.toLowerCase().includes(searchTerm.toLowerCase())
+            (vehicle.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (vehicle.make?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (vehicle.model?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (vehicle.license_plate?.toLowerCase() || '').includes(searchTerm.toLowerCase())
         )
       : geofences.filter(
           geofence =>
-            geofence.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            geofence.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            geofence.type.toLowerCase().includes(searchTerm.toLowerCase())
+            (geofence.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (geofence.description?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (geofence.type?.toLowerCase() || '').includes(searchTerm.toLowerCase())
         );
 
   // Handle geofence changes from the GeofenceManager
@@ -928,9 +928,10 @@ const TrackingMapWithSidebar = () => {
       {/* Add Geofence Modal */}
       {showAddGeofenceModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white rounded-lg shadow-lg max-w-5xl w-full max-h-[90vh] overflow-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ease-out">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-5xl w-full max-h-[90vh] overflow-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ease-out">
             <GeofenceManager
               showFormOnly={true}
+              initialShowForm={true}
               onCancel={() => {
                 setShowAddGeofenceModal(false);
                 setEditingGeofence(null);

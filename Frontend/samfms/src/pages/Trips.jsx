@@ -49,6 +49,17 @@ const Trips = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
+  // Get current date and time for default values
+  const getCurrentDate = () => {
+    const now = new Date();
+    return now.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+  };
+
+  const getCurrentTime = () => {
+    const now = new Date();
+    return now.toTimeString().slice(0, 5); // Format: HH:MM
+  };
+
   // Updated trip form state to match new API format
   const [tripForm, setTripForm] = useState({
     name: '',
@@ -57,8 +68,8 @@ const Trips = () => {
     driverId: '',
     startLocation: '',
     endLocation: '',
-    scheduledStartDate: '',
-    scheduledStartTime: '',
+    scheduledStartDate: getCurrentDate(),
+    scheduledStartTime: getCurrentTime(),
     scheduledEndDate: '',
     scheduledEndTime: '',
     priority: 'normal',
@@ -67,6 +78,10 @@ const Trips = () => {
     timeWindowStart: '',
     timeWindowEnd: '',
   });
+
+  // State for toggling description and driver notes visibility
+  const [showDescription, setShowDescription] = useState(false);
+  const [showDriverNotes, setShowDriverNotes] = useState(false);
 
   // Store coordinates for selected locations
   const [locationCoords, setLocationCoords] = useState({
@@ -82,15 +97,23 @@ const Trips = () => {
 
         const response = await getVehicles();
 
-        // Extract vehicles from the nested response structure
-        const vehicleData =
+        // Extract vehicles from the nested response structure with improved path handling
+        let vehicleData =
           response?.data?.data?.data?.vehicles ||
           response?.data?.data?.vehicles ||
           response?.data?.vehicles ||
-          response?.vehicles ||
-          [];
+          response?.vehicles;
 
-        console.log('Loaded vehicles:', vehicleData);
+        // Additional fallbacks for different API response structures
+        if (!vehicleData && response?.data?.data) {
+          // Sometimes the API returns an array directly in data.data
+          vehicleData = Array.isArray(response.data.data) ? response.data.data : [];
+        } else if (!vehicleData) {
+          vehicleData = [];
+        }
+
+        console.log('Loaded vehicles response:', response);
+        console.log('Extracted vehicle data:', vehicleData);
         setVehicles(vehicleData);
       } catch (error) {
         console.error('Error loading vehicles:', error);
@@ -121,8 +144,8 @@ const Trips = () => {
           getVehicleAnalytics(analyticsTimeframe),
         ]);
 
-        console.log("Driver data: ", driverData)
-        console.log("Vehicle data: ", vehicleData)
+        console.log('Driver data: ', driverData);
+        console.log('Vehicle data: ', vehicleData);
 
         // No need to access .data since the API returns the correct structure
         setDriverAnalytics(driverData);
@@ -193,6 +216,12 @@ const Trips = () => {
   };
 
   const handleScheduleTrip = () => {
+    // Update the form with current date and time values when opening
+    setTripForm(prev => ({
+      ...prev,
+      scheduledStartDate: getCurrentDate(),
+      scheduledStartTime: getCurrentTime(),
+    }));
     setShowScheduleModal(true);
   };
 
@@ -205,16 +234,17 @@ const Trips = () => {
       driverId: '',
       startLocation: '',
       endLocation: '',
-      scheduledStartDate: '',
-      scheduledStartTime: '',
+      scheduledStartDate: getCurrentDate(),
+      scheduledStartTime: getCurrentTime(),
       scheduledEndDate: '',
       scheduledEndTime: '',
       priority: 'normal',
       temperatureControl: false,
       driverNote: '',
-      timeWindowStart: '',
-      timeWindowEnd: '',
     });
+    // Reset toggle state
+    setShowDescription(false);
+    setShowDriverNotes(false);
     setLocationCoords({
       start: null,
       end: null,
@@ -222,6 +252,12 @@ const Trips = () => {
   };
 
   const handleFormChange = (field, value) => {
+    // Log vehicle selection changes to help with debugging
+    if (field === 'vehicleId' && value) {
+      const selectedVehicle = vehicles.find(v => (v.id || v._id) === value);
+      console.log('Selected vehicle:', selectedVehicle);
+    }
+
     setTripForm(prev => ({
       ...prev,
       [field]: value,
@@ -273,23 +309,8 @@ const Trips = () => {
       priority: tripForm.priority,
       vehicle_id: tripForm.vehicleId,
       driver_assignment: tripForm.driverId,
-      constraints:
-        tripForm.timeWindowStart && tripForm.timeWindowEnd
-          ? [
-              {
-                trip_id: 'placeholder_trip_id', // Will be set by backend
-                type: 'time_window',
-                value: {
-                  start: tripForm.timeWindowStart,
-                  end: tripForm.timeWindowEnd,
-                },
-                priority: 1,
-                is_active: true,
-              },
-            ]
-          : [],
+      constraints: [], // Time window constraints removed as per requirements
       custom_fields: {
-        temperature_control: tripForm.temperatureControl ? 'yes' : 'no',
         driver_note: tripForm.driverNote,
       },
     };
@@ -341,9 +362,23 @@ const Trips = () => {
     }
   };
 
-  const availableVehicles = vehicles.filter(
-    v => v.status === 'available'
-  );
+  // More permissive filtering to include vehicles with different status formats
+  const availableVehicles = vehicles.filter(v => {
+    // Check if vehicle exists and has a valid structure
+    if (!v) return false;
+
+    // More inclusive filtering logic - accept available, operational, and inactive vehicles
+    const status = (v.status || '').toLowerCase();
+    return (
+      status === 'available' ||
+      status === 'operational' ||
+      status === 'active' ||
+      status === '' || // Include vehicles with no status
+      !v.status
+    ); // Include vehicles where status is not defined
+  });
+
+  console.log('Filtered available vehicles:', availableVehicles);
   const availableDrivers = drivers;
 
   if (loading) {
@@ -454,87 +489,145 @@ const Trips = () => {
                       <label className="block text-sm font-medium mb-2 text-foreground">
                         Trip Name <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="text"
-                        value={tripForm.name}
-                        onChange={e => handleFormChange('name', e.target.value)}
-                        placeholder="e.g., Morning Delivery Route"
-                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        required
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={tripForm.name}
+                          onChange={e => handleFormChange('name', e.target.value.slice(0, 25))}
+                          placeholder="e.g., Morning Delivery Route"
+                          maxLength={25}
+                          className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                          required
+                        />
+                        <div className="absolute right-2 bottom-2 text-xs text-muted-foreground">
+                          {tripForm.name.length}/25
+                        </div>
+                      </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
+                      <label className="block text-sm font-medium mb-3 text-foreground">
                         Priority
                       </label>
-                      <select
-                        value={tripForm.priority}
-                        onChange={e => handleFormChange('priority', e.target.value)}
-                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      >
-                        <option value="low">Low</option>
-                        <option value="normal">Normal</option>
-                        <option value="high">High</option>
-                        <option value="urgent">Urgent</option>
-                      </select>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleFormChange('priority', 'low')}
+                          className={`px-3 py-2 rounded-md border ${
+                            tripForm.priority === 'low'
+                              ? 'bg-green-100 border-green-300 ring-2 ring-green-300'
+                              : 'bg-background border-input hover:bg-green-50'
+                          } transition-colors`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="h-3 w-3 rounded-full bg-green-500"></span>
+                            <span className="font-medium text-green-700">Low</span>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleFormChange('priority', 'normal')}
+                          className={`px-3 py-2 rounded-md border ${
+                            tripForm.priority === 'normal'
+                              ? 'bg-blue-100 border-blue-300 ring-2 ring-blue-300'
+                              : 'bg-background border-input hover:bg-blue-50'
+                          } transition-colors`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="h-3 w-3 rounded-full bg-blue-500"></span>
+                            <span className="font-medium text-blue-700">Normal</span>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleFormChange('priority', 'high')}
+                          className={`px-3 py-2 rounded-md border ${
+                            tripForm.priority === 'high'
+                              ? 'bg-amber-100 border-amber-300 ring-2 ring-amber-300'
+                              : 'bg-background border-input hover:bg-amber-50'
+                          } transition-colors`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="h-3 w-3 rounded-full bg-amber-500"></span>
+                            <span className="font-medium text-amber-700">High</span>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleFormChange('priority', 'urgent')}
+                          className={`px-3 py-2 rounded-md border ${
+                            tripForm.priority === 'urgent'
+                              ? 'bg-red-100 border-red-300 ring-2 ring-red-300'
+                              : 'bg-background border-input hover:bg-red-50'
+                          } transition-colors`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="h-3 w-3 rounded-full bg-red-500"></span>
+                            <span className="font-medium text-red-700">Urgent</span>
+                          </div>
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-foreground">
-                      Description
-                    </label>
-                    <textarea
-                      value={tripForm.description}
-                      onChange={e => handleFormChange('description', e.target.value)}
-                      placeholder="Brief description of the trip purpose"
-                      rows="2"
-                      className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
+                  {/* Vehicle and Driver Selection - Side by Side */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Vehicle Selection */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-foreground">
+                        Select Vehicle <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={tripForm.vehicleId}
+                        onChange={e => handleFormChange('vehicleId', e.target.value)}
+                        className={`w-full border ${
+                          availableVehicles.length === 0 ? 'border-red-300' : 'border-input'
+                        } rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent`}
+                        required
+                      >
+                        <option value="">Choose a vehicle...</option>
+                        {availableVehicles.map(vehicle => (
+                          <option key={vehicle.id || vehicle._id} value={vehicle.id || vehicle._id}>
+                            {vehicle.make || 'Unknown Make'} {vehicle.model || 'Unknown Model'} (
+                            {vehicle.license_plate || vehicle.registration_number || 'No plate'})
+                          </option>
+                        ))}
+                        {vehicles.length > 0 && availableVehicles.length === 0 && (
+                          <option value="" disabled>
+                            -- No available vehicles --
+                          </option>
+                        )}
+                      </select>
+                      {availableVehicles.length === 0 && vehicles.length > 0 && (
+                        <p className="text-sm text-red-500 mt-1">
+                          No vehicles are currently available for scheduling
+                        </p>
+                      )}
+                      {vehicles.length === 0 && (
+                        <p className="text-sm text-red-500 mt-1">
+                          Failed to load vehicles. Please refresh the page.
+                        </p>
+                      )}
+                    </div>
 
-                  {/* Vehicle Selection */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-foreground">
-                      Select Vehicle <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={tripForm.vehicleId}
-                      onChange={e => handleFormChange('vehicleId', e.target.value)}
-                      className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      required
-                    >
-                      <option value="">Choose a vehicle...</option>
-                      {availableVehicles.map(vehicle => (
-                        <option key={vehicle.id} value={vehicle.id}>
-                          {vehicle.make} {vehicle.model} (
-                          {vehicle.license_plate || vehicle.registration_number})
-                        </option>
-                      ))}
-                    </select>
-                    {availableVehicles.length === 0 && (
-                      <p className="text-sm text-red-500 mt-1">No available vehicles</p>
-                    )}
-                  </div>
-
-                  {/* Add driver selection dropdown */}
-                  <div>
-                    <label className="block text-sm font-medium mb-1 text-foreground">
-                      Select Driver
-                    </label>
-                    <select
-                      value={tripForm.driverId}
-                      onChange={e => handleFormChange('driverId', e.target.value)}
-                      className="w-full p-2 border border-input rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                      required
-                    >
-                      <option value="">Select a driver</option>
-                      {drivers.map(driver => (
-                        <option key={driver._id} value={driver.employee_id}>
-                          {`${driver.first_name} ${driver.last_name} (${driver.employee_id})`}
-                        </option>
-                      ))}
-                    </select>
+                    {/* Driver Selection */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-foreground">
+                        Select Driver <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={tripForm.driverId}
+                        onChange={e => handleFormChange('driverId', e.target.value)}
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                        required
+                      >
+                        <option value="">Select a driver</option>
+                        {drivers.map(driver => (
+                          <option key={driver._id} value={driver.employee_id}>
+                            {`${driver.first_name} ${driver.last_name} (${driver.employee_id})`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   {/* Location Section */}
@@ -619,60 +712,137 @@ const Trips = () => {
                     </div>
                   </div>
 
-                  {/* Time Window Constraints (Optional) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
-                        Time Window Start (Optional)
-                      </label>
-                      <input
-                        type="time"
-                        value={tripForm.timeWindowStart}
-                        onChange={e => handleFormChange('timeWindowStart', e.target.value)}
-                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
-                        Time Window End (Optional)
-                      </label>
-                      <input
-                        type="time"
-                        value={tripForm.timeWindowEnd}
-                        onChange={e => handleFormChange('timeWindowEnd', e.target.value)}
-                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Custom Fields */}
+                  {/* Additional Fields */}
                   <div className="space-y-4">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="temperatureControl"
-                        checked={tripForm.temperatureControl}
-                        onChange={e => handleFormChange('temperatureControl', e.target.checked)}
-                        className="mr-2"
-                      />
-                      <label
-                        htmlFor="temperatureControl"
-                        className="text-sm font-medium text-foreground"
+                    {/* Description with toggle button */}
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setShowDescription(prev => !prev)}
+                        className="flex items-center justify-between w-full p-3 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
                       >
-                        Temperature Control Required
-                      </label>
+                        <div className="flex items-center">
+                          <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center mr-2">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                          </span>
+                          {showDescription ? 'Hide Trip Description' : 'Add Trip Description'}
+                        </div>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className={`h-5 w-5 transition-transform ${
+                            showDescription ? 'rotate-180' : ''
+                          }`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                      {showDescription && (
+                        <div className="p-3 pt-0 border-t border-border">
+                          <div className="relative">
+                            <textarea
+                              value={tripForm.description}
+                              onChange={e =>
+                                handleFormChange('description', e.target.value.slice(0, 120))
+                              }
+                              placeholder="Brief description of the trip purpose"
+                              rows="2"
+                              maxLength={120}
+                              className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                            />
+                            <div className="absolute right-2 bottom-2 text-xs text-muted-foreground">
+                              {tripForm.description.length}/120
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
-                        Driver Notes
-                      </label>
-                      <textarea
-                        value={tripForm.driverNote}
-                        onChange={e => handleFormChange('driverNote', e.target.value)}
-                        placeholder="Special instructions for the driver..."
-                        rows="3"
-                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
+
+                    {/* Driver Notes with toggle button */}
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setShowDriverNotes(prev => !prev)}
+                        className="flex items-center justify-between w-full p-3 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex items-center">
+                          <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center mr-2">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+                              <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
+                              <line x1="6" y1="1" x2="6" y2="4" />
+                              <line x1="10" y1="1" x2="10" y2="4" />
+                              <line x1="14" y1="1" x2="14" y2="4" />
+                            </svg>
+                          </span>
+                          {showDriverNotes ? 'Hide Driver Notes' : 'Add Driver Notes'}
+                        </div>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className={`h-5 w-5 transition-transform ${
+                            showDriverNotes ? 'rotate-180' : ''
+                          }`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                      {showDriverNotes && (
+                        <div className="p-3 pt-0 border-t border-border">
+                          <div className="relative">
+                            <textarea
+                              value={tripForm.driverNote}
+                              onChange={e =>
+                                handleFormChange('driverNote', e.target.value.slice(0, 120))
+                              }
+                              placeholder="Special instructions for the driver..."
+                              rows="3"
+                              maxLength={120}
+                              className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                            />
+                            <div className="absolute right-2 bottom-2 text-xs text-muted-foreground">
+                              {tripForm.driverNote.length}/120
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 

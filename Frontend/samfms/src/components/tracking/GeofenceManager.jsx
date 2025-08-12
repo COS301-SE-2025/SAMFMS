@@ -39,7 +39,13 @@ const MapUpdater = ({ center }) => {
   return null;
 };
 
-const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
+const GeofenceManager = ({
+  onGeofenceChange,
+  currentGeofences,
+  initialShowForm = false,
+  showFormOnly = false,
+  onCancel,
+}) => {
   // State for the component - ensure currentGeofences is properly structured
   const safeCurrentGeofences = (currentGeofences || []).filter(
     geofence => geofence && typeof geofence === 'object'
@@ -47,7 +53,7 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
   const [geofences, setGeofences] = useState(safeCurrentGeofences);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(initialShowForm);
   const [editingGeofence, setEditingGeofence] = useState(null);
   const [addressSearch, setAddressSearch] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -252,7 +258,14 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
       };
 
       setGeofences(prev => [...prev, newGeofenceForUI]);
-      setShowAddForm(false);
+
+      // If this is used in a modal with showFormOnly=true, call onCancel to close the modal
+      if (showFormOnly && onCancel) {
+        onCancel();
+      } else {
+        setShowAddForm(false);
+      }
+
       resetForm();
     } catch (error) {
       console.error('Error creating geofence:', error);
@@ -333,7 +346,13 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
 
       resetForm();
       setEditingGeofence(null);
-      setShowAddForm(false);
+
+      // If this is used in a modal with showFormOnly=true, call onCancel to close the modal
+      if (showFormOnly && onCancel) {
+        onCancel();
+      } else {
+        setShowAddForm(false);
+      }
     } catch (error) {
       console.error('Error updating geofence:', error);
       alert(`Failed to update geofence: ${error.message || error}`);
@@ -375,10 +394,10 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
       name: '',
       description: '',
       type: 'depot',
-      geometryType: 'circle',
+      geometryType: 'circle', // Always circle now
       status: 'active',
       coordinates: { lat: 0, lng: 0 },
-      radius: 500,
+      radius: 500, // Default radius (within our 50-10000 range)
     });
   };
 
@@ -608,20 +627,9 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                     </select>
                   </div>
 
-                  {/* Geometry Type */}
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Shape</label>
-                    <select
-                      value={newGeofence.geometryType}
-                      onChange={e =>
-                        setNewGeofence({ ...newGeofence, geometryType: e.target.value })
-                      }
-                      className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                    >
-                      <option value="circle">Circle</option>
-                      <option value="polygon">Polygon</option>
-                      <option value="rectangle">Rectangle</option>
-                    </select>
+                  {/* Geometry Type - Hidden as we now only support circle */}
+                  <div className="hidden">
+                    <input type="hidden" value="circle" onChange={() => {}} />
                   </div>
 
                   {/* Status */}
@@ -639,29 +647,27 @@ const GeofenceManager = ({ onGeofenceChange, currentGeofences }) => {
                   </div>
                 </div>
 
-                {/* Radius Slider (only for circle) */}
-                {newGeofence.geometryType === 'circle' && (
-                  <div>
-                    <label className="block text-sm font-medium mb-1">
-                      Radius: {newGeofence.radius} meters
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100000"
-                      step="100"
-                      value={newGeofence.radius}
-                      onChange={e =>
-                        setNewGeofence({ ...newGeofence, radius: parseInt(e.target.value) })
-                      }
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>0m</span>
-                      <span>100,000m</span>
-                    </div>
+                {/* Radius Slider (always visible since we only have circle) */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Radius: {newGeofence.radius} meters
+                  </label>
+                  <input
+                    type="range"
+                    min="50"
+                    max="10000"
+                    step="50"
+                    value={newGeofence.radius}
+                    onChange={e =>
+                      setNewGeofence({ ...newGeofence, radius: parseInt(e.target.value) })
+                    }
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>50m</span>
+                    <span>10,000m</span>
                   </div>
-                )}
+                </div>
 
                 {/* Coordinates Display */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
