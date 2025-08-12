@@ -310,6 +310,53 @@ class ServiceRequestConsumer:
                         data=trip.model_dump(),
                         message="Trip created successfully"
                     ).model_dump()
+                elif "completed" in endpoint:
+                    from schemas.requests import FinishTripRequest, TripFilterRequest
+                    finish_trip_request = FinishTripRequest(**data)
+
+                    # get the full trip from trips collection
+                    from services.trip_service import trip_service
+                    name = finish_trip_request.name
+                    driver_assignment = finish_trip_request.driver_assignment
+                    
+
+                    filter = TripFilterRequest(**{
+                        "name": name,
+                        "driver_assignment": driver_assignment
+                    })
+
+                    trip = await trip_service.get_trip_by_name_and_driver(filter)
+                    logger.info(f"Trip retrieved for completed: {trip.id}")
+                    # update the trip to include its actual_end_time and status (completed/not-completed)
+                    from schemas.requests import UpdateTripRequest
+                    updated_trip = await trip_service.update_trip(trip.id, UpdateTripRequest(**{
+                        "actual_end_time": finish_trip_request.actual_end_time,
+                        "status": finish_trip_request.status
+                    }))
+                    # store the updated trip in trip_history collection
+                    from schemas.entities import Trip
+                    from services.trip_history_service import trip_history_service
+                    result = await trip_history_service.add_trip(updated_trip)
+                    logger.info(f"Result from history trip: (name={result.name}, id={result.id}, driver_assignment={result.driver_assignment})")
+                    # remove trip from active trips and activate driver and vehicle again
+                    deletedTrip = await trip_service.delete_trip(trip.id)
+                    if(deletedTrip):
+                        logger.info("Deleted trip successfully")
+                    # driver part
+                    from services.driver_service import driver_service
+                    driver_id = trip.driver_assignment
+                    await driver_service.activateDriver(driver_id)
+                    
+                    # vehicle part
+                    from services.vehicle_service import vehicle_service
+                    vehicle_id = trip.vehicle_id
+                    await vehicle_service.activeVehicle(vehicle_id) 
+                    
+                    return ResponseBuilder.success(
+                        data=trip.model_dump(),
+                        message="Trip added to history successfully"
+                    ).model_dump()
+        
                 else:
                     raise ValueError(f"Unknown endpoint: {endpoint}")
             elif method == "PUT":

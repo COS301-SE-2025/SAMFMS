@@ -8,6 +8,7 @@ const TRIPS_ENDPOINTS = {
   delete: API_ENDPOINTS.TRIPS.DELETE,
   ACTIVE: API_ENDPOINTS.TRIPS.ACTIVE,
   HISTORY: API_ENDPOINTS.TRIPS.HISTORY,
+  finish: API_ENDPOINTS.TRIPS.FINISHED,
   ANALYTICS: {
     DRIVERS: API_ENDPOINTS.TRIPS.ANALYTICS.DRIVERS,
     VEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.VEHICLES
@@ -46,6 +47,21 @@ export const updateTrip = async (tripID, tripData) => {
     throw error;
   }
 };
+
+export const finishTrip = async (tripData) => {
+  try {
+    if(!tripData){
+      throw new Error('Trip Data is required');
+    }
+
+    console.log(`Finishing trip. Payload:`, tripData);
+    return await httpClient.post(TRIPS_ENDPOINTS.finish(), tripData);
+
+  } catch (error) {
+    console.error(`Error finishing trip:`, error);
+    throw error;
+  }
+}
 
 export const deleteGeofence = async tripID => {
   try {

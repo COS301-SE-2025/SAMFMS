@@ -72,12 +72,21 @@ class UpdateTripRequest(BaseModel):
     actual_end_time: Optional[datetime] = None
     custom_fields: Optional[Dict[str, Any]] = None
 
+class FinishTripRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    actual_end_time: datetime
+    driver_assignment: str
+    status: str
+
+
 
 class TripFilterRequest(BaseModel):
     """Request to filter trips"""
+    name: Optional[str] = None
     status: Optional[List[TripStatus]] = None
     priority: Optional[List[TripPriority]] = None
-    driver_id: Optional[str] = None
+    driver_assignment: Optional[str] = None
     vehicle_id: Optional[str] = None
     created_by: Optional[str] = None
     

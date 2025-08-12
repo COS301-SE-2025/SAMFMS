@@ -217,20 +217,11 @@ class TripService:
             if not trip:
                 return False
             
-            # Check if trip can be deleted (not in progress)
-            if trip.status == TripStatus.IN_PROGRESS:
-                raise ValueError("Cannot delete trip that is in progress")
-            
             # Delete from database
             result = await self.db.trips.delete_one({"_id": ObjectId(trip_id)})
             
             if result.deleted_count == 0:
                 return False
-            
-            # Also delete related data
-            await self.db.trip_constraints.delete_many({"trip_id": trip_id})
-            await self.db.driver_assignments.delete_many({"trip_id": trip_id})
-            await self.db.trip_analytics.delete_many({"trip_id": trip_id})
             
             # Publish event
             await event_publisher.publish_trip_deleted(trip)
@@ -242,6 +233,28 @@ class TripService:
             logger.error(f"Failed to delete trip {trip_id}: {e}")
             raise
     
+
+    async def get_trip_by_name_and_driver(self, filter_request: TripFilterRequest) -> Trip:
+        try:
+            query = {}
+            if filter_request.driver_assignment:
+                query["driver_assignment"] = filter_request.driver_assignment
+            if filter_request.name:
+                query["name"] = filter_request.name
+
+            trip_data = await self.db.trips.find_one(query)
+            if not trip_data:
+                raise ValueError("Trip not found")
+
+            trip_data["_id"] = str(trip_data["_id"])
+
+            return Trip(**trip_data)
+
+        except Exception as e:
+            logger.error(f"Failed to get trip: {e}")
+            raise
+
+
     async def list_trips(self, filter_request: TripFilterRequest) -> tuple[List[Trip], int]:
         """List trips with filtering and pagination"""
         try:
@@ -254,8 +267,11 @@ class TripService:
             if filter_request.priority:
                 query["priority"] = {"$in": filter_request.priority}
             
-            if filter_request.driver_id:
-                query["driver_assignment.driver_id"] = filter_request.driver_id
+            if filter_request.driver_assignment:
+                query["driver_assignment"] = filter_request.driver_assignment
+            
+            if filter_request.name:
+                query["name"] = filter_request.name
             
             if filter_request.vehicle_id:
                 query["vehicle_id"] = filter_request.vehicle_id
@@ -295,7 +311,7 @@ class TripService:
                 trips.append(Trip(**trip_doc))
             
             logger.info(f"Listed {len(trips)} trips (total: {total})")
-            return trips, total
+            return trips
             
         except Exception as e:
             logger.error(f"Failed to list trips: {e}")
