@@ -164,6 +164,7 @@ export const API_ENDPOINTS = {
     FINISHED: 'trips/trips/completed',
     ANALYTICS: {
       // Driver analytics with timeframe
+      DRiVERSTATS: '/trips/analytics/drivers/stats',
       TOTALTRIPSDRIVER: '/trips/analytics/drivers/totaltrips',
       COMPLETIONRATEDRIVERS: '/trips/analytics/drivers/completionrate',
       AVGTRIPSPERDAYDRIVERS: '/trips/analytics/drivers/averagedaytrips',

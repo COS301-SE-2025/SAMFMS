@@ -20,7 +20,7 @@ class DriverAnalyticsService:
     self.db = db_manager
     self.db_management = db_manager_management
   
-  async def _get_driver_names(driver_ids: List[str]) -> Dict[str, str]:
+  async def _get_driver_names(self, driver_ids: List[str]) -> Dict[str, str]:
         """
         Get driver names from driver IDs.
         """

@@ -323,7 +323,7 @@ class SimulationService:
             trips_collection = db_manager.trips
             trips = await trips_collection.find(query).to_list(None)
             
-            logger.info(f"Found {len(trips)} active trips")
+            #logger.info(f"Found {len(trips)} active trips")
             return trips
             
         except Exception as e:
