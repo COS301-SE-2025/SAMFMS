@@ -61,6 +61,7 @@ const Layout = () => {
   const getCurrentPageTitle = () => {
     const path = location.pathname.split('/')[1];
     if (!path) return 'Dashboard';
+    if (path === 'driver-home') return 'Home';
     return path.charAt(0).toUpperCase() + path.slice(1);
   };
   return (

@@ -7,6 +7,7 @@ import Layout from './components/layout/Layout';
 import ThemeProvider from './contexts/ThemeContext';
 import NotificationProvider from './contexts/NotificationContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import RoleBasedRoute from './components/auth/RoleBasedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import AuthErrorBoundary from './components/auth/AuthErrorBoundary';
 
@@ -25,6 +26,7 @@ import Maintenance from './pages/Maintenance';
 import Help from './pages/Help';
 import Landing from './pages/Landing';
 import UserManagement from './pages/UserManagement';
+import DriverHomePage from './pages/DriverHomePage';
 
 function App() {
   return (
@@ -70,7 +72,11 @@ function App() {
                 }
               >
                 <Route element={<Layout />}>
-                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route
+                    path="/dashboard"
+                    element={<RoleBasedRoute adminComponent={Dashboard} driverComponent={null} />}
+                  />
+                  <Route path="/driver-home" element={<DriverHomePage />} />
                   <Route path="/vehicles" element={<Vehicles />} />{' '}
                   <Route path="/drivers" element={<Drivers />} />
                   <Route path="/tracking" element={<Tracking />} />

@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { getCookie } from '../lib/cookies';
 
 // Create the theme context
 export const ThemeContext = createContext({
@@ -9,10 +10,23 @@ export const ThemeContext = createContext({
 
 // Theme provider component
 export const ThemeProvider = ({ children }) => {
-  // Initialize theme from localStorage or default to light
+  // Initialize theme from user preferences, localStorage, or default to light
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
-      // Check localStorage first, then default to light
+      // First check user preferences from cookies (if logged in)
+      const preferencesStr = getCookie('preferences');
+      if (preferencesStr) {
+        try {
+          const preferences = JSON.parse(preferencesStr);
+          if (preferences.theme) {
+            return preferences.theme;
+          }
+        } catch (error) {
+          console.error('Error parsing user preferences:', error);
+        }
+      }
+
+      // Fallback to localStorage
       const savedTheme = localStorage.getItem('theme');
       return savedTheme || 'light';
     }
@@ -22,7 +36,33 @@ export const ThemeProvider = ({ children }) => {
   // Toggle between light and dark themes
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
-  }; // Apply theme to document and save to localStorage
+  };
+
+  // Watch for user preference changes (when user logs in/out)
+  useEffect(() => {
+    const checkUserPreferences = () => {
+      const preferencesStr = getCookie('preferences');
+      if (preferencesStr) {
+        try {
+          const preferences = JSON.parse(preferencesStr);
+          if (preferences.theme && preferences.theme !== theme) {
+            console.log('Applying user theme preference:', preferences.theme);
+            setTheme(preferences.theme);
+          }
+        } catch (error) {
+          console.error('Error parsing user preferences:', error);
+        }
+      }
+    };
+
+    // Check immediately
+    checkUserPreferences();
+
+    // Set up interval to periodically check for preference changes
+    const interval = setInterval(checkUserPreferences, 1000);
+
+    return () => clearInterval(interval);
+  }, [theme]); // Apply theme to document and save to localStorage
   useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
