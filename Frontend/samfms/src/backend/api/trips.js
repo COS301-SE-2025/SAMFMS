@@ -10,8 +10,12 @@ const TRIPS_ENDPOINTS = {
   HISTORY: API_ENDPOINTS.TRIPS.HISTORY,
   finish: API_ENDPOINTS.TRIPS.FINISHED,
   ANALYTICS: {
-    DRIVERS: API_ENDPOINTS.TRIPS.ANALYTICS.DRIVERS,
-    VEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.VEHICLES
+    TOTALTRIPSDRIVER: API_ENDPOINTS.TRIPS.ANALYTICS.TOTALTRIPSDRIVER,
+    COMPLETIONRATEDRIVERS: API_ENDPOINTS.TRIPS.ANALYTICS.COMPLETIONRATEDRIVERS,
+    AVGTRIPSPERDAYDRIVERS: API_ENDPOINTS.TRIPS.ANALYTICS.AVGTRIPSPERDAYDRIVERS,
+    TOTALTRIPSVEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.TOTALTRIPSVEHICLES,
+    COMPLETIONRATEVEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.COMPLETIONRATEVEHICLES,
+    AVGTRIPSPERDAYVEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.AVGTRIPSPERDAYVEHICLES
   }
 }
 
@@ -144,66 +148,72 @@ export const getTripsHistory = async (page = 1, limit = 10) => {
   }
 };
 
-// Get driver analytics
-// Get driver analytics
+// Get driver analytics by combining separate metrics
 export const getDriverAnalytics = async (timeframe = 'week') => {
   try {
     console.log(`[DriverAnalytics] Fetching data for timeframe: ${timeframe}`);
-    const response = await httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.DRIVERS}?timeframe=${timeframe}`);
     
-    console.log('[DriverAnalytics] Raw response from backend:', response.data);
+    // Fetch all metrics in parallel
+    const [totalTripsResponse, completionRateResponse, avgTripsResponse] = await Promise.all([
+      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.TOTALTRIPSDRIVER}?timeframe=${timeframe}`),
+      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.COMPLETIONRATEDRIVERS}?timeframe=${timeframe}`),
+      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.AVGTRIPSPERDAYDRIVERS}?timeframe=${timeframe}`)
+    ]);
 
-    // Transform/validate the response data
+    // Combine and transform the data
     const transformedData = {
-      drivers: (response.data?.drivers || []).map(driver => ({
-        driverId: driver.driverId || driver.driver_id || driver._id,
-        driverName: driver.driverName || driver.driver_name || driver.name,
-        completedTrips: Number(driver.completedTrips || 0),
-        cancelledTrips: Number(driver.cancelledTrips || 0),
-        totalHours: Number(driver.totalHours || 0)
+      drivers: (totalTripsResponse.data?.drivers || []).map(driver => ({
+        driverName: driver.driver_name || driver.name || 'Unknown',
+        completedTrips: Number(driver.completed_trips || 0),
+        cancelledTrips: Number(driver.cancelled_trips || 0)
       })),
       timeframeSummary: {
-        totalTrips: Number(response.data?.timeframeSummary?.totalTrips || 0),
-        completionRate: Number(response.data?.timeframeSummary?.completionRate || 0),
-        averageTripsPerDay: Number(response.data?.timeframeSummary?.averageTripsPerDay || 0)
+        totalTrips: Number(totalTripsResponse.data?.total || 0),
+        completionRate: Number(completionRateResponse.data?.rate || 0),
+        averageTripsPerDay: Number(avgTripsResponse.data?.average || 0)
       }
     };
 
-    console.log('[DriverAnalytics] Transformed data:', transformedData);
-
+    console.log('[DriverAnalytics] Combined data:', transformedData);
     return transformedData;
+
   } catch (error) {
     console.error('Error fetching driver analytics:', error);
     throw error;
   }
 };
 
-// Get vehicle analytics
+// Get vehicle analytics by combining separate metrics
 export const getVehicleAnalytics = async (timeframe = 'week') => {
   try {
     console.log(`[VehicleAnalytics] Fetching data for timeframe: ${timeframe}`);
-    const response = await httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.VEHICLES}?timeframe=${timeframe}`);
     
-    console.log('[VehicleAnalytics] Raw response from backend:', response.data);
+    // Fetch all metrics in parallel
+    const [totalTripsResponse, completionRateResponse, avgTripsResponse] = await Promise.all([
+      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.TOTALTRIPSVEHICLES}?timeframe=${timeframe}`),
+      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.COMPLETIONRATEVEHICLES}?timeframe=${timeframe}`),
+      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.AVGTRIPSPERDAYVEHICLES}?timeframe=${timeframe}`)
+    ]);
 
-    // Transform/validate the response data
+    // Combine and transform the data
     const transformedData = {
-      vehicles: (response.data?.vehicles || []).map(vehicle => ({
-        vehicleId: vehicle.vehicleId || vehicle.vehicle_id || vehicle._id,
-        vehicleName: vehicle.vehicleName || vehicle.vehicle_name || vehicle.name,
-        totalTrips: Number(vehicle.totalTrips || 0),
-        totalDistance: Number(vehicle.totalDistance || 0)
+      vehicles: (totalTripsResponse.data?.vehicles || []).map(vehicle => ({
+        vehicleName: vehicle.vehicle_name || vehicle.name || 'Unknown',
+        totalTrips: Number(vehicle.total_trips || 0),
+        totalDistance: Number(vehicle.total_distance || 0)
       })),
       timeframeSummary: {
-        totalDistance: Number(response.data?.timeframeSummary?.totalDistance || 0)
+        totalDistance: Number(totalTripsResponse.data?.total_distance || 0)
       }
     };
 
-    console.log('[VehicleAnalytics] Transformed data:', transformedData);
-
+    console.log('[VehicleAnalytics] Combined data:', transformedData);
     return transformedData;
+
   } catch (error) {
     console.error('Error fetching vehicle analytics:', error);
     throw error;
   }
 };
+
+

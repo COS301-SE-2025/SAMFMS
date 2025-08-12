@@ -313,7 +313,7 @@ class SimulationService:
         try:
             
             query = {
-                "actual_start_time": {"$ne": None, "$lte": current_time},
+                "actual_start_time": {"$exists": True, "$ne": None},
                 "$or": [
                     {"actual_end_time": {"$exists": False}},
                     {"actual_end_time": None}

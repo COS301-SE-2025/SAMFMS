@@ -157,14 +157,21 @@ export const API_ENDPOINTS = {
   TRIPS: {
     LIST: '/trips/trips',
     CREATE: '/trips/trips/create',
-    UPDATE: id =>  `/trips/trips/${id}`,
+    UPDATE: id => `/trips/trips/${id}`,
     DELETE: id => `/trips/trips/${id}`,
     ACTIVE: '/trips/trips/active',
     HISTORY: '/trips/history',
-    FINISHED: 'trips/trips/completed', 
+    FINISHED: 'trips/trips/completed',
     ANALYTICS: {
-      DRIVERS: '/trips/analytics/drivers',
-      VEHICLES: '/trips/analytics/vehicles'
+      // Driver analytics with timeframe
+      TOTALTRIPSDRIVER: timeframe => `/trips/analytics/drivers/totaltrips/${timeframe}`,
+      COMPLETIONRATEDRIVERS: timeframe => `/trips/analytics/drivers/completionrate/${timeframe}`,
+      AVGTRIPSPERDAYDRIVERS: timeframe => `/trips/analytics/drivers/averagedaytrips/${timeframe}`,
+
+      // Vehicle analytics with timeframe
+      TOTALTRIPSVEHICLES: timeframe => `/trips/analytics/vehicles/totaltrips/${timeframe}`,
+      COMPLETIONRATEVEHICLES: timeframe => `/trips/analytics/vehicles/completionrate/${timeframe}`,
+      AVGTRIPSPERDAYVEHICLES: timeframe => `/trips/analytics/vehicles/averagedaytrips/${timeframe}`,
     }
   },
 

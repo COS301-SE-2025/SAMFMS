@@ -339,7 +339,7 @@ const Trips = () => {
   };
 
   const availableVehicles = vehicles.filter(
-    v => v.status === 'available' || v.status === 'unavailable'
+    v => v.status === 'available'
   );
   const availableDrivers = drivers;
 
