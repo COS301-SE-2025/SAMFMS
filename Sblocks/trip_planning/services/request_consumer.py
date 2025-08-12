@@ -234,9 +234,13 @@ class ServiceRequestConsumer:
             elif "trips" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_trips_request()")
                 return await self._handle_trips_request(method, user_context)
-            elif "analytics" in endpoint:
-                logger.inf(f"Routing to analytics")
-                return await self._handle_analytics_requests()
+            elif "analytics/drivers" in endpoint:
+                logger.info(f"Routing to driver analytics")
+                return await self._handle_driver_analytics_requests(method, user_context)
+            elif "analytics/vehicles" in endpoint:
+                logger.info(f"Rotuing to vehicle analytics")
+                return await self._handle_vehicle_analytics_requests(method, user_context)
+
             else:
                 logger.warning(f"[_route_request] Unknown endpoint: {endpoint}")
                 raise ValueError(f"Unknown endpoint: {endpoint}")
@@ -400,6 +404,67 @@ class ServiceRequestConsumer:
                 error="TripsRequestError",
                 message=f"Failed to process trips request: {str(e)}"
             ).model_dump()
+
+    async def _handle_driver_analytics_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle driver analytics requests"""
+        try:
+            from schemas.responses import ResponseBuilder
+            from services.driver_analytics_service import driver_analytics_service
+
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            logger.info(f"[DriverAnalytics] Processing endpoint: {endpoint}")
+
+            if method == "GET":
+                # First try to get timeframe from query parameters
+                timeframe = data.get("timeframe", "week")  # Default to week
+                
+                # Extract metric from endpoint path
+                # Format: analytics/drivers/[metric]
+                path_parts = endpoint.split('/')
+                metric = path_parts[-1] if len(path_parts) >= 3 else None
+
+                logger.info(f"[DriverAnalytics] Using timeframe: {timeframe}, metric: {metric}")
+
+                # Route to appropriate analytics function based on metric
+                if metric == "totaltrips":
+                    result = await driver_analytics_service.get_total_trips(timeframe)
+                    logger.info(f"[DriverAnalytics] results from get_total_trips: {result}")
+                    return ResponseBuilder.success(
+                        data={"total": result},
+                        message="Total trips retrieved successfully"
+                    ).model_dump()
+                
+                elif metric == "completionrate":
+                    result = await driver_analytics_service.get_completion_rate(timeframe)
+                    return ResponseBuilder.success(
+                        data={"rate": result},
+                        message="Completion rate retrieved successfully"
+                    ).model_dump()
+                
+                elif metric == "averagedaytrips":
+                    result = await driver_analytics_service.get_average_trips_per_day(timeframe)
+                    return ResponseBuilder.success(
+                        data={"average": result},
+                        message="Average trips per day retrieved successfully"
+                    ).model_dump()
+                
+                else:
+                    raise ValueError(f"Unknown analytics metric: {metric}")
+
+            else:
+                raise ValueError(f"Unsupported method for driver analytics: {method}")
+
+        except Exception as e:
+            logger.error(f"[DriverAnalytics] Error processing request: {e}")
+            return ResponseBuilder.error(
+                error="DriverAnalyticsRequestError",
+                message=f"Failed to process analytics request: {str(e)}"
+            ).model_dump()
+    
+    async def _handle_vehicle_analytics_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle vehicle analytics requests"""
+        
 
     async def _handle_analytics_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle analytics requests"""

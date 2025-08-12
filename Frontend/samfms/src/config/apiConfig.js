@@ -164,14 +164,14 @@ export const API_ENDPOINTS = {
     FINISHED: 'trips/trips/completed',
     ANALYTICS: {
       // Driver analytics with timeframe
-      TOTALTRIPSDRIVER: timeframe => `/trips/analytics/drivers/totaltrips/${timeframe}`,
-      COMPLETIONRATEDRIVERS: timeframe => `/trips/analytics/drivers/completionrate/${timeframe}`,
-      AVGTRIPSPERDAYDRIVERS: timeframe => `/trips/analytics/drivers/averagedaytrips/${timeframe}`,
-
+      TOTALTRIPSDRIVER: '/trips/analytics/drivers/totaltrips',
+      COMPLETIONRATEDRIVERS: '/trips/analytics/drivers/completionrate',
+      AVGTRIPSPERDAYDRIVERS: '/trips/analytics/drivers/averagedaytrips',
+      
       // Vehicle analytics with timeframe
-      TOTALTRIPSVEHICLES: timeframe => `/trips/analytics/vehicles/totaltrips/${timeframe}`,
-      COMPLETIONRATEVEHICLES: timeframe => `/trips/analytics/vehicles/completionrate/${timeframe}`,
-      AVGTRIPSPERDAYVEHICLES: timeframe => `/trips/analytics/vehicles/averagedaytrips/${timeframe}`,
+      TOTALTRIPSVEHICLES: '/trips/analytics/vehicles/totaltrips',
+      COMPLETIONRATEVEHICLES: '/trips/analytics/vehicles/completionrate',
+      AVGTRIPSPERDAYVEHICLES: '/trips/analytics/vehicles/averagedaytrips'
     }
   },
 
