@@ -153,12 +153,22 @@ export const getDriverAnalytics = async (timeframe = 'week') => {
   try {
     console.log(`[DriverAnalytics] Fetching data for timeframe: ${timeframe}`);
     
-    // Fetch all metrics in parallel
+    // Fetch all metrics in parallel using query parameters
     const [totalTripsResponse, completionRateResponse, avgTripsResponse] = await Promise.all([
-      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.TOTALTRIPSDRIVER}?timeframe=${timeframe}`),
-      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.COMPLETIONRATEDRIVERS}?timeframe=${timeframe}`),
-      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.AVGTRIPSPERDAYDRIVERS}?timeframe=${timeframe}`)
+      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.TOTALTRIPSDRIVER}`, {
+        params: { timeframe }
+      }),
+      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.COMPLETIONRATEDRIVERS}`, {
+        params: { timeframe }
+      }),
+      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.AVGTRIPSPERDAYDRIVERS}`, {
+        params: { timeframe }
+      })
     ]);
+
+    console.log("totalTripsResponse", totalTripsResponse)
+    console.log("completionRateResponse", completionRateResponse)
+    console.log("avgTripsResponse", avgTripsResponse)
 
     // Combine and transform the data
     const transformedData = {
@@ -188,11 +198,17 @@ export const getVehicleAnalytics = async (timeframe = 'week') => {
   try {
     console.log(`[VehicleAnalytics] Fetching data for timeframe: ${timeframe}`);
     
-    // Fetch all metrics in parallel
+    // Fetch all metrics in parallel using query parameters
     const [totalTripsResponse, completionRateResponse, avgTripsResponse] = await Promise.all([
-      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.TOTALTRIPSVEHICLES}?timeframe=${timeframe}`),
-      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.COMPLETIONRATEVEHICLES}?timeframe=${timeframe}`),
-      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.AVGTRIPSPERDAYVEHICLES}?timeframe=${timeframe}`)
+      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.TOTALTRIPSVEHICLES}`, {
+        params: { timeframe }
+      }),
+      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.COMPLETIONRATEVEHICLES}`, {
+        params: { timeframe }
+      }),
+      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.AVGTRIPSPERDAYVEHICLES}`, {
+        params: { timeframe }
+      })
     ]);
 
     // Combine and transform the data

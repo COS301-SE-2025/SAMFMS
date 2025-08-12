@@ -121,6 +121,9 @@ const Trips = () => {
           getVehicleAnalytics(analyticsTimeframe),
         ]);
 
+        console.log("Driver data: ", driverData)
+        console.log("Vehicle data: ", vehicleData)
+
         // No need to access .data since the API returns the correct structure
         setDriverAnalytics(driverData);
         setVehicleAnalytics(vehicleData);
