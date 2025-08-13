@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { BaseWidget } from '../dashboard/BaseWidget';
-import { maintenanceAPI } from '../../backend/api/maintenance';
-import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
-import { CheckCircle, AlertTriangle, Calendar, DollarSign } from 'lucide-react';
+import React, {useState, useEffect} from 'react';
+import {BaseWidget} from '../dashboard/BaseWidget';
+import {maintenanceAPI} from '../../backend/api/maintenance';
+import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
+import {CheckCircle, AlertTriangle, Calendar, DollarSign} from 'lucide-react';
 
-const MaintenanceSummaryWidget = ({ id, config = {} }) => {
+const MaintenanceSummaryWidget = ({id, config = {}}) => {
   const [data, setData] = useState({
     total_records: 0,
     overdue_count: 0,
@@ -111,13 +111,13 @@ registerWidget(WIDGET_TYPES.MAINTENANCE_SUMMARY, MaintenanceSummaryWidget, {
   title: 'Maintenance Summary',
   description: 'Overview of maintenance records, overdue items, and costs',
   category: WIDGET_CATEGORIES.MAINTENANCE,
-  defaultSize: { w: 3, h: 2 },
-  minSize: { w: 2, h: 2 },
-  maxSize: { w: 6, h: 3 },
+  defaultSize: {w: 3, h: 6},
+  minSize: {w: 3, h: 4},
+  maxSize: {w: 8, h: 8},
   icon: <CheckCircle size={20} />,
   configSchema: {
-    title: { type: 'string', default: 'Maintenance Summary' },
-    refreshInterval: { type: 'number', default: 30, min: 5 },
+    title: {type: 'string', default: 'Maintenance Summary'},
+    refreshInterval: {type: 'number', default: 30, min: 5},
   },
 });
 
