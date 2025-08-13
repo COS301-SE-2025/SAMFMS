@@ -58,6 +58,7 @@ export {
   getAssignmentMetrics,
   getMaintenanceAnalytics,
   getDriverPerformance,
+  getDriverPerformanceById,
   getCostAnalytics,
   getStatusBreakdown,
   getIncidentStatistics,
@@ -68,6 +69,7 @@ export {
   getAssignmentMetricsData,
   getMaintenanceAnalyticsData,
   getDriverPerformanceData,
+  getDriverPerformanceByIdData,
   getCostAnalyticsData,
   getStatusBreakdownData,
 } from './api/analytics';

@@ -167,12 +167,12 @@ export const API_ENDPOINTS = {
       TOTALTRIPSDRIVER: '/trips/analytics/drivers/totaltrips',
       COMPLETIONRATEDRIVERS: '/trips/analytics/drivers/completionrate',
       AVGTRIPSPERDAYDRIVERS: '/trips/analytics/drivers/averagedaytrips',
-      
+
       // Vehicle analytics with timeframe
       TOTALTRIPSVEHICLES: '/trips/analytics/vehicles/totaltrips',
       COMPLETIONRATEVEHICLES: '/trips/analytics/vehicles/completionrate',
-      AVGTRIPSPERDAYVEHICLES: '/trips/analytics/vehicles/averagedaytrips'
-    }
+      AVGTRIPSPERDAYVEHICLES: '/trips/analytics/vehicles/averagedaytrips',
+    },
   },
 
   PLUGINSTATUS: {
@@ -232,6 +232,7 @@ export const API_ENDPOINTS = {
     ASSIGNMENT_METRICS: '/management/analytics/assignment-metrics',
     // MAINTENANCE: '/management/analytics/maintenance',
     DRIVER_PERFORMANCE: '/management/analytics/driver-performance',
+    DRIVER_PERFORMANCE_BY_ID: '/management/analytics/driver-performance',
     // COSTS: '/management/analytics/costs',
     // STATUS_BREAKDOWN: '/management/analytics/status-breakdown',
     // INCIDENTS: '/management/analytics/incidents',
