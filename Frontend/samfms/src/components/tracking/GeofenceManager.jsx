@@ -45,6 +45,8 @@ const GeofenceManager = ({
   initialShowForm = false,
   showFormOnly = false,
   onCancel,
+  onSuccess,
+  editingGeofence: editingGeofenceProp,
 }) => {
   // State for the component - ensure currentGeofences is properly structured
   const safeCurrentGeofences = (currentGeofences || []).filter(
@@ -54,7 +56,7 @@ const GeofenceManager = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('');
   const [showAddForm, setShowAddForm] = useState(initialShowForm);
-  const [editingGeofence, setEditingGeofence] = useState(null);
+  const [editingGeofence, setEditingGeofence] = useState(editingGeofenceProp || null);
   const [addressSearch, setAddressSearch] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState([]);
@@ -69,6 +71,31 @@ const GeofenceManager = ({
     coordinates: { lat: 37.7749, lng: -122.4194 },
     status: 'active',
   });
+
+  // Handle editing geofence prop changes
+  useEffect(() => {
+    if (editingGeofenceProp) {
+      setEditingGeofence(editingGeofenceProp);
+      setNewGeofence({
+        name: editingGeofenceProp.name || '',
+        description: editingGeofenceProp.description || '',
+        type: editingGeofenceProp.type || 'depot',
+        geometryType: editingGeofenceProp.geometryType || 'circle',
+        coordinates: editingGeofenceProp.coordinates || { lat: 37.7749, lng: -122.4194 },
+        radius: editingGeofenceProp.radius || 500,
+        status: editingGeofenceProp.status || 'active',
+      });
+      setShowAddForm(true);
+    }
+  }, [editingGeofenceProp]);
+
+  // Update local geofences when prop changes
+  useEffect(() => {
+    const safeCurrentGeofences = (currentGeofences || []).filter(
+      geofence => geofence && typeof geofence === 'object'
+    );
+    setGeofences(safeCurrentGeofences);
+  }, [currentGeofences]);
 
   // Filter geofences based on search and type filter
   const filteredGeofences = geofences.filter(geofence => {
@@ -245,19 +272,10 @@ const GeofenceManager = ({
       const response = await addGeofence(payload);
       console.log('Geofence created successfully:', response);
 
-      // Adapt response for UI
-      const newGeofenceForUI = {
-        ...response,
-        coordinates: {
-          lat: response.geometry?.center?.latitude || response.geometry?.points?.[0]?.latitude || 0,
-          lng:
-            response.geometry?.center?.longitude || response.geometry?.points?.[0]?.longitude || 0,
-        },
-        radius: response.geometry?.radius || 500,
-        geometryType: response.geometry?.type || 'circle',
-      };
-
-      setGeofences(prev => [...prev, newGeofenceForUI]);
+      // Immediately call onSuccess to trigger parent refresh
+      if (onSuccess) {
+        await onSuccess();
+      }
 
       // If this is used in a modal with showFormOnly=true, call onCancel to close the modal
       if (showFormOnly && onCancel) {
@@ -337,15 +355,13 @@ const GeofenceManager = ({
       const response = await updateGeofence(editingGeofence.id, payload);
       console.log('Geofence updated successfully:', response);
 
-      const updatedGeofences = geofences.map(g =>
-        g.id === editingGeofence.id
-          ? { ...g, ...payload, coordinates: { lat, lng }, radius: geometry.radius }
-          : g
-      );
-      setGeofences(updatedGeofences);
-
       resetForm();
       setEditingGeofence(null);
+
+      // Call onSuccess if provided
+      if (onSuccess) {
+        await onSuccess();
+      }
 
       // If this is used in a modal with showFormOnly=true, call onCancel to close the modal
       if (showFormOnly && onCancel) {
@@ -364,8 +380,12 @@ const GeofenceManager = ({
     if (window.confirm('Are you sure you want to delete this geofence?')) {
       try {
         await deleteGeofence(id);
-        setGeofences(geofences.filter(g => g.id !== id));
         console.log(`Geofence ${id} deleted successfully`);
+
+        // Call onSuccess if provided to trigger parent refresh
+        if (onSuccess) {
+          await onSuccess();
+        }
       } catch (error) {
         console.error('Error deleting geofence:', error);
         alert(`Failed to delete geofence: ${error.message || error}`);
