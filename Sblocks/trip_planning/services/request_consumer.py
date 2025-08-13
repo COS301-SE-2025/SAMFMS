@@ -226,20 +226,23 @@ class ServiceRequestConsumer:
         try:
             endpoint = endpoint.strip().lstrip('/').rstrip('/')
             user_context["endpoint"] = endpoint
-            logger.debug(f"[_route_request] Normalized endpoint: {endpoint}")
+            logger.info(f"[_route_request] Normalized endpoint: {endpoint}")
 
             if endpoint == "health" or endpoint == "":
                 logger.info(f"[_route_request] Routing to _handle_health_request()")
                 return await self._handle_health_request(method, user_context)
+            elif "analytics/drivers" in endpoint:
+                logger.info(f"Routing to driver analytics")
+                return await self._handle_driver_analytics_requests(method, user_context)
             elif "trips" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_trips_request()")
                 return await self._handle_trips_request(method, user_context)
             elif "notifications" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_notifications_request()")
                 return await self._handle_notifications_request(method, user_context)
-            elif "analytics/drivers" in endpoint:
-                logger.info(f"Routing to driver analytics")
-                return await self._handle_driver_analytics_requests(method, user_context)
+            elif "trips" in endpoint:
+                logger.info(f"[_route_request] Routing to _handle_trips_request()")
+                return await self._handle_trips_request(method, user_context)
             elif "analytics/vehicles" in endpoint:
                 logger.info(f"Rotuing to vehicle analytics")
                 return await self._handle_vehicle_analytics_requests(method, user_context)
@@ -432,7 +435,14 @@ class ServiceRequestConsumer:
                 # Route to appropriate analytics function based on metric
                 if metric == "totaltrips":
                     result = await driver_analytics_service.get_total_trips(timeframe)
-                    logger.info(f"[DriverAnalytics] results from get_total_trips: {result}")
+                    return ResponseBuilder.success(
+                        data={"total": result},
+                        message="Total trips retrieved successfully"
+                    ).model_dump()
+                elif metric == "stats":
+                    logger.info("Entered driver stats")
+                    result = await driver_analytics_service.get_driver_trip_stats(timeframe)
+                    logger.info(f"[DriverAnalytics] response for driver stas; {result}")
                     return ResponseBuilder.success(
                         data={"total": result},
                         message="Total trips retrieved successfully"

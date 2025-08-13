@@ -10,9 +10,11 @@ const TRIPS_ENDPOINTS = {
   HISTORY: API_ENDPOINTS.TRIPS.HISTORY,
   finish: API_ENDPOINTS.TRIPS.FINISHED,
   ANALYTICS: {
+    DRIVERSTATS: API_ENDPOINTS.TRIPS.ANALYTICS.DRiVERSTATS,
     TOTALTRIPSDRIVER: API_ENDPOINTS.TRIPS.ANALYTICS.TOTALTRIPSDRIVER,
     COMPLETIONRATEDRIVERS: API_ENDPOINTS.TRIPS.ANALYTICS.COMPLETIONRATEDRIVERS,
     AVGTRIPSPERDAYDRIVERS: API_ENDPOINTS.TRIPS.ANALYTICS.AVGTRIPSPERDAYDRIVERS,
+
     TOTALTRIPSVEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.TOTALTRIPSVEHICLES,
     COMPLETIONRATEVEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.COMPLETIONRATEVEHICLES,
     AVGTRIPSPERDAYVEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.AVGTRIPSPERDAYVEHICLES
@@ -148,13 +150,15 @@ export const getTripsHistory = async (page = 1, limit = 10) => {
   }
 };
 
-// Get driver analytics by combining separate metrics
 export const getDriverAnalytics = async (timeframe = 'week') => {
   try {
     console.log(`[DriverAnalytics] Fetching data for timeframe: ${timeframe}`);
-    
+        
     // Fetch all metrics in parallel using query parameters
-    const [totalTripsResponse, completionRateResponse, avgTripsResponse] = await Promise.all([
+    const [driverStatsResponse, totalTripsResponse, completionRateResponse, avgTripsResponse] = await Promise.all([
+      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.DRIVERSTATS}`, {
+        params: {timeframe}
+      }),
       httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.TOTALTRIPSDRIVER}`, {
         params: { timeframe }
       }),
@@ -166,27 +170,32 @@ export const getDriverAnalytics = async (timeframe = 'week') => {
       })
     ]);
 
-    console.log("totalTripsResponse", totalTripsResponse)
-    console.log("completionRateResponse", completionRateResponse)
-    console.log("avgTripsResponse", avgTripsResponse)
+    console.log("driver stats response", driverStatsResponse)
+
+    const totalTrips = totalTripsResponse.data.data.total
+    const completionRate = completionRateResponse.data.data.rate
+    const avgTripsPerDay = avgTripsResponse.data.data.average
+
+    // Transform driver data to match chart expectations
+    const transformedDrivers = driverStatsResponse.data.data.total.map(driver => ({
+      driverName: driver.driver_name,
+      completedTrips: driver.completed_trips,
+      cancelledTrips: driver.cancelled_trips
+    }));
 
     // Combine and transform the data
     const transformedData = {
-      drivers: (totalTripsResponse.data?.drivers || []).map(driver => ({
-        driverName: driver.driver_name || driver.name || 'Unknown',
-        completedTrips: Number(driver.completed_trips || 0),
-        cancelledTrips: Number(driver.cancelled_trips || 0)
-      })),
+      drivers: transformedDrivers,
       timeframeSummary: {
-        totalTrips: Number(totalTripsResponse.data?.total || 0),
-        completionRate: Number(completionRateResponse.data?.rate || 0),
-        averageTripsPerDay: Number(avgTripsResponse.data?.average || 0)
+        totalTrips: Number(totalTrips || 0),
+        completionRate: Number(completionRate || 0),
+        averageTripsPerDay: Number(avgTripsPerDay || 0)
       }
     };
 
     console.log('[DriverAnalytics] Combined data:', transformedData);
     return transformedData;
-
+   
   } catch (error) {
     console.error('Error fetching driver analytics:', error);
     throw error;
