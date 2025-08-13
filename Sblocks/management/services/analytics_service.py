@@ -10,7 +10,8 @@ from repositories.repositories import (
     VehicleAssignmentRepository, 
     VehicleUsageLogRepository, 
     DriverRepository,
-    AnalyticsRepository
+    AnalyticsRepository,
+    DriverCountRepository
 )
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ class AnalyticsService:
         self.usage_repo = VehicleUsageLogRepository()
         self.driver_repo = DriverRepository()
         self.analytics_repo = AnalyticsRepository()
+        self.drivers_repo = DriverCountRepository()
         
         # Cache TTL in minutes
         self.cache_ttl = {
