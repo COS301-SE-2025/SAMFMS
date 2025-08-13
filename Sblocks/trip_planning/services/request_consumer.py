@@ -538,9 +538,9 @@ class ServiceRequestConsumer:
 
             if method == "GET":
                 # Get user notifications
-                unread_only = data.get("unread_only", False)
-                limit = data.get("limit", 50)
-                skip = data.get("skip", 0)
+                unread_only = data.get("unread_only", "false").lower() == "true"
+                limit = int(data.get("limit", 50))
+                skip = int(data.get("skip", 0))
                 
                 notifications, total = await notification_service.get_user_notifications(
                     user_id=user_id,
