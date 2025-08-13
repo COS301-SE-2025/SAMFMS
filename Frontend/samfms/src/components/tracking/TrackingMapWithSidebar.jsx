@@ -337,36 +337,21 @@ const TrackingMapWithSidebar = () => {
         );
 
   // Handle geofence changes from the GeofenceManager
-  const handleGeofenceChange = useCallback(
-    async updatedGeofences => {
-      // First update the geofences state immediately for responsive UI
-      if (Array.isArray(updatedGeofences)) {
-        setGeofences(updatedGeofences);
-      }
-
-      // Then reload geofences from the server to ensure we have the latest data
-      try {
-        await loadGeofences();
-        console.log('Geofences reloaded after change');
-      } catch (error) {
-        console.error('Failed to reload geofences after change:', error);
-        // If reload fails, at least we have the updated data from the parameter
-        if (Array.isArray(updatedGeofences)) {
-          setGeofences(updatedGeofences);
-        }
-      }
-    },
-    [loadGeofences]
-  );
+  const handleGeofenceChange = useCallback(async updatedGeofences => {
+    // We now rely primarily on server refresh through onSuccess
+    // This is kept for backward compatibility but simplified
+    console.log('Geofences changed, relying on server refresh');
+  }, []);
 
   // Enhanced function to handle successful geofence operations
   const handleGeofenceSuccess = useCallback(async () => {
+    // Reload geofences to show the latest data from the server
+    console.log('Refreshing geofences after successful operation');
+    await loadGeofences();
+
     // Close modal
     setShowAddGeofenceModal(false);
     setEditingGeofence(null);
-
-    // Reload geofences to show the latest data
-    await loadGeofences();
   }, [loadGeofences]);
 
   // Handle item selection and map centering
@@ -389,10 +374,15 @@ const TrackingMapWithSidebar = () => {
     if (window.confirm('Are you sure you want to delete this geofence?')) {
       try {
         await deleteGeofence(geofenceId);
+        // Immediately update the state to remove the deleted geofence
         setGeofences(prev => prev.filter(g => g.id !== geofenceId));
+        // Reload geofences to ensure we have the latest data
+        await loadGeofences();
       } catch (error) {
         console.error('Error deleting geofence:', error);
         alert('Failed to delete geofence. Please try again.');
+        // Reload geofences in case of error to ensure consistency
+        await loadGeofences();
       }
     }
   };
@@ -544,7 +534,7 @@ const TrackingMapWithSidebar = () => {
                 <div className="transition-all duration-300 ease-in-out">
                   <div className="space-y-2">
                     {/* Search bar */}
-                    <div className="flex items-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg transition-all duration-300 ease-in-out h-10">
+                    <div className="relative flex items-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg transition-all duration-300 ease-in-out h-10">
                       <Search className="absolute left-3 text-gray-500 dark:text-gray-400 w-4 h-4 transition-colors duration-200" />
                       <input
                         type="text"

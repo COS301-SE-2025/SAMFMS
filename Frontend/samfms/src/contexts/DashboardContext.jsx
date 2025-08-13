@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { generateWidgetId, WIDGET_TYPES } from '../utils/widgetRegistry';
+import React, {createContext, useContext, useReducer, useEffect} from 'react';
+import {generateWidgetId, WIDGET_TYPES} from '../utils/widgetRegistry';
 
 const DashboardContext = createContext();
 
@@ -10,87 +10,87 @@ const getDefaultDashboard = () => {
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.VEHICLE_STATUS,
-      config: { title: 'Fleet Status' },
+      config: {title: 'Fleet Status'},
     },
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.STATS_CARD,
-      config: { title: 'Key Statistics' },
+      config: {title: 'Key Statistics'},
     },
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.MAINTENANCE_ALERTS,
-      config: { title: 'Active Alerts' },
+      config: {title: 'Active Alerts'},
     },
 
     // Second row - Main operational widgets (medium size)
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.MAINTENANCE_SUMMARY,
-      config: { title: 'Maintenance Overview' },
+      config: {title: 'Maintenance Overview'},
     },
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.MAINTENANCE_RECORDS,
-      config: { title: 'Recent Maintenance' },
+      config: {title: 'Recent Maintenance'},
     },
 
     // Third row - Analytics and costs (larger for data visualization)
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.MAINTENANCE_COST_ANALYTICS,
-      config: { title: 'Cost Analytics' },
+      config: {title: 'Cost Analytics'},
     },
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.LINE_CHART,
-      config: { title: 'Performance Trends' },
+      config: {title: 'Performance Trends'},
     },
 
     // Fourth row - Additional insights
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.PIE_CHART,
-      config: { title: 'Fleet Distribution' },
+      config: {title: 'Fleet Distribution'},
     },
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.BAR_CHART,
-      config: { title: 'Usage Comparison' },
+      config: {title: 'Usage Comparison'},
     },
 
     // Fifth row - System health
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.PLUGIN_HEALTH,
-      config: { title: 'System Health' },
+      config: {title: 'System Health'},
     },
   ];
 
   // Improved layout with better organization and visual hierarchy
   const layout = [
     // Top row - 3 small widgets for key metrics (4 units each)
-    { i: widgets[0].id, x: 0, y: 0, w: 4, h: 3 }, // Fleet Status
-    { i: widgets[1].id, x: 4, y: 0, w: 4, h: 3 }, // Key Statistics
-    { i: widgets[2].id, x: 8, y: 0, w: 4, h: 3 }, // Active Alerts
+    {i: widgets[0].id, x: 0, y: 0, w: 4, h: 3}, // Fleet Status
+    {i: widgets[1].id, x: 4, y: 0, w: 4, h: 3}, // Key Statistics
+    {i: widgets[2].id, x: 8, y: 0, w: 4, h: 3}, // Active Alerts
 
     // Second row - 2 medium widgets for operations (6 units each)
-    { i: widgets[3].id, x: 0, y: 3, w: 6, h: 4 }, // Maintenance Overview
-    { i: widgets[4].id, x: 6, y: 3, w: 6, h: 4 }, // Recent Maintenance
+    {i: widgets[3].id, x: 0, y: 3, w: 6, h: 4}, // Maintenance Overview
+    {i: widgets[4].id, x: 6, y: 3, w: 6, h: 4}, // Recent Maintenance
 
     // Third row - 2 large widgets for analytics (6 units each)
-    { i: widgets[5].id, x: 0, y: 7, w: 6, h: 5 }, // Cost Analytics
-    { i: widgets[6].id, x: 6, y: 7, w: 6, h: 5 }, // Performance Trends
+    {i: widgets[5].id, x: 0, y: 7, w: 6, h: 5}, // Cost Analytics
+    {i: widgets[6].id, x: 6, y: 7, w: 6, h: 5}, // Performance Trends
 
     // Fourth row - 2 medium widgets for insights (6 units each)
-    { i: widgets[7].id, x: 0, y: 12, w: 6, h: 4 }, // Fleet Distribution
-    { i: widgets[8].id, x: 6, y: 12, w: 6, h: 4 }, // Usage Comparison
+    {i: widgets[7].id, x: 0, y: 12, w: 6, h: 4}, // Fleet Distribution
+    {i: widgets[8].id, x: 6, y: 12, w: 6, h: 4}, // Usage Comparison
 
     // Fifth row - 1 widget centered for system health
-    { i: widgets[9].id, x: 3, y: 16, w: 6, h: 3 }, // System Health (centered)
+    {i: widgets[9].id, x: 3, y: 16, w: 6, h: 3}, // System Health (centered)
   ];
 
-  return { widgets, layout };
+  return {widgets, layout};
 };
 
 const dashboardReducer = (state, action) => {
@@ -137,6 +137,11 @@ const dashboardReducer = (state, action) => {
       };
 
     case 'SET_EDIT_MODE':
+      console.log('🔧 SET_EDIT_MODE action:', {
+        from: state.isEditing,
+        to: action.payload,
+        stack: new Error().stack
+      });
       return {
         ...state,
         isEditing: action.payload,
@@ -147,12 +152,17 @@ const dashboardReducer = (state, action) => {
         ...state,
         widgets: state.widgets.map(widget =>
           widget.id === action.payload.id
-            ? { ...widget, config: { ...widget.config, ...action.payload.config } }
+            ? {...widget, config: {...widget.config, ...action.payload.config}}
             : widget
         ),
       };
 
     case 'LOAD_DASHBOARD':
+      console.log('📥 LOAD_DASHBOARD action:', {
+        from: state.isEditing,
+        to: action.payload.isEditing || false,
+        stack: new Error().stack
+      });
       return {
         ...state,
         widgets: action.payload.widgets || [],
@@ -176,7 +186,7 @@ const getDefaultLayout = widgets => {
   }));
 };
 
-export const DashboardProvider = ({ children, dashboardId = 'default' }) => {
+export const DashboardProvider = ({children, dashboardId = 'default'}) => {
   const defaultDashboard = getDefaultDashboard();
   const [state, dispatch] = useReducer(dashboardReducer, {
     widgets: defaultDashboard.widgets,
