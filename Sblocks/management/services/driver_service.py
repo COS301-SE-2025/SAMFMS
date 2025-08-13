@@ -413,13 +413,16 @@ class DriverService:
                 parts = full_name.strip().split()
                 first_name = parts[0]
                 last_name = " ".join(parts[1:])
+
+                security_id = data["security_id"]
                 # Create new data
                 driver_data = {
                     "employee_id": employee_id,
                     "first_name": first_name,
                     "last_name": last_name,
                     "email": data["email"],
-                    "phone": data["phoneNo"]
+                    "phone": data["phoneNo"],
+                    "security_id": security_id,
                 }
                 # Create driver
                 driver_request = DriverCreateRequest(**driver_data)

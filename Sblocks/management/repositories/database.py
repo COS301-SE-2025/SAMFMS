@@ -163,6 +163,10 @@ class DatabaseManager:
             await create_index_safe(db.audit_logs, "user_id")
             await create_index_safe(db.audit_logs, "timestamp")
             await create_index_safe(db.audit_logs, [("entity_type", 1), ("entity_id", 1)])
+            await create_index_safe(db.audit_logs, "timestamp")
+
+            # Index for date on drivers_over_time collection
+            await create_index_safe(db.drivers_over_time, "date")
             
             # TTL index for analytics snapshots (auto-delete expired data)
             await create_index_safe(db.analytics_snapshots, "expires_at", expireAfterSeconds=0)

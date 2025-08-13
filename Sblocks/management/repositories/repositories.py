@@ -6,9 +6,54 @@ from datetime import datetime, timedelta
 import logging
 
 from .base import BaseRepository
-from schemas.entities import VehicleAssignment, VehicleUsageLog, Driver, AnalyticsSnapshot
+from schemas.entities import VehicleAssignment, VehicleUsageLog, Driver, AnalyticsSnapshot, DailyDriverCount
 
 logger = logging.getLogger(__name__)
+
+
+class DriverCountRepository(BaseRepository):
+    """Repository for driver count"""
+
+    def __init__(self):
+        super().__init__("drivers_over_time")
+
+    async def get_daily_driver_counts(self, start_date: Optional[datetime] = None) -> Optional[Dict[str, Any]]:
+        """Get all daily driver counts from a certain date"""
+        if start_date is not None:
+            return await self.find_many({"date": {"$gt": start_date}})
+        else:
+            return await self.find_many({})
+        
+    async def add_driver(self):
+        """Add a new driver record with incremented count"""
+        max_record = await self.find_one(sort=[("number_of_drivers", -1)])
+        max_count = max_record["number_of_drivers"] if max_record else 0
+
+        new_count = max_count + 1
+
+        new_record = {
+            "number_of_drivers": new_count,
+            "date": datetime.utcnow()
+        }
+
+        await self.insert_one(new_record)
+
+    async def remove_driver(self):
+        """Remove a driver record with decremented count"""
+        max_record = await self.find_one(sort=[("number_of_drivers", -1)])
+        max_count = max_record["number_of_drivers"] if max_record else 0
+
+        new_count = max(0, max_count - 1)
+
+        new_record = {
+            "number_of_drivers": new_count,
+            "date": datetime.utcnow()
+        }
+
+        await self.insert_one(new_record)
+        
+            
+        
 
 
 class VehicleRepository(BaseRepository):

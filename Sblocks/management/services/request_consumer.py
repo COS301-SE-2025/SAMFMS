@@ -176,6 +176,8 @@ class ServiceRequestConsumer:
                 return await self._handle_health_request(method, user_context)
             elif "vehicles" in endpoint or endpoint == "vehicles":
                 return await self._handle_vehicles_request(method, user_context)
+            elif "daily-driver" in endpoint or "daily_driver" in endpoint:
+                return await self._handle_daily_driver_request(method, user_context)
             elif "drivers" in endpoint:
                 return await self._handle_drivers_request(method, user_context)
             elif "assignments" in endpoint or "vehicle-assignments" in endpoint:
@@ -212,6 +214,20 @@ class ServiceRequestConsumer:
             return ResponseBuilder.error(
                 error="VehicleRequestError",
                 message=f"Failed to process vehicle request: {str(e)}"
+            ).model_dump()
+        
+
+    async def _handle_daily_driver_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle driver counts requests by delegating to drivers service"""
+        try:
+            from services.drivers_service import drivers_service
+            return await drivers_service.handle_request(method, user_context)
+        except Exception as e:
+            from schemas.responses import ResponseBuilder
+            logger.error(f"Error handling drivers request: {e}")
+            return ResponseBuilder.error(
+                error="DriversRequestError",
+                message=f"Failed to process drivers request: {str(e)}"
             ).model_dump()
     
     async def _handle_drivers_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
