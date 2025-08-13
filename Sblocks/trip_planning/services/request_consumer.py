@@ -234,17 +234,14 @@ class ServiceRequestConsumer:
             elif "analytics/drivers" in endpoint:
                 logger.info(f"Routing to driver analytics")
                 return await self._handle_driver_analytics_requests(method, user_context)
-            elif "trips" in endpoint:
+            elif "trips" in endpoint or endpoint.startswith("driver/"):
                 logger.info(f"[_route_request] Routing to _handle_trips_request()")
                 return await self._handle_trips_request(method, user_context)
             elif "notifications" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_notifications_request()")
                 return await self._handle_notifications_request(method, user_context)
-            elif "trips" in endpoint:
-                logger.info(f"[_route_request] Routing to _handle_trips_request()")
-                return await self._handle_trips_request(method, user_context)
             elif "analytics/vehicles" in endpoint:
-                logger.info(f"Rotuing to vehicle analytics")
+                logger.info(f"Routing to vehicle analytics")
                 return await self._handle_vehicle_analytics_requests(method, user_context)
 
             else:
@@ -263,10 +260,91 @@ class ServiceRequestConsumer:
             from schemas.responses import ResponseBuilder
             data = user_context.get("data", {})
             endpoint = user_context.get("endpoint", "")
-            logger.info(f"[_handle_trips_request] Data: {data}")
+            logger.info(f"[_handle_trips_request] Endpoint: '{endpoint}', Data: {data}")
+            logger.info(f"[_handle_trips_request] Endpoint checks - contains 'trips': {'trips' in endpoint}, contains 'active': {'active' in endpoint}, contains 'upcoming': {'upcoming' in endpoint}, contains 'recent': {'recent' in endpoint}")
 
             if method == "GET":
-                if "trips" in endpoint:
+                # Check for driver-specific endpoints first
+                if endpoint.startswith("driver/") and "upcoming" in endpoint:
+                    # Extract driver_id from endpoint: driver/{driver_id}/upcoming
+                    parts = endpoint.split('/')
+                    if len(parts) >= 2:
+                        driver_id = parts[1]  # Get the driver ID from the path
+                    else:
+                        raise ValueError("Driver ID is required for upcoming trips endpoint")
+                    
+                    # Get query parameters from data
+                    limit = data.get("limit", 10)
+                    if isinstance(limit, str):
+                        limit = int(limit)
+                    
+                    logger.info(f"[_handle_trips_request] Getting upcoming trips for driver: {driver_id}")
+                    trips = await trip_service.get_upcoming_trips(driver_id, limit)
+                    logger.info(f"[_handle_trips_request] Found {len(trips)} upcoming trips")
+                    
+                    return ResponseBuilder.success(
+                        data={
+                            "trips": [trip.model_dump() for trip in trips],
+                            "count": len(trips)
+                        },
+                        message=f"Found {len(trips)} upcoming trips"
+                    ).model_dump()
+                elif endpoint.startswith("driver/") and "recent" in endpoint:
+                    # Extract driver_id from endpoint
+                    parts = endpoint.split('/')
+                    driver_id = None
+                    if 'driver' in parts:
+                        driver_index = parts.index('driver')
+                        if driver_index + 1 < len(parts):
+                            driver_id = parts[driver_index + 1]
+                    
+                    if not driver_id:
+                        raise ValueError("Driver ID is required for upcoming trips endpoint")
+                    
+                    # Get query parameters from data
+                    limit = data.get("limit", 10)
+                    if isinstance(limit, str):
+                        limit = int(limit)
+                    
+                    logger.info(f"[_handle_trips_request] Getting upcoming trips for driver: {driver_id}")
+                    trips = await trip_service.get_upcoming_trips(driver_id, limit)
+                    logger.info(f"[_handle_trips_request] Found {len(trips)} upcoming trips")
+                    
+                    return ResponseBuilder.success(
+                        data={
+                            "trips": [trip.model_dump() for trip in trips],
+                            "count": len(trips)
+                        },
+                        message=f"Found {len(trips)} upcoming trips"
+                    ).model_dump()
+                elif endpoint.startswith("driver/") and "recent" in endpoint:
+                    # Extract driver_id from endpoint: driver/{driver_id}/recent
+                    parts = endpoint.split('/')
+                    if len(parts) >= 2:
+                        driver_id = parts[1]  # Get the driver ID from the path
+                    else:
+                        raise ValueError("Driver ID is required for recent trips endpoint")
+                    
+                    # Get query parameters from data
+                    limit = data.get("limit", 10)
+                    days = data.get("days", 30)
+                    if isinstance(limit, str):
+                        limit = int(limit)
+                    if isinstance(days, str):
+                        days = int(days)
+                    
+                    logger.info(f"[_handle_trips_request] Getting recent trips for driver: {driver_id}")
+                    trips = await trip_service.get_recent_trips(driver_id, limit, days)
+                    logger.info(f"[_handle_trips_request] Found {len(trips)} recent trips")
+                    
+                    return ResponseBuilder.success(
+                        data={
+                            "trips": [trip.model_dump() for trip in trips],
+                            "count": len(trips)
+                        },
+                        message=f"Found {len(trips)} recent trips"
+                    ).model_dump()
+                elif "trips" in endpoint:
                     logger.info(f"[_handle_trips_request] Calling trip_service.get_all_trips()")
                     trips = await trip_service.get_all_trips()
                     logger.info(f"[_handle_trips_request] trip_service.get_all_trips() returned {len(trips) if trips else 0} trips")
@@ -274,13 +352,21 @@ class ServiceRequestConsumer:
                         data=[trip.model_dump() for trip in trips] if trips else None,
                         message="Trips retrieved successfully"
                     ).model_dump()
-                if "active" in endpoint:
+                elif "active" in endpoint:
                     activeTrips = await trip_service.get_active_trips()
-                    logger.info(f"[_handle_trips_request] trip_service.get_active_trips() returned {len(trips) if trips else 0} trips")
+                    logger.info(f"[_handle_trips_request] trip_service.get_active_trips() returned {len(activeTrips) if activeTrips else 0} trips")
                     return ResponseBuilder.success(
                         data=[Atrip.model_dump() for Atrip in activeTrips] if activeTrips else None,
                         message="Active Trips retrieved successfully"
                     ).model_dump()
+                elif "upcoming" in endpoint:
+                    # This is the fallback case for non-driver specific upcoming trips
+                    logger.warning(f"[_handle_trips_request] Generic upcoming endpoint accessed without driver ID: {endpoint}")
+                    raise ValueError("Driver ID is required for upcoming trips")
+                elif "recent" in endpoint:
+                    # This is the fallback case for non-driver specific recent trips
+                    logger.warning(f"[_handle_trips_request] Generic recent endpoint accessed without driver ID: {endpoint}")
+                    raise ValueError("Driver ID is required for recent trips")
                 else:
                     raise ValueError(f"Unknown endpoint: {endpoint}")
 

@@ -291,3 +291,48 @@ async def get_trip_status(
     
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to get trip status")
+
+
+@router.get("/driver/{driver_id}/upcoming", response_model=Dict[str, Any])
+async def get_upcoming_trips(
+    driver_id: str,
+    limit: int = Query(10, ge=1, le=50),
+    current_user: str = Depends(get_current_user)
+):
+    """Get upcoming trips for a specific driver"""
+    try:
+        trips = await trip_service.get_upcoming_trips(driver_id, limit)
+        
+        return ResponseBuilder.success(
+            data={
+                "trips": [trip.dict() for trip in trips],
+                "count": len(trips)
+            },
+            message=f"Found {len(trips)} upcoming trips"
+        )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to get upcoming trips")
+
+
+@router.get("/driver/{driver_id}/recent", response_model=Dict[str, Any])
+async def get_recent_trips(
+    driver_id: str,
+    limit: int = Query(10, ge=1, le=50),
+    days: int = Query(30, ge=1, le=365),
+    current_user: str = Depends(get_current_user)
+):
+    """Get recent completed trips for a specific driver"""
+    try:
+        trips = await trip_service.get_recent_trips(driver_id, limit, days)
+        
+        return ResponseBuilder.success(
+            data={
+                "trips": [trip.dict() for trip in trips],
+                "count": len(trips)
+            },
+            message=f"Found {len(trips)} recent trips"
+        )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to get recent trips")
