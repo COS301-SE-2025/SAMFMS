@@ -203,6 +203,7 @@ class DriverCreateRequest(BaseModel):
     first_name: str
     last_name: str
     email: str
+    security_id: str
     phone: Optional[str] = None
     license_number: Optional[str] = None
     license_class: Optional[List[str]] = None  
