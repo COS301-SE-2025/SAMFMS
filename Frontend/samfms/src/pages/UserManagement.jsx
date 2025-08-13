@@ -166,22 +166,6 @@ const UserManagement = () => {
       }
 
       // First create driver if role is driver
-      if (formData.role === 'driver') {
-        console.log('Creating driver first...');
-        const driverData = {
-          full_name: formData.full_name.trim(),
-          email: formData.email.trim(),
-          phoneNo: formData.phoneNo ? formData.phoneNo.trim() : undefined,
-        };
-
-        console.log('Driver data:', driverData);
-        const driverResponse = await createDriver(driverData);
-        console.log('Driver creation response:', driverResponse);
-
-        if (!driverResponse || !driverResponse.data || driverResponse.data.status !== 'success') {
-          throw new Error('Failed to create driver in management system');
-        }
-      }
 
       // Then create user account
       const userData = {
@@ -194,7 +178,27 @@ const UserManagement = () => {
       };
 
       console.log('Creating user account:', userData);
-      await createUserManually(userData);
+      const securityUser = await createUserManually(userData);
+      const securityUser_ID = securityUser.user_id;
+      console.log("Security user details: ", securityUser);
+
+      if (formData.role === 'driver') {
+        console.log('Creating driver first...');
+        const driverData = {
+          full_name: formData.full_name.trim(),
+          email: formData.email.trim(),
+          phoneNo: formData.phoneNo ? formData.phoneNo.trim() : undefined,
+          security_id: securityUser_ID
+        };
+
+        console.log('Driver data:', driverData);
+        const driverResponse = await createDriver(driverData);
+        console.log('Driver creation response:', driverResponse);
+
+        if (!driverResponse || !driverResponse.data || driverResponse.data.status !== 'success') {
+          throw new Error('Failed to create driver in management system');
+        }
+      }
 
       console.log('User creation successful');
       showNotification(`User ${formData.full_name} created successfully!`, 'success');
