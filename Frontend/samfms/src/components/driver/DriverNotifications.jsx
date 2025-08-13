@@ -1,52 +1,126 @@
-import React, { useState } from 'react';
-import { Bell, AlertCircle, Info, CheckCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  Bell,
+  AlertCircle,
+  Info,
+  CheckCircle,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+} from 'lucide-react';
+import { getDriverNotifications, markNotificationRead } from '../../backend/api/notifications';
 
 const DriverNotifications = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Static notifications data for now
-  const notifications = [
-    {
-      id: 1,
-      type: 'urgent',
-      title: 'Trip Assignment',
-      message: 'New trip assigned for tomorrow 9:00 AM to Downtown',
-      time: '2 minutes ago',
-      read: false,
-    },
-    {
-      id: 2,
-      type: 'info',
-      title: 'Vehicle Maintenance',
-      message: 'Vehicle VH-001 is due for maintenance next week',
-      time: '1 hour ago',
-      read: false,
-    },
-    {
-      id: 3,
-      type: 'success',
-      title: 'Trip Completed',
-      message: 'Successfully completed trip to Airport Terminal',
-      time: '3 hours ago',
-      read: true,
-    },
-    {
-      id: 4,
-      type: 'warning',
-      title: 'Traffic Alert',
-      message: 'Heavy traffic reported on Route 45. Consider alternate routes.',
-      time: '5 hours ago',
-      read: true,
-    },
-    {
-      id: 5,
-      type: 'info',
-      title: 'System Update',
-      message: 'SAMFMS will undergo maintenance this weekend',
-      time: '1 day ago',
-      read: true,
-    },
-  ];
+  // Fetch notifications on component mount
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await getDriverNotifications();
+
+        // Handle the response data
+        if (response?.data?.notifications) {
+          setNotifications(response.data.notifications);
+        } else {
+          // Fallback to static data if API fails
+          setNotifications([
+            {
+              id: 1,
+              type: 'urgent',
+              title: 'Trip Assignment',
+              message: 'New trip assigned for tomorrow 9:00 AM to Downtown',
+              time: '2 minutes ago',
+              read: false,
+            },
+            {
+              id: 2,
+              type: 'info',
+              title: 'Vehicle Maintenance',
+              message: 'Vehicle VH-001 is due for maintenance next week',
+              time: '1 hour ago',
+              read: false,
+            },
+            {
+              id: 3,
+              type: 'success',
+              title: 'Trip Completed',
+              message: 'Successfully completed trip to Airport Terminal',
+              time: '3 hours ago',
+              read: true,
+            },
+            {
+              id: 4,
+              type: 'warning',
+              title: 'Traffic Alert',
+              message: 'Heavy traffic reported on Route 45. Consider alternate routes.',
+              time: '5 hours ago',
+              read: true,
+            },
+            {
+              id: 5,
+              type: 'info',
+              title: 'System Update',
+              message: 'SAMFMS will undergo maintenance this weekend',
+              time: '1 day ago',
+              read: true,
+            },
+          ]);
+        }
+      } catch (err) {
+        console.error('Error fetching notifications:', err);
+        setError(err.message);
+
+        // Fallback to static data on error
+        setNotifications([
+          {
+            id: 1,
+            type: 'urgent',
+            title: 'Trip Assignment',
+            message: 'New trip assigned for tomorrow 9:00 AM to Downtown',
+            time: '2 minutes ago',
+            read: false,
+          },
+          {
+            id: 2,
+            type: 'info',
+            title: 'Vehicle Maintenance',
+            message: 'Vehicle VH-001 is due for maintenance next week',
+            time: '1 hour ago',
+            read: false,
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
+
+  // Handle notification click (mark as read)
+  const handleNotificationClick = async notification => {
+    if (!notification.read) {
+      try {
+        await markNotificationRead(notification.id);
+
+        // Update local state
+        setNotifications(prev =>
+          prev.map(n => (n.id === notification.id ? { ...n, read: true } : n))
+        );
+      } catch (err) {
+        console.error('Error marking notification as read:', err);
+        // Continue without showing error to user
+      }
+    }
+  };
 
   const getNotificationIcon = type => {
     switch (type) {
@@ -113,7 +187,18 @@ const DriverNotifications = () => {
       {/* Notifications List - Collapsible */}
       {!isCollapsed && (
         <div className="max-h-[280px] sm:max-h-[400px] overflow-y-auto overscroll-contain">
-          {notifications.length === 0 ? (
+          {loading ? (
+            <div className="p-6 text-center">
+              <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin text-primary" />
+              <p className="text-muted-foreground">Loading notifications...</p>
+            </div>
+          ) : error ? (
+            <div className="p-6 text-center">
+              <AlertCircle className="h-8 w-8 mx-auto mb-2 text-red-500" />
+              <p className="text-muted-foreground text-sm">Error loading notifications</p>
+              <p className="text-xs text-muted-foreground mt-1">Showing offline data</p>
+            </div>
+          ) : notifications.length === 0 ? (
             <div className="p-6 text-center text-muted-foreground">
               <Bell className="h-12 w-12 mx-auto mb-2 opacity-50" />
               <p>No notifications</p>
@@ -127,6 +212,7 @@ const DriverNotifications = () => {
                     notification.type,
                     notification.read
                   )}`}
+                  onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex items-start space-x-2 sm:space-x-3">
                     <div className="flex-shrink-0 mt-0.5 sm:mt-1">

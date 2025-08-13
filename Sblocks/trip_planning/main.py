@@ -26,6 +26,7 @@ from services.request_consumer import service_request_consumer
 from api.routes.analytics import router as analytics_router
 from api.routes.drivers import router as drivers_router
 from api.routes.trips import router as trips_router
+from api.routes.notifications import router as notifications_router
 
 # Import middleware and exception handlers
 from middleware import (
@@ -297,6 +298,7 @@ for exception_type, handler in EXCEPTION_HANDLERS.items():
 app.include_router(analytics_router, tags=["analytics"])
 app.include_router(trips_router, tags=["trips"])
 app.include_router(drivers_router, tags=["drivers"])
+app.include_router(notifications_router, tags=["notifications"])
 
 @app.get("/")
 async def root():

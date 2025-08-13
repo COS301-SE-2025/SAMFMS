@@ -169,62 +169,6 @@ const DriverScoreCard = () => {
           </div>
         </div>
       </div>
-
-      {/* Performance Insights */}
-      <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-background rounded-lg border border-border">
-        <div className="text-sm font-medium text-foreground mb-2">Performance Insights</div>
-        <div className="text-xs sm:text-sm text-muted-foreground">
-          {performanceData ? (
-            // API-based insights
-            <>
-              {overallScore >= 80 && (
-                <span className="text-green-600 block sm:inline">
-                  🎉 Excellent overall performance! You're doing great.
-                </span>
-              )}
-              {overallScore >= 60 && overallScore < 80 && (
-                <span className="text-yellow-600 block sm:inline">
-                  ⚡ Good performance! Keep working to reach excellent levels.
-                </span>
-              )}
-              {overallScore < 60 && (
-                <span className="text-red-600 block sm:inline">
-                  📈 Focus on improving your driving metrics to boost your score.
-                </span>
-              )}
-              {driverScore.fuelEfficiency > 0 && (
-                <span className="block sm:inline mt-2 sm:mt-0 sm:ml-2 text-blue-600">
-                  ⛽ Fuel efficiency: {Math.round(driverScore.fuelEfficiency * 100) / 100} L/km
-                </span>
-              )}
-            </>
-          ) : (
-            // Fallback static insights
-            <>
-              {onTimePercentage >= 90 && (
-                <span className="text-green-600 block sm:inline">
-                  🎉 Excellent on-time performance! Keep up the great work.
-                </span>
-              )}
-              {onTimePercentage >= 75 && onTimePercentage < 90 && (
-                <span className="text-yellow-600 block sm:inline">
-                  ⚡ Good performance! Try to improve punctuality for better scores.
-                </span>
-              )}
-              {onTimePercentage < 75 && (
-                <span className="text-red-600 block sm:inline">
-                  📈 Focus on improving on-time delivery to boost your score.
-                </span>
-              )}
-              {violations > 5 && (
-                <span className="block sm:inline mt-2 sm:mt-0 sm:ml-2 text-red-600">
-                  ⚠️ Work on reducing violations for better performance.
-                </span>
-              )}
-            </>
-          )}
-        </div>
-      </div>
     </div>
   );
 };
