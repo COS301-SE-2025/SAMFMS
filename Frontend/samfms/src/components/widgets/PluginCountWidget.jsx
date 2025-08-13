@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BaseWidget } from '../dashboard/BaseWidget';
 import { getAllPlugins } from '../../backend/api/plugins';
-import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
+// import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
 import { Package, TrendingUp } from 'lucide-react';
 
 const PluginCountWidget = ({ id, config = {} }) => {
@@ -117,6 +117,9 @@ const PluginCountWidget = ({ id, config = {} }) => {
 };
 
 // Register the widget
+// Plugin Count Widget - DISABLED
+// This widget has been removed from the dashboard
+/*
 registerWidget(WIDGET_TYPES.PLUGIN_COUNT, PluginCountWidget, {
   title: 'Plugin Overview',
   description: 'Quick overview of plugin count and status distribution',
@@ -130,5 +133,6 @@ registerWidget(WIDGET_TYPES.PLUGIN_COUNT, PluginCountWidget, {
     refreshInterval: { type: 'number', default: 60, min: 30 },
   },
 });
+*/
 
 export default PluginCountWidget;

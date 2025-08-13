@@ -3,14 +3,10 @@ import { generateWidgetId, WIDGET_TYPES } from '../utils/widgetRegistry';
 
 const DashboardContext = createContext();
 
-// Rich default dashboard configuration with all available widgets
+// Improved default dashboard configuration with better organization
 const getDefaultDashboard = () => {
   const widgets = [
-    {
-      id: generateWidgetId(),
-      type: WIDGET_TYPES.MAINTENANCE_SUMMARY,
-      config: { title: 'Maintenance Overview' },
-    },
+    // Top row - Key metrics and status (smaller, at the top for overview)
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.VEHICLE_STATUS,
@@ -18,14 +14,28 @@ const getDefaultDashboard = () => {
     },
     {
       id: generateWidgetId(),
+      type: WIDGET_TYPES.STATS_CARD,
+      config: { title: 'Key Statistics' },
+    },
+    {
+      id: generateWidgetId(),
       type: WIDGET_TYPES.MAINTENANCE_ALERTS,
-      config: { title: 'Maintenance Alerts' },
+      config: { title: 'Active Alerts' },
+    },
+
+    // Second row - Main operational widgets (medium size)
+    {
+      id: generateWidgetId(),
+      type: WIDGET_TYPES.MAINTENANCE_SUMMARY,
+      config: { title: 'Maintenance Overview' },
     },
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.MAINTENANCE_RECORDS,
-      config: { title: 'Maintenance Records' },
+      config: { title: 'Recent Maintenance' },
     },
+
+    // Third row - Analytics and costs (larger for data visualization)
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.MAINTENANCE_COST_ANALYTICS,
@@ -33,53 +43,52 @@ const getDefaultDashboard = () => {
     },
     {
       id: generateWidgetId(),
-      type: WIDGET_TYPES.PLUGIN_HEALTH,
-      config: { title: 'Plugin Health' },
-    },
-    {
-      id: generateWidgetId(),
-      type: WIDGET_TYPES.PLUGIN_COUNT,
-      config: { title: 'Plugin Count' },
-    },
-    {
-      id: generateWidgetId(),
-      type: WIDGET_TYPES.STATS_CARD,
-      config: { title: 'Statistics' },
-    },
-    {
-      id: generateWidgetId(),
-      type: WIDGET_TYPES.VEHICLE_ANALYTICS,
-      config: { title: 'Vehicle Analytics' },
-    },
-    {
-      id: generateWidgetId(),
-      type: WIDGET_TYPES.METRIC_CARD,
-      config: { title: 'Key Metrics' },
-    },
-    {
-      id: generateWidgetId(),
       type: WIDGET_TYPES.LINE_CHART,
       config: { title: 'Performance Trends' },
+    },
+
+    // Fourth row - Additional insights
+    {
+      id: generateWidgetId(),
+      type: WIDGET_TYPES.PIE_CHART,
+      config: { title: 'Fleet Distribution' },
     },
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.BAR_CHART,
-      config: { title: 'Fleet Comparison' },
+      config: { title: 'Usage Comparison' },
     },
+
+    // Fifth row - System health
     {
       id: generateWidgetId(),
-      type: WIDGET_TYPES.PIE_CHART,
-      config: { title: 'Distribution Analysis' },
+      type: WIDGET_TYPES.PLUGIN_HEALTH,
+      config: { title: 'System Health' },
     },
   ];
 
-  const layout = widgets.map((widget, index) => ({
-    i: widget.id,
-    x: (index % 4) * 3, // 4 widgets per row, each 3 columns wide for more density
-    y: Math.floor(index / 4) * 3, // Each row is 3 units tall for more compact layout
-    w: 3, // Slightly narrower width for more widgets per row
-    h: 3, // Slightly shorter height for more compact layout
-  }));
+  // Improved layout with better organization and visual hierarchy
+  const layout = [
+    // Top row - 3 small widgets for key metrics (4 units each)
+    { i: widgets[0].id, x: 0, y: 0, w: 4, h: 3 }, // Fleet Status
+    { i: widgets[1].id, x: 4, y: 0, w: 4, h: 3 }, // Key Statistics
+    { i: widgets[2].id, x: 8, y: 0, w: 4, h: 3 }, // Active Alerts
+
+    // Second row - 2 medium widgets for operations (6 units each)
+    { i: widgets[3].id, x: 0, y: 3, w: 6, h: 4 }, // Maintenance Overview
+    { i: widgets[4].id, x: 6, y: 3, w: 6, h: 4 }, // Recent Maintenance
+
+    // Third row - 2 large widgets for analytics (6 units each)
+    { i: widgets[5].id, x: 0, y: 7, w: 6, h: 5 }, // Cost Analytics
+    { i: widgets[6].id, x: 6, y: 7, w: 6, h: 5 }, // Performance Trends
+
+    // Fourth row - 2 medium widgets for insights (6 units each)
+    { i: widgets[7].id, x: 0, y: 12, w: 6, h: 4 }, // Fleet Distribution
+    { i: widgets[8].id, x: 6, y: 12, w: 6, h: 4 }, // Usage Comparison
+
+    // Fifth row - 1 widget centered for system health
+    { i: widgets[9].id, x: 3, y: 16, w: 6, h: 3 }, // System Health (centered)
+  ];
 
   return { widgets, layout };
 };

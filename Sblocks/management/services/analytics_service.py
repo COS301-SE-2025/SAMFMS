@@ -205,6 +205,108 @@ class AnalyticsService:
         
         return data
     
+    async def get_driver_performance_by_id(self, driver_id: str, use_cache: bool = True) -> Dict[str, Any]:
+        """Get performance analytics for a specific driver"""
+        try:
+            # Get driver basic info
+            driver_info = await self.driver_repo.find_by_id(driver_id)
+            if not driver_info:
+                raise ValueError(f"Driver with ID {driver_id} not found")
+            
+            # Get driver's performance stats from usage logs
+            pipeline = [
+                {"$match": {"driver_id": driver_id}},
+                {
+                    "$group": {
+                        "_id": "$driver_id",
+                        "total_distance": {"$sum": "$distance_km"},
+                        "total_fuel": {"$sum": "$fuel_consumed"},
+                        "trip_count": {"$sum": 1},
+                        "avg_distance": {"$avg": "$distance_km"},
+                        "avg_fuel_per_trip": {"$avg": "$fuel_consumed"},
+                        "first_trip": {"$min": "$created_at"},
+                        "last_trip": {"$max": "$created_at"}
+                    }
+                }
+            ]
+            
+            performance_stats = await self.usage_repo.aggregate(pipeline)
+            
+            if not performance_stats:
+                # Driver exists but has no trip data
+                data = {
+                    "driver_id": driver_id,
+                    "driver_info": {
+                        "name": driver_info.get("name", "Unknown"),
+                        "employee_id": driver_info.get("employee_id"),
+                        "status": driver_info.get("status", "unknown")
+                    },
+                    "performance": {
+                        "total_distance": 0,
+                        "total_fuel": 0,
+                        "trip_count": 0,
+                        "avg_distance_per_trip": 0,
+                        "avg_fuel_per_trip": 0,
+                        "fuel_efficiency": 0,
+                        "first_trip": None,
+                        "last_trip": None
+                    },
+                    "score": {
+                        "overall_score": 0,
+                        "efficiency_score": 0,
+                        "activity_score": 0,
+                        "consistency_score": 0
+                    },
+                    "generated_at": datetime.utcnow().isoformat()
+                }
+            else:
+                stats = performance_stats[0]
+                total_distance = stats.get("total_distance", 0)
+                total_fuel = stats.get("total_fuel", 0)
+                trip_count = stats.get("trip_count", 0)
+                
+                # Calculate fuel efficiency (km per liter)
+                fuel_efficiency = total_distance / total_fuel if total_fuel > 0 else 0
+                
+                # Calculate performance scores (0-100 scale)
+                # These are sample calculations - can be refined based on business logic
+                efficiency_score = min(fuel_efficiency * 10, 100) if fuel_efficiency > 0 else 0
+                activity_score = min(trip_count * 5, 100) if trip_count > 0 else 0
+                consistency_score = min((total_distance / max(trip_count, 1)) * 2, 100) if trip_count > 0 else 0
+                overall_score = (efficiency_score + activity_score + consistency_score) / 3
+                
+                data = {
+                    "driver_id": driver_id,
+                    "driver_info": {
+                        "name": driver_info.get("name", "Unknown"),
+                        "employee_id": driver_info.get("employee_id"),
+                        "status": driver_info.get("status", "unknown")
+                    },
+                    "performance": {
+                        "total_distance": round(total_distance, 2),
+                        "total_fuel": round(total_fuel, 2),
+                        "trip_count": trip_count,
+                        "avg_distance_per_trip": round(stats.get("avg_distance", 0), 2),
+                        "avg_fuel_per_trip": round(stats.get("avg_fuel_per_trip", 0), 2),
+                        "fuel_efficiency": round(fuel_efficiency, 2),
+                        "first_trip": stats.get("first_trip").isoformat() if stats.get("first_trip") else None,
+                        "last_trip": stats.get("last_trip").isoformat() if stats.get("last_trip") else None
+                    },
+                    "score": {
+                        "overall_score": round(overall_score, 1),
+                        "efficiency_score": round(efficiency_score, 1),
+                        "activity_score": round(activity_score, 1),
+                        "consistency_score": round(consistency_score, 1)
+                    },
+                    "generated_at": datetime.utcnow().isoformat()
+                }
+            
+            return data
+            
+        except Exception as e:
+            logger.error(f"Error getting driver performance for {driver_id}: {e}")
+            raise
+    
     async def get_dashboard_summary(self, use_cache: bool = True) -> Dict[str, Any]:
         """Get dashboard summary with key metrics"""
         try:

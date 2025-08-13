@@ -339,12 +339,35 @@ const TrackingMapWithSidebar = () => {
   // Handle geofence changes from the GeofenceManager
   const handleGeofenceChange = useCallback(
     async updatedGeofences => {
-      setGeofences(updatedGeofences);
-      // Reload geofences to get the latest data
-      await loadGeofences();
+      // First update the geofences state immediately for responsive UI
+      if (Array.isArray(updatedGeofences)) {
+        setGeofences(updatedGeofences);
+      }
+
+      // Then reload geofences from the server to ensure we have the latest data
+      try {
+        await loadGeofences();
+        console.log('Geofences reloaded after change');
+      } catch (error) {
+        console.error('Failed to reload geofences after change:', error);
+        // If reload fails, at least we have the updated data from the parameter
+        if (Array.isArray(updatedGeofences)) {
+          setGeofences(updatedGeofences);
+        }
+      }
     },
     [loadGeofences]
   );
+
+  // Enhanced function to handle successful geofence operations
+  const handleGeofenceSuccess = useCallback(async () => {
+    // Close modal
+    setShowAddGeofenceModal(false);
+    setEditingGeofence(null);
+
+    // Reload geofences to show the latest data
+    await loadGeofences();
+  }, [loadGeofences]);
 
   // Handle item selection and map centering
   const handleItemSelect = item => {
@@ -936,6 +959,7 @@ const TrackingMapWithSidebar = () => {
                 setShowAddGeofenceModal(false);
                 setEditingGeofence(null);
               }}
+              onSuccess={handleGeofenceSuccess}
               onGeofenceChange={handleGeofenceChange}
               currentGeofences={geofences}
               editingGeofence={editingGeofence}

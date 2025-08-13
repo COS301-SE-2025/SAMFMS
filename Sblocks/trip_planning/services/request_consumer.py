@@ -237,6 +237,12 @@ class ServiceRequestConsumer:
             elif "trips" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_trips_request()")
                 return await self._handle_trips_request(method, user_context)
+            elif "notifications" in endpoint:
+                logger.info(f"[_route_request] Routing to _handle_notifications_request()")
+                return await self._handle_notifications_request(method, user_context)
+            elif "trips" in endpoint:
+                logger.info(f"[_route_request] Routing to _handle_trips_request()")
+                return await self._handle_trips_request(method, user_context)
             elif "analytics/vehicles" in endpoint:
                 logger.info(f"Rotuing to vehicle analytics")
                 return await self._handle_vehicle_analytics_requests(method, user_context)
@@ -528,6 +534,97 @@ class ServiceRequestConsumer:
                     error="AnalyticsRequestError",
                     message=f"Failed to process analytics request: {str(e)}"
                 ).model_dump()
+
+    async def _handle_notifications_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle notification-related requests"""
+        try:
+            from services.notification_service import notification_service
+            from schemas.responses import ResponseBuilder
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            user_id = user_context.get("user_id")
+            
+            logger.info(f"[_handle_notifications_request] Method: {method}, Endpoint: {endpoint}, User ID: {user_id}")
+
+            if method == "GET":
+                # Get user notifications
+                unread_only = data.get("unread_only", False)
+                limit = data.get("limit", 50)
+                skip = data.get("skip", 0)
+                
+                notifications, total = await notification_service.get_user_notifications(
+                    user_id=user_id,
+                    unread_only=unread_only,
+                    limit=limit,
+                    skip=skip
+                )
+                
+                # Convert to dict format for response
+                notifications_data = []
+                for notification in notifications:
+                    notification_dict = {
+                        "id": notification.id if hasattr(notification, 'id') else str(notification._id),
+                        "type": notification.type,
+                        "title": notification.title,
+                        "message": notification.message,
+                        "time": notification.sent_at.strftime("%Y-%m-%d %H:%M:%S") if hasattr(notification.sent_at, 'strftime') else str(notification.sent_at),
+                        "read": notification.is_read,
+                        "trip_id": getattr(notification, 'trip_id', None),
+                        "driver_id": getattr(notification, 'driver_id', None),
+                        "data": getattr(notification, 'data', {})
+                    }
+                    notifications_data.append(notification_dict)
+                
+                return ResponseBuilder.success(
+                    data={
+                        "notifications": notifications_data,
+                        "total": total,
+                        "unread_count": len([n for n in notifications_data if not n["read"]])
+                    },
+                    message="Notifications retrieved successfully"
+                ).model_dump()
+
+            elif method == "POST":
+                # Send notification (admin/fleet_manager only)
+                user_role = user_context.get("role")
+                if user_role not in ["admin", "fleet_manager"]:
+                    raise ValueError("Insufficient permissions to send notifications")
+                
+                from schemas.requests import NotificationRequest
+                notification_request = NotificationRequest(**data)
+                
+                notifications = await notification_service.send_notification(notification_request)
+                
+                return ResponseBuilder.success(
+                    data={
+                        "sent_count": len(notifications),
+                        "notification_ids": [str(n._id) if hasattr(n, '_id') else n.id for n in notifications]
+                    },
+                    message="Notifications sent successfully"
+                ).model_dump()
+
+            elif method == "PUT":
+                # Mark notification as read
+                notification_id = endpoint.split('/')[-1] if '/' in endpoint else data.get("notification_id")
+                if not notification_id:
+                    raise ValueError("Notification ID is required")
+                
+                result = await notification_service.mark_notification_read(notification_id, user_id)
+                
+                return ResponseBuilder.success(
+                    data={"marked_read": result},
+                    message="Notification marked as read" if result else "Notification not found or already read"
+                ).model_dump()
+
+            else:
+                raise ValueError(f"Unsupported HTTP method for notifications: {method}")
+
+        except Exception as e:
+            logger.error(f"[_handle_notifications_request] Exception: {e}")
+            return ResponseBuilder.error(
+                error="NotificationRequestError",
+                message=f"Failed to process notification request: {str(e)}"
+            ).model_dump()
 
     async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle health check requests"""

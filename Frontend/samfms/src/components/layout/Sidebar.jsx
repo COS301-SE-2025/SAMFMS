@@ -218,9 +218,17 @@ const Sidebar = () => {
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    logout();
-                    navigate('/logout');
+                  onClick={async () => {
+                    setShowLogoutConfirm(false);
+                    try {
+                      await logout();
+                      // Navigate to landing page after successful logout
+                      navigate('/');
+                    } catch (error) {
+                      console.error('Logout failed:', error);
+                      // Still navigate even if logout fails to prevent stuck state
+                      navigate('/');
+                    }
                   }}
                   className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 transition-colors text-white"
                 >
