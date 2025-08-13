@@ -317,291 +317,329 @@ const EditVehicleModal = ({ vehicle, closeModal, onVehicleUpdated }) => {
   };
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-card p-6 rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-card-foreground">Edit Vehicle</h2>
-          <button onClick={closeModal} className="text-muted-foreground hover:text-foreground">
-            <X size={24} />
-          </button>
-        </div>
-
-        {error && (
-          <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Vehicle Information */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Car size={20} />
-              Vehicle Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {' '}
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Make <span className="text-destructive">*</span>
-                </label>
-                {validationErrors.make && (
-                  <div className="text-destructive text-sm mb-1">{validationErrors.make}</div>
-                )}{' '}
-                <CustomDropdown
-                  value={form.make}
-                  onChange={value => handleChange({ target: { name: 'make', value } })}
-                  options={[
-                    { value: 'Specify', label: 'Specify' },
-                    ...Object.keys(southAfricanVehicles)
-                      .filter(make => make !== 'Other')
-                      .map(make => ({ value: make, label: make })),
-                  ]}
-                  placeholder="Select Make"
-                  maxVisibleOptions={5}
-                />
-                {form.make === 'Specify' && (
-                  <>
-                    {validationErrors.customMake && (
-                      <div className="text-destructive text-sm mb-1 mt-1">
-                        {validationErrors.customMake}
-                      </div>
-                    )}
-                    <input
-                      type="text"
-                      name="customMake"
-                      value={form.customMake}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-input rounded-md bg-background mt-2"
-                      placeholder="Enter custom make"
-                    />
-                  </>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Model <span className="text-destructive">*</span>
-                </label>
-                {validationErrors.model && (
-                  <div className="text-destructive text-sm mb-1">{validationErrors.model}</div>
-                )}{' '}
-                <CustomDropdown
-                  value={form.model}
-                  onChange={value => handleChange({ target: { name: 'model', value } })}
-                  options={
-                    form.make
-                      ? getAvailableModels().map(model => ({ value: model, label: model }))
-                      : []
-                  }
-                  placeholder="Select Model"
-                  disabled={!form.make}
-                  maxVisibleOptions={5}
-                />
-                {form.model === 'Specify' && (
-                  <>
-                    {validationErrors.customModel && (
-                      <div className="text-destructive text-sm mb-1 mt-1">
-                        {validationErrors.customModel}
-                      </div>
-                    )}
-                    <input
-                      type="text"
-                      name="customModel"
-                      value={form.customModel}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-input rounded-md bg-background mt-2"
-                      placeholder="Enter custom model"
-                    />
-                  </>
-                )}
-              </div>{' '}
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Year <span className="text-destructive">*</span>
-                </label>
-                {validationErrors.year && (
-                  <div className="text-destructive text-sm mb-1">{validationErrors.year}</div>
-                )}{' '}
-                <CustomDropdown
-                  value={form.year}
-                  onChange={value => handleChange({ target: { name: 'year', value } })}
-                  options={years.map(year => ({ value: year.toString(), label: year.toString() }))}
-                  placeholder="Select Year"
-                  maxVisibleOptions={5}
-                />
-              </div>{' '}
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Color <span className="text-destructive">*</span>
-                </label>
-                {validationErrors.color && (
-                  <div className="text-destructive text-sm mb-1">{validationErrors.color}</div>
-                )}{' '}
-                <ColorDropdown
-                  value={form.color}
-                  onChange={value => handleChange({ target: { name: 'color', value } })}
-                  colors={vehicleColors}
-                  colorMap={colorMap}
-                  placeholder="Select Color"
-                />
-                {form.color === 'Specify' && (
-                  <>
-                    {validationErrors.customColor && (
-                      <div className="text-destructive text-sm mb-1 mt-1">
-                        {validationErrors.customColor}
-                      </div>
-                    )}
-                    <input
-                      type="text"
-                      name="customColor"
-                      value={form.customColor}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-input rounded-md bg-background mt-2"
-                      placeholder="Enter custom color"
-                    />
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Technical Information */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Hash size={20} />
-              Technical Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {' '}
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  VIN <span className="text-destructive">*</span>
-                </label>
-                {validationErrors.vin && (
-                  <div className="text-destructive text-sm mb-1">{validationErrors.vin}</div>
-                )}
-                <input
-                  type="text"
-                  name="vin"
-                  value={form.vin}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-input rounded-md bg-background"
-                  placeholder="17-character VIN"
-                  maxLength="17"
-                  minLength="17"
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  17 character Vehicle Identification Number
-                </p>
-              </div>{' '}
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  License Plate <span className="text-destructive">*</span>
-                </label>
-                {validationErrors.license_plate && (
-                  <div className="text-destructive text-sm mb-1">
-                    {validationErrors.license_plate}
-                  </div>
-                )}
-                <input
-                  type="text"
-                  name="license_plate"
-                  value={form.license_plate}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-input rounded-md bg-background"
-                  placeholder="e.g., ABC123GP"
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  South African license plate format
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Fuel Type <span className="text-destructive">*</span>
-                </label>{' '}
-                <CustomDropdown
-                  value={form.fuel_type}
-                  onChange={value => handleChange({ target: { name: 'fuel_type', value } })}
-                  options={[
-                    { value: 'petrol', label: 'Petrol' },
-                    { value: 'diesel', label: 'Diesel' },
-                    { value: 'hybrid', label: 'Hybrid' },
-                    { value: 'electric', label: 'Electric' },
-                  ]}
-                  placeholder="Select Fuel Type"
-                  maxVisibleOptions={5}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Current Mileage (km) <span className="text-destructive">*</span>
-                </label>
-                <input
-                  type="number"
-                  name="mileage"
-                  value={form.mileage}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-input rounded-md bg-background"
-                  min="0"
-                  required
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Status Information */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <CreditCard size={20} />
-              Status Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Status <span className="text-destructive">*</span>
-                </label>{' '}
-                <CustomDropdown
-                  value={form.status}
-                  onChange={value => handleChange({ target: { name: 'status', value } })}
-                  options={[
-                    { value: 'active', label: 'Active' },
-                    { value: 'maintenance', label: 'Maintenance' },
-                    { value: 'inactive', label: 'Inactive' },
-                  ]}
-                  placeholder="Select Status"
-                  maxVisibleOptions={5}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Submit Buttons */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+      <div className="bg-card w-full max-w-5xl rounded-lg shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">Edit Vehicle</h2>
             <button
-              type="button"
               onClick={closeModal}
-              className="px-4 py-2 border border-border rounded-md hover:bg-accent/10 transition"
+              className="text-muted-foreground hover:text-foreground"
               disabled={loading}
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition flex items-center gap-2"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                  Updating...
-                </>
-              ) : (
-                'Update Vehicle'
-              )}
+              <X size={24} />
             </button>
           </div>
-        </form>
+
+          {error && (
+            <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md text-destructive text-sm">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Vehicle Information */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Car size={20} />
+                Vehicle Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Make <span className="text-destructive">*</span>
+                  </label>
+                  {validationErrors.make && (
+                    <div className="text-destructive text-sm mb-1">{validationErrors.make}</div>
+                  )}
+                  <CustomDropdown
+                    value={form.make}
+                    onChange={value => handleChange({ target: { name: 'make', value } })}
+                    options={[
+                      { value: 'Specify', label: 'Specify' },
+                      ...Object.keys(southAfricanVehicles)
+                        .filter(make => make !== 'Other')
+                        .map(make => ({ value: make, label: make })),
+                    ]}
+                    placeholder="Select Make"
+                    maxVisibleOptions={5}
+                  />
+                  {form.make === 'Specify' && (
+                    <>
+                      {validationErrors.customMake && (
+                        <div className="text-destructive text-sm mb-1 mt-1">
+                          {validationErrors.customMake}
+                        </div>
+                      )}
+                      <input
+                        type="text"
+                        name="customMake"
+                        value={form.customMake}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-input rounded-md bg-background mt-2"
+                        placeholder="Enter custom make"
+                        required
+                      />
+                    </>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Model <span className="text-destructive">*</span>
+                  </label>
+                  {validationErrors.model && (
+                    <div className="text-destructive text-sm mb-1">{validationErrors.model}</div>
+                  )}
+                  <CustomDropdown
+                    value={form.model}
+                    onChange={value => handleChange({ target: { name: 'model', value } })}
+                    options={
+                      form.make
+                        ? getAvailableModels().map(model => ({ value: model, label: model }))
+                        : []
+                    }
+                    placeholder="Select Model"
+                    disabled={!form.make}
+                    maxVisibleOptions={5}
+                  />
+                  {form.model === 'Specify' && (
+                    <>
+                      {validationErrors.customModel && (
+                        <div className="text-destructive text-sm mb-1 mt-1">
+                          {validationErrors.customModel}
+                        </div>
+                      )}
+                      <input
+                        type="text"
+                        name="customModel"
+                        value={form.customModel}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-input rounded-md bg-background mt-2"
+                        placeholder="Enter custom model"
+                        required
+                      />
+                    </>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Year <span className="text-destructive">*</span>
+                  </label>
+                  {validationErrors.year && (
+                    <div className="text-destructive text-sm mb-1">{validationErrors.year}</div>
+                  )}
+                  <CustomDropdown
+                    value={form.year}
+                    onChange={value => handleChange({ target: { name: 'year', value } })}
+                    options={years.map(year => ({
+                      value: year.toString(),
+                      label: year.toString(),
+                    }))}
+                    placeholder="Select Year"
+                    maxVisibleOptions={5}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Color</label>
+                  {validationErrors.color && (
+                    <div className="text-destructive text-sm mb-1">{validationErrors.color}</div>
+                  )}
+                  <ColorDropdown
+                    value={form.color}
+                    onChange={value => handleChange({ target: { name: 'color', value } })}
+                    colors={vehicleColors}
+                    colorMap={colorMap}
+                    placeholder="Select Color"
+                  />
+                  {form.color === 'Specify' && (
+                    <>
+                      {validationErrors.customColor && (
+                        <div className="text-destructive text-sm mb-1 mt-1">
+                          {validationErrors.customColor}
+                        </div>
+                      )}
+                      <input
+                        type="text"
+                        name="customColor"
+                        value={form.customColor}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-input rounded-md bg-background mt-2"
+                        placeholder="Enter custom color"
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Technical Information */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Hash size={20} />
+                Technical Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    VIN <span className="text-destructive">*</span>
+                  </label>
+                  {validationErrors.vin && (
+                    <div className="text-destructive text-sm mb-1">{validationErrors.vin}</div>
+                  )}
+                  <input
+                    type="text"
+                    name="vin"
+                    value={form.vin}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                    placeholder="17-character VIN"
+                    maxLength="17"
+                    minLength="17"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    17 character Vehicle Identification Number
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    License Plate <span className="text-destructive">*</span>
+                  </label>
+                  {validationErrors.license_plate && (
+                    <div className="text-destructive text-sm mb-1">
+                      {validationErrors.license_plate}
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    name="license_plate"
+                    value={form.license_plate}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                    placeholder="e.g., ABC123GP"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    South African license plate format
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Fuel Type <span className="text-destructive">*</span>
+                  </label>
+                  <CustomDropdown
+                    value={form.fuel_type}
+                    onChange={value => handleChange({ target: { name: 'fuel_type', value } })}
+                    options={[
+                      { value: 'petrol', label: 'Petrol' },
+                      { value: 'diesel', label: 'Diesel' },
+                      { value: 'hybrid', label: 'Hybrid' },
+                      { value: 'electric', label: 'Electric' },
+                    ]}
+                    placeholder="Select Fuel Type"
+                    maxVisibleOptions={5}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Current Mileage (km) <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="mileage"
+                    value={form.mileage}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                    min="0"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Status Information */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <CreditCard size={20} />
+                Status Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Status <span className="text-destructive">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleChange({ target: { name: 'status', value: 'available' } })
+                      }
+                      className={`px-4 py-2 rounded-md border transition-all duration-200 ${
+                        form.status === 'available'
+                          ? 'bg-green-500 text-white border-green-500 shadow-md'
+                          : 'bg-background dark:bg-background border-border text-foreground hover:bg-green-50 dark:hover:bg-green-950 hover:border-green-300 dark:hover:border-green-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            form.status === 'available' ? 'bg-white' : 'bg-green-500'
+                          }`}
+                        ></div>
+                        Available
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleChange({ target: { name: 'status', value: 'unavailable' } })
+                      }
+                      className={`px-4 py-2 rounded-md border transition-all duration-200 ${
+                        form.status === 'unavailable'
+                          ? 'bg-red-500 text-white border-red-500 shadow-md'
+                          : 'bg-background dark:bg-background border-border text-foreground hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-300 dark:hover:border-red-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            form.status === 'unavailable' ? 'bg-white' : 'bg-red-500'
+                          }`}
+                        ></div>
+                        Unavailable
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Submit Buttons */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-border">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="px-4 py-2 border border-border rounded-md hover:bg-accent/10 transition"
+                disabled={loading}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition flex items-center gap-2"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                    Updating...
+                  </>
+                ) : (
+                  'Update Vehicle'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

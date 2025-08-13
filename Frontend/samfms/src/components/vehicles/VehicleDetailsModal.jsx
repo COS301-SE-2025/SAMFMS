@@ -1,6 +1,5 @@
 import React from 'react';
-import { X, Calendar, AlertTriangle, RefreshCw, Edit2, Trash2, Users } from 'lucide-react';
-import TagList from './TagList';
+import { X, Edit2, Trash2, Car, Fuel, Calendar } from 'lucide-react';
 
 const VehicleDetailsModal = ({
   vehicle,
@@ -15,179 +14,121 @@ const VehicleDetailsModal = ({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-card w-full max-w-4xl max-h-[90vh] rounded-lg shadow-xl overflow-hidden">
         <div className="p-6 flex flex-col h-full max-h-[90vh]">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-semibold">Vehicle Details</h2>
-            <button
-              onClick={closeVehicleDetails}
-              className="text-muted-foreground hover:text-foreground transition"
-            >
-              <X size={24} />
-            </button>
+          {/* Header */}
+          <div className="flex justify-between items-center mb-6 pb-4 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Car className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold">
+                  {vehicle.make} {vehicle.model}
+                </h2>
+                <p className="text-muted-foreground">
+                  {vehicle.year} • {vehicle.licensePlate}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span
+                className={`py-1 px-3 rounded-full text-sm font-medium ${
+                  vehicle.status === 'Active'
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+                }`}
+              >
+                {vehicle.status}
+              </span>
+              <button
+                onClick={closeVehicleDetails}
+                className="text-muted-foreground hover:text-foreground transition p-1 rounded-md hover:bg-accent/20"
+              >
+                <X size={24} />
+              </button>
+            </div>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-6 overflow-auto pb-6">
-            {/* Left column - Vehicle info */}
-            <div className="w-full md:w-2/3">
-              <div className="flex items-center mb-4">
-                <span
-                  className={`py-1 px-2 rounded-full text-xs mr-2 ${
-                    vehicle.status === 'Active'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                  }`}
-                >
-                  {vehicle.status}
-                </span>
-                <h3 className="text-xl font-medium">
-                  {vehicle.make} {vehicle.model} ({vehicle.year})
+          {/* Content */}
+          <div className="flex flex-col lg:flex-row gap-8 overflow-auto flex-1">
+            {/* Left Column - Vehicle Information */}
+            <div className="flex-1 space-y-6">
+              {/* Basic Information */}
+              <div className="bg-accent/10 rounded-lg p-4">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Car className="w-5 h-5 text-primary" />
+                  Vehicle Information
                 </h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Vehicle ID</p>
-                    <p className="font-medium">{vehicle.id}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">VIN</p>
-                    <p className="font-medium">{vehicle.vin}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">License Plate</p>
-                    <p className="font-medium">{vehicle.licensePlate}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Department</p>
-                    <p className="font-medium">{vehicle.department}</p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Current Mileage</p>
-                    <p className="font-medium">{vehicle.mileage} km</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Fuel Type</p>
-                    <p className="font-medium">{vehicle.fuelType}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Fuel Efficiency</p>
-                    <p className="font-medium">{vehicle.fuelEfficiency}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Acquisition Date</p>
-                    <p className="font-medium">{vehicle.acquisitionDate}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <h4 className="font-medium mb-2">Tags</h4>
-                <TagList tags={vehicle.tags} onAddTag={() => {}} />
-              </div>
-
-              <div className="mb-6">
-                <h4 className="font-medium mb-2">Driver Information</h4>
-                <div className="p-4 border border-border rounded-md">
-                  {' '}
-                  <div className="flex items-center mb-2">
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium mr-3">
-                      {vehicle.driver && vehicle.driver !== 'Unassigned'
-                        ? vehicle.driver
-                            .split(' ')
-                            .map(n => n[0])
-                            .join('')
-                        : 'UA'}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm text-muted-foreground font-medium">Vehicle ID</p>
+                      <p className="text-lg">{vehicle.id}</p>
                     </div>
                     <div>
-                      <p className="font-medium">{vehicle.driver}</p>
-                      <p className="text-sm text-muted-foreground">Current Driver</p>
+                      <p className="text-sm text-muted-foreground font-medium">VIN</p>
+                      <p className="text-lg font-mono">{vehicle.vin}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground font-medium">Color</p>
+                      <p className="text-lg">{vehicle.color || 'Not specified'}</p>
                     </div>
                   </div>
-                  <div className="text-sm">
-                    <p className="text-muted-foreground">Last Driver: {vehicle.lastDriver}</p>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm text-muted-foreground font-medium">Department</p>
+                      <p className="text-lg">{vehicle.department}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground font-medium">Acquisition Date</p>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        <p className="text-lg">{vehicle.acquisitionDate}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground font-medium">Current Mileage</p>
+                      <p className="text-lg font-semibold">{vehicle.mileage} km</p>
+                    </div>
                   </div>
-                  <button
-                    onClick={openAssignmentModal}
-                    className="mt-3 text-primary text-sm flex items-center hover:text-primary/80"
-                  >
-                    <Users size={14} className="mr-1" />
-                    Change Driver
-                  </button>
                 </div>
               </div>
 
-              <div>
-                <h4 className="font-medium mb-2">Maintenance History</h4>
-                <div className="border border-border rounded-md overflow-hidden">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b border-border bg-accent/20">
-                        <th className="text-left py-2 px-4 font-medium text-sm">Date</th>
-                        <th className="text-left py-2 px-4 font-medium text-sm">Service</th>
-                        <th className="text-left py-2 px-4 font-medium text-sm">Cost</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {vehicle.maintenanceCosts.map((record, index) => (
-                        <tr key={index} className="border-b border-border">
-                          <td className="py-2 px-4 text-sm">{record.date}</td>
-                          <td className="py-2 px-4 text-sm">{record.type}</td>
-                          <td className="py-2 px-4 text-sm">${record.cost}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {/* Fuel Information */}
+              <div className="bg-accent/10 rounded-lg p-4">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Fuel className="w-5 h-5 text-primary" />
+                  Fuel Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground font-medium">Fuel Type</p>
+                    <p className="text-lg capitalize">{vehicle.fuelType}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground font-medium">Fuel Efficiency</p>
+                    <p className="text-lg">{vehicle.fuelEfficiency}</p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Right column - Status & Actions */}
-            <div className="w-full md:w-1/3">
-              <div className="border border-border rounded-md p-4 mb-6">
-                <h4 className="font-medium mb-2">Maintenance Status</h4>
+            {/* Right Column - Actions */}
+            <div className="w-full lg:w-80 flex-shrink-0">
+              <div className="bg-accent/10 rounded-lg p-4 sticky top-0">
+                <h3 className="text-lg font-semibold mb-4">Actions</h3>
                 <div className="space-y-3">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Last Service</p>
-                    <p className="font-medium">{vehicle.lastService}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Next Service</p>
-                    <div className="flex items-center">
-                      <Calendar size={14} className="mr-2 text-muted-foreground" />
-                      <p className="font-medium">{vehicle.nextService}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Insurance Expiry</p>
-                    <div className="flex items-center">
-                      <AlertTriangle size={14} className="mr-2 text-yellow-500" />
-                      <p className="font-medium">{vehicle.insuranceExpiry}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <h4 className="font-medium mb-2">Actions</h4>
-                <div className="space-y-2">
-                  <button className="w-full py-2 border border-border rounded-md flex items-center justify-center gap-2 hover:bg-accent/20 transition">
-                    <RefreshCw size={14} />
-                    <span>Update Status</span>
-                  </button>{' '}
                   <button
-                    className="w-full py-2 border border-border rounded-md flex items-center justify-center gap-2 hover:bg-accent/20 transition"
+                    className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-lg flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors font-medium"
                     onClick={() => {
                       closeVehicleDetails();
                       onEditVehicle?.(vehicle);
                     }}
                   >
-                    <Edit2 size={14} />
-                    <span>Edit Details</span>
+                    <Edit2 size={16} />
+                    <span>Edit Vehicle</span>
                   </button>
                   <button
-                    className="w-full py-2 border border-destructive text-destructive rounded-md flex items-center justify-center gap-2 hover:bg-destructive/10 transition"
+                    className="w-full py-3 px-4 border border-destructive text-destructive rounded-lg flex items-center justify-center gap-2 hover:bg-destructive hover:text-destructive-foreground transition-colors font-medium"
                     onClick={() => {
                       if (
                         window.confirm(
@@ -199,7 +140,7 @@ const VehicleDetailsModal = ({
                       }
                     }}
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={16} />
                     <span>Delete Vehicle</span>
                   </button>
                 </div>

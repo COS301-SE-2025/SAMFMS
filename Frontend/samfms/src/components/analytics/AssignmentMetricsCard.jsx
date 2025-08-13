@@ -26,9 +26,3 @@ const AssignmentMetricsCard = ({data}) => {
 
 export default AssignmentMetricsCard;
 
-{/* <tr>
-<th className="py-3 px-4 text-left bg-muted/50">Average Duration</th>
-<td className="py-3 px-4">
-  {(data.average_duration_ms / (1000 * 60 * 60)).toFixed(2)} hours
-</td>
-</tr> */}

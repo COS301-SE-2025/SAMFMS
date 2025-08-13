@@ -327,7 +327,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
   };
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-card w-full max-w-2xl rounded-lg shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card w-full max-w-5xl rounded-lg shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Add New Vehicle</h2>
@@ -353,8 +353,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
                 <Car size={20} />
                 Vehicle Information
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {' '}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Make <span className="text-destructive">*</span>
@@ -392,7 +391,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
                       />
                     </>
                   )}
-                </div>{' '}
+                </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Model <span className="text-destructive">*</span>
@@ -430,7 +429,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
                       />
                     </>
                   )}
-                </div>{' '}
+                </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Year <span className="text-destructive">*</span>
@@ -448,7 +447,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
                     placeholder="Select Year"
                     maxVisibleOptions={5}
                   />
-                </div>{' '}
+                </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Color</label>
                   {validationErrors.color && (
@@ -488,8 +487,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
                 <Hash size={20} />
                 Technical Information
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {' '}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     VIN <span className="text-destructive">*</span>
@@ -533,7 +531,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
                   <p className="text-xs text-muted-foreground mt-1">
                     South African license plate format
                   </p>
-                </div>{' '}
+                </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Fuel Type <span className="text-destructive">*</span>
@@ -575,21 +573,52 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
                 Status Information
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {' '}
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Status <span className="text-destructive">*</span>
                   </label>
-                  <CustomDropdown
-                    value={form.status}
-                    onChange={value => handleChange({ target: { name: 'status', value } })}
-                    options={[
-                      { value: 'available', label: 'Available' },
-                      { value: 'unavailable', label: 'Unavailable' },
-                    ]}
-                    placeholder="Select Status"
-                    maxVisibleOptions={2}
-                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleChange({ target: { name: 'status', value: 'available' } })
+                      }
+                      className={`px-4 py-2 rounded-md border transition-all duration-200 ${
+                        form.status === 'available'
+                          ? 'bg-green-500 text-white border-green-500 shadow-md'
+                          : 'bg-background dark:bg-background border-border text-foreground hover:bg-green-50 dark:hover:bg-green-950 hover:border-green-300 dark:hover:border-green-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            form.status === 'available' ? 'bg-white' : 'bg-green-500'
+                          }`}
+                        ></div>
+                        Available
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleChange({ target: { name: 'status', value: 'unavailable' } })
+                      }
+                      className={`px-4 py-2 rounded-md border transition-all duration-200 ${
+                        form.status === 'unavailable'
+                          ? 'bg-red-500 text-white border-red-500 shadow-md'
+                          : 'bg-background dark:bg-background border-border text-foreground hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-300 dark:hover:border-red-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            form.status === 'unavailable' ? 'bg-white' : 'bg-red-500'
+                          }`}
+                        ></div>
+                        Unavailable
+                      </div>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
