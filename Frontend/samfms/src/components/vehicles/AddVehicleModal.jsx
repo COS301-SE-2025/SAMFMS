@@ -584,12 +584,11 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
                     value={form.status}
                     onChange={value => handleChange({ target: { name: 'status', value } })}
                     options={[
-                      { value: 'active', label: 'Active' },
-                      { value: 'maintenance', label: 'Maintenance' },
-                      { value: 'inactive', label: 'Inactive' },
+                      { value: 'available', label: 'Available' },
+                      { value: 'unavailable', label: 'Unavailable' },
                     ]}
                     placeholder="Select Status"
-                    maxVisibleOptions={5}
+                    maxVisibleOptions={2}
                   />
                 </div>
               </div>
