@@ -514,7 +514,7 @@ const Account = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Left Column - Profile Section */}
               <FadeIn delay={0.2}>
-                <div className="bg-card p-8 rounded-lg shadow-md border border-border h-fit">
+                <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-8 h-fit">
                   {/* Profile Picture Section - Now at the top */}
                   <div className="flex flex-col items-center mb-8 pb-6 border-b border-border">
                     {/* Hidden file input for profile picture upload */}

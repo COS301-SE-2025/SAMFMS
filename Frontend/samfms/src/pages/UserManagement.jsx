@@ -180,7 +180,7 @@ const UserManagement = () => {
       console.log('Creating user account:', userData);
       const securityUser = await createUserManually(userData);
       const securityUser_ID = securityUser.user_id;
-      console.log("Security user details: ", securityUser);
+      console.log('Security user details: ', securityUser);
 
       if (formData.role === 'driver') {
         console.log('Creating driver first...');
@@ -188,7 +188,7 @@ const UserManagement = () => {
           full_name: formData.full_name.trim(),
           email: formData.email.trim(),
           phoneNo: formData.phoneNo ? formData.phoneNo.trim() : undefined,
-          security_id: securityUser_ID
+          security_id: securityUser_ID,
         };
 
         console.log('Driver data:', driverData);
@@ -430,7 +430,7 @@ const UserManagement = () => {
           <FadeIn delay={0.6}>
             <div className="mb-8">
               <h2 className="text-2xl font-semibold mb-4">Pending Invitations</h2>
-              <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+              <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6">
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead>

@@ -109,7 +109,7 @@ const Sidebar = () => {
   return (
     <div
       className={cn(
-        'h-full bg-card border-r border-border transition-all duration-300 ease-in-out flex flex-col',
+        'h-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 transition-all duration-300 ease-in-out flex flex-col shadow-lg',
         collapsed
           ? 'w-16 hover:w-24 group' // Collapsed: w-16, expand to w-24 on hover
           : 'w-64'
