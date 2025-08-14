@@ -74,7 +74,7 @@ const Layout = () => {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top navigation bar */}
-        <nav className="bg-card shadow-sm border-b border-border z-10">
+        <nav className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 shadow-sm border-b border-slate-200 dark:border-slate-800 z-10">
           <div className="px-4 py-3 flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <MobileNav />
