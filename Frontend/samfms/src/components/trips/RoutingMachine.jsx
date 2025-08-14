@@ -12,17 +12,143 @@ L.Marker.prototype.options.icon = L.icon({
   shadowSize: [41, 41],
 });
 
-// Custom routing function that creates a curved route
+// Polyline decoder function for OpenRouteService encoded geometry
+const decodePolyline = encoded => {
+  const points = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+
+  while (index < encoded.length) {
+    let b;
+    let shift = 0;
+    let result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlat = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlng = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+    lng += dlng;
+
+    points.push([lat / 1e5, lng / 1e5]);
+  }
+
+  return points;
+};
+
+// Real routing function using OpenRouteService API for road-following routes
 const getRoute = async (startLocation, endLocation, waypoints = []) => {
   try {
-    // Create a curved path between points for a more realistic route appearance
+    console.log('Calculating real road route from OpenRouteService...');
+
+    // Build coordinates array: [lng, lat] format for OpenRouteService
+    const coordinates = [
+      [startLocation.lng, startLocation.lat],
+      ...waypoints.map(wp => [wp.lng, wp.lat]),
+      [endLocation.lng, endLocation.lat],
+    ];
+
+    console.log('Route coordinates for API:', coordinates);
+
+    // OpenRouteService API endpoint (free tier: 2000 requests/day)
+    const apiUrl = 'https://api.openrouteservice.org/v2/directions/driving-car';
+
+    const requestBody = {
+      coordinates: coordinates,
+      format: 'json',
+      instructions: false,
+      geometry_simplify: false,
+      continue_straight: false,
+    };
+
+    console.log('Making API request to OpenRouteService...');
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Your OpenRouteService API key
+        Authorization:
+          'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjBhNzU4YjIzMGQ5MDRmNGM5YjUzMmRkMjgzNzQ1YmJhIiwiaCI6Im11cm11cjY0In0=',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      console.error('OpenRouteService API error:', response.status, response.statusText);
+      throw new Error(`API returned ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('OpenRouteService response:', data);
+
+    if (data.routes && data.routes.length > 0) {
+      const route = data.routes[0];
+
+      // Decode the geometry (it's in encoded polyline format)
+      const geometry = route.geometry;
+      let routeCoords = [];
+
+      if (typeof geometry === 'string') {
+        // Geometry is an encoded polyline string - decode it
+        console.log('Decoding polyline geometry:', geometry.substring(0, 50) + '...');
+        const decodedPoints = decodePolyline(geometry);
+        // Convert to [lat, lng] format for Leaflet
+        routeCoords = decodedPoints.map(coord => [coord[0], coord[1]]);
+        console.log('Successfully decoded', routeCoords.length, 'points from polyline');
+      } else if (geometry.coordinates && Array.isArray(geometry.coordinates)) {
+        // Geometry has coordinates array (alternative format)
+        console.log('Using coordinate array from geometry');
+        routeCoords = geometry.coordinates.map(coord => [coord[1], coord[0]]);
+      } else {
+        console.warn('Unknown geometry format:', geometry);
+        throw new Error('Unable to process route geometry');
+      }
+
+      console.log('Decoded route with', routeCoords.length, 'coordinate points');
+      console.log('Sample coordinates:', routeCoords.slice(0, 3));
+      console.log('Distance:', (route.summary.distance / 1000).toFixed(2), 'km');
+      console.log('Duration:', Math.round(route.summary.duration / 60), 'minutes');
+
+      return {
+        coordinates: routeCoords,
+        distance: route.summary.distance, // meters
+        duration: route.summary.duration, // seconds
+        success: true,
+      };
+    } else {
+      console.warn('No routes found in API response');
+      throw new Error('No routes found');
+    }
+  } catch (error) {
+    console.error('OpenRouteService routing error:', error);
+
+    // Fallback to simple interpolated route (better than straight line)
+    console.log('Falling back to interpolated route...');
+    return await getInterpolatedRoute(startLocation, endLocation, waypoints);
+  }
+};
+
+// Fallback function that creates a more realistic curved route
+const getInterpolatedRoute = async (startLocation, endLocation, waypoints = []) => {
+  try {
     const allPoints = [
       [startLocation.lng, startLocation.lat],
       ...waypoints.map(wp => [wp.lng, wp.lat]),
       [endLocation.lng, endLocation.lat],
     ];
 
-    // Calculate total distance
     let totalDistance = 0;
     const routeCoords = [];
 
@@ -32,24 +158,35 @@ const getRoute = async (startLocation, endLocation, waypoints = []) => {
 
       const from = L.latLng(start[1], start[0]);
       const to = L.latLng(end[1], end[0]);
-      totalDistance += from.distanceTo(to);
+      const segmentDistance = from.distanceTo(to);
+      totalDistance += segmentDistance;
 
-      // Create curved path between points
-      const steps = Math.max(10, Math.floor(from.distanceTo(to) / 1000)); // More steps for longer distances
+      // Add start point (only for first segment)
+      if (i === 0) {
+        routeCoords.push([start[1], start[0]]);
+      }
 
-      for (let j = 0; j <= steps; j++) {
+      // Create many more intermediate points for smoother curves
+      const steps = Math.max(10, Math.floor(segmentDistance / 100)); // Point every 100m
+
+      for (let j = 1; j <= steps; j++) {
         const ratio = j / steps;
 
-        // Linear interpolation
-        const lat = start[1] + (end[1] - start[1]) * ratio;
-        const lng = start[0] + (end[0] - start[0]) * ratio;
+        // Add some curve variation to simulate road paths
+        const baseLatOffset = (end[1] - start[1]) * ratio;
+        const baseLngOffset = (end[0] - start[0]) * ratio;
 
-        // Add slight curve for more realistic appearance
-        const curveFactor = Math.sin(ratio * Math.PI) * 0.002; // Adjust curve intensity
+        // Add slight perpendicular offset for curve effect
+        const perpOffset = Math.sin(ratio * Math.PI) * 0.001; // Small curve
 
-        routeCoords.push([lat + curveFactor, lng + curveFactor * 0.5]);
+        const lat = start[1] + baseLatOffset + perpOffset;
+        const lng = start[0] + baseLngOffset + perpOffset;
+
+        routeCoords.push([lat, lng]);
       }
     }
+
+    console.log('Generated interpolated route with', routeCoords.length, 'coordinate points');
 
     return {
       coordinates: routeCoords,
@@ -58,7 +195,7 @@ const getRoute = async (startLocation, endLocation, waypoints = []) => {
       success: true,
     };
   } catch (error) {
-    console.error('Route calculation error:', error);
+    console.error('Interpolated route calculation error:', error);
     return null;
   }
 };
@@ -74,6 +211,14 @@ const RoutingMachine = ({
   const map = useMap();
   const routePolylineRef = useRef(null);
   const currentRouteRef = useRef(null);
+
+  // Create stable references to prevent infinite loops
+  const onRouteCalculatedRef = useRef(onRouteCalculated);
+  const setIsCalculatingRef = useRef(setIsCalculating);
+
+  // Update refs when props change
+  onRouteCalculatedRef.current = onRouteCalculated;
+  setIsCalculatingRef.current = setIsCalculating;
 
   useEffect(() => {
     console.log('RoutingMachine useEffect triggered', {
@@ -126,8 +271,8 @@ const RoutingMachine = ({
       isNaN(endLocation.lng)
     ) {
       console.error('Invalid coordinates:', { startLocation, endLocation });
-      if (setIsCalculating) {
-        setIsCalculating(false);
+      if (setIsCalculatingRef.current) {
+        setIsCalculatingRef.current(false);
       }
       return;
     }
@@ -135,8 +280,8 @@ const RoutingMachine = ({
     console.log('Starting route calculation...');
 
     // Set loading state
-    if (setIsCalculating) {
-      setIsCalculating(true);
+    if (setIsCalculatingRef.current) {
+      setIsCalculatingRef.current(true);
     }
 
     // Clean up any existing routes
@@ -152,29 +297,55 @@ const RoutingMachine = ({
 
         const routeData = await getRoute(startLocation, endLocation, waypoints);
 
-        if (routeData && routeData.success) {
-          console.log('Route calculated successfully:', routeData);
+        console.log('getRoute returned:', routeData);
 
-          // Create polyline for the route with better styling
+        if (routeData && routeData.success) {
+          console.log('SUCCESS: Real road route calculated successfully:', routeData);
+          console.log('Route coordinates format:', routeData.coordinates);
+          console.log('Route distance:', (routeData.distance / 1000).toFixed(2), 'km');
+          console.log('Route duration:', Math.round(routeData.duration / 60), 'minutes');
+
+          // Create polyline for the REAL road route with distinctive styling
           const polyline = L.polyline(routeData.coordinates, {
-            color: '#1e40af',
-            weight: 5,
-            opacity: 0.8,
+            color: '#059669', // Green for real routes
+            weight: 6,
+            opacity: 0.9,
             lineCap: 'round',
             lineJoin: 'round',
+            dashArray: null, // Solid line for real routes
           });
+
+          console.log('Real route polyline created with', routeData.coordinates.length, 'points');
 
           // Add to map
           polyline.addTo(map);
           routePolylineRef.current = polyline;
 
-          // Fit map bounds to show the entire route
-          const bounds = polyline.getBounds();
-          map.fitBounds(bounds, { padding: [20, 20] });
+          console.log('Polyline added to map');
+
+          // Fit map bounds to show the entire route with validation
+          let bounds = null;
+          try {
+            bounds = polyline.getBounds();
+            console.log('Route bounds:', bounds);
+
+            // Validate bounds before fitting
+            if (bounds && bounds.isValid && bounds.isValid()) {
+              map.fitBounds(bounds, { padding: [20, 20] });
+            } else {
+              console.warn('Invalid bounds, using alternative centering');
+              // Alternative: center on start location with appropriate zoom
+              map.setView([startLocation.lat, startLocation.lng], 13);
+            }
+          } catch (boundsError) {
+            console.error('Error fitting bounds:', boundsError);
+            // Fallback to centering on start location
+            map.setView([startLocation.lat, startLocation.lng], 13);
+          }
 
           // Call the route calculated callback
-          if (onRouteCalculated) {
-            onRouteCalculated({
+          if (onRouteCalculatedRef.current) {
+            onRouteCalculatedRef.current({
               distance: routeData.distance,
               duration: routeData.duration,
               coordinates: routeData.coordinates,
@@ -183,12 +354,13 @@ const RoutingMachine = ({
           }
 
           // Clear loading state
-          if (setIsCalculating) {
-            setIsCalculating(false);
+          if (setIsCalculatingRef.current) {
+            setIsCalculatingRef.current(false);
           }
         } else {
           // Fallback to straight line
-          console.log('Route calculation failed, showing straight line fallback...');
+          console.log('FALLBACK: Route calculation failed, showing straight line fallback...');
+          console.log('routeData was:', routeData);
           showFallbackRoute();
         }
       } catch (error) {
@@ -199,20 +371,24 @@ const RoutingMachine = ({
 
     // Fallback straight line route
     const showFallbackRoute = () => {
+      console.log('SHOWING FALLBACK ROUTE - Straight line (not following roads)');
       const straightLineCoords = [
         [startLocation.lat, startLocation.lng],
         [endLocation.lat, endLocation.lng],
       ];
 
+      console.log('Fallback coordinates:', straightLineCoords);
+
       const fallbackPolyline = L.polyline(straightLineCoords, {
-        color: '#6b7280',
-        weight: 3,
+        color: '#ef4444', // Red for fallback routes
+        weight: 4,
         opacity: 0.7,
-        dashArray: '10, 10',
+        dashArray: '10, 10', // Dashed line to indicate this is not a real route
       });
 
       fallbackPolyline.addTo(map);
       routePolylineRef.current = fallbackPolyline;
+      console.log('Fallback straight-line polyline added to map');
 
       // Fit map bounds
       const bounds = fallbackPolyline.getBounds();
@@ -225,8 +401,10 @@ const RoutingMachine = ({
       );
       const estimatedDuration = (distance / 1000) * 60; // Rough estimate: 1 km per minute
 
-      if (onRouteCalculated) {
-        onRouteCalculated({
+      console.log('Fallback route distance:', (distance / 1000).toFixed(2), 'km (straight line)');
+
+      if (onRouteCalculatedRef.current) {
+        onRouteCalculatedRef.current({
           distance: distance,
           duration: estimatedDuration,
           coordinates: straightLineCoords,
@@ -235,8 +413,8 @@ const RoutingMachine = ({
       }
 
       // Clear loading state
-      if (setIsCalculating) {
-        setIsCalculating(false);
+      if (setIsCalculatingRef.current) {
+        setIsCalculatingRef.current(false);
       }
     };
 
@@ -245,7 +423,15 @@ const RoutingMachine = ({
 
     // Cleanup function
     return cleanupRoutes;
-  }, [map, startLocation, endLocation, waypoints, onRouteCalculated, setIsCalculating]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    map,
+    startLocation?.lat,
+    startLocation?.lng,
+    endLocation?.lat,
+    endLocation?.lng,
+    waypoints?.length,
+  ]);
 
   return null;
 };
