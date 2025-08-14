@@ -40,6 +40,26 @@ class VehicleSimulator:
         self.current_position = 0  # Current position along the route (0-1)
         self.is_running = False
         self.start_time = datetime.utcnow()
+        self.distance_traveled = 0.0
+        self.last_location = None
+    
+    def get_distance_traveled(self) -> float:
+        """Get distance traveled in meters"""
+        return self.distance_traveled
+
+    def get_distance_traveled_km(self) -> float:
+        """Get distance traveled in kilometers"""
+        return self.distance_traveled / 1000.0
+    
+    def get_remaining_distance(self) -> float:
+        """Get remaining distance in meters"""
+        return self.route.distance - self.distance_traveled
+    
+    def get_progress_percentage(self) -> float:
+        """Get trip progress as percentage (0-100)"""
+        if self.route.distance == 0:
+            return 100.0
+        return (self.distance_traveled / self.route.distance) * 100.0
         
     def calculate_distance(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
         """Calculate distance between two points using Haversine formula"""
@@ -105,10 +125,10 @@ class VehicleSimulator:
         """Update vehicle position and save to database"""
         if self.current_position >= 1.0:
             self.is_running = False
-            logger.info(f"Trip {self.trip_id} completed")
+            logger.info(f"Trip {self.trip_id} completed in simulation")
             
             # Move trip to history when completed
-            await self._complete_trip()
+            # await self._complete_trip()
             return False
         
         # Calculate how far we should have moved in 2 seconds
