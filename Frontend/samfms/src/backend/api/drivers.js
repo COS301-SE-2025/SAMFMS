@@ -13,6 +13,7 @@ const DRIVER_ENDPOINTS = {
   update: API_ENDPOINTS.DRIVERS.UPDATE,
   delete: API_ENDPOINTS.DRIVERS.DELETE,
   assign: API_ENDPOINTS.DRIVERS.ASSIGN,
+  empid: API_ENDPOINTS.DRIVERS.EMPID,
 };
 
 /**
@@ -220,3 +221,19 @@ export const assignVehicle = async (data) => {
     throw error;
   }
 }
+
+export const getDriverEMPID = async (security_id) => {
+  try {
+    if (!security_id) {
+      throw new Error('Security ID is required');
+    }
+    console.log("Security_id:", security_id);
+    
+    // FIXED: Added return statement and fixed variable name
+    const response = await httpClient.get(DRIVER_ENDPOINTS.empid(security_id));
+    return response; // Return the response
+  } catch (error) {
+    console.error('Error fetching driver employee ID:', error);
+    throw error;
+  }
+};

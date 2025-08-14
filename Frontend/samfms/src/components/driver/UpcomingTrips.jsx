@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Clock, User, Car, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { getUpcomingTrips } from '../../backend/api/trips';
 import { getCurrentUser } from '../../backend/api/auth';
+import { getDriverEMPID } from '../../backend/api/drivers';
 
 const UpcomingTrips = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -12,7 +13,18 @@ const UpcomingTrips = () => {
   // Get current user ID from authentication
   const getCurrentUserId = () => {
     const user = getCurrentUser();
-    return user?.id || user?._id || user?.userId || 'driver123'; // Fallback to default if no user
+    return user?.id || user?._id || user?.userId;
+  };
+
+  const getEmployeeID = async (security_id) => {
+    try {
+      const response = await getDriverEMPID(security_id);
+      const employee_id = response.data;
+      return employee_id;
+    } catch (error) {
+      console.error("Error fetching employee ID:", error);
+      return null;
+    }
   };
 
   useEffect(() => {
@@ -20,15 +32,28 @@ const UpcomingTrips = () => {
       try {
         setLoading(true);
         const driverId = getCurrentUserId();
-        console.log('Fetching upcoming trips for driver ID:', driverId);
-        const response = await getUpcomingTrips(driverId, 10);
+        
+        if (!driverId) {
+          throw new Error('No driver ID found');
+        }
 
+        // FIXED: Await the async function
+        const employeeID = await getEmployeeID(driverId);
+        console.log("EMP ID: ", employeeID);
+        
+        const response = await getUpcomingTrips(employeeID.data);
+        console.log("Response for upcoming trips: ", response);
+        
+        // FIXED: Access the correct path in the response
         if (response?.data?.trips) {
-          setUpcomingTrips(response.data.trips);
+          setUpcomingTrips(response.data.trips);  // Changed from response.data.data to response.data.trips
+        } else {
+          setUpcomingTrips([]);  // Ensure it's always an array
         }
       } catch (err) {
         console.error('Error fetching upcoming trips:', err);
         setError(err.message);
+        setUpcomingTrips([]);  // Ensure it's always an array even on error
       } finally {
         setLoading(false);
       }
@@ -43,20 +68,21 @@ const UpcomingTrips = () => {
       name: trip.name || 'Unnamed Trip',
       startLocation: trip.origin?.address || trip.origin?.name || 'Unknown Location',
       endLocation: trip.destination?.address || trip.destination?.name || 'Unknown Location',
-      startTime: trip.scheduled_start_time
-        ? new Date(trip.scheduled_start_time).toLocaleTimeString([], {
+      // FIXED: Use camelCase field names to match API response
+      startTime: trip.scheduledStartTime
+        ? new Date(trip.scheduledStartTime).toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
           })
         : 'Unknown Time',
-      endTime: trip.scheduled_end_time
-        ? new Date(trip.scheduled_end_time).toLocaleTimeString([], {
+      endTime: trip.scheduledEndTime
+        ? new Date(trip.scheduledEndTime).toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
           })
         : null,
-      date: trip.scheduled_start_time
-        ? new Date(trip.scheduled_start_time).toISOString().split('T')[0]
+      date: trip.scheduledStartTime
+        ? new Date(trip.scheduledStartTime).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0],
       passenger: trip.passenger_name || 'Unknown Passenger',
       vehicle: {
@@ -64,7 +90,7 @@ const UpcomingTrips = () => {
         registration: trip.vehicle_registration || 'Unknown',
       },
       status: trip.status || 'scheduled',
-      distance: trip.estimated_distance ? `${trip.estimated_distance} km` : 'Unknown distance',
+      distance: trip.estimatedDistance ? `${trip.estimatedDistance} km` : 'Unknown distance',
       estimatedDuration: trip.estimated_duration
         ? `${trip.estimated_duration}m`
         : 'Unknown duration',

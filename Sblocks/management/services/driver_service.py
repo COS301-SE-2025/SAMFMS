@@ -7,6 +7,7 @@ import aiohttp
 import os
 
 from repositories.repositories import DriverRepository
+from repositories.database import db_manager
 from events.publisher import event_publisher
 from schemas.requests import DriverCreateRequest, DriverUpdateRequest
 
@@ -19,7 +20,8 @@ class DriverService:
     def __init__(self):
         self.driver_repo = DriverRepository()
         self.security_service_url = os.getenv("SECURITY_SERVICE_URL", "http://security:21002")
-    
+
+
     async def _create_user_account(self, driver_data: Dict[str, Any]) -> bool:
         """Create a user account for the driver in the security service"""
         try:
@@ -361,6 +363,25 @@ class DriverService:
                 if "search" in endpoint:
                     query = data.get("query", "")
                     drivers = await self.search_drivers(query)
+                elif "employee" in endpoint:
+                    security_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                    logger.info(f"Security ID extracted for employee id: {security_id} ")
+                    if security_id is None:
+                        logger.info("Failed to extract id in employee id request")
+                        return ResponseBuilder.error(
+                            error= "Security ID problem",
+                            message="Security ID was not extracted from the endpoint"
+                        )
+                    
+                    driver = await self.driver_repo.get_by_security_id(security_id)
+                    logger.info(f"Driver data for security id: {security_id}: {driver}")
+                    employee_id = driver["employee_id"]
+                    return ResponseBuilder.success(
+                        data=employee_id,
+                        message="Employee id retrieved successfully"
+                    ).model_dump()
+                    
+
                 elif endpoint.count('/') > 0 and endpoint.split('/')[-1] and endpoint.split('/')[-1] != "drivers":
                     # drivers/{id} pattern
                     driver_id = endpoint.split('/')[-1]
