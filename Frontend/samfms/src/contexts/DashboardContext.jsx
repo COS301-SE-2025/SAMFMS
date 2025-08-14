@@ -1,96 +1,81 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { generateWidgetId, WIDGET_TYPES } from '../utils/widgetRegistry';
+import React, {createContext, useContext, useReducer, useEffect} from 'react';
+import {generateWidgetId, WIDGET_TYPES, getWidget} from '../utils/widgetRegistry';
 
 const DashboardContext = createContext();
 
-// Improved default dashboard configuration with better organization
+// Improved default dashboard configuration to match the screenshot layout
 const getDefaultDashboard = () => {
   const widgets = [
-    // Top row - Key metrics and status (smaller, at the top for overview)
+    // First row - 4 small widgets (Fleet Status, System Health, Recent Maintenance, Alerts)
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.VEHICLE_STATUS,
-      config: { title: 'Fleet Status' },
+      config: {title: 'Fleet Status'},
     },
     {
       id: generateWidgetId(),
-      type: WIDGET_TYPES.STATS_CARD,
-      config: { title: 'Key Statistics' },
-    },
-    {
-      id: generateWidgetId(),
-      type: WIDGET_TYPES.MAINTENANCE_ALERTS,
-      config: { title: 'Active Alerts' },
-    },
-
-    // Second row - Main operational widgets (medium size)
-    {
-      id: generateWidgetId(),
-      type: WIDGET_TYPES.MAINTENANCE_SUMMARY,
-      config: { title: 'Maintenance Overview' },
+      type: WIDGET_TYPES.PLUGIN_HEALTH,
+      config: {title: 'System Health'},
     },
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.MAINTENANCE_RECORDS,
-      config: { title: 'Recent Maintenance' },
+      config: {title: 'Recent Maintenance'},
+    },
+    {
+      id: generateWidgetId(),
+      type: WIDGET_TYPES.MAINTENANCE_ALERTS,
+      config: {title: 'Maintenance Alerts'},
     },
 
-    // Third row - Analytics and costs (larger for data visualization)
+    // Second row - 2 larger widgets (Maintenance Overview, Cost Analytics)
+    {
+      id: generateWidgetId(),
+      type: WIDGET_TYPES.MAINTENANCE_SUMMARY,
+      config: {title: 'Maintenance Overview'},
+    },
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.MAINTENANCE_COST_ANALYTICS,
-      config: { title: 'Cost Analytics' },
+      config: {title: 'Cost Analytics'},
     },
-    {
-      id: generateWidgetId(),
-      type: WIDGET_TYPES.LINE_CHART,
-      config: { title: 'Performance Trends' },
-    },
+  ]; return {widgets, layout: getDefaultLayout(widgets)};
+};
 
-    // Fourth row - Additional insights
-    {
-      id: generateWidgetId(),
-      type: WIDGET_TYPES.PIE_CHART,
-      config: { title: 'Fleet Distribution' },
-    },
-    {
-      id: generateWidgetId(),
-      type: WIDGET_TYPES.BAR_CHART,
-      config: { title: 'Usage Comparison' },
-    },
+// Scale a 12-column width to the canvas 40-column grid
+const scaleWidthTo40 = w12 => {
+  const w = Math.max(1, Math.min(12, Number(w12) || 4));
+  return Math.max(1, Math.min(40, Math.round((w / 12) * 40)));
+};
 
-    // Fifth row - System health
-    {
-      id: generateWidgetId(),
-      type: WIDGET_TYPES.PLUGIN_HEALTH,
-      config: { title: 'System Health' },
-    },
-  ];
+// Generate layout using each widget's default size from registry
+const getDefaultLayout = widgets => {
+  const COLS = 40;
+  const layout = [];
+  let cursorX = 0;
+  let cursorY = 0;
+  let rowHeight = 0;
 
-  // Improved layout with better organization and visual hierarchy
-  const layout = [
-    // Top row - 3 small widgets for key metrics (4 units each)
-    { i: widgets[0].id, x: 0, y: 0, w: 4, h: 3 }, // Fleet Status
-    { i: widgets[1].id, x: 4, y: 0, w: 4, h: 3 }, // Key Statistics
-    { i: widgets[2].id, x: 8, y: 0, w: 4, h: 3 }, // Active Alerts
+  widgets.forEach(widget => {
+    const meta = getWidget(widget.type)?.metadata;
+    const defW12 = meta?.defaultSize?.w ?? 4;
+    const defH = meta?.defaultSize?.h ?? 4;
+    const w = scaleWidthTo40(defW12);
+    const h = Math.max(1, Math.min(8, Number(defH) || 4));
 
-    // Second row - 2 medium widgets for operations (6 units each)
-    { i: widgets[3].id, x: 0, y: 3, w: 6, h: 4 }, // Maintenance Overview
-    { i: widgets[4].id, x: 6, y: 3, w: 6, h: 4 }, // Recent Maintenance
+    // Wrap to next row if exceeds columns
+    if (cursorX + w > COLS) {
+      cursorX = 0;
+      cursorY += rowHeight || 0;
+      rowHeight = 0;
+    }
 
-    // Third row - 2 large widgets for analytics (6 units each)
-    { i: widgets[5].id, x: 0, y: 7, w: 6, h: 5 }, // Cost Analytics
-    { i: widgets[6].id, x: 6, y: 7, w: 6, h: 5 }, // Performance Trends
+    layout.push({i: widget.id, x: cursorX, y: cursorY, w, h});
+    cursorX += w;
+    rowHeight = Math.max(rowHeight, h);
+  });
 
-    // Fourth row - 2 medium widgets for insights (6 units each)
-    { i: widgets[7].id, x: 0, y: 12, w: 6, h: 4 }, // Fleet Distribution
-    { i: widgets[8].id, x: 6, y: 12, w: 6, h: 4 }, // Usage Comparison
-
-    // Fifth row - 1 widget centered for system health
-    { i: widgets[9].id, x: 3, y: 16, w: 6, h: 3 }, // System Health (centered)
-  ];
-
-  return { widgets, layout };
+  return layout;
 };
 
 const dashboardReducer = (state, action) => {
@@ -101,13 +86,10 @@ const dashboardReducer = (state, action) => {
       const newY =
         state.layout.length > 0 ? Math.max(...state.layout.map(item => item.y + item.h)) : 0;
 
-      const newLayoutItem = {
-        i: widget.id,
-        x: 0,
-        y: newY,
-        w: 4,
-        h: 4,
-      };
+      const meta = getWidget(widget.type)?.metadata;
+      const w = scaleWidthTo40(meta?.defaultSize?.w ?? 4);
+      const h = Math.max(1, Math.min(8, Number(meta?.defaultSize?.h ?? 4)));
+      const newLayoutItem = {i: widget.id, x: 0, y: newY, w, h};
 
       return {
         ...state,
@@ -137,6 +119,11 @@ const dashboardReducer = (state, action) => {
       };
 
     case 'SET_EDIT_MODE':
+      console.log('🔧 SET_EDIT_MODE action:', {
+        from: state.isEditing,
+        to: action.payload,
+        stack: new Error().stack
+      });
       return {
         ...state,
         isEditing: action.payload,
@@ -147,12 +134,17 @@ const dashboardReducer = (state, action) => {
         ...state,
         widgets: state.widgets.map(widget =>
           widget.id === action.payload.id
-            ? { ...widget, config: { ...widget.config, ...action.payload.config } }
+            ? {...widget, config: {...widget.config, ...action.payload.config}}
             : widget
         ),
       };
 
     case 'LOAD_DASHBOARD':
+      console.log('📥 LOAD_DASHBOARD action:', {
+        from: state.isEditing,
+        to: action.payload.isEditing || false,
+        stack: new Error().stack
+      });
       return {
         ...state,
         widgets: action.payload.widgets || [],
@@ -166,17 +158,17 @@ const dashboardReducer = (state, action) => {
 };
 
 // Simple default layout generator
-const getDefaultLayout = widgets => {
-  return widgets.map((widget, index) => ({
-    i: widget.id,
-    x: (index % 3) * 4,
-    y: Math.floor(index / 3) * 4,
-    w: 4,
-    h: 4,
-  }));
-};
+// const getDefaultLayout = widgets => {
+//   return widgets.map((widget, index) => ({
+//     i: widget.id,
+//     x: (index % 3) * 4,
+//     y: Math.floor(index / 3) * 4,
+//     w: 4,
+//     h: 4,
+//   }));
+// };
 
-export const DashboardProvider = ({ children, dashboardId = 'default' }) => {
+export const DashboardProvider = ({children, dashboardId = 'default'}) => {
   const defaultDashboard = getDefaultDashboard();
   const [state, dispatch] = useReducer(dashboardReducer, {
     widgets: defaultDashboard.widgets,
@@ -194,17 +186,16 @@ export const DashboardProvider = ({ children, dashboardId = 'default' }) => {
 
           // Validate saved data structure
           if (data && Array.isArray(data.widgets) && Array.isArray(data.layout)) {
-            // Ensure widget IDs match layout IDs
-            const validatedLayout = data.layout.filter(layoutItem =>
-              data.widgets.some(widget => widget.id === layoutItem.i)
-            );
+            // FORCE REGENERATE LAYOUT with new default sizes - temporary fix
+            // Comment out this line to use saved layouts again
+            console.log('🔄 Force regenerating layout with new default sizes');
+            const newLayout = getDefaultLayout(data.widgets);
 
             dispatch({
               type: 'LOAD_DASHBOARD',
               payload: {
                 widgets: data.widgets,
-                layout:
-                  validatedLayout.length > 0 ? validatedLayout : getDefaultLayout(data.widgets),
+                layout: newLayout, // Always use new layout
                 isEditing: data.isEditing || false,
               },
             });

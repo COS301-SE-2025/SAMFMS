@@ -61,12 +61,12 @@ export const BaseWidget = ({
   if (loading) {
     return (
       <div
-        className={`bg-card border border-border rounded-lg shadow-sm overflow-hidden h-full flex flex-col ${className}`}
+        className={`bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg overflow-hidden h-full flex flex-col ${className}`}
         role="region"
         aria-label={`${title} - Loading`}
         aria-busy="true"
       >
-        <div className="flex items-center justify-between p-3 border-b border-border bg-card/50 flex-shrink-0">
+        <div className="flex items-center justify-between p-3 border-b border-border bg-gradient-to-r from-slate-100/50 to-slate-50/50 dark:from-slate-900/50 dark:to-slate-950/50 flex-shrink-0">
           <h3 className="font-medium text-card-foreground truncate" id={`widget-title-${id}`}>
             {title}
           </h3>
@@ -95,12 +95,12 @@ export const BaseWidget = ({
   if (error) {
     return (
       <div
-        className={`bg-card border border-border rounded-lg shadow-sm overflow-hidden h-full flex flex-col ${className}`}
+        className={`bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg overflow-hidden h-full flex flex-col ${className}`}
         role="region"
         aria-label={`${title} - Error`}
         aria-describedby={`error-desc-${id}`}
       >
-        <div className="flex items-center justify-between border-b border-border bg-card/50 flex-shrink-0">
+        <div className="flex items-center justify-between border-b border-border bg-gradient-to-r from-slate-100/50 to-slate-50/50 dark:from-slate-900/50 dark:to-slate-950/50 flex-shrink-0">
           <h3 className="font-medium text-card-foreground truncate" id={`widget-title-${id}`}>
             {title}
           </h3>
@@ -144,7 +144,7 @@ export const BaseWidget = ({
 
   return (
     <div
-      className={`bg-card border border-border rounded-lg shadow-sm overflow-hidden h-full flex flex-col ${className}`}
+      className={`bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg overflow-hidden h-full flex flex-col ${className}`}
       role="region"
       aria-labelledby={`widget-title-${id}`}
       tabIndex={state.isEditing ? 0 : -1}

@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { BaseWidget } from '../dashboard/BaseWidget';
-import { getVehicles } from '../../backend/api/vehicles';
-import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
-import { Truck, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
+import React, {useState, useEffect} from 'react';
+import {BaseWidget} from '../dashboard/BaseWidget';
+import {getVehicles} from '../../backend/api/vehicles';
+import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
+import {Truck, CheckCircle, AlertTriangle, Clock} from 'lucide-react';
 
-const VehicleStatusWidget = ({ id, config = {} }) => {
+const VehicleStatusWidget = ({id, config = {}}) => {
   const [vehicleData, setVehicleData] = useState({
     total: 0,
     active: 0,
@@ -20,7 +20,7 @@ const VehicleStatusWidget = ({ id, config = {} }) => {
         setLoading(true);
         setError(null);
 
-        const response = await getVehicles({ limit: 1000 }); // Get all vehicles
+        const response = await getVehicles({limit: 1000}); // Get all vehicles
 
         // Log the response for debugging
         console.log('Vehicle API response:', response);
@@ -72,7 +72,7 @@ const VehicleStatusWidget = ({ id, config = {} }) => {
 
             return acc;
           },
-          { total: 0, active: 0, maintenance: 0, idle: 0 }
+          {total: 0, active: 0, maintenance: 0, idle: 0}
         );
 
         setVehicleData(statusCounts);
@@ -152,13 +152,13 @@ registerWidget(WIDGET_TYPES.VEHICLE_STATUS, VehicleStatusWidget, {
   title: 'Vehicle Status',
   description: 'Overview of vehicle statuses across your fleet',
   category: WIDGET_CATEGORIES.VEHICLES,
-  defaultSize: { w: 3, h: 3 },
-  minSize: { w: 2, h: 2 },
-  maxSize: { w: 4, h: 4 },
+  defaultSize: {w: 3, h: 6},
+  minSize: {w: 3, h: 3},
+  maxSize: {w: 8, h: 8},
   icon: <Truck size={20} />,
   configSchema: {
-    title: { type: 'string', default: 'Vehicle Status Overview' },
-    refreshInterval: { type: 'number', default: 60, min: 30 },
+    title: {type: 'string', default: 'Vehicle Status Overview'},
+    refreshInterval: {type: 'number', default: 60, min: 30},
   },
 });
 

@@ -72,7 +72,7 @@ const Help = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {/* Quick help section */}
           <FadeIn delay={0.2}>
-            <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <BookOpen size={20} />
                 Getting Started
@@ -91,7 +91,7 @@ const Help = () => {
 
           {/* FAQ section */}
           <FadeIn delay={0.3}>
-            <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <FileQuestion size={20} />
                 Frequently Asked Questions
@@ -125,7 +125,7 @@ const Help = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <FadeIn delay={0.4}>
-            <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <Video size={20} />
                 Video Tutorials
@@ -137,7 +137,7 @@ const Help = () => {
           </FadeIn>
 
           <FadeIn delay={0.5}>
-            <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <Info size={20} />
                 User Manual
@@ -149,7 +149,7 @@ const Help = () => {
           </FadeIn>
 
           <FadeIn delay={0.6}>
-            <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <Phone size={20} />
                 Contact Support

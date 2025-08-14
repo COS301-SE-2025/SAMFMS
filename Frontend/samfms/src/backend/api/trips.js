@@ -17,9 +17,9 @@ const TRIPS_ENDPOINTS = {
 
     TOTALTRIPSVEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.TOTALTRIPSVEHICLES,
     COMPLETIONRATEVEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.COMPLETIONRATEVEHICLES,
-    AVGTRIPSPERDAYVEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.AVGTRIPSPERDAYVEHICLES
-  }
-}
+    AVGTRIPSPERDAYVEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.AVGTRIPSPERDAYVEHICLES,
+  },
+};
 
 export const listTrips = async () => {
   try {
@@ -54,20 +54,19 @@ export const updateTrip = async (tripID, tripData) => {
   }
 };
 
-export const finishTrip = async (tripData) => {
+export const finishTrip = async tripData => {
   try {
-    if(!tripData){
+    if (!tripData) {
       throw new Error('Trip Data is required');
     }
 
     console.log(`Finishing trip. Payload:`, tripData);
     return await httpClient.post(TRIPS_ENDPOINTS.finish(), tripData);
-
   } catch (error) {
     console.error(`Error finishing trip:`, error);
     throw error;
   }
-}
+};
 
 export const deleteGeofence = async tripID => {
   try {
@@ -81,17 +80,17 @@ export const deleteGeofence = async tripID => {
     console.error(`Error deleting trip ${tripID}:`, error);
     throw error;
   }
-}
+};
 
 // Replace your getActiveTrips function with this:
 export const getActiveTrips = async () => {
   try {
     const response = await httpClient.get(TRIPS_ENDPOINTS.ACTIVE);
-    
+
     // Debug: Check what the API is actually returning
     console.log('API Response:', response);
     console.log('Response data:', response.data);
-    
+
     // Handle different possible response structures
     let tripsArray;
     if (Array.isArray(response.data)) {
@@ -104,7 +103,7 @@ export const getActiveTrips = async () => {
       console.error('Unexpected API response structure:', response.data);
       return { trips: [] }; // Return empty array as fallback
     }
-    
+
     const transformedTrips = tripsArray.map(trip => ({
       id: trip._id,
       name: trip.name,
@@ -113,14 +112,14 @@ export const getActiveTrips = async () => {
       scheduledEndTime: trip.scheduled_end_time,
       driver: {
         id: trip.driver_id,
-        name: trip.driver_name
+        name: trip.driver_name,
       },
       vehicle: {
-        id: trip.vehicle_id
+        id: trip.vehicle_id,
       },
-      status: determineStatus(trip.scheduled_end_time, trip.estimated_end_time)
+      status: determineStatus(trip.scheduled_end_time, trip.estimated_end_time),
     }));
-    
+
     return { trips: transformedTrips };
   } catch (error) {
     console.error('Error fetching active trips:', error);
@@ -130,10 +129,10 @@ export const getActiveTrips = async () => {
 
 const determineStatus = (scheduledEnd, estimatedEnd) => {
   if (!scheduledEnd || !estimatedEnd) return 'in_progress';
-  
+
   const scheduled = new Date(scheduledEnd);
   const estimated = new Date(estimatedEnd);
-  
+
   if (estimated > scheduled) {
     return 'delayed';
   }
@@ -153,34 +152,35 @@ export const getTripsHistory = async (page = 1, limit = 10) => {
 export const getDriverAnalytics = async (timeframe = 'week') => {
   try {
     console.log(`[DriverAnalytics] Fetching data for timeframe: ${timeframe}`);
-        
+
     // Fetch all metrics in parallel using query parameters
-    const [driverStatsResponse, totalTripsResponse, completionRateResponse, avgTripsResponse] = await Promise.all([
-      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.DRIVERSTATS}`, {
-        params: {timeframe}
-      }),
-      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.TOTALTRIPSDRIVER}`, {
-        params: { timeframe }
-      }),
-      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.COMPLETIONRATEDRIVERS}`, {
-        params: { timeframe }
-      }),
-      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.AVGTRIPSPERDAYDRIVERS}`, {
-        params: { timeframe }
-      })
-    ]);
+    const [driverStatsResponse, totalTripsResponse, completionRateResponse, avgTripsResponse] =
+      await Promise.all([
+        httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.DRIVERSTATS}`, {
+          params: { timeframe },
+        }),
+        httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.TOTALTRIPSDRIVER}`, {
+          params: { timeframe },
+        }),
+        httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.COMPLETIONRATEDRIVERS}`, {
+          params: { timeframe },
+        }),
+        httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.AVGTRIPSPERDAYDRIVERS}`, {
+          params: { timeframe },
+        }),
+      ]);
 
-    console.log("driver stats response", driverStatsResponse)
+    console.log('driver stats response', driverStatsResponse);
 
-    const totalTrips = totalTripsResponse.data.data.total
-    const completionRate = completionRateResponse.data.data.rate
-    const avgTripsPerDay = avgTripsResponse.data.data.average
+    const totalTrips = totalTripsResponse.data.data.total;
+    const completionRate = completionRateResponse.data.data.rate;
+    const avgTripsPerDay = avgTripsResponse.data.data.average;
 
     // Transform driver data to match chart expectations
     const transformedDrivers = driverStatsResponse.data.data.total.map(driver => ({
       driverName: driver.driver_name,
       completedTrips: driver.completed_trips,
-      cancelledTrips: driver.cancelled_trips
+      cancelledTrips: driver.cancelled_trips,
     }));
 
     // Combine and transform the data
@@ -189,13 +189,12 @@ export const getDriverAnalytics = async (timeframe = 'week') => {
       timeframeSummary: {
         totalTrips: Number(totalTrips || 0),
         completionRate: Number(completionRate || 0),
-        averageTripsPerDay: Number(avgTripsPerDay || 0)
-      }
+        averageTripsPerDay: Number(avgTripsPerDay || 0),
+      },
     };
 
     console.log('[DriverAnalytics] Combined data:', transformedData);
     return transformedData;
-   
   } catch (error) {
     console.error('Error fetching driver analytics:', error);
     throw error;
@@ -206,18 +205,18 @@ export const getDriverAnalytics = async (timeframe = 'week') => {
 export const getVehicleAnalytics = async (timeframe = 'week') => {
   try {
     console.log(`[VehicleAnalytics] Fetching data for timeframe: ${timeframe}`);
-    
+
     // Fetch all metrics in parallel using query parameters
     const [totalTripsResponse, completionRateResponse, avgTripsResponse] = await Promise.all([
       httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.TOTALTRIPSVEHICLES}`, {
-        params: { timeframe }
+        params: { timeframe },
       }),
       httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.COMPLETIONRATEVEHICLES}`, {
-        params: { timeframe }
+        params: { timeframe },
       }),
       httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.AVGTRIPSPERDAYVEHICLES}`, {
-        params: { timeframe }
-      })
+        params: { timeframe },
+      }),
     ]);
 
     // Combine and transform the data
@@ -225,20 +224,71 @@ export const getVehicleAnalytics = async (timeframe = 'week') => {
       vehicles: (totalTripsResponse.data?.vehicles || []).map(vehicle => ({
         vehicleName: vehicle.vehicle_name || vehicle.name || 'Unknown',
         totalTrips: Number(vehicle.total_trips || 0),
-        totalDistance: Number(vehicle.total_distance || 0)
+        totalDistance: Number(vehicle.total_distance || 0),
       })),
       timeframeSummary: {
-        totalDistance: Number(totalTripsResponse.data?.total_distance || 0)
-      }
+        totalDistance: Number(totalTripsResponse.data?.total_distance || 0),
+      },
     };
 
     console.log('[VehicleAnalytics] Combined data:', transformedData);
     return transformedData;
-
   } catch (error) {
     console.error('Error fetching vehicle analytics:', error);
     throw error;
   }
 };
 
+// Get upcoming trips for a specific driver
+export const getUpcomingTrips = async (driverId, limit = 10) => {
+  try {
+    console.log(`Fetching upcoming trips for driver: ${driverId}`);
+    const endpoint = `/trips/driver/${driverId}/upcoming`;
+    const response = await httpClient.get(endpoint, {
+      params: { limit },
+    });
 
+    // Handle nested response structure
+    return {
+      ...response,
+      data: response?.data?.data || response?.data || [],
+    };
+  } catch (error) {
+    console.error('Error fetching upcoming trips:', error);
+    // Return fallback data for development
+    return {
+      data: {
+        trips: [],
+        count: 0,
+      },
+      message: 'No upcoming trips found',
+    };
+  }
+};
+
+// Get recent trips for a specific driver
+export const getRecentTrips = async (driverId, limit = 10, days = 30) => {
+  try {
+    console.log(`Fetching recent trips for driver: ${driverId}`);
+    const endpoint = `/trips/driver/${driverId}/recent`;
+    const response = await httpClient.get(endpoint, {
+      params: { limit, days },
+    });
+
+    // Handle nested response structure
+    return {
+      ...response,
+      data: response?.data?.data || response?.data || [],
+    };
+  } catch (error) {
+    console.error('Error fetching recent trips:', error);
+    // Return fallback data for development
+    return {
+      data: {
+        trips: [],
+        count: 0,
+      },
+      message: 'No recent trips found',
+    };
+  }
+};

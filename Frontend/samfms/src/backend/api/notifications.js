@@ -93,9 +93,14 @@ export const getDriverNotifications = async () => {
     // Get regular notifications
     const response = await getNotifications({ limit: 20 });
 
+    // Handle nested response structure from trip planning service
+    // The response structure is: response.data.data.notifications (double nested)
+    const notificationsData =
+      response?.data?.data?.notifications || response?.data?.notifications || [];
+
     // Convert backend notification format to frontend format
-    if (response?.data?.notifications) {
-      const notifications = response.data.notifications.map(notification => {
+    if (notificationsData && Array.isArray(notificationsData)) {
+      const notifications = notificationsData.map(notification => {
         // Map notification types to frontend types
         let type = 'info';
         if (notification.type?.includes('URGENT') || notification.type?.includes('ALERT')) {
@@ -114,24 +119,33 @@ export const getDriverNotifications = async () => {
           type,
           title: notification.title,
           message: notification.message,
-          time: notification.time,
-          read: notification.read,
+          time: notification.time || 'Just now',
+          read: notification.read || false,
           trip_id: notification.trip_id,
           driver_id: notification.driver_id,
           data: notification.data,
         };
       });
 
+      // Return with consistent structure
       return {
-        ...response,
         data: {
-          ...response.data,
           notifications,
+          total: response?.data?.data?.total || notifications.length,
+          unread_count:
+            response?.data?.data?.unread_count || notifications.filter(n => !n.read).length,
         },
       };
     }
 
-    return response;
+    // Return empty notifications if no data
+    return {
+      data: {
+        notifications: [],
+        total: 0,
+        unread_count: 0,
+      },
+    };
   } catch (error) {
     console.error('Error fetching driver notifications:', error);
     throw error;

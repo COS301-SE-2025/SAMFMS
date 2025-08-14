@@ -1,6 +1,6 @@
 import React from 'react';
 
-const DataVisualization = ({analytics}) => {
+const DataVisualization = ({ analytics }) => {
   if (!analytics || analytics.loading) {
     return (
       <div className="mt-6">
@@ -34,19 +34,10 @@ const DataVisualization = ({analytics}) => {
           </div>
           <div className="bg-background p-4 rounded-md border border-border text-center">
             <h3 className="font-medium mb-2">Fleet Utilization</h3>
-            <div className="text-3xl font-bold">{((analytics?.fleetUtil ?? 0) * 100).toFixed(1)}%</div>
+            <div className="text-3xl font-bold">
+              {((analytics?.fleetUtil ?? 0) * 100).toFixed(1)}%
+            </div>
             {/* Here */}
-          </div>
-        </div>
-        <div className="bg-background p-4 rounded-md border border-border mt-4">
-          <h3 className="font-medium mb-2">Status Breakdown</h3>
-          <div className="flex flex-wrap gap-4">
-            {(analytics.status_breakdown ?? []).map((item, idx) => (
-              <div key={idx} className="flex flex-col items-center px-4 py-2 bg-muted rounded">
-                <span className="font-semibold">{item._id}</span>
-                <span className="text-lg">{item.count}</span>
-              </div>
-            ))}
           </div>
         </div>
       </div>

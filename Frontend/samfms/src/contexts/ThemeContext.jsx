@@ -1,5 +1,5 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
-import { getCookie } from '../lib/cookies';
+import React, {createContext, useState, useEffect, useContext} from 'react';
+import {getCookie} from '../lib/cookies';
 
 // Create the theme context
 export const ThemeContext = createContext({
@@ -9,7 +9,7 @@ export const ThemeContext = createContext({
 });
 
 // Theme provider component
-export const ThemeProvider = ({ children }) => {
+export const ThemeProvider = ({children}) => {
   // Initialize theme from user preferences, localStorage, or default to light
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -38,31 +38,7 @@ export const ThemeProvider = ({ children }) => {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
 
-  // Watch for user preference changes (when user logs in/out)
-  useEffect(() => {
-    const checkUserPreferences = () => {
-      const preferencesStr = getCookie('preferences');
-      if (preferencesStr) {
-        try {
-          const preferences = JSON.parse(preferencesStr);
-          if (preferences.theme && preferences.theme !== theme) {
-            console.log('Applying user theme preference:', preferences.theme);
-            setTheme(preferences.theme);
-          }
-        } catch (error) {
-          console.error('Error parsing user preferences:', error);
-        }
-      }
-    };
-
-    // Check immediately
-    checkUserPreferences();
-
-    // Set up interval to periodically check for preference changes
-    const interval = setInterval(checkUserPreferences, 1000);
-
-    return () => clearInterval(interval);
-  }, [theme]); // Apply theme to document and save to localStorage
+  // Apply theme to document and save to localStorage
   useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
@@ -96,7 +72,7 @@ export const ThemeProvider = ({ children }) => {
   }, [theme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={{theme, setTheme, toggleTheme}}>
       {children}
     </ThemeContext.Provider>
   );

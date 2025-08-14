@@ -20,6 +20,9 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Validation errors state
+  const [validationErrors, setValidationErrors] = useState({});
+
   // Initialize form data when driver prop changes
   useEffect(() => {
     if (driver) {
@@ -45,32 +48,64 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
       ...prev,
       [name]: value,
     }));
+
+    // Clear validation error for this field when user starts typing
+    if (validationErrors[name]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
   const handleSubmit = async e => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setValidationErrors({});
 
     try {
       // Validate required fields
-      if (!formData.full_name || !formData.license_number || !formData.license_expiry) {
-        throw new Error('Please fill in all required fields');
+      const errors = {};
+
+      if (!formData.full_name.trim()) {
+        errors.full_name = 'Full name is required';
+      }
+
+      if (!formData.license_number.trim()) {
+        errors.license_number = 'License number is required';
+      }
+
+      if (!formData.license_expiry) {
+        errors.license_expiry = 'License expiry date is required';
+      }
+
+      if (!formData.email.trim()) {
+        errors.email = 'Email is required';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        errors.email = 'Please enter a valid email address';
       }
 
       // Validate phone number if provided
-      if (formData.phoneNo) {
+      if (formData.phoneNo.trim()) {
         const phoneRegex = /^(\+27|0)[1-9][0-9]{8}$/;
         if (!phoneRegex.test(formData.phoneNo.replace(/\s+/g, ''))) {
-          throw new Error('Please enter a valid South African phone number');
+          errors.phoneNo = 'Please enter a valid South African phone number';
         }
       }
 
       // Validate emergency contact if provided
-      if (formData.emergency_contact) {
+      if (formData.emergency_contact.trim()) {
         const emergencyPhoneRegex = /^(\+27|0)[1-9][0-9]{8}$/;
         if (!emergencyPhoneRegex.test(formData.emergency_contact.replace(/\s+/g, ''))) {
-          throw new Error('Please enter a valid South African emergency contact number');
+          errors.emergency_contact = 'Please enter a valid South African emergency contact number';
         }
+      }
+
+      // If there are validation errors, display them and stop
+      if (Object.keys(errors).length > 0) {
+        setValidationErrors(errors);
+        throw new Error('Please fix the validation errors below');
       }
 
       // Use employee ID instead of MongoDB id for operations
@@ -118,7 +153,7 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-card w-full max-w-2xl rounded-lg shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-card w-full max-w-5xl rounded-lg shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Edit Driver</h2>
@@ -144,7 +179,7 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
                 <User size={20} />
                 Personal Information
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Full Name <span className="text-destructive">*</span>
@@ -154,10 +189,15 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
                     name="full_name"
                     value={formData.full_name}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                    className={`w-full px-3 py-2 border rounded-md bg-background ${
+                      validationErrors.full_name ? 'border-destructive' : 'border-input'
+                    }`}
                     placeholder="Enter full name"
                     required
                   />
+                  {validationErrors.full_name && (
+                    <p className="text-destructive text-xs mt-1">{validationErrors.full_name}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Employee ID</label>
@@ -184,11 +224,16 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full pl-10 pr-3 py-2 border border-input rounded-md bg-background"
+                      className={`w-full pl-10 pr-3 py-2 border rounded-md bg-background ${
+                        validationErrors.email ? 'border-destructive' : 'border-input'
+                      }`}
                       placeholder="Enter email address"
                       required
                     />
                   </div>
+                  {validationErrors.email && (
+                    <p className="text-destructive text-xs mt-1">{validationErrors.email}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Phone Number</label>
@@ -202,11 +247,20 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
                       name="phoneNo"
                       value={formData.phoneNo}
                       onChange={handleInputChange}
-                      className="w-full pl-10 pr-3 py-2 border border-input rounded-md bg-background"
+                      className={`w-full pl-10 pr-3 py-2 border rounded-md bg-background ${
+                        validationErrors.phoneNo ? 'border-destructive' : 'border-input'
+                      }`}
                       placeholder="+27123456789 or 0123456789"
                     />
                   </div>
+                  {validationErrors.phoneNo && (
+                    <p className="text-destructive text-xs mt-1">{validationErrors.phoneNo}</p>
+                  )}
                 </div>
+              </div>
+
+              {/* Second row of personal info */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Emergency Contact (Optional)
@@ -216,9 +270,16 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
                     name="emergency_contact"
                     value={formData.emergency_contact}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                    className={`w-full px-3 py-2 border rounded-md bg-background ${
+                      validationErrors.emergency_contact ? 'border-destructive' : 'border-input'
+                    }`}
                     placeholder="+27123456789 or 0123456789"
                   />
+                  {validationErrors.emergency_contact && (
+                    <p className="text-destructive text-xs mt-1">
+                      {validationErrors.emergency_contact}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Status</label>
@@ -231,6 +292,22 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
                     {statusOptions.map(option => (
                       <option key={option.value} value={option.value}>
                         {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Department</label>
+                  <select
+                    name="department"
+                    value={formData.department}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  >
+                    <option value="">Select Department</option>
+                    {departments.map(dept => (
+                      <option key={dept} value={dept}>
+                        {dept}
                       </option>
                     ))}
                   </select>
@@ -254,10 +331,17 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
                     name="license_number"
                     value={formData.license_number}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                    className={`w-full px-3 py-2 border rounded-md bg-background ${
+                      validationErrors.license_number ? 'border-destructive' : 'border-input'
+                    }`}
                     placeholder="e.g., 1234567890123"
                     required
                   />
+                  {validationErrors.license_number && (
+                    <p className="text-destructive text-xs mt-1">
+                      {validationErrors.license_number}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">License Code/Type</label>
@@ -288,10 +372,17 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
                       name="license_expiry"
                       value={formData.license_expiry}
                       onChange={handleInputChange}
-                      className="w-full pl-10 pr-3 py-2 border border-input rounded-md bg-background"
+                      className={`w-full pl-10 pr-3 py-2 border rounded-md bg-background ${
+                        validationErrors.license_expiry ? 'border-destructive' : 'border-input'
+                      }`}
                       required
                     />
                   </div>
+                  {validationErrors.license_expiry && (
+                    <p className="text-destructive text-xs mt-1">
+                      {validationErrors.license_expiry}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

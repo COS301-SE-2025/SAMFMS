@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import TrackingMapWithSidebar from '../components/tracking/TrackingMapWithSidebar';
 import GeofenceManager from '../components/tracking/GeofenceManager';
 import LocationHistory from '../components/tracking/LocationHistory';
-import { listGeofences } from '../backend/api/geofences';
-import { listLocations } from '../backend/api/locations';
+import {listGeofences} from '../backend/api/geofences';
+import {listLocations} from '../backend/api/locations';
 import FadeIn from '../components/ui/FadeIn';
 
 const Tracking = () => {
@@ -21,7 +21,7 @@ const Tracking = () => {
         const transformedGeofences = (response.data?.data || [])
           .filter(geofence => geofence && typeof geofence === 'object') // Filter out invalid geofences
           .map(geofence => {
-            let coordinates = { lat: 0, lng: 0 };
+            let coordinates = {lat: 0, lng: 0};
             let radius = 500;
             let geometryType = 'circle';
 
@@ -36,7 +36,7 @@ const Tracking = () => {
               } else if (geometryType === 'polygon' || geometryType === 'rectangle') {
                 const firstPoint = geofence.geometry.points?.[0];
                 if (firstPoint) {
-                  coordinates = { lat: firstPoint.latitude || 0, lng: firstPoint.longitude || 0 };
+                  coordinates = {lat: firstPoint.latitude || 0, lng: firstPoint.longitude || 0};
                 }
                 radius = null;
               }
@@ -101,7 +101,7 @@ const Tracking = () => {
 
   return (
     <FadeIn delay={0.1}>
-      <div className="relative container p-0 mx-auto">
+      <div className="w-full h-screen overflow-hidden">
         <div
           className="absolute inset-0 z-0 opacity-10 pointer-events-none"
           style={{
@@ -113,10 +113,10 @@ const Tracking = () => {
           aria-hidden="true"
         />
 
-        <div className="relative z-10">
+        <div className="relative z-10 w-full h-full">
           {error && (
             <FadeIn delay={0.3}>
-              <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+              <div className="absolute top-4 left-4 right-4 z-50 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
                 {error}
               </div>
             </FadeIn>

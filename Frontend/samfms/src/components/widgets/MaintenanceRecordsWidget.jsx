@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { BaseWidget } from '../dashboard/BaseWidget';
-import { maintenanceAPI } from '../../backend/api/maintenance';
-import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
-import { Wrench } from 'lucide-react';
+import React, {useState, useEffect} from 'react';
+import {BaseWidget} from '../dashboard/BaseWidget';
+import {maintenanceAPI} from '../../backend/api/maintenance';
+import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
+import {Wrench} from 'lucide-react';
 
-const MaintenanceRecordsWidget = ({ id, config = {} }) => {
+const MaintenanceRecordsWidget = ({id, config = {}}) => {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -58,33 +58,35 @@ const MaintenanceRecordsWidget = ({ id, config = {} }) => {
       error={error}
     >
       {records && records.length > 0 ? (
-        <div className="space-y-2 h-full overflow-y-auto">
-          {records.slice(0, config.maxRecords || 5).map(record => (
-            <div
-              key={record.id}
-              className="flex items-center justify-between p-2 border border-border rounded-lg hover:bg-accent/5 transition-colors"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-xs truncate">{record.maintenance_type}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  Vehicle: {record.vehicle_id} •{' '}
-                  {new Date(record.date_performed).toLocaleDateString()}
-                </p>
+        <div className="flex flex-col items-center justify-center h-full">
+          <div className="space-y-2 w-full max-w-md overflow-y-auto">
+            {records.slice(0, config.maxRecords || 5).map(record => (
+              <div
+                key={record.id}
+                className="flex items-center justify-between p-2 border border-border rounded-lg hover:bg-accent/5 transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-xs truncate">{record.maintenance_type}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    Vehicle: {record.vehicle_id} •{' '}
+                    {new Date(record.date_performed).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0 ml-2">
+                  <p className="font-medium text-xs">R{record.cost?.toLocaleString() || 0}</p>
+                  <span
+                    className={`px-1 py-0.5 rounded-full text-xs ${getStatusColor(record.status)}`}
+                  >
+                    {record.status}
+                  </span>
+                </div>
               </div>
-              <div className="text-right flex-shrink-0 ml-2">
-                <p className="font-medium text-xs">R{record.cost?.toLocaleString() || 0}</p>
-                <span
-                  className={`px-1 py-0.5 rounded-full text-xs ${getStatusColor(record.status)}`}
-                >
-                  {record.status}
-                </span>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       ) : (
-        <div className="text-center py-8">
-          <Wrench className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+        <div className="flex flex-col items-center justify-center h-full text-center">
+          <Wrench className="h-12 w-12 text-muted-foreground mb-2" />
           <p className="text-muted-foreground">No recent maintenance records</p>
         </div>
       )}
@@ -97,14 +99,14 @@ registerWidget(WIDGET_TYPES.MAINTENANCE_RECORDS, MaintenanceRecordsWidget, {
   title: 'Recent Maintenance Records',
   description: 'Shows the most recent maintenance activities across your fleet',
   category: WIDGET_CATEGORIES.MAINTENANCE,
-  defaultSize: { w: 4, h: 3 },
-  minSize: { w: 3, h: 2 },
-  maxSize: { w: 6, h: 4 },
+  defaultSize: {w: 3, h: 6},
+  minSize: {w: 3, h: 2},
+  maxSize: {w: 8, h: 8},
   icon: <Wrench size={20} />,
   configSchema: {
-    title: { type: 'string', default: 'Recent Maintenance Records' },
-    refreshInterval: { type: 'number', default: 60, min: 10 },
-    maxRecords: { type: 'number', default: 5, min: 3, max: 10 },
+    title: {type: 'string', default: 'Recent Maintenance Records'},
+    refreshInterval: {type: 'number', default: 60, min: 10},
+    maxRecords: {type: 'number', default: 5, min: 3, max: 10},
   },
 });
 

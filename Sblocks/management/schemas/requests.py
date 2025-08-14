@@ -369,6 +369,11 @@ class NotificationUpdateRequest(BaseModel):
     is_archived: Optional[bool] = Field(None, description="Archive/unarchive notification")
 
 
+class DailyDriverCount(BaseModel):
+    """Request to show daily driver count"""
+    date: datetime
+    
+
 # Error Schemas
 class ErrorResponse(BaseModel):
     """Standard error response"""
@@ -377,3 +382,4 @@ class ErrorResponse(BaseModel):
     service: str = "management"
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     trace_id: Optional[str] = None
+

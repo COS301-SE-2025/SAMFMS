@@ -56,11 +56,7 @@ class DriverService:
         except Exception as e:
             logger.error(f"Error activating driver {driver_id}: {e}")
             raise
-
-
-            
-
-        
+   
     async def assign_driver_to_trip(
         self,
         trip_id: str,

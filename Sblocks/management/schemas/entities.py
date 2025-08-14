@@ -106,6 +106,17 @@ class VehicleUsageLog(BaseModel):
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
+class DailyDriverCount(BaseModel):
+    """Number of drivers employed each day"""
+    id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    number_of_drivers: int
+    date: datetime
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
 
 class Driver(BaseModel):
     """Driver entity"""

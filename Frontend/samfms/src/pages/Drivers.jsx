@@ -19,7 +19,7 @@ const Drivers = () => {
   const [driverDetailsOpen, setDriverDetailsOpen] = useState(false);
   const [currentDriver, setCurrentDriver] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortField, setSortField] = useState('employeeId');
   const [sortDirection, setSortDirection] = useState('asc');
   const [showVehicleAssignmentModal, setShowVehicleAssignmentModal] = useState(false);
@@ -110,7 +110,8 @@ const Drivers = () => {
       } else {
         const searchResults = await searchDrivers(searchQuery);
         // Handle search results - adjust based on your search API response format
-        const resultsData = searchResults?.data?.data?.drivers || searchResults?.drivers || searchResults || [];
+        const resultsData =
+          searchResults?.data?.data?.drivers || searchResults?.drivers || searchResults || [];
         const transformedResults = resultsData.map(transformDriverData);
         setFilteredDrivers(transformedResults);
       }
@@ -228,7 +229,6 @@ const Drivers = () => {
     }
   };
 
-
   // Handle edit driver
   const handleEditDriver = driver => {
     setDriverToEdit(driver);
@@ -242,39 +242,39 @@ const Drivers = () => {
   };
   // Handle driver updated callback
   const handleDriverUpdated = async updatedDriver => {
-  try {
-    // Transform the updated driver data
-    const transformedDriver = transformDriverData(updatedDriver);
-
-    // Update the driver in both arrays using employee ID instead of MongoDB ID
-    setDrivers(prevDrivers =>
-      prevDrivers.map(driver =>
-        driver.employeeId === transformedDriver.employeeId ? transformedDriver : driver
-      )
-    );
-    setFilteredDrivers(prevFiltered =>
-      prevFiltered.map(driver =>
-        driver.employeeId === transformedDriver.employeeId ? transformedDriver : driver
-      )
-    );
-
-    // Show success message
-    alert(`Driver "${transformedDriver.name}" has been updated successfully!`);
-  } catch (error) {
-    console.error('Error processing updated driver:', error);
-    // Refresh the entire list as fallback
     try {
-      const response = await getAllDrivers({ limit: 100 });
-      const driversData = response?.data?.data?.drivers || response?.drivers || [];
-      const transformedDrivers = driversData.map(transformDriverData);
-      setDrivers(transformedDrivers);
-      setFilteredDrivers([]);
-    } catch (refreshError) {
-      console.error('Error refreshing drivers list:', refreshError);
-      setError('Driver updated but failed to refresh list. Please refresh the page.');
+      // Transform the updated driver data
+      const transformedDriver = transformDriverData(updatedDriver);
+
+      // Update the driver in both arrays using employee ID instead of MongoDB ID
+      setDrivers(prevDrivers =>
+        prevDrivers.map(driver =>
+          driver.employeeId === transformedDriver.employeeId ? transformedDriver : driver
+        )
+      );
+      setFilteredDrivers(prevFiltered =>
+        prevFiltered.map(driver =>
+          driver.employeeId === transformedDriver.employeeId ? transformedDriver : driver
+        )
+      );
+
+      // Show success message
+      alert(`Driver "${transformedDriver.name}" has been updated successfully!`);
+    } catch (error) {
+      console.error('Error processing updated driver:', error);
+      // Refresh the entire list as fallback
+      try {
+        const response = await getAllDrivers({ limit: 100 });
+        const driversData = response?.data?.data?.drivers || response?.drivers || [];
+        const transformedDrivers = driversData.map(transformDriverData);
+        setDrivers(transformedDrivers);
+        setFilteredDrivers([]);
+      } catch (refreshError) {
+        console.error('Error refreshing drivers list:', refreshError);
+        setError('Driver updated but failed to refresh list. Please refresh the page.');
+      }
     }
-  }
-};
+  };
 
   // Export selected drivers
   const exportSelectedDrivers = () => {
@@ -311,8 +311,116 @@ const Drivers = () => {
         }}
       />
       <div className="relative z-10 container mx-auto px-4 py-8">
+        {/* Driver Summary Cards - Top Level */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-in fade-in duration-500 delay-200">
+          {/* Total Drivers Card */}
+          <div className="group bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border border-blue-200 dark:border-blue-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-600 dark:text-blue-300 mb-2">
+                  Total Drivers
+                </p>
+                <p className="text-3xl font-bold text-blue-900 dark:text-blue-100 transition-colors duration-300">
+                  {drivers.length}
+                </p>
+                <div className="flex items-center mt-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse"></div>
+                  <p className="text-xs text-blue-600 dark:text-blue-400">Team members</p>
+                </div>
+              </div>
+              <div className="h-14 w-14 bg-blue-500 dark:bg-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
+                <svg
+                  className="h-7 w-7 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                  />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Active Drivers Card */}
+          <div className="group bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border border-green-200 dark:border-green-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-600 dark:text-green-300 mb-2">
+                  Active Drivers
+                </p>
+                <p className="text-3xl font-bold text-green-900 dark:text-green-100 transition-colors duration-300">
+                  {drivers.filter(driver => driver.status?.toLowerCase() === 'active').length}
+                </p>
+                <div className="flex items-center mt-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                  <p className="text-xs text-green-600 dark:text-green-400">Available for duty</p>
+                </div>
+              </div>
+              <div className="h-14 w-14 bg-green-500 dark:bg-green-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
+                <svg
+                  className="h-7 w-7 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Departments Count Card */}
+          <div className="group bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border border-purple-200 dark:border-purple-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-600 dark:text-purple-300 mb-2">
+                  Departments
+                </p>
+                <p className="text-3xl font-bold text-purple-900 dark:text-purple-100 transition-colors duration-300">
+                  {(() => {
+                    const uniqueDepartments = new Set(
+                      drivers
+                        .map(driver => driver.department)
+                        .filter(dept => dept && dept !== 'N/A')
+                    );
+                    return uniqueDepartments.size;
+                  })()}
+                </p>
+                <div className="flex items-center mt-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full mr-2 animate-pulse"></div>
+                  <p className="text-xs text-purple-600 dark:text-purple-400">unique divisions</p>
+                </div>
+              </div>
+              <div className="h-14 w-14 bg-purple-500 dark:bg-purple-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
+                <svg
+                  className="h-7 w-7 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                  />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
         <h1 className="text-3xl font-bold mb-6">Driver Management</h1>
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6">
           <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
             <h2 className="text-xl font-semibold">Manage Drivers</h2>
             <div className="flex-1 flex justify-end">
