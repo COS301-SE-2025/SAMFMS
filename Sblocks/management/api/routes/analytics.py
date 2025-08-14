@@ -6,11 +6,38 @@ from typing import Optional
 import logging
 
 from services.analytics_service import analytics_service
+from services.vehicle_service import VehicleService
 from api.dependencies import get_current_user, require_permission, get_request_id, RequestTimer
 from schemas.responses import ResponseBuilder
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+vehicle_service = VehicleService()
+
+@router.get("/analytics/total-vehicles-over-time")
+async def get_total_vehicles_over_time(
+    request: Request,
+    current_user = Depends(require_permission("analytics:read"))
+):
+    request_id = await get_request_id(request)
+    with RequestTimer() as timer:
+        try:
+            series = await vehicle_service.total_vehicles_over_time()
+            return ResponseBuilder.success(
+                data=series,
+                message="Total vehicles over time retrieved successfully",
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+        except Exception as e:
+            logger.exception("Error getting total vehicles over time")
+            return ResponseBuilder.error(
+                error="TotalVehiclesOverTimeError",
+                message="Failed to retrieve total vehicles over time",
+                details={"error": str(e)},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
 
 @router.get("/analytics/dashboard")
 async def get_dashboard_analytics(

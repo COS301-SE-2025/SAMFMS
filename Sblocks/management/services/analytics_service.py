@@ -2,7 +2,7 @@
 Optimized Analytics Service with caching and background processing
 """
 import asyncio
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 import logging
 
@@ -10,7 +10,8 @@ from repositories.repositories import (
     VehicleAssignmentRepository, 
     VehicleUsageLogRepository, 
     DriverRepository,
-    AnalyticsRepository
+    AnalyticsRepository,
+    VehicleRepository, 
 )
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ class AnalyticsService:
         self.usage_repo = VehicleUsageLogRepository()
         self.driver_repo = DriverRepository()
         self.analytics_repo = AnalyticsRepository()
+        self.vehicle_repo = VehicleRepository()
         
         # Cache TTL in minutes
         self.cache_ttl = {
@@ -31,52 +33,12 @@ class AnalyticsService:
             "vehicle_usage": 15,      # 15 minutes
             "assignment_metrics": 5,   # 5 minutes
             "driver_performance": 30,  # 30 minutes
-            "cost_analytics": 60      # 1 hour
+            "cost_analytics": 60,      # 1 hour
+            "total_vehicles_over_time": 15,
         }
 
 
-    
-    async def get_fleet_utilization(self, use_cache: bool = True) -> Dict[str, Any]:
-        """Get fleet utilization metrics"""
-        metric_type = "fleet_utilization"
-        
-        if use_cache:
-            cached = await self.analytics_repo.get_cached_metric(metric_type)
-            if cached:
-                logger.info(f"Returning cached {metric_type}")
-                return cached["data"]
-        
-        logger.info(f"Calculating fresh {metric_type}")
-        
-        # Get assignment metrics
-        assignment_metrics = await self.assignment_repo.get_assignment_metrics()
-        status_breakdown = assignment_metrics.get("status_breakdown", {})
-        
-        total_assignments = sum(status_breakdown.values())
-        active_assignments = status_breakdown.get("active", 0)
-        completed_assignments = status_breakdown.get("completed", 0)
-        
-        utilization_rate = active_assignments / total_assignments if total_assignments > 0 else 0
-        completion_rate = completed_assignments / total_assignments if total_assignments > 0 else 0
-        
-        data = {
-            "total_assignments": total_assignments,
-            "active_assignments": active_assignments,
-            "completed_assignments": completed_assignments,
-            "utilization_rate": round(utilization_rate, 3),
-            "completion_rate": round(completion_rate, 3),
-            "status_breakdown": status_breakdown,
-            "generated_at": datetime.utcnow().isoformat()
-        }
-        
-        # Cache the result
-        await self.analytics_repo.cache_metric(
-            metric_type, 
-            data, 
-            self.cache_ttl[metric_type]
-        )
-        
-        return data
+
     
     async def get_vehicle_usage_analytics(self, use_cache: bool = True) -> Dict[str, Any]:
         """Get vehicle usage analytics"""
@@ -537,7 +499,11 @@ class AnalyticsService:
                         message="Vehicle usage data retrieved successfully"
                     ).model_dump()
                 
-
+                elif "total-vehicles-over-time" in endpoint or "total_vehicles_over_time" in endpoint:
+                    data = await self.total_vehicles_over_time(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                    data=data, message="Total vehicles over time retrieved"
+                    ).model_dump()
                     
                 elif "fuel-consumption" in endpoint or "fuel_consumption" in endpoint:
                     fuel_data = await self.get_fuel_consumption(use_cache=use_cache)

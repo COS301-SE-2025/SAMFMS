@@ -16,6 +16,31 @@ class VehicleRepository(BaseRepository):
     
     def __init__(self):
         super().__init__("vehicles")
+
+    async def get_total_vehicles_grouped_by_day(self) -> List[Dict[str, Any]]:
+        """
+        Returns [{"_id": "YYYY-MM-DD", "count": N}, ...] sorted by day ascending.
+        Uses created_at (UTC) and falls back to ObjectId's timestamp if missing.
+        Works even if the collection is empty (returns []).
+        """
+        pipeline = [
+            {
+                "$group": {
+                    "_id": {
+                        "$dateToString": {
+                            "format": "%Y-%m-%d",
+                            "date": {"$ifNull": ["$created_at", {"$toDate": "$_id"}]},
+                            "timezone": "UTC"
+                        }
+                    },
+                    "count": {"$sum": 1}
+                }
+            },
+            {"$sort": {"_id": 1}}
+        ]
+        result = await self.aggregate(pipeline)
+        logger.info(f"Total vehicles grouped by day: {result}")
+        return result
     
     async def get_by_registration_number(self, registration_number: str) -> Optional[Dict[str, Any]]:
         """Get vehicle by registration number"""

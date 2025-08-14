@@ -18,6 +18,37 @@ class VehicleService:
     def __init__(self):
         self.vehicle_repo = VehicleRepository()
         self.assignment_repo = VehicleAssignmentRepository()
+
+    async def total_vehicles_over_time(self) -> List[Dict[str, Any]]:
+        """
+        Return cumulative vehicle-count points by day, e.g.:
+        [{"total": 1, "date": "2024-06-10"}, {"total": 6, "date": "2024-07-04"}, ...]
+        Uses VehicleRepository.get_total_vehicles_grouped_by_day().
+        """
+        try:
+            # Expect: [{"_id": "YYYY-MM-DD", "count": N}, ...] (sorted asc)
+            grouped = await self.vehicle_repo.get_total_vehicles_grouped_by_day()
+        except Exception:
+            return []
+
+        if not grouped:
+            return []
+
+        # (Re)ensure ascending order by date, then build cumulative totals
+        grouped = sorted(grouped, key=lambda r: r.get("_id", ""))
+        total = 0
+        out: List[Dict[str, Any]] = []
+        for row in grouped:
+            day = row.get("_id")
+            if not day:
+                continue
+            cnt = int(row.get("count") or 0)
+            total += cnt
+            out.append({"total": total, "date": day})
+        logger.info(f"Total vehicles over time: {out}")
+        
+        return out
+    
     
     async def get_vehicles(
         self, 
