@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Clock, User, Car, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
-import { getUpcomingTrips } from '../../backend/api/trips';
+import { MapPin, Clock, User, Car, ChevronRight, ChevronDown, ChevronUp, Play } from 'lucide-react';
+import { getUpcomingTrips, updateTrip } from '../../backend/api/trips';
 import { getCurrentUser } from '../../backend/api/auth';
 import { getDriverEMPID } from '../../backend/api/drivers';
 
@@ -9,6 +9,7 @@ const UpcomingTrips = () => {
   const [upcomingTrips, setUpcomingTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [startingTrips, setStartingTrips] = useState(new Set()); // Track which trips are being started
 
   // Get current user ID from authentication
   const getCurrentUserId = () => {
@@ -94,6 +95,7 @@ const UpcomingTrips = () => {
       estimatedDuration: trip.estimated_duration
         ? `${trip.estimated_duration}m`
         : 'Unknown duration',
+      scheduledStartTime: trip.scheduledStartTime,
     };
   };
 
@@ -125,6 +127,60 @@ const UpcomingTrips = () => {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
+      });
+    }
+  };
+
+  // Check if trip can be started (within 15 minutes of scheduled start time)
+  const canStartTrip = (trip) => {
+    if (trip.status !== 'scheduled') return false;
+    
+    const now = new Date();
+    const scheduledStart = new Date(trip.scheduledStartTime);
+    const timeDifference = scheduledStart.getTime() - now.getTime();
+    const minutesDifference = timeDifference / (1000 * 60);
+    
+    // Allow starting if within 15 minutes before or after scheduled time
+    return minutesDifference <= 15 && minutesDifference >= -15;
+  };
+
+  // Handle starting a trip
+  const handleStartTrip = async (tripId, event) => {
+    event.stopPropagation(); // Prevent triggering the row click
+    
+    setStartingTrips(prev => new Set([...prev, tripId]));
+    
+    try {
+      // TODO: Replace with your actual API call to start the trip
+      // Example: await startTrip(tripId);
+      const now = new Date().toISOString();;
+      const data = {
+        "actual_start_time": now,
+      }
+      console.log("Trip id: ", tripId);
+      const response = await updateTrip(tripId,data);
+      console.log("Response for updating: ", response);
+      
+      // Update the trip status locally
+      setUpcomingTrips(prev => 
+        prev.map(trip => 
+          (trip.id || trip._id) === tripId 
+            ? { ...trip, status: 'in-progress' }
+            : trip
+        )
+      );
+      
+      // You might want to redirect to a trip tracking page or show a success message
+      console.log(`Trip ${tripId} started successfully`);
+      
+    } catch (error) {
+      console.error('Error starting trip:', error);
+      // Handle error - show toast notification or error message
+    } finally {
+      setStartingTrips(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(tripId);
+        return newSet;
       });
     }
   };
@@ -174,6 +230,9 @@ const UpcomingTrips = () => {
           ) : (
             upcomingTrips.map(trip => {
               const formattedTrip = formatTripData(trip);
+              const canStart = canStartTrip(formattedTrip);
+              const isStarting = startingTrips.has(formattedTrip.id);
+              
               return (
                 <div
                   key={formattedTrip.id}
@@ -217,7 +276,7 @@ const UpcomingTrips = () => {
                   </div>
 
                   {/* Trip Details */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-sm mb-3">
                     <div className="flex items-center space-x-2">
                       <Clock className="h-4 w-4 min-w-4 text-muted-foreground" />
                       <span className="text-muted-foreground truncate">
@@ -244,6 +303,49 @@ const UpcomingTrips = () => {
                       </span>
                     </div>
                   </div>
+
+                  {/* Start Trip Button */}
+                  {canStart && formattedTrip.status === 'scheduled' && (
+                    <div className="flex justify-end">
+                      <button
+                        onClick={(e) => handleStartTrip(formattedTrip.id, e)}
+                        disabled={isStarting}
+                        className="inline-flex items-center space-x-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+                      >
+                        {isStarting ? (
+                          <>
+                            <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                            <span>Starting...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-4 w-4" />
+                            <span>Start Trip</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Time until trip starts (for scheduled trips) */}
+                  {formattedTrip.status === 'scheduled' && !canStart && (
+                    <div className="flex justify-end">
+                      <span className="text-xs text-muted-foreground">
+                        {(() => {
+                          const now = new Date();
+                          const scheduledStart = new Date(formattedTrip.scheduledStartTime);
+                          const timeDifference = scheduledStart.getTime() - now.getTime();
+                          const minutesDifference = Math.round(timeDifference / (1000 * 60));
+                          
+                          if (minutesDifference > 0) {
+                            return `Starts in ${minutesDifference} minutes`;
+                          } else {
+                            return 'Trip time passed';
+                          }
+                        })()}
+                      </span>
+                    </div>
+                  )}
                 </div>
               );
             })
