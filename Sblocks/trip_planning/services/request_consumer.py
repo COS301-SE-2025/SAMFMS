@@ -264,8 +264,38 @@ class ServiceRequestConsumer:
             logger.info(f"[_handle_trips_request] Endpoint checks - contains 'trips': {'trips' in endpoint}, contains 'active': {'active' in endpoint}, contains 'upcoming': {'upcoming' in endpoint}, contains 'recent': {'recent' in endpoint}")
 
             if method == "GET":
+                if "upcomming" in endpoint:
+                    driver_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                    logger.info(f"Driver ID extracted for upcomming trips: {driver_id} ")
+                    if driver_id is None:
+                        logger.info("Failed to extract id in upcomming trip request")
+                        return ResponseBuilder.error(
+                            error= "Driver ID problem",
+                            message="Driver ID was not extracted from the endpoint"
+                        )
+                    
+                    trips = await trip_service.get_upcoming_trips(driver_id)
+                    return ResponseBuilder.success(
+                        data=trips,
+                        message="Upcomming trips retrieved successfully"
+                    ).model_dump()
+                if "recent" in endpoint:
+                    driver_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                    logger.info(f"Driver ID extracted for upcomming trips: {driver_id} ")
+                    if driver_id is None:
+                        logger.info("Failed to extract id in upcomming trip request")
+                        return ResponseBuilder.error(
+                            error= "Driver ID problem",
+                            message="Driver ID was not extracted from the endpoint"
+                        )
+                    
+                    trips = await trip_service.get_recent_trips(driver_id)
+                    return ResponseBuilder.success(
+                        data=trips,
+                        message="Recent trips retrieved successfully"
+                    ).model_dump()
                 # Check for driver-specific endpoints first
-                if endpoint.startswith("driver/") and "upcoming" in endpoint:
+                elif endpoint.startswith("driver/") and "upcoming" in endpoint:
                     # Extract driver_id from endpoint: driver/{driver_id}/upcoming
                     parts = endpoint.split('/')
                     if len(parts) >= 2:
@@ -359,10 +389,7 @@ class ServiceRequestConsumer:
                         data=[Atrip.model_dump() for Atrip in activeTrips] if activeTrips else None,
                         message="Active Trips retrieved successfully"
                     ).model_dump()
-                elif "upcoming" in endpoint:
-                    # This is the fallback case for non-driver specific upcoming trips
-                    logger.warning(f"[_handle_trips_request] Generic upcoming endpoint accessed without driver ID: {endpoint}")
-                    raise ValueError("Driver ID is required for upcoming trips")
+
                 elif "recent" in endpoint:
                     # This is the fallback case for non-driver specific recent trips
                     logger.warning(f"[_handle_trips_request] Generic recent endpoint accessed without driver ID: {endpoint}")

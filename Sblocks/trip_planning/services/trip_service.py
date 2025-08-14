@@ -419,24 +419,23 @@ class TripService:
         except Exception as e:
             logger.error(f"Failed to calculate analytics for trip {trip.id}: {e}")
 
-    async def get_upcoming_trips(self, driver_id: str, limit: int = 10) -> List[Trip]:
+    async def get_upcoming_trips(self, driver_id: str) -> List[Trip]:
         """Get upcoming trips for a specific driver"""
         logger.info(f"[TripService.get_upcoming_trips] Getting upcoming trips for driver: {driver_id}")
         try:
             # Get current time for filtering
             now = datetime.utcnow()
             
-            # Query for upcoming trips assigned to this driver
             query = {
                 "driver_assignment": driver_id,
-                "status": {"$in": [TripStatus.SCHEDULED.value, TripStatus.DELAYED.value]},
-                "scheduled_start_time": {"$gte": now}
+                "scheduled_start_time": {"$gte": now},
+                "actual_start_time": {"$in": [None, ""]}  # null or empty string
             }
             
             logger.debug(f"[TripService.get_upcoming_trips] Query: {query}")
             
             # Sort by scheduled start time and limit results
-            cursor = self.db.trips.find(query).sort("scheduled_start_time", 1).limit(limit)
+            cursor = self.db.trips.find(query).sort("scheduled_start_time", 1)
             trips = []
             
             async for trip_doc in cursor:
@@ -445,7 +444,7 @@ class TripService:
             
             logger.info(f"[TripService.get_upcoming_trips] Found {len(trips)} upcoming trips")
             return trips
-            
+        
         except Exception as e:
             logger.error(f"[TripService.get_upcoming_trips] Error: {e}")
             raise

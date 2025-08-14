@@ -329,6 +329,10 @@ class DriverRepository(BaseRepository):
         """Get driver by employee ID"""
         return await self.find_one({"employee_id": employee_id})
     
+    async def get_by_security_id(self, security_id: str) -> Optional[Dict[str, Any]]:
+        """Get driver by security ID"""
+        return await self.find_one({"security_id": security_id})
+    
     async def get_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         """Get driver by email"""
         return await self.find_one({"email": email})

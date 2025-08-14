@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { getRecentTrips } from '../../backend/api/trips';
 import { getCurrentUser } from '../../backend/api/auth';
+import { getDriverEMPID } from '../../backend/api/drivers';
 
 const RecentTrips = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -22,19 +23,40 @@ const RecentTrips = () => {
   // Get current user ID from authentication
   const getCurrentUserId = () => {
     const user = getCurrentUser();
-    return user?.id || user?._id || user?.userId || 'driver123'; // Fallback to default if no user
+    return user?.id || user?._id || user?.userId ; 
   };
+
+  const getEmployeeID = async (security_id) => {
+      try {
+        const response = await getDriverEMPID(security_id);
+        const employee_id = response.data;
+        return employee_id;
+      } catch (error) {
+        console.error("Error fetching employee ID:", error);
+        return null;
+      }
+    };
 
   useEffect(() => {
     const fetchRecentTrips = async () => {
       try {
         setLoading(true);
         const driverId = getCurrentUserId();
-        console.log('Fetching recent trips for driver ID:', driverId);
-        const response = await getRecentTrips(driverId, 5, 30); // Last 5 trips in 30 days
+        
+        if (!driverId) {
+          throw new Error('No driver ID found');
+        }
+
+        // FIXED: Await the async function
+        const employeeID = await getEmployeeID(driverId);
+        console.log("EMP ID: ", employeeID);
+
+        const response = await getRecentTrips(employeeID.data); // Last 5 trips in 30 days
 
         if (response?.data?.trips) {
           setRecentTrips(response.data.trips);
+        } else {
+          setRecentTrips([]);
         }
       } catch (err) {
         console.error('Error fetching recent trips:', err);
