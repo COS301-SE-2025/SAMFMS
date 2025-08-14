@@ -291,21 +291,6 @@ const GeofenceManager = ({
     }
   };
 
-  // Helper function to get colors based on geofence type
-  /*
-  const getColorForType = (type, opacity = 1) => {
-    const colors = {
-      depot: `rgba(0, 123, 255, ${opacity})`,
-      service: `rgba(40, 167, 69, ${opacity})`,
-      delivery: `rgba(255, 193, 7, ${opacity})`,
-      restricted: `rgba(220, 53, 69, ${opacity})`,
-      emergency: `rgba(255, 0, 0, ${opacity})`
-    };
-
-    return colors[type] || `rgba(108, 117, 125, ${opacity})`;
-  };
-  */
-
   // Handle editing a geofence
   const handleEditGeofence = async () => {
     if (!editingGeofence) return;
@@ -450,10 +435,9 @@ const GeofenceManager = ({
                 >
                   <option value="">All types</option>
                   <option value="depot">Depot</option>
-                  <option value="service">Service</option>
-                  <option value="delivery">Delivery</option>
                   <option value="restricted">Restricted</option>
-                  <option value="emergency">Emergency</option>
+                  <option value="boundary">Boundary</option>
+                  <option value="custom">Custom</option>
                 </select>
               </>
             )}

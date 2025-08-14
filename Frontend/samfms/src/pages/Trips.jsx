@@ -3,7 +3,7 @@ import ActiveTripsPanel from '../components/trips/ActiveTripsPanel';
 import SchedulingPanel from '../components/trips/SchedulingPanel';
 import TripsAnalytics from '../components/trips/TripsAnalytics';
 import TripsHistory from '../components/trips/TripsHistory';
-import LocationAutocomplete from '../components/trips/LocationAutocomplete';
+import TripSchedulingModal from '../components/trips/TripSchedulingModal';
 import VehicleStatistics from '../components/trips/VehicleStatistics';
 import VehicleList from '../components/trips/VehicleList';
 import Pagination from '../components/vehicles/Pagination';
@@ -39,7 +39,6 @@ const Trips = () => {
       totalDistance: 0,
     },
   });
-  const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -78,10 +77,6 @@ const Trips = () => {
     timeWindowStart: '',
     timeWindowEnd: '',
   });
-
-  // State for toggling description and driver notes visibility
-  const [showDescription, setShowDescription] = useState(false);
-  const [showDriverNotes, setShowDriverNotes] = useState(false);
 
   // Store coordinates for selected locations
   const [locationCoords, setLocationCoords] = useState({
@@ -212,7 +207,7 @@ const Trips = () => {
   };
 
   const handleSelectVehicle = vehicle => {
-    setSelectedVehicle(vehicle);
+    // Vehicle selection logic can be added here if needed
   };
 
   const handleScheduleTrip = () => {
@@ -242,9 +237,7 @@ const Trips = () => {
       temperatureControl: false,
       driverNote: '',
     });
-    // Reset toggle state
-    setShowDescription(false);
-    setShowDriverNotes(false);
+    // Reset location coordinates
     setLocationCoords({
       start: null,
       end: null,
@@ -263,23 +256,6 @@ const Trips = () => {
       [field]: value,
     }));
   };
-
-  const handleStartLocationChange = (address, locationData) => {
-    handleFormChange('startLocation', address);
-    setLocationCoords(prev => ({
-      ...prev,
-      start: locationData,
-    }));
-  };
-
-  const handleEndLocationChange = (address, locationData) => {
-    handleFormChange('endLocation', address);
-    setLocationCoords(prev => ({
-      ...prev,
-      end: locationData,
-    }));
-  };
-
   const formatTripData = () => {
     const startDateTime = `${tripForm.scheduledStartDate}T${tripForm.scheduledStartTime}:00Z`;
     const endDateTime = `${tripForm.scheduledEndDate}T${tripForm.scheduledEndTime}:00Z`;
@@ -316,33 +292,71 @@ const Trips = () => {
     };
   };
 
-  const handleSubmitTrip = async e => {
-    e.preventDefault();
+  const handleSubmitTrip = async enhancedTripData => {
+    // If called from form event, prevent default and use old logic
+    if (enhancedTripData && enhancedTripData.preventDefault) {
+      enhancedTripData.preventDefault();
 
-    // Validate required fields
-    if (
-      !tripForm.name ||
-      !tripForm.vehicleId ||
-      !tripForm.startLocation ||
-      !tripForm.endLocation ||
-      !tripForm.scheduledStartDate ||
-      !tripForm.scheduledStartTime ||
-      !tripForm.scheduledEndDate ||
-      !tripForm.scheduledEndTime
-    ) {
-      alert('Please fill in all required fields');
-      return;
-    }
+      // Validate required fields for old form
+      if (
+        !tripForm.name ||
+        !tripForm.vehicleId ||
+        !tripForm.startLocation ||
+        !tripForm.endLocation ||
+        !tripForm.scheduledStartDate ||
+        !tripForm.scheduledStartTime ||
+        !tripForm.scheduledEndDate ||
+        !tripForm.scheduledEndTime
+      ) {
+        alert('Please fill in all required fields');
+        return;
+      }
 
-    if (!locationCoords.start || !locationCoords.end) {
-      alert('Please select valid locations from the dropdown suggestions');
-      return;
+      if (!locationCoords.start || !locationCoords.end) {
+        alert('Please select valid locations from the dropdown suggestions');
+        return;
+      }
+
+      // Use old data format
+      enhancedTripData = null;
     }
 
     setIsSubmitting(true);
 
     try {
-      const tripData = formatTripData();
+      // Use enhanced trip data if provided, otherwise format current trip form
+      let tripData;
+      if (enhancedTripData) {
+        // Enhanced data from the new modal with route information
+        const startDateTime = `${enhancedTripData.scheduledStartDate}T${enhancedTripData.scheduledStartTime}:00Z`;
+        const endDateTime = `${enhancedTripData.scheduledEndDate}T${enhancedTripData.scheduledEndTime}:00Z`;
+
+        tripData = {
+          name: enhancedTripData.name,
+          description: enhancedTripData.description,
+          scheduled_start_time: startDateTime,
+          scheduled_end_time: endDateTime,
+          origin: {
+            name: enhancedTripData.startLocation,
+            coordinates: enhancedTripData.coordinates?.start || locationCoords.start,
+          },
+          destination: {
+            name: enhancedTripData.endLocation,
+            coordinates: enhancedTripData.coordinates?.end || locationCoords.end,
+          },
+          priority: enhancedTripData.priority,
+          vehicle_id: enhancedTripData.vehicleId,
+          driver_assignment: enhancedTripData.driverId,
+          // Enhanced route information
+          waypoints: enhancedTripData.waypoints || [],
+          route_info: enhancedTripData.routeInfo || null,
+          driver_note: enhancedTripData.driverNote,
+        };
+      } else {
+        // Fallback to existing format method
+        tripData = formatTripData();
+      }
+
       console.log('Creating trip with data:', tripData);
 
       const response = await createTrip(tripData);
@@ -426,17 +440,17 @@ const Trips = () => {
 
       <div className="relative z-10">
         <h1 className="text-3xl font-bold mb-6 animate-fade-in text-foreground">Trip Management</h1>
-        <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
+        <div className="animate-fade-in animate-delay-100">
           <ActiveTripsPanel activeTrips={activeTrips} />
         </div>
-        <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+        <div className="animate-fade-in animate-delay-200">
           <SchedulingPanel
             availableVehicles={availableVehicles.length}
             availableDrivers={availableDrivers.length}
             onScheduleClick={handleScheduleTrip}
           />
         </div>
-        <div className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
+        <div className="animate-fade-in animate-delay-300">
           <TripsAnalytics
             driverData={driverAnalytics} // Add driver analytics data
             vehicleData={vehicleAnalytics} // Add vehicle analytics data
@@ -444,21 +458,18 @@ const Trips = () => {
             onTimeframeChange={setAnalyticsTimeframe} // Add timeframe change handler
           />
         </div>
-        <div className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
+        <div className="animate-fade-in animate-delay-400">
           <TripsHistory trips={[]} />
         </div>
-        <div className="animate-fade-in" style={{ animationDelay: '0.5s' }}>
+        <div className="animate-fade-in animate-delay-500">
           <VehicleStatistics stats={stats} />
         </div>
-        <div
-          className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in"
-          style={{ animationDelay: '0.6s' }}
-        >
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in animate-delay-600">
           <div className="lg:col-span-1">
             <VehicleList vehicles={vehicles} onSelectVehicle={handleSelectVehicle} />
           </div>
         </div>
-        <div className="mt-6 flex justify-end animate-fade-in" style={{ animationDelay: '0.7s' }}>
+        <div className="mt-6 flex justify-end animate-fade-in animate-delay-700">
           <button
             className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition"
             onClick={handleScheduleTrip}
@@ -466,409 +477,18 @@ const Trips = () => {
             Schedule New Trip
           </button>
         </div>
-        {/* Updated Schedule Trip Modal */}
-        {showScheduleModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
-            <div className="bg-card dark:bg-card rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-border">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-foreground">Schedule New Trip</h2>
-                  <button
-                    onClick={handleCloseModal}
-                    className="text-muted-foreground hover:text-foreground text-2xl transition-colors"
-                    disabled={isSubmitting}
-                  >
-                    ×
-                  </button>
-                </div>
-
-                <form onSubmit={handleSubmitTrip} className="space-y-6">
-                  {/* Trip Details Section */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
-                        Trip Name <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={tripForm.name}
-                          onChange={e => handleFormChange('name', e.target.value.slice(0, 25))}
-                          placeholder="e.g., Morning Delivery Route"
-                          maxLength={25}
-                          className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                          required
-                        />
-                        <div className="absolute right-2 bottom-2 text-xs text-muted-foreground">
-                          {tripForm.name.length}/25
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-3 text-foreground">
-                        Priority
-                      </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleFormChange('priority', 'low')}
-                          className={`px-3 py-2 rounded-md border ${
-                            tripForm.priority === 'low'
-                              ? 'bg-green-100 border-green-300 ring-2 ring-green-300'
-                              : 'bg-background border-input hover:bg-green-50'
-                          } transition-colors`}
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <span className="h-3 w-3 rounded-full bg-green-500"></span>
-                            <span className="font-medium text-green-700">Low</span>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleFormChange('priority', 'normal')}
-                          className={`px-3 py-2 rounded-md border ${
-                            tripForm.priority === 'normal'
-                              ? 'bg-blue-100 border-blue-300 ring-2 ring-blue-300'
-                              : 'bg-background border-input hover:bg-blue-50'
-                          } transition-colors`}
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <span className="h-3 w-3 rounded-full bg-blue-500"></span>
-                            <span className="font-medium text-blue-700">Normal</span>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleFormChange('priority', 'high')}
-                          className={`px-3 py-2 rounded-md border ${
-                            tripForm.priority === 'high'
-                              ? 'bg-amber-100 border-amber-300 ring-2 ring-amber-300'
-                              : 'bg-background border-input hover:bg-amber-50'
-                          } transition-colors`}
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <span className="h-3 w-3 rounded-full bg-amber-500"></span>
-                            <span className="font-medium text-amber-700">High</span>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleFormChange('priority', 'urgent')}
-                          className={`px-3 py-2 rounded-md border ${
-                            tripForm.priority === 'urgent'
-                              ? 'bg-red-100 border-red-300 ring-2 ring-red-300'
-                              : 'bg-background border-input hover:bg-red-50'
-                          } transition-colors`}
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <span className="h-3 w-3 rounded-full bg-red-500"></span>
-                            <span className="font-medium text-red-700">Urgent</span>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Vehicle and Driver Selection - Side by Side */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Vehicle Selection */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
-                        Select Vehicle <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={tripForm.vehicleId}
-                        onChange={e => handleFormChange('vehicleId', e.target.value)}
-                        className={`w-full border ${
-                          availableVehicles.length === 0 ? 'border-red-300' : 'border-input'
-                        } rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent`}
-                        required
-                      >
-                        <option value="">Choose a vehicle...</option>
-                        {availableVehicles.map(vehicle => (
-                          <option key={vehicle.id || vehicle._id} value={vehicle.id || vehicle._id}>
-                            {vehicle.make || 'Unknown Make'} {vehicle.model || 'Unknown Model'} (
-                            {vehicle.license_plate || vehicle.registration_number || 'No plate'})
-                          </option>
-                        ))}
-                        {vehicles.length > 0 && availableVehicles.length === 0 && (
-                          <option value="" disabled>
-                            -- No available vehicles --
-                          </option>
-                        )}
-                      </select>
-                      {availableVehicles.length === 0 && vehicles.length > 0 && (
-                        <p className="text-sm text-red-500 mt-1">
-                          No vehicles are currently available for scheduling
-                        </p>
-                      )}
-                      {vehicles.length === 0 && (
-                        <p className="text-sm text-red-500 mt-1">
-                          Failed to load vehicles. Please refresh the page.
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Driver Selection */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
-                        Select Driver <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={tripForm.driverId}
-                        onChange={e => handleFormChange('driverId', e.target.value)}
-                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                        required
-                      >
-                        <option value="">Select a driver</option>
-                        {drivers.map(driver => (
-                          <option key={driver._id} value={driver.employee_id}>
-                            {`${driver.first_name} ${driver.last_name} (${driver.employee_id})`}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Location Section */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
-                        Start Location <span className="text-red-500">*</span>
-                      </label>
-                      <LocationAutocomplete
-                        value={tripForm.startLocation}
-                        onChange={handleStartLocationChange}
-                        placeholder="Enter start location or address"
-                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
-                        End Location <span className="text-red-500">*</span>
-                      </label>
-                      <LocationAutocomplete
-                        value={tripForm.endLocation}
-                        onChange={handleEndLocationChange}
-                        placeholder="Enter destination location or address"
-                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Schedule Section */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
-                        Start Date <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        value={tripForm.scheduledStartDate}
-                        onChange={e => handleFormChange('scheduledStartDate', e.target.value)}
-                        min={new Date().toISOString().split('T')[0]}
-                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
-                        Start Time <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="time"
-                        value={tripForm.scheduledStartTime}
-                        onChange={e => handleFormChange('scheduledStartTime', e.target.value)}
-                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
-                        End Date <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        value={tripForm.scheduledEndDate}
-                        onChange={e => handleFormChange('scheduledEndDate', e.target.value)}
-                        min={tripForm.scheduledStartDate || new Date().toISOString().split('T')[0]}
-                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-foreground">
-                        End Time <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="time"
-                        value={tripForm.scheduledEndTime}
-                        onChange={e => handleFormChange('scheduledEndTime', e.target.value)}
-                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Additional Fields */}
-                  <div className="space-y-4">
-                    {/* Description with toggle button */}
-                    <div className="border border-border rounded-lg overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() => setShowDescription(prev => !prev)}
-                        className="flex items-center justify-between w-full p-3 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
-                      >
-                        <div className="flex items-center">
-                          <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center mr-2">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
-                          </span>
-                          {showDescription ? 'Hide Trip Description' : 'Add Trip Description'}
-                        </div>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className={`h-5 w-5 transition-transform ${
-                            showDescription ? 'rotate-180' : ''
-                          }`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
-                      {showDescription && (
-                        <div className="p-3 pt-0 border-t border-border">
-                          <div className="relative">
-                            <textarea
-                              value={tripForm.description}
-                              onChange={e =>
-                                handleFormChange('description', e.target.value.slice(0, 120))
-                              }
-                              placeholder="Brief description of the trip purpose"
-                              rows="2"
-                              maxLength={120}
-                              className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                            />
-                            <div className="absolute right-2 bottom-2 text-xs text-muted-foreground">
-                              {tripForm.description.length}/120
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Driver Notes with toggle button */}
-                    <div className="border border-border rounded-lg overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() => setShowDriverNotes(prev => !prev)}
-                        className="flex items-center justify-between w-full p-3 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
-                      >
-                        <div className="flex items-center">
-                          <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center mr-2">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
-                              <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
-                              <line x1="6" y1="1" x2="6" y2="4" />
-                              <line x1="10" y1="1" x2="10" y2="4" />
-                              <line x1="14" y1="1" x2="14" y2="4" />
-                            </svg>
-                          </span>
-                          {showDriverNotes ? 'Hide Driver Notes' : 'Add Driver Notes'}
-                        </div>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className={`h-5 w-5 transition-transform ${
-                            showDriverNotes ? 'rotate-180' : ''
-                          }`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
-                      {showDriverNotes && (
-                        <div className="p-3 pt-0 border-t border-border">
-                          <div className="relative">
-                            <textarea
-                              value={tripForm.driverNote}
-                              onChange={e =>
-                                handleFormChange('driverNote', e.target.value.slice(0, 120))
-                              }
-                              placeholder="Special instructions for the driver..."
-                              rows="3"
-                              maxLength={120}
-                              className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                            />
-                            <div className="absolute right-2 bottom-2 text-xs text-muted-foreground">
-                              {tripForm.driverNote.length}/120
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Form Actions */}
-                  <div className="flex justify-end space-x-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={handleCloseModal}
-                      className="px-4 py-2 border border-input rounded-md text-foreground bg-background hover:bg-accent transition-colors"
-                      disabled={isSubmitting}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
-                      disabled={availableVehicles.length === 0 || isSubmitting}
-                    >
-                      {isSubmitting ? 'Scheduling...' : 'Schedule Trip'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Enhanced Trip Scheduling Modal with Map */}
+        <TripSchedulingModal
+          showModal={showScheduleModal}
+          onClose={handleCloseModal}
+          onSubmit={handleSubmitTrip}
+          tripForm={tripForm}
+          onFormChange={handleFormChange}
+          vehicles={vehicles}
+          drivers={drivers}
+          isSubmitting={isSubmitting}
+          availableVehicles={availableVehicles}
+        />
         {/* Trip History Section */}
         <div className="mt-8">
           <h2 className="text-xl font-semibold mb-4">Vehicle Overview</h2>
@@ -943,6 +563,19 @@ const Trips = () => {
             )}
           </div>
         </div>
+
+        {/* Trip Scheduling Modal */}
+        <TripSchedulingModal
+          showModal={showScheduleModal}
+          onClose={handleCloseModal}
+          onSubmit={handleSubmitTrip}
+          tripForm={tripForm}
+          onFormChange={handleFormChange}
+          vehicles={vehicles}
+          drivers={drivers}
+          isSubmitting={isSubmitting}
+          availableVehicles={availableVehicles}
+        />
       </div>
     </div>
   );
