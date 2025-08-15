@@ -8,7 +8,7 @@ from bson import ObjectId
 
 from repositories.database import db_manager, db_manager_gps
 from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation
-from schemas.requests import CreateTripRequest, UpdateTripRequest
+from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest
 from events.publisher import event_publisher
 
 logger = logging.getLogger(__name__)
