@@ -72,20 +72,33 @@ const ActiveTripsPanel = ({ activeTrips }) => {
                 <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                 <div className="text-xs space-y-1">
                   <p className="text-muted-foreground">
-                    <span className="font-medium text-foreground">Started:</span>{' '}
-                    {formatDateTime(trip.startTime)}
+                    <span className="font-medium text-foreground">Scheduled:</span>{' '}
+                    {formatDateTime(trip.scheduled_start_time)}
                   </p>
                   <p className="text-muted-foreground">
                     <span className="font-medium text-foreground">ETA:</span>{' '}
-                    {formatDateTime(trip.estimatedEndTime)}
+                    {trip.scheduled_end_time ? formatDateTime(trip.scheduled_end_time) : 'Not set'}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <p className="text-xs text-foreground font-medium truncate">{trip.driver.name}</p>
+                <p className="text-xs text-foreground font-medium truncate">
+                  {trip.driver_assignment || 'No driver assigned'}
+                </p>
               </div>
+
+              {/* Route information */}
+              {trip.route_info && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3 flex-shrink-0" />
+                  <div className="flex gap-3">
+                    <span>{Math.round(trip.route_info.distance / 1000)}km</span>
+                    <span>{Math.round(trip.route_info.duration / 60)}min</span>
+                  </div>
+                </div>
+              )}
 
               <div className="pt-1 border-t border-border flex justify-end">
                 <button className="text-xs text-primary hover:underline">View Details</button>

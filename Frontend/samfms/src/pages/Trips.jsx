@@ -23,7 +23,6 @@ import {
 } from '../backend/api/trips';
 import { getVehicles } from '../backend/api/vehicles';
 import { getAllDrivers } from '../backend/api/drivers';
-import { mockActiveLocations } from '../data/mockTripsData';
 
 const Trips = () => {
   // Existing state
@@ -95,6 +94,34 @@ const Trips = () => {
       type,
     });
   }, []);
+
+  // Helper function to transform active trips data for map display
+  const transformTripsForMap = trips => {
+    return trips.map(trip => ({
+      id: trip.id,
+      vehicleName: `Vehicle ${trip.vehicle_id || 'Unknown'}`,
+      driver: trip.driver_assignment || 'No driver assigned',
+      destination: trip.destination?.name || 'Unknown destination',
+      position: trip.destination?.location?.coordinates
+        ? [trip.destination.location.coordinates[1], trip.destination.location.coordinates[0]] // [lat, lng]
+        : [0, 0],
+      origin: trip.origin?.location?.coordinates
+        ? [trip.origin.location.coordinates[1], trip.origin.location.coordinates[0]] // [lat, lng]
+        : [0, 0],
+      routeCoordinates: trip.route_info?.coordinates
+        ? trip.route_info.coordinates.map(coord => [coord[0], coord[1]]) // [lat, lng]
+        : [],
+      status:
+        trip.status === 'scheduled'
+          ? 'Loading'
+          : trip.status === 'in_progress'
+          ? 'In Transit'
+          : trip.status === 'completed'
+          ? 'At Destination'
+          : 'Unknown',
+      progress: trip.status === 'completed' ? 100 : trip.status === 'in_progress' ? 50 : 0,
+    }));
+  };
 
   // Helper function to close notifications
   const closeNotification = () => {
@@ -352,9 +379,15 @@ const Trips = () => {
     const loadActiveTrips = async () => {
       try {
         const response = await getActiveTrips();
-        setActiveTrips(response.trips); // Update to use the new structure
+        console.log('Active trips response:', response);
+        // The API function now returns { data: tripsArray }
+        const tripsData = Array.isArray(response.data) ? response.data : [];
+
+        console.log('Processed trips data:', tripsData);
+        setActiveTrips(tripsData);
       } catch (error) {
         console.error('Error loading active trips:', error);
+        setActiveTrips([]);
       }
     };
 
@@ -808,7 +841,7 @@ const Trips = () => {
 
               {/* Active Trips Map */}
               <div className="animate-fade-in animate-delay-200">
-                <ActiveTripsMap activeLocations={mockActiveLocations} />
+                <ActiveTripsMap activeLocations={transformTripsForMap(activeTrips)} />
               </div>
             </div>
           )}

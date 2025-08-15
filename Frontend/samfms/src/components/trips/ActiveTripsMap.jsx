@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Menu, Search, Navigation, Car, Clock, User, Locate } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -29,14 +29,17 @@ const createVehicleIcon = status => {
 };
 
 // Map updater component to center on selected items
-const MapUpdater = ({ center, zoom = 13 }) => {
+const MapUpdater = ({ center, zoom = 13, bounds = null }) => {
   const map = useMap();
 
   useEffect(() => {
-    if (center && center[0] && center[1]) {
+    if (bounds && bounds.length > 0) {
+      // Fit bounds to show the entire route
+      map.fitBounds(bounds, { padding: [20, 20] });
+    } else if (center && center[0] && center[1]) {
       map.setView(center, zoom);
     }
-  }, [center, zoom, map]);
+  }, [center, zoom, bounds, map]);
 
   return null;
 };
@@ -46,6 +49,7 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [mapCenter, setMapCenter] = useState([37.7749, -122.4194]);
+  const [mapBounds, setMapBounds] = useState(null);
 
   // Filter active trips based on search term
   const filteredTrips = activeLocations.filter(
@@ -59,7 +63,16 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
   // Handle trip selection
   const handleTripSelect = trip => {
     setSelectedTrip(trip);
-    setMapCenter(trip.position);
+    
+    // If the trip has route coordinates, fit the map to show the entire route
+    if (trip.routeCoordinates && trip.routeCoordinates.length > 0) {
+      setMapBounds(trip.routeCoordinates);
+      setMapCenter(null); // Don't use center when using bounds
+    } else {
+      // Fallback to centering on destination
+      setMapCenter(trip.position);
+      setMapBounds(null);
+    }
   };
 
   // Handle escape key to close sidebar
@@ -73,6 +86,25 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [sidebarCollapsed]);
+
+  // Auto-center map when active locations load
+  useEffect(() => {
+    if (activeLocations.length > 0 && !selectedTrip) {
+      // Center on the first location or calculate center of all locations
+      const validLocations = activeLocations.filter(loc => 
+        loc.position && loc.position[0] !== 0 && loc.position[1] !== 0
+      );
+      
+      if (validLocations.length === 1) {
+        setMapCenter(validLocations[0].position);
+      } else if (validLocations.length > 1) {
+        // Calculate approximate center of all locations
+        const avgLat = validLocations.reduce((sum, loc) => sum + loc.position[0], 0) / validLocations.length;
+        const avgLng = validLocations.reduce((sum, loc) => sum + loc.position[1], 0) / validLocations.length;
+        setMapCenter([avgLat, avgLng]);
+      }
+    }
+  }, [activeLocations, selectedTrip]);
 
   return (
     <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden animate-fade-in animate-delay-200">
@@ -99,10 +131,90 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           />
-          <MapUpdater center={mapCenter} zoom={13} />
+          <MapUpdater center={mapCenter} zoom={13} bounds={mapBounds} />
+          
+          {/* Render route polylines */}
           {activeLocations &&
             activeLocations.length > 0 &&
             activeLocations.map(location => (
+              <React.Fragment key={`route-${location.id}`}>
+                {/* Route polyline */}
+                {location.routeCoordinates && location.routeCoordinates.length > 0 && (
+                  <Polyline
+                    positions={location.routeCoordinates}
+                    pathOptions={{
+                      color: location.status === 'In Transit' ? '#3b82f6' : 
+                             location.status === 'At Destination' ? '#22c55e' : '#f59e0b',
+                      weight: 4,
+                      opacity: 0.8,
+                    }}
+                  />
+                )}
+                
+                {/* Origin marker */}
+                {location.origin && location.origin[0] !== 0 && location.origin[1] !== 0 && (
+                  <Marker
+                    position={location.origin}
+                    icon={L.divIcon({
+                      html: `<div style="background-color: #22c55e; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+                      className: 'custom-origin-marker',
+                      iconSize: [12, 12],
+                      iconAnchor: [6, 6],
+                    })}
+                  >
+                    <Popup>
+                      <div className="text-sm">
+                        <h4 className="font-semibold">Origin</h4>
+                        <p className="text-muted-foreground">{location.vehicleName}</p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                )}
+                
+                {/* Destination marker */}
+                <Marker
+                  position={location.position}
+                  icon={createVehicleIcon(location.status)}
+                >
+                  <Popup>
+                    <div className="text-sm">
+                      <h4 className="font-semibold">{location.vehicleName}</h4>
+                      <p className="text-muted-foreground">Driver: {location.driver}</p>
+                      <p className="text-muted-foreground">Going to: {location.destination}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            location.status === 'In Transit'
+                              ? 'bg-blue-500'
+                              : location.status === 'At Destination'
+                              ? 'bg-green-500'
+                              : 'bg-orange-500'
+                          }`}
+                        ></div>
+                        <span className="text-xs">{location.status}</span>
+                      </div>
+                      <div className="mt-1">
+                        <div className="flex justify-between text-xs">
+                          <span>Progress</span>
+                          <span>{location.progress}%</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5 mt-1">
+                          <div
+                            className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                            style={{ width: `${location.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              </React.Fragment>
+            ))}
+          
+          {/* Legacy markers (keeping for backwards compatibility - remove these when not needed) */}
+          {activeLocations &&
+            activeLocations.length > 0 &&
+            activeLocations.filter(location => !location.routeCoordinates || location.routeCoordinates.length === 0).map(location => (
               <Marker
                 key={location.id}
                 position={location.position}
@@ -161,18 +273,30 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
         {/* Map Controls Overlay */}
         <div className="absolute top-4 right-4 flex flex-col gap-2 z-[1000]">
           <div className="bg-white dark:bg-card border border-border rounded-lg shadow-lg p-2">
-            <div className="flex items-center gap-2 text-sm">
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-muted-foreground">In Transit</span>
+            <div className="flex flex-col gap-2 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <span className="text-muted-foreground">In Transit</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span className="text-muted-foreground">At Destination</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                  <span className="text-muted-foreground">Loading</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="text-muted-foreground">At Destination</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                <span className="text-muted-foreground">Loading</span>
+              <div className="flex items-center gap-2 border-t border-border pt-2">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-0.5 bg-blue-500"></div>
+                  <span className="text-muted-foreground text-xs">Route</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full border border-white"></div>
+                  <span className="text-muted-foreground text-xs">Origin</span>
+                </div>
               </div>
             </div>
           </div>
