@@ -99,6 +99,7 @@ const Trips = () => {
   const transformTripsForMap = trips => {
     return trips.map(trip => ({
       id: trip.id,
+      vehicleId: trip.vehicle_id, // Add vehicle ID for location tracking
       vehicleName: `Vehicle ${trip.vehicle_id || 'Unknown'}`,
       driver: trip.driver_assignment || 'No driver assigned',
       destination: trip.destination?.name || 'Unknown destination',
