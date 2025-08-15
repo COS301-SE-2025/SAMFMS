@@ -229,7 +229,7 @@ const MaintenanceRecords = ({ vehicles }) => {
       </div>
 
       {/* Filters */}
-      <div className="bg-card rounded-lg shadow-md p-4">
+      <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Filter by Vehicle</label>
@@ -294,7 +294,7 @@ const MaintenanceRecords = ({ vehicles }) => {
       ) : (
         <>
           {/* Records Table - matching vehicles page structure */}
-          <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+          <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6 border border-border">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>

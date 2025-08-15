@@ -142,7 +142,7 @@ const MaintenanceAnalytics = ({ vehicles }) => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Maintenance Records</p>
@@ -156,7 +156,7 @@ const MaintenanceAnalytics = ({ vehicles }) => {
           </div>
         </div>
 
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Cost</p>
@@ -177,7 +177,7 @@ const MaintenanceAnalytics = ({ vehicles }) => {
           </div>
         </div>
 
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Average Cost per Record</p>
@@ -197,7 +197,7 @@ const MaintenanceAnalytics = ({ vehicles }) => {
           </div>
         </div>
 
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Vehicles Serviced</p>
@@ -215,7 +215,7 @@ const MaintenanceAnalytics = ({ vehicles }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Cost Breakdown by Period */}
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold mb-4">
             Cost Breakdown by {filters.period.charAt(0).toUpperCase() + filters.period.slice(1)}
           </h3>
@@ -245,7 +245,7 @@ const MaintenanceAnalytics = ({ vehicles }) => {
         </div>
 
         {/* Maintenance Type Distribution */}
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold mb-4">Maintenance Type Distribution</h3>
           {analytics.maintenance_types && analytics.maintenance_types.length > 0 ? (
             <div className="space-y-3">
@@ -279,7 +279,7 @@ const MaintenanceAnalytics = ({ vehicles }) => {
         </div>
 
         {/* Vehicle Cost Breakdown */}
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold mb-4">Cost by Vehicle</h3>
           {costs.vehicles && costs.vehicles.length > 0 ? (
             <div className="space-y-3 max-h-64 overflow-y-auto">
@@ -307,7 +307,7 @@ const MaintenanceAnalytics = ({ vehicles }) => {
         </div>
 
         {/* Recent High-Cost Maintenance */}
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold mb-4">High-Cost Maintenance Records</h3>
           {analytics.high_cost_records && analytics.high_cost_records.length > 0 ? (
             <div className="space-y-3 max-h-64 overflow-y-auto">
@@ -337,7 +337,7 @@ const MaintenanceAnalytics = ({ vehicles }) => {
 
       {/* Monthly Trend Analysis */}
       {costs.monthly_trend && costs.monthly_trend.length > 0 && (
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold mb-4">Monthly Cost Trend</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             {costs.monthly_trend.map((month, index) => (
