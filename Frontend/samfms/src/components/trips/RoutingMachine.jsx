@@ -12,41 +12,6 @@ L.Marker.prototype.options.icon = L.icon({
   shadowSize: [41, 41],
 });
 
-// Polyline decoder function for OpenRouteService encoded geometry
-const decodePolyline = encoded => {
-  const points = [];
-  let index = 0;
-  let lat = 0;
-  let lng = 0;
-
-  while (index < encoded.length) {
-    let b;
-    let shift = 0;
-    let result = 0;
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    const dlat = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
-    lat += dlat;
-
-    shift = 0;
-    result = 0;
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    const dlng = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
-    lng += dlng;
-
-    points.push([lat / 1e5, lng / 1e5]);
-  }
-
-  return points;
-};
-
 // Real routing function using OpenRouteService API for road-following routes
 const getRoute = async (startLocation, endLocation, waypoints = []) => {
   try {
@@ -78,9 +43,8 @@ const getRoute = async (startLocation, endLocation, waypoints = []) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Your OpenRouteService API key
-        Authorization:
-          'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjBhNzU4YjIzMGQ5MDRmNGM5YjUzMmRkMjgzNzQ1YmJhIiwiaCI6Im11cm11cjY0In0=',
+        // Using public demo key - in production, you should use your own API key
+        Authorization: '5b3ce3597851110001cf6248a67b1bd4a4d94d408a5043a0bfa8f28d',
       },
       body: JSON.stringify(requestBody),
     });
@@ -100,26 +64,13 @@ const getRoute = async (startLocation, endLocation, waypoints = []) => {
       const geometry = route.geometry;
       let routeCoords = [];
 
-      if (typeof geometry === 'string') {
-        // Geometry is an encoded polyline string - decode it
-        console.log('Decoding polyline geometry:', geometry.substring(0, 50) + '...');
-        const decodedPoints = decodePolyline(geometry);
-        // Convert to [lat, lng] format for Leaflet
-        routeCoords = decodedPoints.map(coord => [coord[0], coord[1]]);
-        console.log('Successfully decoded', routeCoords.length, 'points from polyline');
-      } else if (geometry.coordinates && Array.isArray(geometry.coordinates)) {
-        // Geometry has coordinates array (alternative format)
-        console.log('Using coordinate array from geometry');
+      if (geometry.coordinates && Array.isArray(geometry.coordinates)) {
+        // Convert [lng, lat] to [lat, lng] for Leaflet
         routeCoords = geometry.coordinates.map(coord => [coord[1], coord[0]]);
-      } else {
-        console.warn('Unknown geometry format:', geometry);
-        throw new Error('Unable to process route geometry');
       }
 
       console.log('Decoded route with', routeCoords.length, 'coordinate points');
       console.log('Sample coordinates:', routeCoords.slice(0, 3));
-      console.log('Distance:', (route.summary.distance / 1000).toFixed(2), 'km');
-      console.log('Duration:', Math.round(route.summary.duration / 60), 'minutes');
 
       return {
         coordinates: routeCoords,

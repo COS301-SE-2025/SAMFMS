@@ -1,19 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  X,
-  MapPin,
-  Clock,
-  User,
-  Car,
-  Calendar,
-  Route,
-  FileText,
-  CheckCircle,
-  ChevronRight,
-  ChevronLeft,
-  ChevronUp,
-  Flag,
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import TripPlanningMap from './TripPlanningMap';
 import LocationAutocomplete from './LocationAutocomplete';
 
@@ -28,104 +14,22 @@ const TripSchedulingModal = ({
   isSubmitting,
   availableVehicles,
 }) => {
-  // Step management
-  const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 3;
-
-  // Map state
   const [mapLocations, setMapLocations] = useState({
     start: null,
     end: null,
     waypoints: [],
   });
   const [routeInfo, setRouteInfo] = useState(null);
-
-  // Optional field toggles
+  const [routeCalculating, setRouteCalculating] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
   const [showDriverNotes, setShowDriverNotes] = useState(false);
+  const [activeTab, setActiveTab] = useState('basic'); // 'basic' or 'map'
 
-  // Step navigation functions
-  const nextStep = useCallback(() => {
-    if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
-    }
-  }, [currentStep, totalSteps]);
-
-  const prevStep = useCallback(() => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  }, [currentStep]);
-
-  // Form validation for each step
-  const isStepValid = useCallback(
-    step => {
-      switch (step) {
-        case 1:
-          return tripForm.name && tripForm.priority;
-        case 2:
-          return (
-            tripForm.vehicleId &&
-            tripForm.driverId &&
-            tripForm.startDate &&
-            tripForm.startTime &&
-            tripForm.endDate &&
-            tripForm.endTime
-          );
-        case 3:
-          return tripForm.startLocation && tripForm.endLocation;
-        default:
-          return false;
-      }
-    },
-    [tripForm]
-  );
-
-  // Handle keyboard navigation
-  const handleKeyDown = useCallback(
-    e => {
-      if (e.key === 'Enter' && !isSubmitting) {
-        e.preventDefault();
-
-        if (currentStep < totalSteps && isStepValid(currentStep)) {
-          nextStep();
-        } else if (currentStep === totalSteps && isStepValid(currentStep)) {
-          // Submit the form
-          const enhancedTripData = {
-            ...tripForm,
-            routeInfo,
-            waypoints: mapLocations.waypoints,
-            coordinates: {
-              start: mapLocations.start,
-              end: mapLocations.end,
-            },
-          };
-          onSubmit(enhancedTripData);
-        }
-      }
-    },
-    [
-      currentStep,
-      isSubmitting,
-      totalSteps,
-      tripForm,
-      routeInfo,
-      mapLocations,
-      onSubmit,
-      nextStep,
-      isStepValid,
-    ]
-  );
-
-  // Add keyboard event listener
-  useEffect(() => {
-    if (showModal) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-      };
-    }
-  }, [showModal, handleKeyDown]);
+  // Utility functions for time
+  const getCurrentDate = () => {
+    const now = new Date();
+    return now.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+  };
 
   // Handle location changes from autocomplete
   const handleStartLocationChange = (location, coordinates) => {
@@ -138,6 +42,12 @@ const TripSchedulingModal = ({
       };
       console.log('Updated map locations (start):', newMapLocations);
       setMapLocations(newMapLocations);
+
+      // Switch to map tab to show the route when both locations are set
+      if (newMapLocations.end) {
+        console.log('Both locations set, switching to map tab');
+        setActiveTab('map');
+      }
     }
   };
 
@@ -151,6 +61,12 @@ const TripSchedulingModal = ({
       };
       console.log('Updated map locations (end):', newMapLocations);
       setMapLocations(newMapLocations);
+
+      // Switch to map tab to show the route when both locations are set
+      if (newMapLocations.start) {
+        console.log('Both locations set, switching to map tab');
+        setActiveTab('map');
+      }
     }
   };
 
@@ -158,12 +74,14 @@ const TripSchedulingModal = ({
   const handleMapStartLocationChange = coords => {
     const newMapLocations = { ...mapLocations, start: coords };
     setMapLocations(newMapLocations);
+    // Update form with coordinates (could be enhanced with reverse geocoding)
     onFormChange('startLocation', `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`);
   };
 
   const handleMapEndLocationChange = coords => {
     const newMapLocations = { ...mapLocations, end: coords };
     setMapLocations(newMapLocations);
+    // Update form with coordinates (could be enhanced with reverse geocoding)
     onFormChange('endLocation', `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`);
   };
 
@@ -203,480 +121,468 @@ const TripSchedulingModal = ({
     onSubmit(enhancedTripData);
   };
 
-  // Reset when modal closes
+  // Reset locations when modal closes
   useEffect(() => {
     if (!showModal) {
-      setCurrentStep(1);
       setMapLocations({ start: null, end: null, waypoints: [] });
       setRouteInfo(null);
-      setShowDescription(false);
-      setShowDriverNotes(false);
+      setActiveTab('basic');
     }
   }, [showModal]);
 
-  // Debug logging for prop values
-  useEffect(() => {
-    console.log('TripSchedulingModal props received:');
-    console.log('availableVehicles:', availableVehicles);
-    console.log('vehicles:', vehicles);
-    console.log('drivers:', drivers);
-  }, [availableVehicles, vehicles, drivers]);
-
-  // Debug logging for vehicles and drivers
-  useEffect(() => {
-    console.log('TripSchedulingModal - Received props:');
-    console.log('- vehicles:', vehicles);
-    console.log('- drivers:', drivers);
-    console.log('- availableVehicles:', availableVehicles);
-  }, [vehicles, drivers, availableVehicles]);
-
-  // Debug logging for props
-  useEffect(() => {
-    console.log('TripSchedulingModal props:', {
-      availableVehicles: availableVehicles?.length || 0,
-      vehicles: vehicles?.length || 0,
-      drivers: drivers?.length || 0,
-      availableVehiclesData: availableVehicles,
-      driversData: drivers,
-    });
-  }, [availableVehicles, vehicles, drivers]);
-
   if (!showModal) return null;
 
-  const stepTitles = [
-    { title: 'Trip Details', subtitle: 'Name and priority settings', icon: FileText },
-    { title: 'Vehicle & Schedule', subtitle: 'Assign vehicle, driver and timing', icon: Calendar },
-    { title: 'Route Planning', subtitle: 'Set locations and map route', icon: MapPin },
-  ];
-
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-      <div className="bg-background dark:bg-card rounded-xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden border border-border">
-        {/* Enhanced Header */}
-        <div className="bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20 px-6 py-4 border-b border-border">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                {React.createElement(stepTitles[currentStep - 1].icon, {
-                  className: 'w-5 h-5 text-primary',
-                })}
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-foreground">
-                  {stepTitles[currentStep - 1].title}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {stepTitles[currentStep - 1].subtitle}
-                </p>
-              </div>
-            </div>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
+      <div className="bg-card dark:bg-card rounded-lg shadow-xl max-w-6xl w-full max-h-[95vh] overflow-y-auto border border-border">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-foreground">Schedule New Trip</h2>
             <button
               onClick={onClose}
-              className="w-10 h-10 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all duration-200 group"
+              className="text-muted-foreground hover:text-foreground text-2xl transition-colors"
               disabled={isSubmitting}
             >
-              <X className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <X size={24} />
             </button>
           </div>
 
-          {/* Progress Bar */}
-          <div className="mt-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground">
-                Step {currentStep} of {totalSteps}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {Math.round((currentStep / totalSteps) * 100)}%
-              </span>
-            </div>
-            <div className="w-full bg-muted rounded-full h-2">
-              <div
-                className="bg-primary h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(currentStep / totalSteps) * 100}%` }}
-              ></div>
-            </div>
+          {/* Tab Navigation */}
+          <div className="flex border-b border-border mb-6">
+            <button
+              onClick={() => setActiveTab('basic')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'basic'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Trip Details
+            </button>
+            <button
+              onClick={() => setActiveTab('map')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'map'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Route Planning
+            </button>
           </div>
-        </div>
 
-        <div className="overflow-y-auto max-h-[calc(95vh-140px)]">
-          <div className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Step 1: Trip Details */}
-              {currentStep === 1 && (
-                <div className="space-y-8">
-                  <div className="space-y-6">
-                    {/* Trip Name */}
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-foreground">
-                        Trip Name <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={tripForm.name}
-                          onChange={e => onFormChange('name', e.target.value.slice(0, 25))}
-                          placeholder="e.g., Morning Delivery Route"
-                          maxLength={25}
-                          className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
-                          required
-                        />
-                        <div className="absolute right-3 top-3 text-xs text-muted-foreground">
-                          {tripForm.name.length}/25
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Trip Details Tab */}
+            {activeTab === 'basic' && (
+              <div className="space-y-6">
+                {/* Trip Details Section */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-foreground">
+                      Trip Name <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={tripForm.name}
+                        onChange={e => onFormChange('name', e.target.value.slice(0, 25))}
+                        placeholder="e.g., Morning Delivery Route"
+                        maxLength={25}
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        required
+                      />
+                      <div className="absolute right-2 bottom-2 text-xs text-muted-foreground">
+                        {tripForm.name.length}/25
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-3 text-foreground">
+                      Priority
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onFormChange('priority', 'low')}
+                        className={`px-3 py-2 rounded-md border ${
+                          tripForm.priority === 'low'
+                            ? 'bg-green-100 border-green-300 ring-2 ring-green-300'
+                            : 'bg-background border-input hover:bg-accent'
+                        } transition-colors`}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="h-3 w-3 rounded-full bg-green-500"></span>
+                          <span className="font-medium text-green-700">Low</span>
                         </div>
-                      </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onFormChange('priority', 'normal')}
+                        className={`px-3 py-2 rounded-md border ${
+                          tripForm.priority === 'normal'
+                            ? 'bg-blue-100 border-blue-300 ring-2 ring-blue-300'
+                            : 'bg-background border-input hover:bg-accent'
+                        } transition-colors`}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="h-3 w-3 rounded-full bg-blue-500"></span>
+                          <span className="font-medium text-blue-700">Normal</span>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onFormChange('priority', 'high')}
+                        className={`px-3 py-2 rounded-md border ${
+                          tripForm.priority === 'high'
+                            ? 'bg-amber-100 border-amber-300 ring-2 ring-amber-300'
+                            : 'bg-background border-input hover:bg-accent'
+                        } transition-colors`}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="h-3 w-3 rounded-full bg-amber-500"></span>
+                          <span className="font-medium text-amber-700">High</span>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onFormChange('priority', 'urgent')}
+                        className={`px-3 py-2 rounded-md border ${
+                          tripForm.priority === 'urgent'
+                            ? 'bg-red-100 border-red-300 ring-2 ring-red-300'
+                            : 'bg-background border-input hover:bg-accent'
+                        } transition-colors`}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="h-3 w-3 rounded-full bg-red-500"></span>
+                          <span className="font-medium text-red-700">Urgent</span>
+                        </div>
+                      </button>
                     </div>
+                  </div>
+                </div>
 
-                    {/* Priority Selection */}
-                    <div className="space-y-3">
-                      <label className="block text-sm font-medium text-foreground">
-                        Priority Level <span className="text-red-500">*</span>
+                {/* Vehicle and Driver Selection */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-foreground">
+                      Select Vehicle <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={tripForm.vehicleId}
+                      onChange={e => onFormChange('vehicleId', e.target.value)}
+                      className={`w-full border ${
+                        availableVehicles.length === 0 ? 'border-red-300' : 'border-input'
+                      } rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent`}
+                      required
+                    >
+                      <option value="">Choose a vehicle...</option>
+                      {availableVehicles.map(vehicle => (
+                        <option key={vehicle.id || vehicle._id} value={vehicle.id || vehicle._id}>
+                          {vehicle.make || 'Unknown Make'} {vehicle.model || 'Unknown Model'} (
+                          {vehicle.license_plate || vehicle.registration_number || 'No plate'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-foreground">
+                      Select Driver <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={tripForm.driverId}
+                      onChange={e => onFormChange('driverId', e.target.value)}
+                      className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
+                      required
+                    >
+                      <option value="">Select a driver</option>
+                      {drivers.map(driver => (
+                        <option key={driver._id} value={driver.employee_id}>
+                          {`${driver.first_name} ${driver.last_name} (${driver.employee_id})`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Location Section with Autocomplete */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-foreground">
+                      Start Location <span className="text-red-500">*</span>
+                    </label>
+                    <LocationAutocomplete
+                      value={tripForm.startLocation}
+                      onChange={handleStartLocationChange}
+                      placeholder="Enter start location or address"
+                      className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-foreground">
+                      End Location <span className="text-red-500">*</span>
+                    </label>
+                    <LocationAutocomplete
+                      value={tripForm.endLocation}
+                      onChange={handleEndLocationChange}
+                      placeholder="Enter end location or address"
+                      className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Date and Time Section */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-foreground">Start Schedule</h3>
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-foreground">
+                        Start Date <span className="text-red-500">*</span>
                       </label>
-                      <div className="grid grid-cols-2 gap-3">
-                        {[
-                          { value: 'low', label: 'Low', color: 'green', icon: '🟢' },
-                          { value: 'normal', label: 'Normal', color: 'blue', icon: '🔵' },
-                          { value: 'high', label: 'High', color: 'amber', icon: '🟠' },
-                          { value: 'urgent', label: 'Urgent', color: 'red', icon: '🔴' },
-                        ].map(priority => (
-                          <button
-                            key={priority.value}
-                            type="button"
-                            onClick={() => onFormChange('priority', priority.value)}
-                            className={`p-4 rounded-lg border-2 transition-all duration-200 flex items-center gap-3 ${
-                              tripForm.priority === priority.value
-                                ? 'border-primary bg-primary/10'
-                                : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                            }`}
-                          >
-                            <span className="text-xl">{priority.icon}</span>
-                            <span className="font-medium">{priority.label}</span>
-                          </button>
-                        ))}
-                      </div>
+                      <input
+                        type="date"
+                        value={tripForm.scheduledStartDate}
+                        onChange={e => onFormChange('scheduledStartDate', e.target.value)}
+                        min={getCurrentDate()}
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        required
+                      />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-foreground">
+                        Start Time <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="time"
+                        value={tripForm.scheduledStartTime}
+                        onChange={e => onFormChange('scheduledStartTime', e.target.value)}
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-foreground">End Schedule</h3>
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-foreground">
+                        End Date <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={tripForm.scheduledEndDate}
+                        onChange={e => onFormChange('scheduledEndDate', e.target.value)}
+                        min={tripForm.scheduledStartDate || getCurrentDate()}
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-foreground">
+                        End Time <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="time"
+                        value={tripForm.scheduledEndTime}
+                        onChange={e => onFormChange('scheduledEndTime', e.target.value)}
+                        className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
 
-                    {/* Optional Description */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-sm font-medium text-foreground">
-                          Description
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setShowDescription(!showDescription)}
-                          className="text-primary text-sm hover:underline flex items-center gap-1"
-                        >
-                          {showDescription ? 'Hide' : 'Add'} Description
-                          {showDescription ? (
-                            <ChevronUp className="w-4 h-4" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
-                      {showDescription && (
+                {/* Optional Fields */}
+                <div className="space-y-4">
+                  {/* Description Toggle */}
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setShowDescription(!showDescription)}
+                      className="flex items-center justify-between w-full p-3 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
+                    >
+                      <span>
+                        {showDescription ? 'Hide Trip Description' : 'Add Trip Description'}
+                      </span>
+                      <span
+                        className={`transform transition-transform ${
+                          showDescription ? 'rotate-180' : ''
+                        }`}
+                      >
+                        ▼
+                      </span>
+                    </button>
+                    {showDescription && (
+                      <div className="p-3 border-t border-border">
                         <textarea
                           value={tripForm.description}
-                          onChange={e => onFormChange('description', e.target.value)}
-                          placeholder="Add any additional details about this trip..."
-                          rows={4}
-                          className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50 resize-none"
+                          onChange={e => onFormChange('description', e.target.value.slice(0, 120))}
+                          placeholder="Brief description of the trip purpose"
+                          rows="2"
+                          maxLength={120}
+                          className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         />
-                      )}
-                    </div>
-
-                    {/* Optional Driver Notes */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-sm font-medium text-foreground">
-                          Driver Notes
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setShowDriverNotes(!showDriverNotes)}
-                          className="text-primary text-sm hover:underline flex items-center gap-1"
-                        >
-                          {showDriverNotes ? 'Hide' : 'Add'} Notes
-                          {showDriverNotes ? (
-                            <ChevronUp className="w-4 h-4" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4" />
-                          )}
-                        </button>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {tripForm.description.length}/120
+                        </div>
                       </div>
-                      {showDriverNotes && (
+                    )}
+                  </div>
+
+                  {/* Driver Notes Toggle */}
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setShowDriverNotes(!showDriverNotes)}
+                      className="flex items-center justify-between w-full p-3 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
+                    >
+                      <span>{showDriverNotes ? 'Hide Driver Notes' : 'Add Driver Notes'}</span>
+                      <span
+                        className={`transform transition-transform ${
+                          showDriverNotes ? 'rotate-180' : ''
+                        }`}
+                      >
+                        ▼
+                      </span>
+                    </button>
+                    {showDriverNotes && (
+                      <div className="p-3 border-t border-border">
                         <textarea
-                          value={tripForm.driverNotes}
-                          onChange={e => onFormChange('driverNotes', e.target.value)}
-                          placeholder="Special instructions for the driver..."
-                          rows={3}
-                          className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50 resize-none"
+                          value={tripForm.driverNote}
+                          onChange={e => onFormChange('driverNote', e.target.value.slice(0, 150))}
+                          placeholder="Special instructions for the driver"
+                          rows="3"
+                          maxLength={150}
+                          className="w-full border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 2: Vehicle & Schedule */}
-              {currentStep === 2 && (
-                <div className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Vehicle Selection */}
-                    <div className="space-y-3">
-                      <label className="block text-sm font-medium text-foreground">
-                        Select Vehicle <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <Car className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <select
-                          value={tripForm.vehicleId}
-                          onChange={e => onFormChange('vehicleId', e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
-                          required
-                        >
-                          <option value="">Choose a vehicle...</option>
-                          {(availableVehicles || vehicles)?.map(vehicle => (
-                            <option
-                              key={vehicle._id || vehicle.id}
-                              value={vehicle._id || vehicle.id}
-                            >
-                              {vehicle.make} {vehicle.model} -{' '}
-                              {vehicle.license_plate ||
-                                vehicle.licensePlate ||
-                                vehicle.registration}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Driver Selection */}
-                    <div className="space-y-3">
-                      <label className="block text-sm font-medium text-foreground">
-                        Select Driver <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <select
-                          value={tripForm.driverId}
-                          onChange={e => onFormChange('driverId', e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
-                          required
-                        >
-                          <option value="">Choose a driver...</option>
-                          {drivers?.map(driver => (
-                            <option key={driver._id || driver.id} value={driver.employee_id}>
-                              {driver.first_name} {driver.last_name ? driver.last_name : ''}{' '}
-                              {driver.employee_id ? `(${driver.employee_id})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Start Date & Time */}
-                    <div className="space-y-4">
-                      <h4 className="flex items-center gap-2 text-lg font-medium text-foreground">
-                        <Clock className="w-5 h-5 text-green-600" />
-                        Start Time
-                      </h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-foreground">
-                            Date <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="date"
-                            value={tripForm.startDate}
-                            onChange={e => onFormChange('startDate', e.target.value)}
-                            className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-foreground">
-                            Time <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="time"
-                            value={tripForm.startTime}
-                            onChange={e => onFormChange('startTime', e.target.value)}
-                            className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* End Date & Time */}
-                    <div className="space-y-4">
-                      <h4 className="flex items-center gap-2 text-lg font-medium text-foreground">
-                        <Clock className="w-5 h-5 text-red-600" />
-                        End Time
-                      </h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-foreground">
-                            Date <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="date"
-                            value={tripForm.endDate}
-                            onChange={e => onFormChange('endDate', e.target.value)}
-                            className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-foreground">
-                            Time <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="time"
-                            value={tripForm.endTime}
-                            onChange={e => onFormChange('endTime', e.target.value)}
-                            className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3: Route Planning */}
-              {currentStep === 3 && (
-                <div className="space-y-6">
-                  {/* Location Inputs */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-3">
-                      <label className="block text-sm font-medium text-foreground">
-                        Start Location <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-600" />
-                        <LocationAutocomplete
-                          value={tripForm.startLocation}
-                          onChange={handleStartLocationChange}
-                          placeholder="Enter start location..."
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="block text-sm font-medium text-foreground">
-                        End Location <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <Flag className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-red-600" />
-                        <LocationAutocomplete
-                          value={tripForm.endLocation}
-                          onChange={handleEndLocationChange}
-                          placeholder="Enter end location..."
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Map Section */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="flex items-center gap-2 text-lg font-medium text-foreground">
-                        <Route className="w-5 h-5 text-primary" />
-                        Route Map
-                      </h4>
-                      {routeInfo && (
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>Distance: {routeInfo.distance}</span>
-                          <span>Duration: {routeInfo.duration}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="border border-border rounded-lg overflow-hidden">
-                      <div className="h-96 bg-muted/30 relative">
-                        <TripPlanningMap
-                          startLocation={mapLocations.start}
-                          endLocation={mapLocations.end}
-                          waypoints={mapLocations.waypoints}
-                          onStartLocationChange={handleMapStartLocationChange}
-                          onEndLocationChange={handleMapEndLocationChange}
-                          onWaypointAdd={handleWaypointAdd}
-                          onWaypointRemove={handleWaypointRemove}
-                          onRouteCalculated={handleRouteCalculated}
-                        />
-                      </div>
-                    </div>
-
-                    {mapLocations.start && mapLocations.end && (
-                      <div className="bg-muted/30 rounded-lg p-4">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          Route calculated successfully
-                          {routeInfo && (
-                            <span className="ml-2">
-                              • {routeInfo.distance} • {routeInfo.duration}
-                            </span>
-                          )}
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {tripForm.driverNote.length}/150
                         </div>
                       </div>
                     )}
                   </div>
                 </div>
-              )}
 
-              {/* Navigation Buttons */}
-              <div className="flex items-center justify-between pt-6 border-t border-border">
-                <button
-                  type="button"
-                  onClick={prevStep}
-                  disabled={currentStep === 1}
-                  className="px-6 py-3 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </button>
+                {/* Route Preview Section - Shows when both locations are selected */}
+                {mapLocations.start && mapLocations.end && (
+                  <div className="border border-border rounded-lg p-4 bg-muted/10">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-foreground">Route Preview</h4>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('map')}
+                        className="text-sm text-primary hover:text-primary/80 underline"
+                      >
+                        View Full Map
+                      </button>
+                    </div>
 
-                <div className="flex items-center gap-3">
-                  {currentStep < totalSteps ? (
-                    <button
-                      type="button"
-                      onClick={nextStep}
-                      disabled={!isStepValid(currentStep)}
-                      className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
-                    >
-                      Next
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button
-                      type="submit"
-                      disabled={isSubmitting || !isStepValid(currentStep)}
-                      className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                          Creating Trip...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="w-4 h-4" />
-                          Create Trip
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
+                    {routeInfo ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <span className="text-muted-foreground">Distance:</span>
+                          <span className="font-medium">
+                            {(routeInfo.distance / 1000).toFixed(1)} km
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-muted-foreground">Duration:</span>
+                          <span className="font-medium">
+                            {Math.round(routeInfo.duration / 60)} min
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                          <span className="text-muted-foreground">Waypoints:</span>
+                          <span className="font-medium">{mapLocations.waypoints.length}</span>
+                        </div>
+                      </div>
+                    ) : routeCalculating ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                        Calculating route...
+                      </div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">
+                        Route will be calculated automatically when both locations are set.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </form>
-          </div>
+            )}
+
+            {/* Map Tab */}
+            {activeTab === 'map' && (
+              <div className="space-y-4">
+                <div className="text-sm text-muted-foreground mb-4">
+                  Use the map below to select your start and end locations, and add waypoints as
+                  needed. The route will be automatically calculated using OSRM routing service.
+                </div>
+
+                <TripPlanningMap
+                  startLocation={mapLocations.start}
+                  endLocation={mapLocations.end}
+                  waypoints={mapLocations.waypoints}
+                  onStartLocationChange={handleMapStartLocationChange}
+                  onEndLocationChange={handleMapEndLocationChange}
+                  onWaypointAdd={handleWaypointAdd}
+                  onWaypointRemove={handleWaypointRemove}
+                  onRouteCalculated={handleRouteCalculated}
+                  routeCalculating={routeCalculating}
+                  setRouteCalculating={setRouteCalculating}
+                  className="h-96"
+                />
+
+                {/* Route Information */}
+                {routeInfo && (
+                  <div className="bg-muted/20 rounded-lg p-4">
+                    <h4 className="font-medium text-foreground mb-2">Route Information</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Distance:</span>
+                        <div className="font-medium">
+                          {(routeInfo.distance / 1000).toFixed(2)} km
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Estimated Duration:</span>
+                        <div className="font-medium">
+                          {Math.round(routeInfo.duration / 60)} minutes
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Waypoints:</span>
+                        <div className="font-medium">{mapLocations.waypoints.length} stops</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Form Actions */}
+            <div className="flex justify-end space-x-3 pt-4 border-t border-border">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-input rounded-md text-foreground bg-background hover:bg-accent transition-colors"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+                disabled={availableVehicles.length === 0 || isSubmitting}
+              >
+                {isSubmitting ? 'Scheduling...' : 'Schedule Trip'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

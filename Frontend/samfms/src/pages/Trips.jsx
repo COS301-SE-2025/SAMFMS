@@ -1,26 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Plus } from 'lucide-react';
 import ActiveTripsPanel from '../components/trips/ActiveTripsPanel';
 import SchedulingPanel from '../components/trips/SchedulingPanel';
 import TripsAnalytics from '../components/trips/TripsAnalytics';
 import TripsHistory from '../components/trips/TripsHistory';
 import TripSchedulingModal from '../components/trips/TripSchedulingModal';
-import Notification from '../components/common/Notification';
-import OverviewStatsCards from '../components/trips/OverviewStatsCards';
-import ActiveTripsMap from '../components/trips/ActiveTripsMap';
-import UpcomingTripsStats from '../components/trips/UpcomingTripsStats';
-import UpcomingTripsTable from '../components/trips/UpcomingTripsTable';
-import RecentTripsStats from '../components/trips/RecentTripsStats';
-import RecentTripsTable from '../components/trips/RecentTripsTable';
+import VehicleStatistics from '../components/trips/VehicleStatistics';
+import VehicleList from '../components/trips/VehicleList';
+import Pagination from '../components/vehicles/Pagination';
 import {
   createTrip,
   getActiveTrips,
   getDriverAnalytics,
   getVehicleAnalytics,
 } from '../backend/api/trips';
+
 import { getVehicles } from '../backend/api/vehicles';
 import { getAllDrivers } from '../backend/api/drivers';
-import { mockUpcomingTrips, mockRecentTrips, mockActiveLocations } from '../data/mockTripsData';
 
 const Trips = () => {
   // Existing state
@@ -49,40 +44,9 @@ const Trips = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Notification state
-  const [notification, setNotification] = useState({
-    isVisible: false,
-    message: '',
-    type: 'info',
-  });
-
-  // Tab state
-  const [activeTab, setActiveTab] = useState('overview');
-
-  const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'active', label: 'Active' },
-    { id: 'upcoming', label: 'Upcoming' },
-    { id: 'recent', label: 'Recent' },
-    { id: 'analytics', label: 'Analytics' },
-  ];
-
-  // Helper function to show notifications
-  const showNotification = (message, type = 'info') => {
-    setNotification({
-      isVisible: true,
-      message,
-      type,
-    });
-  };
-
-  // Helper function to close notifications
-  const closeNotification = () => {
-    setNotification(prev => ({
-      ...prev,
-      isVisible: false,
-    }));
-  };
+  // Pagination state for vehicle overview table
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   // Get current date and time for default values
   const getCurrentDate = () => {
@@ -248,6 +212,34 @@ const Trips = () => {
     loadDrivers();
   }, []);
 
+  const stats = {
+    activeVehicles: vehicles.filter(v => v.status === 'available' || v.status === 'active').length,
+    idleVehicles: vehicles.filter(v => v.status === 'inactive' || v.status === 'maintenance')
+      .length,
+  };
+
+  // Pagination logic for vehicle overview table
+  const totalPages = Math.ceil(vehicles.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentVehicles = vehicles.slice(startIndex, startIndex + itemsPerPage);
+
+  const goToNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  const goToPrevPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const changeItemsPerPage = e => {
+    setItemsPerPage(parseInt(e.target.value));
+    setCurrentPage(1); // Reset to first page
+  };
+
+  const handleSelectVehicle = vehicle => {
+    // Vehicle selection logic can be added here if needed
+  };
+
   const handleScheduleTrip = () => {
     // Update the form with current date and time values when opening
     setTripForm(prev => ({
@@ -346,12 +338,12 @@ const Trips = () => {
         !tripForm.scheduledEndDate ||
         !tripForm.scheduledEndTime
       ) {
-        showNotification('Please fill in all required fields', 'error');
+        alert('Please fill in all required fields');
         return;
       }
 
       if (!locationCoords.start || !locationCoords.end) {
-        showNotification('Please select valid locations from the dropdown suggestions', 'error');
+        alert('Please select valid locations from the dropdown suggestions');
         return;
       }
 
@@ -366,52 +358,29 @@ const Trips = () => {
       let tripData;
       if (enhancedTripData) {
         // Enhanced data from the new modal with route information
-        // Handle both old field names (scheduledStartDate) and new ones (startDate)
-        const startDate = enhancedTripData.startDate || enhancedTripData.scheduledStartDate;
-        const startTime = enhancedTripData.startTime || enhancedTripData.scheduledStartTime;
-        const endDate = enhancedTripData.endDate || enhancedTripData.scheduledEndDate;
-        const endTime = enhancedTripData.endTime || enhancedTripData.scheduledEndTime;
-
-        // Ensure proper datetime format (ISO 8601)
-        const startDateTime = startDate && startTime ? `${startDate}T${startTime}:00Z` : null;
-        const endDateTime = endDate && endTime ? `${endDate}T${endTime}:00Z` : null;
+        const startDateTime = `${enhancedTripData.scheduledStartDate}T${enhancedTripData.scheduledStartTime}:00Z`;
+        const endDateTime = `${enhancedTripData.scheduledEndDate}T${enhancedTripData.scheduledEndTime}:00Z`;
 
         tripData = {
           name: enhancedTripData.name,
-          description: enhancedTripData.description || '',
+          description: enhancedTripData.description,
           scheduled_start_time: startDateTime,
           scheduled_end_time: endDateTime,
           origin: {
             name: enhancedTripData.startLocation,
-            location: {
-              type: 'Point',
-              coordinates: [
-                enhancedTripData.coordinates?.start?.lng || locationCoords.start?.lng,
-                enhancedTripData.coordinates?.start?.lat || locationCoords.start?.lat,
-              ],
-              address: enhancedTripData.startLocation,
-            },
-            order: 1,
+            coordinates: enhancedTripData.coordinates?.start || locationCoords.start,
           },
           destination: {
             name: enhancedTripData.endLocation,
-            location: {
-              type: 'Point',
-              coordinates: [
-                enhancedTripData.coordinates?.end?.lng || locationCoords.end?.lng,
-                enhancedTripData.coordinates?.end?.lat || locationCoords.end?.lat,
-              ],
-              address: enhancedTripData.endLocation,
-            },
-            order: 2,
+            coordinates: enhancedTripData.coordinates?.end || locationCoords.end,
           },
-          priority: enhancedTripData.priority || 'normal',
+          priority: enhancedTripData.priority,
           vehicle_id: enhancedTripData.vehicleId,
           driver_assignment: enhancedTripData.driverId,
           // Enhanced route information
           waypoints: enhancedTripData.waypoints || [],
           route_info: enhancedTripData.routeInfo || null,
-          driver_note: enhancedTripData.driverNotes || enhancedTripData.driverNote || '',
+          driver_note: enhancedTripData.driverNote,
         };
       } else {
         // Fallback to existing format method
@@ -420,53 +389,18 @@ const Trips = () => {
 
       console.log('Creating trip with data:', tripData);
 
-      // Validate the trip data before sending
-      if (!tripData.scheduled_start_time || !tripData.scheduled_end_time) {
-        throw new Error('Start and end times are required');
-      }
-
-      if (!tripData.origin?.location || !tripData.destination?.location) {
-        throw new Error('Start and end locations are required');
-      }
-
-      // Validate coordinates
-      const startCoords = tripData.origin.location.coordinates;
-      const endCoords = tripData.destination.location.coordinates;
-
-      if (
-        !startCoords ||
-        !Array.isArray(startCoords) ||
-        startCoords.length !== 2 ||
-        startCoords.some(coord => coord === null || coord === undefined)
-      ) {
-        throw new Error('Invalid start location coordinates');
-      }
-
-      if (
-        !endCoords ||
-        !Array.isArray(endCoords) ||
-        endCoords.length !== 2 ||
-        endCoords.some(coord => coord === null || coord === undefined)
-      ) {
-        throw new Error('Invalid end location coordinates');
-      }
-
-      if (!tripData.vehicle_id || !tripData.driver_assignment) {
-        throw new Error('Vehicle and driver selection are required');
-      }
-
       const response = await createTrip(tripData);
       console.log('Trip created successfully:', response);
 
       if (response.data.status === 'success') {
-        showNotification('Trip scheduled successfully!', 'success');
+        alert('Trip scheduled successfully!');
       } else {
-        showNotification(`Failed to create trip: ${response.data.message}`, 'error');
+        alert('Failed to create trip: ', response.data.message);
       }
       handleCloseModal();
     } catch (error) {
       console.error('Error scheduling trip:', error);
-      showNotification(`Failed to schedule trip: ${error.message || 'Please try again.'}`, 'error');
+      alert(`Failed to schedule trip: ${error.message || 'Please try again.'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -535,122 +469,129 @@ const Trips = () => {
       />
 
       <div className="relative z-10">
-        {/* Header with Title and Schedule Button */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold animate-fade-in text-foreground">Trip Management</h1>
+        <h1 className="text-3xl font-bold mb-6 animate-fade-in text-foreground">Trip Management</h1>
+        <div className="animate-fade-in animate-delay-100">
+          <ActiveTripsPanel activeTrips={activeTrips} />
+        </div>
+        <div className="animate-fade-in animate-delay-200">
+          <SchedulingPanel
+            availableVehicles={availableVehicles.length}
+            availableDrivers={availableDrivers.length}
+            onScheduleClick={handleScheduleTrip}
+          />
+        </div>
+        <div className="animate-fade-in animate-delay-300">
+          <TripsAnalytics
+            driverData={driverAnalytics} // Add driver analytics data
+            vehicleData={vehicleAnalytics} // Add vehicle analytics data
+            timeframe={analyticsTimeframe}
+            onTimeframeChange={setAnalyticsTimeframe} // Add timeframe change handler
+          />
+        </div>
+        <div className="animate-fade-in animate-delay-400">
+          <TripsHistory trips={[]} />
+        </div>
+        <div className="animate-fade-in animate-delay-500">
+          <VehicleStatistics stats={stats} />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in animate-delay-600">
+          <div className="lg:col-span-1">
+            <VehicleList vehicles={vehicles} onSelectVehicle={handleSelectVehicle} />
+          </div>
+        </div>
+        <div className="mt-6 flex justify-end animate-fade-in animate-delay-700">
           <button
-            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition animate-fade-in flex items-center gap-2"
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition"
             onClick={handleScheduleTrip}
           >
-            <Plus size={18} />
             Schedule New Trip
           </button>
         </div>
-
-        {/* Tab Navigation */}
-        <div className="mb-6">
-          <div className="border-b border-border">
-            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-              {tabs.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.id
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        <div className="tab-content">
-          {/* Overview Tab */}
-          {activeTab === 'overview' && (
-            <div className="space-y-6 animate-fade-in">
-              {/* Stats Cards */}
-              <OverviewStatsCards
-                availableVehicles={availableVehicles.length}
-                availableDrivers={availableDrivers.length}
+        {/* Enhanced Trip Scheduling Modal with Map */}
+        <TripSchedulingModal
+          showModal={showScheduleModal}
+          onClose={handleCloseModal}
+          onSubmit={handleSubmitTrip}
+          tripForm={tripForm}
+          onFormChange={handleFormChange}
+          vehicles={vehicles}
+          drivers={drivers}
+          isSubmitting={isSubmitting}
+          availableVehicles={availableVehicles}
+        />
+        {/* Trip History Section */}
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold mb-4">Vehicle Overview</h2>
+          <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4">License Plate</th>
+                    <th className="text-left py-3 px-4">Make & Model</th>
+                    <th className="text-left py-3 px-4">Year</th>
+                    <th className="text-left py-3 px-4">Department</th>
+                    <th className="text-left py-3 px-4">Status</th>
+                    <th className="text-left py-3 px-4">Mileage</th>
+                    <th className="text-left py-3 px-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentVehicles.length > 0 ? (
+                    currentVehicles.map(vehicle => (
+                      <tr key={vehicle.id} className="border-b border-border hover:bg-accent/10">
+                        <td className="py-3 px-4">
+                          {vehicle.license_plate || vehicle.registration_number}
+                        </td>
+                        <td className="py-3 px-4">
+                          {vehicle.make} {vehicle.model}
+                        </td>
+                        <td className="py-3 px-4">{vehicle.year}</td>
+                        <td className="py-3 px-4">{vehicle.department}</td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={
+                              vehicle.status === 'available' || vehicle.status === 'active'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 py-1 px-2 rounded-full text-xs'
+                                : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 py-1 px-2 rounded-full text-xs'
+                            }
+                          >
+                            {vehicle.status.charAt(0).toUpperCase() + vehicle.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">{vehicle.mileage.toLocaleString()} km</td>
+                        <td className="py-3 px-4">
+                          <button
+                            className="text-primary hover:text-primary/80"
+                            onClick={() => handleSelectVehicle(vehicle)}
+                          >
+                            View Details
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="py-3 px-4 text-center text-muted-foreground">
+                        No vehicle data available
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {/* Add Pagination */}
+            {vehicles.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                itemsPerPage={itemsPerPage}
+                goToNextPage={goToNextPage}
+                goToPrevPage={goToPrevPage}
+                changeItemsPerPage={changeItemsPerPage}
               />
-
-              <div className="animate-fade-in animate-delay-200">
-                <SchedulingPanel
-                  availableVehicles={availableVehicles.length}
-                  availableDrivers={availableDrivers.length}
-                  onScheduleClick={handleScheduleTrip}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Active Tab */}
-          {activeTab === 'active' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="animate-fade-in animate-delay-100">
-                <ActiveTripsPanel activeTrips={activeTrips} />
-              </div>
-
-              {/* Active Trips Map */}
-              <div className="animate-fade-in animate-delay-200">
-                <ActiveTripsMap activeLocations={mockActiveLocations} />
-              </div>
-            </div>
-          )}
-
-          {/* Upcoming Tab */}
-          {activeTab === 'upcoming' && (
-            <div className="space-y-6 animate-fade-in">
-              {/* Summary Cards */}
-              <div className="animate-fade-in animate-delay-100">
-                <UpcomingTripsStats upcomingTrips={mockUpcomingTrips} />
-              </div>
-
-              {/* Trips Table */}
-              <div className="animate-fade-in animate-delay-200">
-                <UpcomingTripsTable upcomingTrips={mockUpcomingTrips} />
-              </div>
-            </div>
-          )}
-
-          {/* Recent Tab */}
-          {activeTab === 'recent' && (
-            <div className="space-y-6 animate-fade-in">
-              {/* Summary Cards */}
-              <div className="animate-fade-in animate-delay-100">
-                <RecentTripsStats recentTrips={mockRecentTrips} />
-              </div>
-
-              {/* Trips Table */}
-              <div className="animate-fade-in animate-delay-200">
-                <RecentTripsTable recentTrips={mockRecentTrips} />
-              </div>
-
-              {/* Keep the existing TripsHistory component as well */}
-              <div className="animate-fade-in animate-delay-300">
-                <TripsHistory trips={[]} />
-              </div>
-            </div>
-          )}
-
-          {/* Analytics Tab */}
-          {activeTab === 'analytics' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="animate-fade-in animate-delay-100">
-                <TripsAnalytics
-                  driverData={driverAnalytics}
-                  vehicleData={vehicleAnalytics}
-                  timeframe={analyticsTimeframe}
-                  onTimeframeChange={setAnalyticsTimeframe}
-                />
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Trip Scheduling Modal */}
@@ -664,14 +605,6 @@ const Trips = () => {
           drivers={drivers}
           isSubmitting={isSubmitting}
           availableVehicles={availableVehicles}
-        />
-
-        {/* Notification Component */}
-        <Notification
-          message={notification.message}
-          type={notification.type}
-          isVisible={notification.isVisible}
-          onClose={closeNotification}
         />
       </div>
     </div>
