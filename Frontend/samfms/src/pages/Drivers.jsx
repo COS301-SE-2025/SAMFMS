@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import DriverList from '../components/drivers/DriverList';
 import DriverSearch from '../components/drivers/DriverSearch';
 import DriverActions from '../components/drivers/DriverActions';
@@ -7,8 +7,8 @@ import VehicleAssignmentModal from '../components/drivers/VehicleAssignmentModal
 import AddDriverModal from '../components/drivers/AddDriverModal';
 import EditDriverModal from '../components/drivers/EditDriverModal';
 
-import { getDrivers, deleteDriver, searchDrivers } from '../backend/api/drivers';
-import { getAllDrivers } from '../backend/api/drivers';
+import {getDrivers, deleteDriver, searchDrivers} from '../backend/api/drivers';
+import {getAllDrivers} from '../backend/api/drivers';
 
 const Drivers = () => {
   const [drivers, setDrivers] = useState([]);
@@ -56,7 +56,7 @@ const Drivers = () => {
       try {
         setLoading(true);
         setError(null);
-        const params = { limit: 100 };
+        const params = {limit: 100};
         if (filters.status) {
           params.status_filter = filters.status.toLowerCase().replace(/\s+/g, '_');
         }
@@ -64,7 +64,7 @@ const Drivers = () => {
           params.department_filter = filters.department;
         }
 
-        const response = await getAllDrivers(params);
+        const response = await getDrivers(params);
         console.log('Full response:', response); // Debug log
 
         // Access the correct nested data structure
@@ -95,12 +95,12 @@ const Drivers = () => {
       setLoading(true);
       setError(null);
       if (!searchQuery.trim()) {
-        const response = await getAllDrivers({
+        const response = await getDrivers({
           limit: 100,
           ...(filters.status && {
             status_filter: filters.status.toLowerCase().replace(/\s+/g, '_'),
           }),
-          ...(filters.department && { department_filter: filters.department }),
+          ...(filters.department && {department_filter: filters.department}),
         });
 
         // Access the correct nested data structure
@@ -217,7 +217,7 @@ const Drivers = () => {
       console.error('Error processing new driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getAllDrivers({ limit: 100 });
+        const response = await getDrivers({limit: 100});
         const driversData = response?.data?.data?.drivers || response?.drivers || [];
         const transformedDrivers = driversData.map(transformDriverData);
         setDrivers(transformedDrivers);
@@ -264,7 +264,7 @@ const Drivers = () => {
       console.error('Error processing updated driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getAllDrivers({ limit: 100 });
+        const response = await getDrivers({limit: 100});
         const driversData = response?.data?.data?.drivers || response?.drivers || [];
         const transformedDrivers = driversData.map(transformDriverData);
         setDrivers(transformedDrivers);
