@@ -63,7 +63,7 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
   // Handle trip selection
   const handleTripSelect = trip => {
     setSelectedTrip(trip);
-    
+
     // If the trip has route coordinates, fit the map to show the entire route
     if (trip.routeCoordinates && trip.routeCoordinates.length > 0) {
       setMapBounds(trip.routeCoordinates);
@@ -91,16 +91,18 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
   useEffect(() => {
     if (activeLocations.length > 0 && !selectedTrip) {
       // Center on the first location or calculate center of all locations
-      const validLocations = activeLocations.filter(loc => 
-        loc.position && loc.position[0] !== 0 && loc.position[1] !== 0
+      const validLocations = activeLocations.filter(
+        loc => loc.position && loc.position[0] !== 0 && loc.position[1] !== 0
       );
-      
+
       if (validLocations.length === 1) {
         setMapCenter(validLocations[0].position);
       } else if (validLocations.length > 1) {
         // Calculate approximate center of all locations
-        const avgLat = validLocations.reduce((sum, loc) => sum + loc.position[0], 0) / validLocations.length;
-        const avgLng = validLocations.reduce((sum, loc) => sum + loc.position[1], 0) / validLocations.length;
+        const avgLat =
+          validLocations.reduce((sum, loc) => sum + loc.position[0], 0) / validLocations.length;
+        const avgLng =
+          validLocations.reduce((sum, loc) => sum + loc.position[1], 0) / validLocations.length;
         setMapCenter([avgLat, avgLng]);
       }
     }
@@ -132,7 +134,7 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           />
           <MapUpdater center={mapCenter} zoom={13} bounds={mapBounds} />
-          
+
           {/* Render route polylines */}
           {activeLocations &&
             activeLocations.length > 0 &&
@@ -143,14 +145,18 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
                   <Polyline
                     positions={location.routeCoordinates}
                     pathOptions={{
-                      color: location.status === 'In Transit' ? '#3b82f6' : 
-                             location.status === 'At Destination' ? '#22c55e' : '#f59e0b',
+                      color:
+                        location.status === 'In Transit'
+                          ? '#3b82f6'
+                          : location.status === 'At Destination'
+                          ? '#22c55e'
+                          : '#f59e0b',
                       weight: 4,
                       opacity: 0.8,
                     }}
                   />
                 )}
-                
+
                 {/* Origin marker */}
                 {location.origin && location.origin[0] !== 0 && location.origin[1] !== 0 && (
                   <Marker
@@ -170,9 +176,54 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
                     </Popup>
                   </Marker>
                 )}
-                
+
                 {/* Destination marker */}
+                <Marker position={location.position} icon={createVehicleIcon(location.status)}>
+                  <Popup>
+                    <div className="text-sm">
+                      <h4 className="font-semibold">{location.vehicleName}</h4>
+                      <p className="text-muted-foreground">Driver: {location.driver}</p>
+                      <p className="text-muted-foreground">Going to: {location.destination}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            location.status === 'In Transit'
+                              ? 'bg-blue-500'
+                              : location.status === 'At Destination'
+                              ? 'bg-green-500'
+                              : 'bg-orange-500'
+                          }`}
+                        ></div>
+                        <span className="text-xs">{location.status}</span>
+                      </div>
+                      <div className="mt-1">
+                        <div className="flex justify-between text-xs">
+                          <span>Progress</span>
+                          <span>{location.progress}%</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5 mt-1">
+                          <div
+                            className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                            style={{ width: `${location.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              </React.Fragment>
+            ))}
+
+          {/* Legacy markers (keeping for backwards compatibility - remove these when not needed) */}
+          {activeLocations &&
+            activeLocations.length > 0 &&
+            activeLocations
+              .filter(
+                location => !location.routeCoordinates || location.routeCoordinates.length === 0
+              )
+              .map(location => (
                 <Marker
+                  key={location.id}
                   position={location.position}
                   icon={createVehicleIcon(location.status)}
                 >
@@ -208,51 +259,7 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
                     </div>
                   </Popup>
                 </Marker>
-              </React.Fragment>
-            ))}
-          
-          {/* Legacy markers (keeping for backwards compatibility - remove these when not needed) */}
-          {activeLocations &&
-            activeLocations.length > 0 &&
-            activeLocations.filter(location => !location.routeCoordinates || location.routeCoordinates.length === 0).map(location => (
-              <Marker
-                key={location.id}
-                position={location.position}
-                icon={createVehicleIcon(location.status)}
-              >
-                <Popup>
-                  <div className="text-sm">
-                    <h4 className="font-semibold">{location.vehicleName}</h4>
-                    <p className="text-muted-foreground">Driver: {location.driver}</p>
-                    <p className="text-muted-foreground">Going to: {location.destination}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          location.status === 'In Transit'
-                            ? 'bg-blue-500'
-                            : location.status === 'At Destination'
-                            ? 'bg-green-500'
-                            : 'bg-orange-500'
-                        }`}
-                      ></div>
-                      <span className="text-xs">{location.status}</span>
-                    </div>
-                    <div className="mt-1">
-                      <div className="flex justify-between text-xs">
-                        <span>Progress</span>
-                        <span>{location.progress}%</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-1.5 mt-1">
-                        <div
-                          className="bg-primary h-1.5 rounded-full transition-all duration-300"
-                          style={{ width: `${location.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+              ))}
         </MapContainer>
 
         {/* Sidebar Toggle Button */}
