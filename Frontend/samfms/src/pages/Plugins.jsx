@@ -108,7 +108,7 @@ const Plugins = () => {
         {/* Plugin Health Overview */}
         <FadeIn delay={0.3}>
           <div className="mb-8">
-            <div className="bg-card/80 backdrop-blur-sm rounded-xl p-6 border border-border/50 shadow-lg">
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 backdrop-blur-sm rounded-xl p-6 border border-border/50 shadow-lg">
               <PluginTable />
             </div>
           </div>

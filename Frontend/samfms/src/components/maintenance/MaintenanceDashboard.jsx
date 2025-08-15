@@ -101,7 +101,7 @@ const MaintenanceDashboard = ({ vehicles }) => {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Records</p>
@@ -115,7 +115,7 @@ const MaintenanceDashboard = ({ vehicles }) => {
           </div>
         </div>
 
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Overdue</p>
@@ -133,7 +133,7 @@ const MaintenanceDashboard = ({ vehicles }) => {
           </div>
         </div>
 
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Upcoming (30 days)</p>
@@ -151,7 +151,7 @@ const MaintenanceDashboard = ({ vehicles }) => {
           </div>
         </div>
 
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">This Month Cost</p>
@@ -175,7 +175,7 @@ const MaintenanceDashboard = ({ vehicles }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Maintenance Records */}
-        <div className="lg:col-span-2 bg-card rounded-lg shadow-md p-6">
+        <div className="lg:col-span-2 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold mb-4">Recent Maintenance Records</h3>
           {data.recent_records && data.recent_records.length > 0 ? (
             <div className="space-y-3">
@@ -214,7 +214,7 @@ const MaintenanceDashboard = ({ vehicles }) => {
         </div>
 
         {/* Notifications/Alerts */}
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold mb-4">Alerts & Notifications</h3>
           {notifications.length > 0 ? (
             <div className="space-y-3 max-h-96 overflow-y-auto">

@@ -163,6 +163,7 @@ const getRoute = async (startLocation, endLocation, waypoints = []) => {
         coordinates: routeCoords,
         distance: route.summary.distance, // meters
         duration: route.summary.duration, // seconds
+        polyline: geometry, // Raw polyline string for backend storage
         success: true,
       };
     } else {

@@ -419,7 +419,6 @@ const Drivers = () => {
             </div>
           </div>
         </div>
-        <h1 className="text-3xl font-bold mb-6">Driver Management</h1>
         <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6">
           <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
             <h2 className="text-xl font-semibold">Manage Drivers</h2>
