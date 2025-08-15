@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useTheme } from '../../contexts/ThemeContext';
+import React, {useState} from 'react';
+import {Link, useLocation, useNavigate} from 'react-router-dom';
+import {useTheme} from '../../contexts/ThemeContext';
 import {
   Menu,
   X,
@@ -16,24 +16,24 @@ import {
   HelpCircle,
   LogOut,
 } from 'lucide-react';
-import { Button } from '../ui/button';
-import { cn } from '../../lib/utils';
-import { createPortal } from 'react-dom';
-import { useAuth, PERMISSIONS, ROLES } from '../auth/RBACUtils';
+import {Button} from '../ui/button';
+import {cn} from '../../lib/utils';
+import {createPortal} from 'react-dom';
+import {useAuth, PERMISSIONS, ROLES} from '../auth/RBACUtils';
 import SearchBar from './SearchBar';
-import { logout } from '../../backend/API.js';
+import {logout} from '../../backend/API.js';
 
 const MobileNav = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { theme } = useTheme();
-  const { hasPermission, hasAnyRole, hasRole } = useAuth();
+  const {theme} = useTheme();
+  const {hasPermission, hasAnyRole, hasRole} = useAuth();
 
   // Define navigation items with permission requirements (matching Sidebar)
   const allNavItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: <Home size={20} />, permission: null }, // Always visible
+    {path: '/dashboard', label: 'Dashboard', icon: <Home size={20} />, permission: null}, // Always visible
     {
       path: '/vehicles',
       label: 'Vehicles',
@@ -70,9 +70,9 @@ const MobileNav = () => {
       icon: <UserPlus size={20} />,
       roles: [ROLES.ADMIN],
     }, // Admin only
-    { path: '/plugins', label: 'Plugins', icon: <Package2 size={20} />, roles: [ROLES.ADMIN] }, // Admin only
-    { path: '/account', label: 'Account', icon: <User size={20} />, permission: null }, // Always visible
-    { path: '/help', label: 'Help', icon: <HelpCircle size={20} />, permission: null }, // Always visible to all users
+    {path: '/plugins', label: 'Plugins', icon: <Package2 size={20} />, roles: [ROLES.ADMIN]}, // Admin only
+    {path: '/account', label: 'Account', icon: <User size={20} />, permission: null}, // Always visible
+    {path: '/help', label: 'Help', icon: <HelpCircle size={20} />, permission: null}, // Always visible to all users
   ];
 
   // Filter navigation items based on user permissions (matching Sidebar logic)
@@ -125,7 +125,7 @@ const MobileNav = () => {
               onClick={() => setIsOpen(false)}
             />
             {/* Navigation panel */}
-            <div className="fixed inset-y-0 left-0 w-3/4 max-w-xs bg-card border-r border-border shadow-xl z-[10000] flex flex-col">
+            <div className="fixed inset-y-0 left-0 w-3/4 max-w-xs bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-r border-border shadow-xl z-[10000] flex flex-col">
               <div className="flex items-center justify-between p-4 border-b border-border">
                 <img
                   src={
@@ -142,10 +142,6 @@ const MobileNav = () => {
               </div>
 
               <nav className="flex-1 p-4 overflow-y-auto">
-                {/* Mobile search component */}
-                <div className="mb-4">
-                  <SearchBar />
-                </div>
 
                 <ul className="space-y-2">
                   {navItems.map(item => (
