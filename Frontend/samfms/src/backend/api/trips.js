@@ -13,6 +13,7 @@ const TRIPS_ENDPOINTS = {
   upcommingtrips: API_ENDPOINTS.TRIPS.UPCOMMINGTRIPS,
   recenttrips: API_ENDPOINTS.TRIPS.RECENTTRIPS,
   recenttripsall: API_ENDPOINTS.TRIPS.RECENTTRIPSALL,
+  polyline: API_ENDPOINTS.TRIPS.VEHICLEPOLYLINE,
   ANALYTICS: {
     HISTORY_STATS: API_ENDPOINTS.TRIPS.ANALYTICS.HISTORY_STATS,
     DRIVERSTATS: API_ENDPOINTS.TRIPS.ANALYTICS.DRiVERSTATS,
@@ -602,3 +603,14 @@ export const getTripHistoryStats = async (days = null) => {
     };
   }
 };
+
+export const getVehiclePolyline = async (VehicleID) => {
+  try {
+    const response = httpClient.get(TRIPS_ENDPOINTS.polyline(VehicleID));
+    
+    return response;
+  } catch (error) {
+    console.error("Error fetching polyline for vehicle: ", VehicleID)
+    throw error
+  }
+}

@@ -50,10 +50,10 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
   // Filter active trips based on search term
   const filteredTrips = activeLocations.filter(
     trip =>
-      trip.vehicleName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      trip.driver.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      trip.destination.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      trip.status.toLowerCase().includes(searchTerm.toLowerCase())
+      (trip.vehicle_id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (trip.driver_assignment || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (trip.destination.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (trip.status || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Handle trip selection
@@ -250,7 +250,7 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
                             }`}
                           ></div>
                           <span className="text-xs text-muted-foreground capitalize">
-                            {trip.status.toLowerCase()}
+                            {(trip.status || "").toLowerCase()}
                           </span>
                         </div>
                       </div>

@@ -25,6 +25,7 @@ import { getVehicles } from '../backend/api/vehicles';
 import { getAllDrivers } from '../backend/api/drivers';
 import { mockActiveLocations } from '../data/mockTripsData';
 
+
 const Trips = () => {
   // Existing state
   const [vehicles, setVehicles] = useState([]);
@@ -413,6 +414,7 @@ const Trips = () => {
         // More permissive filtering to include drivers with different status formats
         const availableDrivers = driversData.filter(driver => {
           // Check if driver exists and has a valid structure
+          console.log("Entered available drivers: ", driver)
           if (!driver) return false;
 
           // More inclusive filtering logic - accept available, active, and drivers without status
@@ -685,6 +687,7 @@ const Trips = () => {
   // More permissive filtering to include vehicles with different status formats
   const availableVehicles = vehicles.filter(v => {
     // Check if vehicle exists and has a valid structure
+    console.log("Entered available vehicle, ", v);
     if (!v) return false;
 
     // More inclusive filtering logic - accept available, operational, and inactive vehicles
@@ -808,7 +811,7 @@ const Trips = () => {
 
               {/* Active Trips Map */}
               <div className="animate-fade-in animate-delay-200">
-                <ActiveTripsMap activeLocations={mockActiveLocations} />
+                <ActiveTripsMap activeLocations={activeTrips} />
               </div>
             </div>
           )}

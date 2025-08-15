@@ -268,6 +268,21 @@ class ServiceRequestConsumer:
             logger.info(f"[DEBUG] Full endpoint analysis: endpoint='{endpoint}', method='{method}'")
 
             if method == "GET":
+                if "polyline" in endpoint:
+                    vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                    logger.info(f"Vehicle ID extracted for polyline: {vehicle_id}")
+                    if vehicle_id is None:
+                        return ResponseBuilder.error(
+                            error="Error while processing polyline",
+                            message="Vehicle ID was not included",
+                        )
+                    
+                    polyline = await trip_service.get_vehicle_polyline()
+                    return ResponseBuilder.success(
+                        data=polyline,
+                        message="Successfully retrieved polyline"
+                    )
+
                 if "upcomming" in endpoint:
                     driver_id = endpoint.split('/')[-1] if '/' in endpoint else None
                     logger.info(f"Driver ID extracted for upcomming trips: {driver_id} ")
