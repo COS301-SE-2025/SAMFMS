@@ -419,6 +419,36 @@ class TripService:
         except Exception as e:
             logger.error(f"Failed to calculate analytics for trip {trip.id}: {e}")
 
+    async def get_all_upcoming_trips(self) -> List[Trip]:
+        """Get all upcoming trips regardless of driver"""
+        logger.info("[TripService.get_all_upcoming_trips] Getting all upcoming trips")
+        try:
+            # Current UTC time for filtering
+            now = datetime.utcnow()
+            
+            query = {
+                "scheduled_start_time": {"$gte": now},
+                "actual_start_time": {"$in": [None, ""]}  # not yet started
+            }
+            
+            logger.debug(f"[TripService.get_all_upcoming_trips] Query: {query}")
+            
+            # Sort by scheduled start time ascending
+            cursor = self.db.trips.find(query).sort("scheduled_start_time", 1)
+            trips = []
+            
+            async for trip_doc in cursor:
+                trip_doc["_id"] = str(trip_doc["_id"])
+                trips.append(Trip(**trip_doc))
+            
+            logger.info(f"[TripService.get_all_upcoming_trips] Found {len(trips)} upcoming trips")
+            return trips
+
+        except Exception as e:
+            logger.error(f"[TripService.get_all_upcoming_trips] Error: {e}")
+            raise
+
+
     async def get_upcoming_trips(self, driver_id: str) -> List[Trip]:
         """Get upcoming trips for a specific driver"""
         logger.info(f"[TripService.get_upcoming_trips] Getting upcoming trips for driver: {driver_id}")

@@ -268,11 +268,12 @@ class ServiceRequestConsumer:
                     driver_id = endpoint.split('/')[-1] if '/' in endpoint else None
                     logger.info(f"Driver ID extracted for upcomming trips: {driver_id} ")
                     if driver_id is None:
-                        logger.info("Failed to extract id in upcomming trip request")
-                        return ResponseBuilder.error(
-                            error= "Driver ID problem",
-                            message="Driver ID was not extracted from the endpoint"
-                        )
+                        # Return all the upcomming trips
+                        trip = await trip_service.get_all_upcoming_trips()
+                        return ResponseBuilder.success(
+                            data=trips,
+                            message="All upcomming trips retrieved successfully"
+                        ).model_dump()
                     
                     trips = await trip_service.get_upcoming_trips(driver_id)
                     return ResponseBuilder.success(

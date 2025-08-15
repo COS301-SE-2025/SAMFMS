@@ -9,6 +9,7 @@ const TRIPS_ENDPOINTS = {
   ACTIVE: API_ENDPOINTS.TRIPS.ACTIVE,
   HISTORY: API_ENDPOINTS.TRIPS.HISTORY,
   finish: API_ENDPOINTS.TRIPS.FINISHED,
+  allupcomming: API_ENDPOINTS.TRIPS.UPCOMMINGTRIPSALL,
   upcommingtrips: API_ENDPOINTS.TRIPS.UPCOMMINGTRIPS,
   recenttrips: API_ENDPOINTS.TRIPS.RECENTTRIPS,
   ANALYTICS: {
@@ -241,18 +242,14 @@ export const getVehicleAnalytics = async (timeframe = 'week') => {
   }
 };
 
-// Get upcoming trips for a specific driver
-// Get upcoming trips for a specific driver
-export const getUpcomingTrips = async (driverId) => {
+// Get upcoming all trips
+export const getAllUpcommingTrip = async () => {
   try {
-    console.log(`Fetching upcoming trips for driver: ${driverId}`);
-    const response = await httpClient.get(TRIPS_ENDPOINTS.upcommingtrips(driverId));
-    console.log("Response for upcoming trips: ", response);
-    
-    // Extract the trips data from the nested response structure
-    // Based on your log structure: response.data.data is an array
+    const response = await httpClient.get(TRIPS_ENDPOINTS.allupcomming);
+    console.log("Response for all upcomming trips: ", response);
+
     let trips = [];
-    
+
     if (Array.isArray(response?.data?.data)) {
       trips = response.data.data;
     } else if (Array.isArray(response?.data?.data?.data)) {
@@ -260,10 +257,86 @@ export const getUpcomingTrips = async (driverId) => {
     } else if (Array.isArray(response?.data)) {
       trips = response.data;
     }
-    
+
     console.log("Extracted trips array:", trips); // Debug log
     console.log("Number of trips found:", trips.length); // Debug log
-    
+
+    // Transform the data to match your frontend expectations
+    const transformedTrips = trips.map(trip => ({
+      id: trip.id,
+      name: trip.name,
+      description: trip.description,
+      scheduledStartTime: trip.scheduled_start_time,
+      scheduledEndTime: trip.scheduled_end_time,
+      actualStartTime: trip.actual_start_time,
+      actualEndTime: trip.actual_end_time,
+      origin: {
+        name: trip.origin.name,
+        coordinates: trip.origin.location.coordinates,
+        address: trip.origin.address
+      },
+      destination: {
+        name: trip.destination.name,
+        coordinates: trip.destination.location.coordinates,
+        address: trip.destination.address
+      },
+      waypoints: trip.waypoints,
+      status: trip.status,
+      priority: trip.priority,
+      estimatedEndTime: trip.estimated_end_time,
+      estimatedDistance: trip.estimated_distance,
+      driverAssignment: trip.driver_assignment,
+      vehicleId: trip.vehicle_id,
+      constraints: trip.constraints,
+      createdBy: trip.created_by,
+      createdAt: trip.created_at,
+      updatedAt: trip.updated_at,
+      customFields: trip.custom_fields
+    }));
+
+    return {
+      data: {
+        trips: transformedTrips,
+        count: transformedTrips.length,
+        message: response?.data?.data?.message || response?.data?.message || 'Upcoming trips retrieved successfully'
+      },
+      status: response?.data?.status || response?.status || 'success'
+    };
+
+  } catch (error) {
+    console.error('Error fetching all upcoming trips:', error);
+    // Return fallback data for development
+    return {
+      data: {
+        trips: [],
+        count: 0,
+      },
+      message: 'No upcoming trips found',
+    };
+  }
+}
+// Get upcoming trips for a specific driver
+export const getUpcomingTrips = async (driverId) => {
+  try {
+    console.log(`Fetching upcoming trips for driver: ${driverId}`);
+    const response = await httpClient.get(TRIPS_ENDPOINTS.upcommingtrips(driverId));
+    console.log("Response for upcoming trips: ", response);
+
+    // Extract the trips data from the nested response structure
+    // Based on your log structure: response.data.data is an array
+    let trips = [];
+
+    if (Array.isArray(response?.data?.data)) {
+      trips = response.data.data;
+    } else if (Array.isArray(response?.data?.data?.data)) {
+      trips = response.data.data.data;
+    } else if (Array.isArray(response?.data)) {
+      trips = response.data;
+    }
+
+    console.log("Extracted trips array:", trips); // Debug log
+    console.log("Number of trips found:", trips.length); // Debug log
+
     // Transform the data to match your frontend expectations
     const transformedTrips = trips.map(trip => ({
       id: trip.id,
@@ -326,7 +399,7 @@ export const getRecentTrips = async (driverId) => {
     console.log("Response for recent trips: ", response)
 
     let trips = [];
-    
+
     if (Array.isArray(response?.data?.data)) {
       trips = response.data.data;
     } else if (Array.isArray(response?.data?.data?.data)) {
@@ -334,10 +407,10 @@ export const getRecentTrips = async (driverId) => {
     } else if (Array.isArray(response?.data)) {
       trips = response.data;
     }
-    
+
     console.log("Extracted trips array:", trips); // Debug log
     console.log("Number of trips found:", trips.length); // Debug log
-    
+
     // Transform the data to match your frontend expectations
     const transformedTrips = trips.map(trip => ({
       id: trip.id,
