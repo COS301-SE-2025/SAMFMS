@@ -35,10 +35,10 @@ const Drivers = () => {
   // Transform backend driver data to frontend format
   const transformDriverData = useCallback(backendDriver => {
     return {
-      id: backendDriver._id,
-      name: `${backendDriver.first_name} ${backendDriver.last_name}`,
+      id: backendDriver.id,
+      name: `${backendDriver.full_name}`,
       licenseNumber: backendDriver.license_number || 'N/A',
-      phone: backendDriver.phone || 'N/A',
+      phone: backendDriver.phoneNo || 'N/A',
       licenseExpiry: backendDriver.license_expiry || 'N/A',
       email: backendDriver.email || 'N/A',
       status: backendDriver.status === 'active' ? 'Active' : 'Inactive',
@@ -64,7 +64,7 @@ const Drivers = () => {
           params.department_filter = filters.department;
         }
 
-        const response = await getAllDrivers(params);
+        const response = await getDrivers(params);
         console.log('Full response:', response); // Debug log
 
         // Access the correct nested data structure
@@ -95,7 +95,7 @@ const Drivers = () => {
       setLoading(true);
       setError(null);
       if (!searchQuery.trim()) {
-        const response = await getAllDrivers({
+        const response = await getDrivers({
           limit: 100,
           ...(filters.status && {
             status_filter: filters.status.toLowerCase().replace(/\s+/g, '_'),
@@ -217,7 +217,7 @@ const Drivers = () => {
       console.error('Error processing new driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getAllDrivers({ limit: 100 });
+        const response = await getDrivers({ limit: 100 });
         const driversData = response?.data?.data?.drivers || response?.drivers || [];
         const transformedDrivers = driversData.map(transformDriverData);
         setDrivers(transformedDrivers);
@@ -264,7 +264,7 @@ const Drivers = () => {
       console.error('Error processing updated driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getAllDrivers({ limit: 100 });
+        const response = await getDrivers({ limit: 100 });
         const driversData = response?.data?.data?.drivers || response?.drivers || [];
         const transformedDrivers = driversData.map(transformDriverData);
         setDrivers(transformedDrivers);
@@ -419,7 +419,6 @@ const Drivers = () => {
             </div>
           </div>
         </div>
-        <h1 className="text-3xl font-bold mb-6">Driver Management</h1>
         <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6">
           <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
             <h2 className="text-xl font-semibold">Manage Drivers</h2>

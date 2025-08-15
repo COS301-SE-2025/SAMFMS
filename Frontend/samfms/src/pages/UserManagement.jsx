@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useAuth, ROLES } from '../components/auth/RBACUtils.jsx';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, {useState, useEffect, useRef} from 'react';
+import {useAuth, ROLES} from '../components/auth/RBACUtils.jsx';
+import {ChevronLeft, ChevronRight} from 'lucide-react';
 import {
   listUsers,
   updateUserPermissions,
@@ -11,17 +11,17 @@ import {
   createUserManually,
   getDrivers,
 } from '../backend/API.js';
-import { Navigate } from 'react-router-dom';
+import {Navigate} from 'react-router-dom';
 import UserTable from '../components/user/UserTable.jsx';
 import ManualCreateUserModal from '../components/user/ManualCreateUserModal.jsx';
-import { useNotification } from '../contexts/NotificationContext.jsx';
+import {useNotification} from '../contexts/NotificationContext.jsx';
 import FadeIn from '../components/ui/FadeIn.jsx';
 
-import { createDriver } from '../backend/api/drivers.js';
+import {createDriver} from '../backend/api/drivers.js';
 
 const UserManagement = () => {
-  const { hasPermission, hasRole } = useAuth();
-  const { showNotification } = useNotification();
+  const {hasPermission, hasRole} = useAuth();
+  const {showNotification} = useNotification();
   const [adminUsers, setAdminUsers] = useState([]);
   const [managerUsers, setManagerUsers] = useState([]);
   const [driverUsers, setDriverUsers] = useState([]);
@@ -71,7 +71,7 @@ const UserManagement = () => {
     try {
       // Load drivers from the drivers API if user has permission
       if (hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) {
-        const driversData = await getDrivers({ limit: 100 });
+        const driversData = await getDrivers({limit: 100});
         // Transform driver data to match user table format
         const transformedDrivers = driversData.map(driver => ({
           id: driver.id || driver._id,
@@ -339,13 +339,13 @@ const UserManagement = () => {
   const invitationActions = invitation => [
     ...(!invitation.is_expired && invitation.can_resend
       ? [
-          {
-            label: 'Resend OTP',
-            variant: 'outline',
-            onClick: () => handleResendInvitation(invitation.email),
-            disabled: () => loading,
-          },
-        ]
+        {
+          label: 'Resend OTP',
+          variant: 'outline',
+          onClick: () => handleResendInvitation(invitation.email),
+          disabled: () => loading,
+        },
+      ]
       : []),
     {
       label: 'Cancel',
@@ -510,11 +510,10 @@ const UserManagement = () => {
                         <button
                           onClick={goToInvitedUsersPrevPage}
                           disabled={invitedUsersCurrentPage === 1}
-                          className={`p-1 rounded ${
-                            invitedUsersCurrentPage === 1
-                              ? 'text-muted-foreground cursor-not-allowed'
-                              : 'hover:bg-accent'
-                          }`}
+                          className={`p-1 rounded ${invitedUsersCurrentPage === 1
+                            ? 'text-muted-foreground cursor-not-allowed'
+                            : 'hover:bg-accent'
+                            }`}
                           title="Previous page"
                         >
                           <ChevronLeft size={18} />
@@ -522,11 +521,10 @@ const UserManagement = () => {
                         <button
                           onClick={goToInvitedUsersNextPage}
                           disabled={invitedUsersCurrentPage === invitedUsersTotalPages}
-                          className={`p-1 rounded ${
-                            invitedUsersCurrentPage === invitedUsersTotalPages
-                              ? 'text-muted-foreground cursor-not-allowed'
-                              : 'hover:bg-accent'
-                          }`}
+                          className={`p-1 rounded ${invitedUsersCurrentPage === invitedUsersTotalPages
+                            ? 'text-muted-foreground cursor-not-allowed'
+                            : 'hover:bg-accent'
+                            }`}
                           title="Next page"
                         >
                           <ChevronRight size={18} />

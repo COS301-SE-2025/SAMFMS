@@ -188,12 +188,14 @@ const TripSchedulingModal = ({
     setRouteInfo(route);
   };
 
-  // Enhanced form submission with route data
+  // Enhanced form submission with route data including polyline
   const handleSubmit = e => {
     e.preventDefault();
     const enhancedTripData = {
       ...tripForm,
       routeInfo,
+      polyline: routeInfo?.polyline || null, // Include raw polyline for backend
+      decodedPolyline: routeInfo?.coordinates || null, // Include decoded coordinates
       waypoints: mapLocations.waypoints,
       coordinates: {
         start: mapLocations.start,

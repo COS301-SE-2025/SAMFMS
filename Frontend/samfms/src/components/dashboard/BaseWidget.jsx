@@ -1,6 +1,6 @@
-import React, { useState, useCallback } from 'react';
-import { X, GripVertical } from 'lucide-react';
-import { useDashboard } from '../../contexts/DashboardContext';
+import React, {useState, useCallback} from 'react';
+import {X, GripVertical} from 'lucide-react';
+import {useDashboard} from '../../contexts/DashboardContext';
 
 export const BaseWidget = ({
   id,
@@ -14,18 +14,18 @@ export const BaseWidget = ({
   loading = false,
   error = null,
 }) => {
-  const { state, dispatch } = useDashboard();
+  const {state, dispatch} = useDashboard();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
 
   const handleRemove = useCallback(() => {
-    dispatch({ type: 'REMOVE_WIDGET', payload: id });
+    dispatch({type: 'REMOVE_WIDGET', payload: id});
   }, [dispatch, id]);
 
   const handleConfigSave = useCallback(
     newConfig => {
       dispatch({
         type: 'UPDATE_WIDGET_CONFIG',
-        payload: { id, config: newConfig },
+        payload: {id, config: newConfig},
       });
       if (onConfigChange) onConfigChange(newConfig);
       setIsConfigOpen(false);
@@ -61,7 +61,7 @@ export const BaseWidget = ({
   if (loading) {
     return (
       <div
-        className={`bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg overflow-hidden h-full flex flex-col ${className}`}
+        className={`bg-card border border-border shadow-sm overflow-hidden h-full flex flex-col ${className}`}
         role="region"
         aria-label={`${title} - Loading`}
         aria-busy="true"
@@ -95,7 +95,7 @@ export const BaseWidget = ({
   if (error) {
     return (
       <div
-        className={`bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg overflow-hidden h-full flex flex-col ${className}`}
+        className={`bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-slate-100 dark:border-slate-900 border rounded-xl shadow-lg overflow-hidden h-full flex flex-col ${className}`}
         role="region"
         aria-label={`${title} - Error`}
         aria-describedby={`error-desc-${id}`}
@@ -144,14 +144,14 @@ export const BaseWidget = ({
 
   return (
     <div
-      className={`bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg overflow-hidden h-full flex flex-col ${className}`}
+      className={`bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-slate-100 dark:border-slate-900 border rounded-xl shadow-lg overflow-hidden h-full flex flex-col ${className}`}
       role="region"
       aria-labelledby={`widget-title-${id}`}
       tabIndex={state.isEditing ? 0 : -1}
       onKeyDown={handleKeyDown}
     >
       {/* Widget Content */}
-      <div className="p-4 flex-grow overflow-hidden min-h-[100px]" role="main">
+      <div className="p-3 flex-grow overflow-hidden min-h-[100px]" role="main">
         {children}
       </div>
 
@@ -168,7 +168,7 @@ export const BaseWidget = ({
 };
 
 // Enhanced configuration modal component with validation
-const WidgetConfigModal = ({ config, onSave, onClose }) => {
+const WidgetConfigModal = ({config, onSave, onClose}) => {
   const [localConfig, setLocalConfig] = useState(config);
   const [validationErrors, setValidationErrors] = useState({});
 
@@ -206,12 +206,12 @@ const WidgetConfigModal = ({ config, onSave, onClose }) => {
   };
 
   const handleInputChange = (field, value) => {
-    setLocalConfig(prev => ({ ...prev, [field]: value }));
+    setLocalConfig(prev => ({...prev, [field]: value}));
 
     // Clear validation error when user starts typing
     if (validationErrors[field]) {
       setValidationErrors(prev => {
-        const newErrors = { ...prev };
+        const newErrors = {...prev};
         delete newErrors[field];
         return newErrors;
       });
@@ -220,7 +220,7 @@ const WidgetConfigModal = ({ config, onSave, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background rounded-lg shadow-xl w-full max-w-md">
+      <div className="bg-background shadow-xl w-full max-w-md">
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Widget Settings</h3>
@@ -235,9 +235,8 @@ const WidgetConfigModal = ({ config, onSave, onClose }) => {
               <label className="block text-sm font-medium mb-2">Widget Title</label>
               <input
                 type="text"
-                className={`w-full px-3 py-2 border rounded-md ${
-                  validationErrors.title ? 'border-destructive' : 'border-input'
-                }`}
+                className={`w-full px-3 py-2 border rounded-md ${validationErrors.title ? 'border-destructive' : 'border-input'
+                  }`}
                 value={localConfig.title || ''}
                 onChange={e => handleInputChange('title', e.target.value)}
                 placeholder="Enter widget title"
@@ -250,9 +249,8 @@ const WidgetConfigModal = ({ config, onSave, onClose }) => {
               <label className="block text-sm font-medium mb-2">Refresh Interval (seconds)</label>
               <input
                 type="number"
-                className={`w-full px-3 py-2 border rounded-md ${
-                  validationErrors.refreshInterval ? 'border-destructive' : 'border-input'
-                }`}
+                className={`w-full px-3 py-2 border rounded-md ${validationErrors.refreshInterval ? 'border-destructive' : 'border-input'
+                  }`}
                 value={localConfig.refreshInterval || 30}
                 onChange={e => handleInputChange('refreshInterval', parseInt(e.target.value))}
                 min="5"
