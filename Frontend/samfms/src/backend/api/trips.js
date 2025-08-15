@@ -12,6 +12,7 @@ const TRIPS_ENDPOINTS = {
   allupcomming: API_ENDPOINTS.TRIPS.UPCOMMINGTRIPSALL,
   upcommingtrips: API_ENDPOINTS.TRIPS.UPCOMMINGTRIPS,
   recenttrips: API_ENDPOINTS.TRIPS.RECENTTRIPS,
+  recenttripsall: API_ENDPOINTS.TRIPS.RECENTTRIPSALL,
   ANALYTICS: {
     DRIVERSTATS: API_ENDPOINTS.TRIPS.ANALYTICS.DRiVERSTATS,
     TOTALTRIPSDRIVER: API_ENDPOINTS.TRIPS.ANALYTICS.TOTALTRIPSDRIVER,
@@ -246,7 +247,7 @@ export const getVehicleAnalytics = async (timeframe = 'week') => {
 export const getAllUpcommingTrip = async () => {
   try {
     const response = await httpClient.get(TRIPS_ENDPOINTS.allupcomming);
-    console.log("Response for all upcomming trips: ", response);
+    console.log('Response for all upcomming trips: ', response);
 
     let trips = [];
 
@@ -258,8 +259,8 @@ export const getAllUpcommingTrip = async () => {
       trips = response.data;
     }
 
-    console.log("Extracted trips array:", trips); // Debug log
-    console.log("Number of trips found:", trips.length); // Debug log
+    console.log('Extracted trips array:', trips); // Debug log
+    console.log('Number of trips found:', trips.length); // Debug log
 
     // Transform the data to match your frontend expectations
     const transformedTrips = trips.map(trip => ({
@@ -273,12 +274,12 @@ export const getAllUpcommingTrip = async () => {
       origin: {
         name: trip.origin.name,
         coordinates: trip.origin.location.coordinates,
-        address: trip.origin.address
+        address: trip.origin.address,
       },
       destination: {
         name: trip.destination.name,
         coordinates: trip.destination.location.coordinates,
-        address: trip.destination.address
+        address: trip.destination.address,
       },
       waypoints: trip.waypoints,
       status: trip.status,
@@ -291,18 +292,20 @@ export const getAllUpcommingTrip = async () => {
       createdBy: trip.created_by,
       createdAt: trip.created_at,
       updatedAt: trip.updated_at,
-      customFields: trip.custom_fields
+      customFields: trip.custom_fields,
     }));
 
     return {
       data: {
         trips: transformedTrips,
         count: transformedTrips.length,
-        message: response?.data?.data?.message || response?.data?.message || 'Upcoming trips retrieved successfully'
+        message:
+          response?.data?.data?.message ||
+          response?.data?.message ||
+          'Upcoming trips retrieved successfully',
       },
-      status: response?.data?.status || response?.status || 'success'
+      status: response?.data?.status || response?.status || 'success',
     };
-
   } catch (error) {
     console.error('Error fetching all upcoming trips:', error);
     // Return fallback data for development
@@ -314,13 +317,13 @@ export const getAllUpcommingTrip = async () => {
       message: 'No upcoming trips found',
     };
   }
-}
+};
 // Get upcoming trips for a specific driver
-export const getUpcomingTrips = async (driverId) => {
+export const getUpcomingTrips = async driverId => {
   try {
     console.log(`Fetching upcoming trips for driver: ${driverId}`);
     const response = await httpClient.get(TRIPS_ENDPOINTS.upcommingtrips(driverId));
-    console.log("Response for upcoming trips: ", response);
+    console.log('Response for upcoming trips: ', response);
 
     // Extract the trips data from the nested response structure
     // Based on your log structure: response.data.data is an array
@@ -334,8 +337,8 @@ export const getUpcomingTrips = async (driverId) => {
       trips = response.data;
     }
 
-    console.log("Extracted trips array:", trips); // Debug log
-    console.log("Number of trips found:", trips.length); // Debug log
+    console.log('Extracted trips array:', trips); // Debug log
+    console.log('Number of trips found:', trips.length); // Debug log
 
     // Transform the data to match your frontend expectations
     const transformedTrips = trips.map(trip => ({
@@ -349,12 +352,12 @@ export const getUpcomingTrips = async (driverId) => {
       origin: {
         name: trip.origin.name,
         coordinates: trip.origin.location.coordinates,
-        address: trip.origin.address
+        address: trip.origin.address,
       },
       destination: {
         name: trip.destination.name,
         coordinates: trip.destination.location.coordinates,
-        address: trip.destination.address
+        address: trip.destination.address,
       },
       waypoints: trip.waypoints,
       status: trip.status,
@@ -367,18 +370,20 @@ export const getUpcomingTrips = async (driverId) => {
       createdBy: trip.created_by,
       createdAt: trip.created_at,
       updatedAt: trip.updated_at,
-      customFields: trip.custom_fields
+      customFields: trip.custom_fields,
     }));
 
     return {
       data: {
         trips: transformedTrips,
         count: transformedTrips.length,
-        message: response?.data?.data?.message || response?.data?.message || 'Upcoming trips retrieved successfully'
+        message:
+          response?.data?.data?.message ||
+          response?.data?.message ||
+          'Upcoming trips retrieved successfully',
       },
-      status: response?.data?.status || response?.status || 'success'
+      status: response?.data?.status || response?.status || 'success',
     };
-
   } catch (error) {
     console.error('Error fetching upcoming trips:', error);
     // Return fallback data for development
@@ -393,10 +398,10 @@ export const getUpcomingTrips = async (driverId) => {
 };
 
 // Get recent trips for a specific driver
-export const getRecentTrips = async (driverId) => {
+export const getRecentTrips = async driverId => {
   try {
     const response = await httpClient.get(TRIPS_ENDPOINTS.recenttrips(driverId));
-    console.log("Response for recent trips: ", response)
+    console.log('Response for recent trips: ', response);
 
     let trips = [];
 
@@ -408,8 +413,8 @@ export const getRecentTrips = async (driverId) => {
       trips = response.data;
     }
 
-    console.log("Extracted trips array:", trips); // Debug log
-    console.log("Number of trips found:", trips.length); // Debug log
+    console.log('Extracted trips array:', trips); // Debug log
+    console.log('Number of trips found:', trips.length); // Debug log
 
     // Transform the data to match your frontend expectations
     const transformedTrips = trips.map(trip => ({
@@ -423,12 +428,12 @@ export const getRecentTrips = async (driverId) => {
       origin: {
         name: trip.origin.name,
         coordinates: trip.origin.location.coordinates,
-        address: trip.origin.address
+        address: trip.origin.address,
       },
       destination: {
         name: trip.destination.name,
         coordinates: trip.destination.location.coordinates,
-        address: trip.destination.address
+        address: trip.destination.address,
       },
       waypoints: trip.waypoints,
       status: trip.status,
@@ -441,20 +446,102 @@ export const getRecentTrips = async (driverId) => {
       createdBy: trip.created_by,
       createdAt: trip.created_at,
       updatedAt: trip.updated_at,
-      customFields: trip.custom_fields
+      customFields: trip.custom_fields,
     }));
 
     return {
       data: {
         trips: transformedTrips,
         count: transformedTrips.length,
-        message: response?.data?.data?.message || response?.data?.message || 'Upcoming trips retrieved successfully'
+        message:
+          response?.data?.data?.message ||
+          response?.data?.message ||
+          'Upcoming trips retrieved successfully',
       },
-      status: response?.data?.status || response?.status || 'success'
+      status: response?.data?.status || response?.status || 'success',
     };
-
   } catch (error) {
     console.error('Error fetching recent trips:', error);
+    // Return fallback data for development
+    return {
+      data: {
+        trips: [],
+        count: 0,
+      },
+      message: 'No recent trips found',
+    };
+  }
+};
+
+// Get all recent trips (not driver-specific)
+export const getAllRecentTrips = async (limit = 10, days = 30) => {
+  try {
+    console.log(`Fetching all recent trips with limit: ${limit}, days: ${days}`);
+    const response = await httpClient.get(
+      `${TRIPS_ENDPOINTS.recenttripsall}?limit=${limit}&days=${days}`
+    );
+    console.log('Response for all recent trips: ', response);
+
+    // Extract the trips data from the nested response structure
+    let trips = [];
+
+    if (response?.data?.data?.trips && Array.isArray(response.data.data.trips)) {
+      trips = response.data.data.trips;
+    } else if (response?.data?.data && Array.isArray(response.data.data)) {
+      trips = response.data.data;
+    } else if (Array.isArray(response?.data)) {
+      trips = response.data;
+    }
+
+    console.log('Extracted trips array:', trips);
+    console.log('Number of trips found:', trips.length);
+
+    // Transform the data to match your frontend expectations
+    const transformedTrips = trips.map(trip => ({
+      id: trip.id,
+      name: trip.name,
+      description: trip.description,
+      scheduledStartTime: trip.scheduled_start_time,
+      scheduledEndTime: trip.scheduled_end_time,
+      actualStartTime: trip.actual_start_time,
+      actualEndTime: trip.actual_end_time,
+      origin: {
+        name: trip.origin.name,
+        coordinates: trip.origin.location.coordinates,
+        address: trip.origin.address,
+      },
+      destination: {
+        name: trip.destination.name,
+        coordinates: trip.destination.location.coordinates,
+        address: trip.destination.address,
+      },
+      waypoints: trip.waypoints,
+      status: trip.status,
+      priority: trip.priority,
+      estimatedEndTime: trip.estimated_end_time,
+      estimatedDistance: trip.estimated_distance,
+      driverAssignment: trip.driver_assignment,
+      vehicleId: trip.vehicle_id,
+      constraints: trip.constraints,
+      createdBy: trip.created_by,
+      createdAt: trip.created_at,
+      updatedAt: trip.updated_at,
+      customFields: trip.custom_fields,
+    }));
+
+    return {
+      data: {
+        trips: transformedTrips,
+        count: transformedTrips.length,
+        message:
+          response?.data?.data?.message ||
+          response?.data?.message ||
+          'Recent trips retrieved successfully',
+      },
+      status: response?.data?.status || response?.status || 'success',
+    };
+  } catch (error) {
+    console.error('Error fetching all recent trips:', error);
     // Return fallback data for development
     return {
       data: {

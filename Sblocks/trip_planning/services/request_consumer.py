@@ -234,7 +234,7 @@ class ServiceRequestConsumer:
             elif "analytics/drivers" in endpoint:
                 logger.info(f"Routing to driver analytics")
                 return await self._handle_driver_analytics_requests(method, user_context)
-            elif "trips" in endpoint or endpoint.startswith("driver/"):
+            elif "trips" in endpoint or endpoint.startswith("driver/") or endpoint == "recent":
                 logger.info(f"[_route_request] Routing to _handle_trips_request()")
                 return await self._handle_trips_request(method, user_context)
             elif "notifications" in endpoint:
@@ -262,6 +262,7 @@ class ServiceRequestConsumer:
             endpoint = user_context.get("endpoint", "")
             logger.info(f"[_handle_trips_request] Endpoint: '{endpoint}', Data: {data}")
             logger.info(f"[_handle_trips_request] Endpoint checks - contains 'trips': {'trips' in endpoint}, contains 'active': {'active' in endpoint}, contains 'upcoming': {'upcoming' in endpoint}, contains 'recent': {'recent' in endpoint}")
+            logger.info(f"[DEBUG] Full endpoint analysis: endpoint='{endpoint}', method='{method}'")
 
             if method == "GET":
                 if "upcomming" in endpoint:
@@ -281,20 +282,55 @@ class ServiceRequestConsumer:
                         message="Upcomming trips retrieved successfully"
                     ).model_dump()
                 if "recent" in endpoint:
-                    driver_id = endpoint.split('/')[-1] if '/' in endpoint else None
-                    logger.info(f"Driver ID extracted for upcomming trips: {driver_id} ")
-                    if driver_id is None:
-                        logger.info("Failed to extract id in upcomming trip request")
-                        return ResponseBuilder.error(
-                            error= "Driver ID problem",
-                            message="Driver ID was not extracted from the endpoint"
-                        )
-                    
-                    trips = await trip_service.get_recent_trips(driver_id)
-                    return ResponseBuilder.success(
-                        data=trips,
-                        message="Recent trips retrieved successfully"
-                    ).model_dump()
+                    logger.info(f"[DEBUG] Processing recent endpoint: '{endpoint}'")
+                    # Check if it's the generic /recent endpoint (for all recent trips)
+                    if endpoint == "recent" or endpoint.endswith("/recent"):
+                        logger.info(f"[DEBUG] Matched recent endpoint pattern")
+                        # Check if it's a driver-specific recent endpoint like "driver/{driver_id}/recent"
+                        if endpoint.startswith("driver/") and "/" in endpoint:
+                            logger.info(f"[DEBUG] Processing driver-specific recent endpoint")
+                            # Extract driver_id from endpoint: driver/{driver_id}/recent
+                            parts = endpoint.split('/')
+                            if len(parts) >= 2:
+                                driver_id = parts[1]
+                                logger.info(f"Driver ID extracted for driver-specific recent trips: {driver_id}")
+                                trips = await trip_service.get_recent_trips(driver_id)
+                                return ResponseBuilder.success(
+                                    data=trips,
+                                    message="Recent trips retrieved successfully"
+                                ).model_dump()
+                            else:
+                                raise ValueError("Driver ID is required for driver-specific recent trips endpoint")
+                        else:
+                            # Generic recent trips endpoint - get all recent trips
+                            logger.info("Handling generic recent trips request for all drivers")
+                            # Try to get limit and days from various possible sources
+                            limit = data.get("limit", 10)
+                            days = data.get("days", 30)
+                            
+                            # Also check if they're in user_context
+                            if "limit" not in data and "limit" in user_context:
+                                limit = user_context.get("limit", 10)
+                            if "days" not in data and "days" in user_context:
+                                days = user_context.get("days", 30)
+                                
+                            # Convert to int if they're strings
+                            try:
+                                limit = int(limit)
+                                days = int(days)
+                            except (ValueError, TypeError):
+                                limit = 10
+                                days = 30
+                                
+                            logger.info(f"Using parameters: limit={limit}, days={days}")
+                            trips = await trip_service.get_all_recent_trips(limit, days)
+                            return ResponseBuilder.success(
+                                data=trips,
+                                message="All recent trips retrieved successfully"
+                            ).model_dump()
+                    else:
+                        logger.warning(f"[DEBUG] Recent endpoint '{endpoint}' did not match expected patterns")
+                        raise ValueError(f"Unsupported recent endpoint pattern: {endpoint}")
                 # Check for driver-specific endpoints first
                 elif endpoint.startswith("driver/") and "upcoming" in endpoint:
                     # Extract driver_id from endpoint: driver/{driver_id}/upcoming
@@ -391,12 +427,8 @@ class ServiceRequestConsumer:
                         message="Active Trips retrieved successfully"
                     ).model_dump()
 
-                elif "recent" in endpoint:
-                    # This is the fallback case for non-driver specific recent trips
-                    logger.warning(f"[_handle_trips_request] Generic recent endpoint accessed without driver ID: {endpoint}")
-                    raise ValueError("Driver ID is required for recent trips")
                 else:
-                    raise ValueError(f"Unknown endpoint: {endpoint}")
+                    raise ValueError(f"Unknown endpoint: {endpoint.split('/')[-1] if '/' in endpoint else endpoint}")
 
             elif method == "POST":
                 if not data:

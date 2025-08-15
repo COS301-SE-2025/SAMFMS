@@ -126,7 +126,7 @@ export const API_ENDPOINTS = {
     SEARCH: query => `/management/drivers/search/${query}`,
     ACTIVATE: id => `/management/${id}/activate`,
     ASSIGN: '/management/assign-vehicle',
-    EMPID: id => `/management/drivers/employee/${id}`
+    EMPID: id => `/management/drivers/employee/${id}`,
   },
 
   // Vehicle Assignments
@@ -163,9 +163,10 @@ export const API_ENDPOINTS = {
     ACTIVE: '/trips/trips/active',
     HISTORY: '/trips/history',
     FINISHED: 'trips/trips/completed',
-    UPCOMMINGTRIPSALL: "/trips/trips/upcomming",
+    UPCOMMINGTRIPSALL: '/trips/trips/upcomming',
     UPCOMMINGTRIPS: id => `/trips/trips/upcomming/${id}`,
     RECENTTRIPS: id => `/trips/trips/recent/${id}`,
+    RECENTTRIPSALL: '/trips/recent',
     ANALYTICS: {
       // Driver analytics with timeframe
       DRiVERSTATS: '/trips/analytics/drivers/stats',

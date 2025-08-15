@@ -1,6 +1,7 @@
 """
 Analytics API routes
 """
+import logging
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
@@ -11,6 +12,7 @@ from schemas.responses import ResponseBuilder
 from services.analytics_service import analytics_service
 from api.dependencies import get_current_user
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -46,6 +48,25 @@ async def get_trip_summary_analytics(
     
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to get trip analytics")
+
+
+@router.get("/trips/history-stats", response_model=Dict[str, Any])
+async def get_trip_history_stats(
+    days: Optional[int] = Query(None, description="Number of days to look back (default: all time)"),
+    current_user: str = Depends(get_current_user)
+):
+    """Get trip history statistics including totals and averages"""
+    try:
+        stats = await analytics_service.get_trip_history_stats(days)
+        
+        return ResponseBuilder.success(
+            data=stats,
+            message="Trip history statistics retrieved successfully"
+        )
+    
+    except Exception as e:
+        logger.error(f"Failed to get trip history stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get trip history statistics")
 
 
 @router.get("/drivers/performance", response_model=Dict[str, Any])

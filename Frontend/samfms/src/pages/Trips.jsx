@@ -18,6 +18,7 @@ import {
   getDriverAnalytics,
   getVehicleAnalytics,
   listTrips,
+  getAllRecentTrips,
 } from '../backend/api/trips';
 import { getVehicles } from '../backend/api/vehicles';
 import { getAllDrivers } from '../backend/api/drivers';
@@ -162,69 +163,43 @@ const Trips = () => {
     }
   }, [showNotification]);
 
-  // Helper function to fetch all recent trips using the general list endpoint
+  // Helper function to fetch all recent trips using the new dedicated endpoint
   const fetchRecentTrips = useCallback(async () => {
     try {
       setRecentTripsLoading(true);
 
-      // Calculate date range for last 30 days
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
+      // Use the new dedicated endpoint for recent trips
+      const response = await getAllRecentTrips(10, 30);
+      console.log('Recent trips response:', response);
 
-      // Use listTrips with filters for completed trips
-      const response = await listTrips();
-      console.log('All trips response for recent filtering:', response);
-
-      // Extract and filter trips from the response - using same structure as upcoming
-      let allTrips = [];
-      if (response?.data?.data?.data && Array.isArray(response.data.data.data)) {
-        allTrips = response.data.data.data;
-      } else if (response?.data?.data && Array.isArray(response.data.data)) {
-        allTrips = response.data.data;
+      // Extract trips from the response structure
+      let trips = [];
+      if (response?.data?.trips) {
+        trips = response.data.trips;
+      } else if (response?.data?.data) {
+        trips = Array.isArray(response.data.data) ? response.data.data : [];
       } else if (Array.isArray(response?.data)) {
-        allTrips = response.data;
+        trips = response.data;
       }
 
-      // Filter for completed trips in the last 30 days
-      const recentCompletedTrips = allTrips
-        .filter(trip => {
-          try {
-            if (trip.status !== 'completed' || !trip.actual_end_time) return false;
-
-            const endTime = new Date(trip.actual_end_time);
-            return endTime >= startDate && endTime <= endDate;
-          } catch (error) {
-            console.warn('Invalid date format for completed trip:', trip.id);
-            return false;
-          }
-        })
-        .sort((a, b) => {
-          try {
-            const aTime = new Date(a.actual_end_time);
-            const bTime = new Date(b.actual_end_time);
-            return bTime - aTime; // Most recent first
-          } catch (error) {
-            return 0;
-          }
-        })
-        .slice(0, 50); // Limit to 50 trips
-
       // Transform API data to match component expectations
-      const transformedTrips = recentCompletedTrips.map(trip => {
+      const transformedTrips = trips.map(trip => {
         let completedAt = 'Unknown';
         let duration = 'Unknown';
 
         try {
-          completedAt = new Date(trip.actual_end_time).toLocaleString();
+          completedAt = new Date(trip.actualEndTime || trip.actual_end_time).toLocaleString();
         } catch (error) {
           console.warn('Invalid date format for trip completion:', trip.id);
         }
 
         try {
-          if (trip.actual_start_time && trip.actual_end_time) {
-            const startTime = new Date(trip.actual_start_time);
-            const endTime = new Date(trip.actual_end_time);
+          if (
+            (trip.actualStartTime || trip.actual_start_time) &&
+            (trip.actualEndTime || trip.actual_end_time)
+          ) {
+            const startTime = new Date(trip.actualStartTime || trip.actual_start_time);
+            const endTime = new Date(trip.actualEndTime || trip.actual_end_time);
             const durationMs = endTime - startTime;
             const durationMinutes = Math.round(durationMs / (1000 * 60));
             const hours = Math.floor(durationMinutes / 60);
@@ -238,24 +213,30 @@ const Trips = () => {
         return {
           id: trip.id,
           tripName: trip.name || 'Unnamed Trip',
-          vehicle: trip.vehicle_id || 'Unknown Vehicle',
-          driver: trip.driver_assignment || 'Unknown Driver',
+          vehicle: trip.vehicleId || trip.vehicle_id || 'Unknown Vehicle',
+          driver: trip.driverAssignment || trip.driver_assignment || 'Unknown Driver',
           completedAt,
           destination: trip.destination?.name || 'Unknown Destination',
           duration,
           status: 'Completed',
-          distance: trip.estimated_distance ? (trip.estimated_distance / 1000).toFixed(1) : '0',
+          distance:
+            trip.estimatedDistance || trip.estimated_distance
+              ? ((trip.estimatedDistance || trip.estimated_distance) / 1000).toFixed(1)
+              : '0',
         };
       });
 
+      console.log('Transformed recent trips:', transformedTrips);
       setRecentTrips(transformedTrips);
     } catch (error) {
       console.error('Error fetching recent trips:', error);
+      // Show user-friendly error message
+      showNotification('Failed to load recent trips. Please try again.', 'error');
       setRecentTrips([]);
     } finally {
       setRecentTripsLoading(false);
     }
-  }, []);
+  }, [showNotification]);
 
   // Get current date and time for default values
   const getCurrentDate = () => {

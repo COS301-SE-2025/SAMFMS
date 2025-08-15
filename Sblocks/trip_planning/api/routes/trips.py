@@ -336,3 +336,25 @@ async def get_recent_trips(
     
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to get recent trips")
+
+
+@router.get("/recent", response_model=Dict[str, Any])
+async def get_all_recent_trips(
+    limit: int = Query(10, ge=1, le=50),
+    days: int = Query(30, ge=1, le=365),
+    current_user: str = Depends(get_current_user)
+):
+    """Get recent completed trips for all drivers"""
+    try:
+        trips = await trip_service.get_all_recent_trips(limit, days)
+        
+        return ResponseBuilder.success(
+            data={
+                "trips": [trip.dict() for trip in trips],
+                "count": len(trips)
+            },
+            message=f"Found {len(trips)} recent trips"
+        )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to get recent trips")

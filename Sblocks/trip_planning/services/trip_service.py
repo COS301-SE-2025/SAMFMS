@@ -500,7 +500,7 @@ class TripService:
             logger.debug(f"[TripService.get_recent_trips] Query: {query}")
             
             # Sort by actual end time (most recent first) and limit results
-            cursor = self.db.trips.find(query).sort("actual_end_time", -1).limit(limit)
+            cursor = self.db.trip_history.find(query).sort("actual_end_time", -1).limit(limit)
             trips = []
             
             async for trip_doc in cursor:
@@ -512,6 +512,40 @@ class TripService:
             
         except Exception as e:
             logger.error(f"[TripService.get_recent_trips] Error: {e}")
+            raise
+
+    async def get_all_recent_trips(self, limit: int = 10, days: int = 30) -> List[Trip]:
+        """Get recent completed trips for all drivers"""
+        logger.info(f"[TripService.get_all_recent_trips] Getting recent trips for all drivers")
+        try:
+            # Calculate date range for recent trips
+            now = datetime.utcnow()
+            start_date = now - timedelta(days=days)
+            
+            # Query for recent completed trips from all drivers
+            query = {
+                "status": TripStatus.COMPLETED.value,
+                "actual_end_time": {
+                    "$gte": start_date,
+                    "$lte": now
+                }
+            }
+            
+            logger.debug(f"[TripService.get_all_recent_trips] Query: {query}")
+            
+            # Sort by actual end time (most recent first) and limit results
+            cursor = self.db.trip_history.find(query).sort("actual_end_time", -1).limit(limit)
+            trips = []
+            
+            async for trip_doc in cursor:
+                trip_doc["_id"] = str(trip_doc["_id"])
+                trips.append(Trip(**trip_doc))
+            
+            logger.info(f"[TripService.get_all_recent_trips] Found {len(trips)} recent trips")
+            return trips
+            
+        except Exception as e:
+            logger.error(f"[TripService.get_all_recent_trips] Error: {e}")
             raise
 
 
