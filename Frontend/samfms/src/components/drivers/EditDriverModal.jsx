@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { X, User, Phone, Mail, Calendar, Building, CreditCard } from 'lucide-react';
-import { updateDriver } from '../../backend/API';
+import React, {useState, useEffect} from 'react';
+import {X, User, Phone, Mail, Calendar, Building, CreditCard} from 'lucide-react';
+import {updateDriver} from '../../backend/API';
 
-const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
+const EditDriverModal = ({driver, closeModal, onDriverUpdated}) => {
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -37,13 +37,13 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
         joining_date: driver.joiningDate || '',
         emergency_contact: driver.emergencyContact || '',
         employee_id: driver.employeeId || '',
-        status: driver.status?.toLowerCase().replace(/\s+/g, '_') || 'available',
+        status: 'available',
       });
     }
   }, [driver]);
 
   const handleInputChange = e => {
-    const { name, value } = e.target;
+    const {name, value} = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value,
@@ -52,7 +52,7 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
     // Clear validation error for this field when user starts typing
     if (validationErrors[name]) {
       setValidationErrors(prev => {
-        const newErrors = { ...prev };
+        const newErrors = {...prev};
         delete newErrors[name];
         return newErrors;
       });
@@ -142,19 +142,12 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
 
   const departments = ['Sales', 'Operations', 'Delivery', 'Executive', 'Support', 'Maintenance'];
 
-  const statusOptions = [
-    { value: 'available', label: 'Available' },
-    { value: 'on_trip', label: 'On Trip' },
-    { value: 'on_leave', label: 'On Leave' },
-    { value: 'inactive', label: 'Inactive' },
-  ];
-
   if (!driver) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-card w-full max-w-5xl rounded-lg shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
+        <div className="p-6 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Edit Driver</h2>
             <button
@@ -189,9 +182,8 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
                     name="full_name"
                     value={formData.full_name}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md bg-background ${
-                      validationErrors.full_name ? 'border-destructive' : 'border-input'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md bg-background ${validationErrors.full_name ? 'border-destructive' : 'border-input'
+                      }`}
                     placeholder="Enter full name"
                     required
                   />
@@ -224,9 +216,8 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className={`w-full pl-10 pr-3 py-2 border rounded-md bg-background ${
-                        validationErrors.email ? 'border-destructive' : 'border-input'
-                      }`}
+                      className={`w-full pl-10 pr-3 py-2 border rounded-md bg-background ${validationErrors.email ? 'border-destructive' : 'border-input'
+                        }`}
                       placeholder="Enter email address"
                       required
                     />
@@ -247,9 +238,8 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
                       name="phoneNo"
                       value={formData.phoneNo}
                       onChange={handleInputChange}
-                      className={`w-full pl-10 pr-3 py-2 border rounded-md bg-background ${
-                        validationErrors.phoneNo ? 'border-destructive' : 'border-input'
-                      }`}
+                      className={`w-full pl-10 pr-3 py-2 border rounded-md bg-background ${validationErrors.phoneNo ? 'border-destructive' : 'border-input'
+                        }`}
                       placeholder="+27123456789 or 0123456789"
                     />
                   </div>
@@ -270,9 +260,8 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
                     name="emergency_contact"
                     value={formData.emergency_contact}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md bg-background ${
-                      validationErrors.emergency_contact ? 'border-destructive' : 'border-input'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md bg-background ${validationErrors.emergency_contact ? 'border-destructive' : 'border-input'
+                      }`}
                     placeholder="+27123456789 or 0123456789"
                   />
                   {validationErrors.emergency_contact && (
@@ -280,21 +269,6 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
                       {validationErrors.emergency_contact}
                     </p>
                   )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Status</label>
-                  <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
-                  >
-                    {statusOptions.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Department</label>
@@ -331,9 +305,8 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
                     name="license_number"
                     value={formData.license_number}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-md bg-background ${
-                      validationErrors.license_number ? 'border-destructive' : 'border-input'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md bg-background ${validationErrors.license_number ? 'border-destructive' : 'border-input'
+                      }`}
                     placeholder="e.g., 1234567890123"
                     required
                   />
@@ -372,9 +345,8 @@ const EditDriverModal = ({ driver, closeModal, onDriverUpdated }) => {
                       name="license_expiry"
                       value={formData.license_expiry}
                       onChange={handleInputChange}
-                      className={`w-full pl-10 pr-3 py-2 border rounded-md bg-background ${
-                        validationErrors.license_expiry ? 'border-destructive' : 'border-input'
-                      }`}
+                      className={`w-full pl-10 pr-3 py-2 border rounded-md bg-background ${validationErrors.license_expiry ? 'border-destructive' : 'border-input'
+                        }`}
                       required
                     />
                   </div>
