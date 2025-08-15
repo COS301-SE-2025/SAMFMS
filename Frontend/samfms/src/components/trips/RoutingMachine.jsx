@@ -12,6 +12,47 @@ L.Marker.prototype.options.icon = L.icon({
   shadowSize: [41, 41],
 });
 
+// Decode polyline function (Google's polyline algorithm)
+const decodePolyline = encoded => {
+  if (!encoded) return [];
+
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+  const coordinates = [];
+
+  while (index < encoded.length) {
+    let b,
+      shift = 0,
+      result = 0;
+
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+
+    const deltaLat = result & 1 ? ~(result >> 1) : result >> 1;
+    lat += deltaLat;
+
+    shift = 0;
+    result = 0;
+
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+
+    const deltaLng = result & 1 ? ~(result >> 1) : result >> 1;
+    lng += deltaLng;
+
+    coordinates.push([lat / 1e5, lng / 1e5]);
+  }
+
+  return coordinates;
+};
+
 // Real routing function using OpenRouteService API for road-following routes
 const getRoute = async (startLocation, endLocation, waypoints = []) => {
   try {
@@ -43,8 +84,8 @@ const getRoute = async (startLocation, endLocation, waypoints = []) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Using public demo key - in production, you should use your own API key
-        Authorization: '5b3ce3597851110001cf6248a67b1bd4a4d94d408a5043a0bfa8f28d',
+        Authorization:
+          'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjBhNzU4YjIzMGQ5MDRmNGM5YjUzMmRkMjgzNzQ1YmJhIiwiaCI6Im11cm11cjY0In0=',
       },
       body: JSON.stringify(requestBody),
     });
@@ -56,6 +97,17 @@ const getRoute = async (startLocation, endLocation, waypoints = []) => {
 
     const data = await response.json();
     console.log('OpenRouteService response:', data);
+    console.log('Response structure check:', {
+      hasRoutes: !!data.routes,
+      routeCount: data.routes?.length || 0,
+      firstRouteHasGeometry: !!data.routes?.[0]?.geometry,
+      geometryType: typeof data.routes?.[0]?.geometry,
+      geometryPreview:
+        typeof data.routes?.[0]?.geometry === 'string'
+          ? data.routes[0].geometry.substring(0, 50) + '...'
+          : data.routes?.[0]?.geometry,
+      hasSummary: !!data.routes?.[0]?.summary,
+    });
 
     if (data.routes && data.routes.length > 0) {
       const route = data.routes[0];
@@ -64,13 +116,48 @@ const getRoute = async (startLocation, endLocation, waypoints = []) => {
       const geometry = route.geometry;
       let routeCoords = [];
 
-      if (geometry.coordinates && Array.isArray(geometry.coordinates)) {
+      if (typeof geometry === 'string') {
+        // Decode encoded polyline string
+        console.log('Decoding polyline geometry string:', geometry.substring(0, 50) + '...');
+        const decodedCoords = decodePolyline(geometry);
+        console.log('Decoded', decodedCoords.length, 'coordinates from polyline');
+        routeCoords = decodedCoords; // Already in [lat, lng] format from decoder
+      } else if (geometry.coordinates && Array.isArray(geometry.coordinates)) {
+        // Handle GeoJSON coordinates format (if API returns this format)
         // Convert [lng, lat] to [lat, lng] for Leaflet
         routeCoords = geometry.coordinates.map(coord => [coord[1], coord[0]]);
+        console.log('Using GeoJSON coordinates format');
+      } else {
+        console.warn('Unknown geometry format:', geometry);
+        throw new Error('Unable to parse geometry data');
       }
 
-      console.log('Decoded route with', routeCoords.length, 'coordinate points');
+      console.log('Final route with', routeCoords.length, 'coordinate points');
       console.log('Sample coordinates:', routeCoords.slice(0, 3));
+      console.log('Route distance:', (route.summary.distance / 1000).toFixed(2), 'km');
+      console.log('Route duration:', Math.round(route.summary.duration / 60), 'minutes');
+
+      // Validate coordinates
+      if (routeCoords.length === 0) {
+        console.warn('No coordinates were decoded from geometry');
+        throw new Error('No route coordinates available');
+      }
+
+      // Check if coordinates are valid
+      const invalidCoords = routeCoords.some(
+        coord =>
+          !Array.isArray(coord) ||
+          coord.length !== 2 ||
+          isNaN(coord[0]) ||
+          isNaN(coord[1]) ||
+          Math.abs(coord[0]) > 90 ||
+          Math.abs(coord[1]) > 180
+      );
+
+      if (invalidCoords) {
+        console.warn('Invalid coordinates detected in route');
+        throw new Error('Invalid route coordinates');
+      }
 
       return {
         coordinates: routeCoords,
