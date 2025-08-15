@@ -1,5 +1,5 @@
-import React, {useState, useEffect} from 'react';
-import {Plus} from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus } from 'lucide-react';
 import ActiveTripsPanel from '../components/trips/ActiveTripsPanel';
 import SchedulingPanel from '../components/trips/SchedulingPanel';
 import TripsAnalytics from '../components/trips/TripsAnalytics';
@@ -17,10 +17,11 @@ import {
   getActiveTrips,
   getDriverAnalytics,
   getVehicleAnalytics,
+  listTrips,
 } from '../backend/api/trips';
-import {getVehicles} from '../backend/api/vehicles';
-import {getAllDrivers} from '../backend/api/drivers';
-import {mockUpcomingTrips, mockRecentTrips, mockActiveLocations} from '../data/mockTripsData';
+import { getVehicles } from '../backend/api/vehicles';
+import { getAllDrivers } from '../backend/api/drivers';
+import { mockActiveLocations } from '../data/mockTripsData';
 
 const Trips = () => {
   // Existing state
@@ -49,6 +50,12 @@ const Trips = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Trip data state
+  const [upcomingTrips, setUpcomingTrips] = useState([]);
+  const [recentTrips, setRecentTrips] = useState([]);
+  const [upcomingTripsLoading, setUpcomingTripsLoading] = useState(false);
+  const [recentTripsLoading, setRecentTripsLoading] = useState(false);
+
   // Notification state
   const [notification, setNotification] = useState({
     isVisible: false,
@@ -60,21 +67,21 @@ const Trips = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   const tabs = [
-    {id: 'overview', label: 'Overview'},
-    {id: 'active', label: 'Active'},
-    {id: 'upcoming', label: 'Upcoming'},
-    {id: 'recent', label: 'Recent'},
-    {id: 'analytics', label: 'Analytics'},
+    { id: 'overview', label: 'Overview' },
+    { id: 'active', label: 'Active' },
+    { id: 'upcoming', label: 'Upcoming' },
+    { id: 'recent', label: 'Recent' },
+    { id: 'analytics', label: 'Analytics' },
   ];
 
   // Helper function to show notifications
-  const showNotification = (message, type = 'info') => {
+  const showNotification = useCallback((message, type = 'info') => {
     setNotification({
       isVisible: true,
       message,
       type,
     });
-  };
+  }, []);
 
   // Helper function to close notifications
   const closeNotification = () => {
@@ -83,6 +90,172 @@ const Trips = () => {
       isVisible: false,
     }));
   };
+
+  // Helper function to fetch all upcoming trips
+  const fetchUpcomingTrips = useCallback(async () => {
+    try {
+      setUpcomingTripsLoading(true);
+      const response = await listTrips();
+      console.log('Upcoming trips response:', response);
+
+      // Extract trips from the response structure - based on actual API response
+      let trips = [];
+      if (response?.data?.data?.data && Array.isArray(response.data.data.data)) {
+        trips = response.data.data.data;
+      } else if (response?.data?.data && Array.isArray(response.data.data)) {
+        trips = response.data.data;
+      } else if (Array.isArray(response?.data)) {
+        trips = response.data;
+      }
+
+      // Filter for scheduled/upcoming trips only
+      const upcomingTrips = trips.filter(trip => {
+        try {
+          return (
+            trip.status === 'scheduled' &&
+            trip.scheduled_start_time &&
+            new Date(trip.scheduled_start_time) > new Date()
+          );
+        } catch (error) {
+          console.warn('Invalid date format for trip:', trip.id);
+          return false;
+        }
+      });
+
+      // Transform API data to match component expectations
+      const transformedTrips = upcomingTrips.map(trip => {
+        let scheduledStart = 'Unknown';
+        try {
+          scheduledStart = new Date(trip.scheduled_start_time).toLocaleString();
+        } catch (error) {
+          console.warn('Invalid date format for trip scheduled start:', trip.id);
+        }
+
+        return {
+          id: trip.id,
+          tripName: trip.name || 'Unnamed Trip',
+          vehicle: trip.vehicle_id || 'Unknown Vehicle',
+          driver: trip.driver_assignment || 'Unassigned',
+          scheduledStart,
+          destination: trip.destination?.name || 'Unknown Destination',
+          priority:
+            trip.priority === 'normal'
+              ? 'Medium'
+              : trip.priority === 'high'
+              ? 'High'
+              : trip.priority === 'urgent'
+              ? 'High'
+              : 'Low',
+          status: 'Scheduled',
+        };
+      });
+
+      console.log('Transformed upcoming trips:', transformedTrips);
+      setUpcomingTrips(transformedTrips);
+    } catch (error) {
+      console.error('Error fetching upcoming trips:', error);
+      // Show user-friendly error message
+      showNotification('Failed to load upcoming trips. Please try again.', 'error');
+      setUpcomingTrips([]);
+    } finally {
+      setUpcomingTripsLoading(false);
+    }
+  }, [showNotification]);
+
+  // Helper function to fetch all recent trips using the general list endpoint
+  const fetchRecentTrips = useCallback(async () => {
+    try {
+      setRecentTripsLoading(true);
+
+      // Calculate date range for last 30 days
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+
+      // Use listTrips with filters for completed trips
+      const response = await listTrips();
+      console.log('All trips response for recent filtering:', response);
+
+      // Extract and filter trips from the response - using same structure as upcoming
+      let allTrips = [];
+      if (response?.data?.data?.data && Array.isArray(response.data.data.data)) {
+        allTrips = response.data.data.data;
+      } else if (response?.data?.data && Array.isArray(response.data.data)) {
+        allTrips = response.data.data;
+      } else if (Array.isArray(response?.data)) {
+        allTrips = response.data;
+      }
+
+      // Filter for completed trips in the last 30 days
+      const recentCompletedTrips = allTrips
+        .filter(trip => {
+          try {
+            if (trip.status !== 'completed' || !trip.actual_end_time) return false;
+
+            const endTime = new Date(trip.actual_end_time);
+            return endTime >= startDate && endTime <= endDate;
+          } catch (error) {
+            console.warn('Invalid date format for completed trip:', trip.id);
+            return false;
+          }
+        })
+        .sort((a, b) => {
+          try {
+            const aTime = new Date(a.actual_end_time);
+            const bTime = new Date(b.actual_end_time);
+            return bTime - aTime; // Most recent first
+          } catch (error) {
+            return 0;
+          }
+        })
+        .slice(0, 50); // Limit to 50 trips
+
+      // Transform API data to match component expectations
+      const transformedTrips = recentCompletedTrips.map(trip => {
+        let completedAt = 'Unknown';
+        let duration = 'Unknown';
+
+        try {
+          completedAt = new Date(trip.actual_end_time).toLocaleString();
+        } catch (error) {
+          console.warn('Invalid date format for trip completion:', trip.id);
+        }
+
+        try {
+          if (trip.actual_start_time && trip.actual_end_time) {
+            const startTime = new Date(trip.actual_start_time);
+            const endTime = new Date(trip.actual_end_time);
+            const durationMs = endTime - startTime;
+            const durationMinutes = Math.round(durationMs / (1000 * 60));
+            const hours = Math.floor(durationMinutes / 60);
+            const minutes = durationMinutes % 60;
+            duration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+          }
+        } catch (error) {
+          console.warn('Could not calculate duration for trip:', trip.id);
+        }
+
+        return {
+          id: trip.id,
+          tripName: trip.name || 'Unnamed Trip',
+          vehicle: trip.vehicle_id || 'Unknown Vehicle',
+          driver: trip.driver_assignment || 'Unknown Driver',
+          completedAt,
+          destination: trip.destination?.name || 'Unknown Destination',
+          duration,
+          status: 'Completed',
+          distance: trip.estimated_distance ? (trip.estimated_distance / 1000).toFixed(1) : '0',
+        };
+      });
+
+      setRecentTrips(transformedTrips);
+    } catch (error) {
+      console.error('Error fetching recent trips:', error);
+      setRecentTrips([]);
+    } finally {
+      setRecentTripsLoading(false);
+    }
+  }, []);
 
   // Get current date and time for default values
   const getCurrentDate = () => {
@@ -247,6 +420,25 @@ const Trips = () => {
 
     loadDrivers();
   }, []);
+
+  // Fetch upcoming trips
+  useEffect(() => {
+    fetchUpcomingTrips();
+  }, [fetchUpcomingTrips]);
+
+  // Fetch recent trips
+  useEffect(() => {
+    fetchRecentTrips();
+  }, [fetchRecentTrips]);
+
+  // Refresh trip data when switching tabs
+  useEffect(() => {
+    if (activeTab === 'upcoming') {
+      fetchUpcomingTrips();
+    } else if (activeTab === 'recent') {
+      fetchRecentTrips();
+    }
+  }, [activeTab, fetchUpcomingTrips, fetchRecentTrips]);
 
   const handleScheduleTrip = () => {
     // Update the form with current date and time values when opening
@@ -539,7 +731,7 @@ const Trips = () => {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold animate-fade-in text-foreground">Trip Management</h1>
           <button
-            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition animate-fade-in flex items-center gap-2"
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition animate-fade-in flex items-center gap-2"
             onClick={handleScheduleTrip}
           >
             <Plus size={18} />
@@ -555,10 +747,11 @@ const Trips = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
-                    }`}
+                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
+                  }`}
                 >
                   {tab.label}
                 </button>
@@ -607,12 +800,26 @@ const Trips = () => {
             <div className="space-y-6 animate-fade-in">
               {/* Summary Cards */}
               <div className="animate-fade-in animate-delay-100">
-                <UpcomingTripsStats upcomingTrips={mockUpcomingTrips} />
+                {upcomingTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading upcoming trips...</span>
+                  </div>
+                ) : (
+                  <UpcomingTripsStats upcomingTrips={upcomingTrips} />
+                )}
               </div>
 
               {/* Trips Table */}
               <div className="animate-fade-in animate-delay-200">
-                <UpcomingTripsTable upcomingTrips={mockUpcomingTrips} />
+                {upcomingTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading trips table...</span>
+                  </div>
+                ) : (
+                  <UpcomingTripsTable upcomingTrips={upcomingTrips} />
+                )}
               </div>
             </div>
           )}
@@ -622,17 +829,31 @@ const Trips = () => {
             <div className="space-y-6 animate-fade-in">
               {/* Summary Cards */}
               <div className="animate-fade-in animate-delay-100">
-                <RecentTripsStats recentTrips={mockRecentTrips} />
+                {recentTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading recent trips...</span>
+                  </div>
+                ) : (
+                  <RecentTripsStats recentTrips={recentTrips} />
+                )}
               </div>
 
               {/* Trips Table */}
               <div className="animate-fade-in animate-delay-200">
-                <RecentTripsTable recentTrips={mockRecentTrips} />
+                {recentTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading trips table...</span>
+                  </div>
+                ) : (
+                  <RecentTripsTable recentTrips={recentTrips} />
+                )}
               </div>
 
               {/* Keep the existing TripsHistory component as well */}
               <div className="animate-fade-in animate-delay-300">
-                <TripsHistory trips={[]} />
+                <TripsHistory trips={recentTrips} />
               </div>
             </div>
           )}
