@@ -3,8 +3,18 @@
 /* React grid item basic styling for drag and drop functionality */
 .react-grid-item {
   transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-  border-radius: 6px;
+  border-radius: 0.75rem;
   touch-action: none;
+  background: linear-gradient(135deg, rgb(248 250 252) 0%, rgb(241 245 249) 100%);
+  border: 1px solid rgb(241 245 249);
+  overflow: hidden;
+}
+
+@media (prefers-color-scheme: dark) {
+  .react-grid-item {
+    background: linear-gradient(135deg, rgb(2 6 23) 0%, rgb(15 23 42) 100%);
+    border: 1px solid rgb(15 23 42);
+  }
 }
 
 .react-grid-item.react-draggable-dragging {
@@ -75,6 +85,7 @@
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(100%);
   }
@@ -96,93 +107,86 @@
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
   }
 }
+
 /* Corner resize handles with improved visibility and interactions */
-.react-grid-item > .react-resizable-handle.react-resizable-handle-se {
+.react-grid-item>.react-resizable-handle.react-resizable-handle-se {
   bottom: 0;
   right: 0;
   width: 20px;
   height: 20px;
   cursor: se-resize;
-  background: linear-gradient(
-    135deg,
-    transparent 0%,
-    transparent 40%,
-    rgba(59, 130, 246, 0.3) 50%,
-    rgba(59, 130, 246, 0.6) 100%
-  );
+  background: linear-gradient(135deg,
+      transparent 0%,
+      transparent 40%,
+      rgba(59, 130, 246, 0.3) 50%,
+      rgba(59, 130, 246, 0.6) 100%);
   transition: all 0.2s ease;
   opacity: 0;
 }
 
-.react-grid-item:hover > .react-resizable-handle.react-resizable-handle-se {
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-se {
   opacity: 1;
 }
 
-.react-grid-item > .react-resizable-handle.react-resizable-handle-sw {
+.react-grid-item>.react-resizable-handle.react-resizable-handle-sw {
   bottom: 0;
   left: 0;
   width: 20px;
   height: 20px;
   cursor: sw-resize;
-  background: linear-gradient(
-    135deg,
-    transparent 0%,
-    transparent 40%,
-    rgba(59, 130, 246, 0.3) 50%,
-    rgba(59, 130, 246, 0.6) 100%
-  );
+  background: linear-gradient(135deg,
+      transparent 0%,
+      transparent 40%,
+      rgba(59, 130, 246, 0.3) 50%,
+      rgba(59, 130, 246, 0.6) 100%);
   transition: all 0.2s ease;
   opacity: 0;
 }
 
-.react-grid-item:hover > .react-resizable-handle.react-resizable-handle-sw {
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-sw {
   opacity: 1;
 }
 
-.react-grid-item > .react-resizable-handle.react-resizable-handle-ne {
+.react-grid-item>.react-resizable-handle.react-resizable-handle-ne {
   top: 0;
   right: 0;
   width: 20px;
   height: 20px;
   cursor: ne-resize;
-  background: linear-gradient(
-    135deg,
-    transparent 0%,
-    transparent 40%,
-    rgba(59, 130, 246, 0.3) 50%,
-    rgba(59, 130, 246, 0.6) 100%
-  );
+  background: linear-gradient(135deg,
+      transparent 0%,
+      transparent 40%,
+      rgba(59, 130, 246, 0.3) 50%,
+      rgba(59, 130, 246, 0.6) 100%);
   transition: all 0.2s ease;
   opacity: 0;
 }
 
-.react-grid-item:hover > .react-resizable-handle.react-resizable-handle-ne {
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-ne {
   opacity: 1;
 }
 
-.react-grid-item > .react-resizable-handle.react-resizable-handle-nw {
+.react-grid-item>.react-resizable-handle.react-resizable-handle-nw {
   top: 0;
   left: 0;
   width: 20px;
   height: 20px;
   cursor: nw-resize;
-  background: linear-gradient(
-    135deg,
-    transparent 0%,
-    transparent 40%,
-    rgba(59, 130, 246, 0.3) 50%,
-    rgba(59, 130, 246, 0.6) 100%
-  );
+  background: linear-gradient(135deg,
+      transparent 0%,
+      transparent 40%,
+      rgba(59, 130, 246, 0.3) 50%,
+      rgba(59, 130, 246, 0.6) 100%);
   transition: all 0.2s ease;
   opacity: 0;
 }
 
-.react-grid-item:hover > .react-resizable-handle.react-resizable-handle-nw {
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-nw {
   opacity: 1;
 }
 
 /* Edge resize handles with improved visibility */
-.react-grid-item > .react-resizable-handle.react-resizable-handle-n {
+.react-grid-item>.react-resizable-handle.react-resizable-handle-n {
   top: 0;
   left: 20px;
   right: 20px;
@@ -192,11 +196,11 @@
   opacity: 0;
 }
 
-.react-grid-item:hover > .react-resizable-handle.react-resizable-handle-n {
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-n {
   opacity: 1;
 }
 
-.react-grid-item > .react-resizable-handle.react-resizable-handle-s {
+.react-grid-item>.react-resizable-handle.react-resizable-handle-s {
   bottom: 0;
   left: 20px;
   right: 20px;
@@ -206,11 +210,11 @@
   opacity: 0;
 }
 
-.react-grid-item:hover > .react-resizable-handle.react-resizable-handle-s {
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-s {
   opacity: 1;
 }
 
-.react-grid-item > .react-resizable-handle.react-resizable-handle-e {
+.react-grid-item>.react-resizable-handle.react-resizable-handle-e {
   top: 20px;
   bottom: 20px;
   right: 0;
@@ -220,11 +224,11 @@
   opacity: 0;
 }
 
-.react-grid-item:hover > .react-resizable-handle.react-resizable-handle-e {
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-e {
   opacity: 1;
 }
 
-.react-grid-item > .react-resizable-handle.react-resizable-handle-w {
+.react-grid-item>.react-resizable-handle.react-resizable-handle-w {
   top: 20px;
   bottom: 20px;
   left: 0;
@@ -234,7 +238,7 @@
   opacity: 0;
 }
 
-.react-grid-item:hover > .react-resizable-handle.react-resizable-handle-w {
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-w {
   opacity: 1;
 }
 
@@ -244,21 +248,21 @@
 }
 
 /* Enhanced hover effects for resize handles */
-.react-grid-item:hover > .react-resizable-handle {
+.react-grid-item:hover>.react-resizable-handle {
   opacity: 1;
   transform: scale(1.1);
 }
 
-.react-grid-item > .react-resizable-handle:hover {
+.react-grid-item>.react-resizable-handle:hover {
   opacity: 1 !important;
   transform: scale(1.2);
   filter: brightness(1.2);
 }
 
 .dashboard-widget {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  background: linear-gradient(135deg, rgb(248 250 252) 0%, rgb(241 245 249) 100%);
+  border: 1px solid rgb(241 245 249);
+  border-radius: 0.75rem;
   transition: all 0.2s ease;
   height: 100%;
   overflow: hidden;
@@ -266,6 +270,13 @@
   flex-direction: column;
   min-width: 200px;
   min-height: 150px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .dashboard-widget {
+    background: linear-gradient(135deg, rgb(2 6 23) 0%, rgb(15 23 42) 100%);
+    border: 1px solid rgb(15 23 42);
+  }
 }
 
 .dashboard-widget:hover {
@@ -364,10 +375,12 @@
     opacity: 0;
     transform: scale(0.8) translateY(20px);
   }
+
   60% {
     opacity: 1;
     transform: scale(1.05) translateY(-5px);
   }
+
   100% {
     opacity: 1;
     transform: scale(1) translateY(0);
@@ -379,6 +392,7 @@
     opacity: 1;
     transform: scale(1) rotate(0deg);
   }
+
   100% {
     opacity: 0;
     transform: scale(0.8) rotate(3deg);
