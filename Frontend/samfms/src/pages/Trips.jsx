@@ -19,6 +19,7 @@ import {
   getVehicleAnalytics,
   listTrips,
   getAllRecentTrips,
+  getTripHistoryStats,
 } from '../backend/api/trips';
 import { getVehicles } from '../backend/api/vehicles';
 import { getAllDrivers } from '../backend/api/drivers';
@@ -56,6 +57,17 @@ const Trips = () => {
   const [recentTrips, setRecentTrips] = useState([]);
   const [upcomingTripsLoading, setUpcomingTripsLoading] = useState(false);
   const [recentTripsLoading, setRecentTripsLoading] = useState(false);
+
+  // Trip history statistics state
+  const [tripHistoryStats, setTripHistoryStats] = useState({
+    total_trips: 0,
+    total_duration_hours: 0,
+    total_distance_km: 0,
+    average_duration_hours: 0,
+    average_distance_km: 0,
+    time_period: 'All time',
+  });
+  const [historyStatsLoading, setHistoryStatsLoading] = useState(false);
 
   // Notification state
   const [notification, setNotification] = useState({
@@ -238,6 +250,30 @@ const Trips = () => {
     }
   }, [showNotification]);
 
+  // Helper function to fetch trip history statistics
+  const fetchTripHistoryStats = useCallback(
+    async (days = null) => {
+      try {
+        setHistoryStatsLoading(true);
+        console.log('Fetching trip history stats for days:', days);
+
+        const response = await getTripHistoryStats(days);
+        console.log('Trip history stats response:', response);
+
+        if (response?.data) {
+          setTripHistoryStats(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching trip history stats:', error);
+        showNotification('Failed to load trip statistics. Please try again.', 'error');
+        // Keep existing stats or use defaults
+      } finally {
+        setHistoryStatsLoading(false);
+      }
+    },
+    [showNotification]
+  );
+
   // Get current date and time for default values
   const getCurrentDate = () => {
     const now = new Date();
@@ -418,8 +454,9 @@ const Trips = () => {
       fetchUpcomingTrips();
     } else if (activeTab === 'recent') {
       fetchRecentTrips();
+      fetchTripHistoryStats(); // Also fetch trip statistics for the recent tab
     }
-  }, [activeTab, fetchUpcomingTrips, fetchRecentTrips]);
+  }, [activeTab, fetchUpcomingTrips, fetchRecentTrips, fetchTripHistoryStats]);
 
   const handleScheduleTrip = () => {
     // Update the form with current date and time values when opening
@@ -816,7 +853,11 @@ const Trips = () => {
                     <span className="ml-2">Loading recent trips...</span>
                   </div>
                 ) : (
-                  <RecentTripsStats recentTrips={recentTrips} />
+                  <RecentTripsStats
+                    recentTrips={recentTrips}
+                    tripHistoryStats={tripHistoryStats}
+                    loading={historyStatsLoading}
+                  />
                 )}
               </div>
 

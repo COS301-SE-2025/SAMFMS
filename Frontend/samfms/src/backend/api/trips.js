@@ -14,6 +14,7 @@ const TRIPS_ENDPOINTS = {
   recenttrips: API_ENDPOINTS.TRIPS.RECENTTRIPS,
   recenttripsall: API_ENDPOINTS.TRIPS.RECENTTRIPSALL,
   ANALYTICS: {
+    HISTORY_STATS: API_ENDPOINTS.TRIPS.ANALYTICS.HISTORY_STATS,
     DRIVERSTATS: API_ENDPOINTS.TRIPS.ANALYTICS.DRiVERSTATS,
     TOTALTRIPSDRIVER: API_ENDPOINTS.TRIPS.ANALYTICS.TOTALTRIPSDRIVER,
     COMPLETIONRATEDRIVERS: API_ENDPOINTS.TRIPS.ANALYTICS.COMPLETIONRATEDRIVERS,
@@ -549,6 +550,55 @@ export const getAllRecentTrips = async (limit = 10, days = 30) => {
         count: 0,
       },
       message: 'No recent trips found',
+    };
+  }
+};
+
+// Get trip history statistics
+export const getTripHistoryStats = async (days = null) => {
+  try {
+    console.log('Fetching trip history statistics', { days });
+
+    const params = {};
+    if (days) {
+      params.days = days;
+    }
+
+    const response = await httpClient.get(TRIPS_ENDPOINTS.ANALYTICS.HISTORY_STATS, { params });
+
+    console.log('Trip history stats response:', response);
+
+    if (response?.status === 'success' && response?.data) {
+      // Handle nested data structure: response.data.data contains the actual stats
+      const statsData = response.data.data || response.data;
+
+      return {
+        data: statsData,
+        message:
+          response.data.message ||
+          response.message ||
+          'Trip history statistics retrieved successfully',
+      };
+    } else {
+      throw new Error(response?.message || 'Failed to fetch trip history statistics');
+    }
+  } catch (error) {
+    console.error('Error fetching trip history statistics:', error);
+    // Return fallback data structure
+    return {
+      data: {
+        total_trips: 0,
+        total_duration_hours: 0,
+        total_distance_km: 0,
+        average_duration_hours: 0,
+        average_distance_km: 0,
+        max_duration_hours: 0,
+        min_duration_hours: 0,
+        max_distance_km: 0,
+        min_distance_km: 0,
+        time_period: days ? `Last ${days} days` : 'All time',
+      },
+      message: 'Failed to fetch trip history statistics',
     };
   }
 };

@@ -37,6 +37,15 @@ class TripService:
 
             # Create trip entity
             trip_data = request.dict(exclude_unset=True)
+            
+            # If route_info is provided, extract estimated distance and duration
+            if request.route_info:
+                # Convert distance from meters to kilometers for estimated_distance
+                trip_data["estimated_distance"] = request.route_info.distance / 1000
+                # Convert duration from seconds to minutes for estimated_duration
+                trip_data["estimated_duration"] = request.route_info.duration / 60
+                logger.debug(f"[TripService.create_trip] Extracted from route_info: distance={trip_data['estimated_distance']}km, duration={trip_data['estimated_duration']}min")
+            
             trip_data.update({
                 "created_by": created_by,
                 "created_at": datetime.utcnow(),

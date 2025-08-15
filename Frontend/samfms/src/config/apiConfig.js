@@ -168,6 +168,9 @@ export const API_ENDPOINTS = {
     RECENTTRIPS: id => `/trips/trips/recent/${id}`,
     RECENTTRIPSALL: '/trips/recent',
     ANALYTICS: {
+      // Trip History Statistics
+      HISTORY_STATS: '/trips/analytics/trips/history-stats',
+
       // Driver analytics with timeframe
       DRiVERSTATS: '/trips/analytics/drivers/stats',
       TOTALTRIPSDRIVER: '/trips/analytics/drivers/totaltrips',

@@ -7,6 +7,23 @@ from datetime import datetime
 from enum import Enum
 
 
+class RouteBounds(BaseModel):
+    """Route bounds information"""
+    southWest: Dict[str, float] = Field(..., alias="_southWest", description="Southwest coordinate")
+    northEast: Dict[str, float] = Field(..., alias="_northEast", description="Northeast coordinate")
+    
+    class Config:
+        populate_by_name = True
+
+
+class RouteInfo(BaseModel):
+    """Route information including distance, duration, and coordinates"""
+    distance: float = Field(..., description="Route distance in meters")
+    duration: float = Field(..., description="Route duration in seconds") 
+    coordinates: List[List[float]] = Field(..., description="Route coordinates as [lat, lng] pairs")
+    bounds: Optional[RouteBounds] = Field(None, description="Route bounds")
+
+
 class TripStatus(str, Enum):
     """Trip status enumeration"""
     SCHEDULED = "scheduled"
@@ -119,12 +136,14 @@ class Trip(BaseModel):
     origin: Waypoint = Field(..., description="Starting point")
     destination: Waypoint = Field(..., description="End point")
     waypoints: List[Waypoint] = Field(default_factory=list, description="Intermediate stops")
+    route_info: Optional[RouteInfo] = Field(None, description="Route information including distance, duration, and coordinates")
     
     # Trip details
     status: TripStatus = Field(default=TripStatus.SCHEDULED)
     priority: TripPriority = Field(default=TripPriority.NORMAL)
     estimated_end_time: Optional[datetime] = Field(None, description="Estimated end time")
     estimated_distance: Optional[float] = Field(None, description="Estimated distance in km")
+    estimated_duration: Optional[float] = Field(None, description="Estimated duration in minutes")
     
     # Assignments
     driver_assignment: Optional[str] = None

@@ -234,15 +234,18 @@ class ServiceRequestConsumer:
             elif "analytics/drivers" in endpoint:
                 logger.info(f"Routing to driver analytics")
                 return await self._handle_driver_analytics_requests(method, user_context)
+            elif "analytics/vehicles" in endpoint:
+                logger.info(f"Routing to vehicle analytics")
+                return await self._handle_vehicle_analytics_requests(method, user_context)
+            elif "analytics" in endpoint:
+                logger.info(f"Routing to general analytics")
+                return await self._handle_analytics_requests(method, user_context)
             elif "trips" in endpoint or endpoint.startswith("driver/") or endpoint == "recent":
                 logger.info(f"[_route_request] Routing to _handle_trips_request()")
                 return await self._handle_trips_request(method, user_context)
             elif "notifications" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_notifications_request()")
                 return await self._handle_notifications_request(method, user_context)
-            elif "analytics/vehicles" in endpoint:
-                logger.info(f"Routing to vehicle analytics")
-                return await self._handle_vehicle_analytics_requests(method, user_context)
 
             else:
                 logger.warning(f"[_route_request] Unknown endpoint: {endpoint}")
@@ -669,6 +672,24 @@ class ServiceRequestConsumer:
                     return ResponseBuilder.success(
                         data=vehicle_analytics,
                         message="Vehicle analytics retrieved successfully"
+                    ).model_dump()
+
+                if "trips/history-stats" in endpoint:
+                    logger.info(f"[Analytics] Requesting trip history stats")
+                    # Get days parameter if provided
+                    days = data.get('days')
+                    if days:
+                        try:
+                            days = int(days)
+                        except (ValueError, TypeError):
+                            days = None
+                    
+                    history_stats = await analytics_service.get_trip_history_stats(days)
+                    logger.info("[Analytics] Trip history stats calculation completed")
+                    logger.debug(f"[Analytics] Trip history stats response: {history_stats}")
+                    return ResponseBuilder.success(
+                        data=history_stats,
+                        message="Trip history statistics retrieved successfully"
                     ).model_dump()
                 
                 raise ValueError(f"Unknown endpoint: {endpoint}")
