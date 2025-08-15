@@ -97,52 +97,28 @@ export const getActiveTrips = async () => {
     console.log('API Response:', response);
     console.log('Response data:', response.data);
 
-    // Handle different possible response structures
+    // Handle the nested response structure
     let tripsArray;
-    if (Array.isArray(response.data)) {
+    if (response.data && response.data.data && Array.isArray(response.data.data)) {
+      tripsArray = response.data.data;
+    } else if (Array.isArray(response.data)) {
       tripsArray = response.data;
     } else if (response.data && Array.isArray(response.data.trips)) {
       tripsArray = response.data.trips;
-    } else if (response.data && Array.isArray(response.data.data)) {
-      tripsArray = response.data.data;
     } else {
       console.error('Unexpected API response structure:', response.data);
       return { trips: [] }; // Return empty array as fallback
     }
 
-    const transformedTrips = tripsArray.map(trip => ({
-      id: trip._id,
-      name: trip.name,
-      startTime: trip.start_time,
-      estimatedEndTime: trip.estimated_end_time,
-      scheduledEndTime: trip.scheduled_end_time,
-      driver: {
-        id: trip.driver_id,
-        name: trip.driver_name,
-      },
-      vehicle: {
-        id: trip.vehicle_id,
-      },
-      status: determineStatus(trip.scheduled_end_time, trip.estimated_end_time),
-    }));
+    console.log('Extracted trips array:', tripsArray);
 
-    return { trips: transformedTrips };
+    // Return the raw trips data without transformation
+    // since components are designed for the real API structure
+    return { data: tripsArray };
   } catch (error) {
     console.error('Error fetching active trips:', error);
     throw error;
   }
-};
-
-const determineStatus = (scheduledEnd, estimatedEnd) => {
-  if (!scheduledEnd || !estimatedEnd) return 'in_progress';
-
-  const scheduled = new Date(scheduledEnd);
-  const estimated = new Date(estimatedEnd);
-
-  if (estimated > scheduled) {
-    return 'delayed';
-  }
-  return 'on_time';
 };
 
 // Get trips history with pagination
