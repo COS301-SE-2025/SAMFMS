@@ -144,7 +144,7 @@ const UserTable = ({
         </div>
 
         {/* Table exactly matching vehicles table */}
-        <div className="bg-card rounded-lg shadow-md p-6 border border-border">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>

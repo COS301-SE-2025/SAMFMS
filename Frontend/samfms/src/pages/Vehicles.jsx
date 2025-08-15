@@ -7,13 +7,7 @@ import VehicleDetailsModal from '../components/vehicles/VehicleDetailsModal';
 import DriverAssignmentModal from '../components/vehicles/DriverAssignmentModal';
 import AddVehicleModal from '../components/vehicles/AddVehicleModal';
 import EditVehicleModal from '../components/vehicles/EditVehicleModal';
-import {
-  getVehicles,
-  deleteVehicle,
-  searchVehicles,
-  getVehicleUsage,
-  getAssignmentMetrics,
-} from '../backend/API';
+import { getVehicles, deleteVehicle, searchVehicles } from '../backend/API';
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
   // Removed unused state variable for filteredVehicles
@@ -35,15 +29,6 @@ const Vehicles = () => {
     status: '',
     make: '',
   });
-  const [analytics, setAnalytics] = useState({});
-  const [stats, setStats] = useState({});
-  const [vehicleAnalytics, setVehicleAnalytics] = useState({});
-
-  const [loadingVehicles, setLoadingVehicles] = useState(true);
-  const [loadingVehicleAnalytics, setLoadingVehicleAnalytics] = useState(true);
-  const [totalVehicles, setTotalVehicles] = useState({});
-  const [totalVehiclesMaint, setTotalVehiclesMaint] = useState({});
-  const [fleetUtil, setFleetUtil] = useState({});
 
   // Enhanced error handling with retry logic
   const handleAPIError = async (error, retryFn, maxRetries = 3) => {
@@ -97,63 +82,6 @@ const Vehicles = () => {
 
   // Load vehicles from API
   useEffect(() => {
-    const fetchVehicleAnalytics = async () => {
-      try {
-        setLoadingVehicleAnalytics(true);
-        const response = await getVehicleUsage();
-        const response2 = await getAssignmentMetrics();
-
-        setVehicleAnalytics(
-          {
-            assignment_metrics: response.data.data.dashboard.fleet_utilization || 0,
-          } || {}
-        );
-        console.log(vehicleAnalytics.assignment_metrics);
-      } catch (error) {
-        console.log(`Error fetching data: ${error}`);
-      } finally {
-        setLoadingVehicleAnalytics(false);
-      }
-    };
-    fetchVehicleAnalytics();
-
-    const fetchTotalVehicles = async () => {
-      try {
-        setLoadingVehicles(true);
-        const response = await getVehicles();
-        setTotalVehicles(response.data.data.vehicles.length || 0);
-
-        const maintenanceVehicles = response.data.data.vehicles.filter(
-          vehicle => vehicle.status === 'maintenance'
-        );
-        setTotalVehiclesMaint(maintenanceVehicles.length);
-        console.log(maintenanceVehicles.length);
-
-        const vehicleUtil = 1 - maintenanceVehicles.length / response.data.data.vehicles.length;
-        setFleetUtil(vehicleUtil);
-
-        setStats(
-          {
-            totalVehicles: response.data.data.vehicles.length || 0,
-            totalVehiclesMaint: maintenanceVehicles.length || 0,
-            fleetUtil: vehicleUtil || 0,
-            statusBreakdown: response.data.data.vehicles.reduce((breakdown, vehicle) => {
-              breakdown[vehicle.status] = (breakdown[vehicle.status] || 0) + 1;
-              return breakdown;
-            }),
-          } || {}
-        );
-        console.log(stats);
-      } catch (error) {
-        console.log(`Error fetching data: ${error}`);
-        setTotalVehicles('N/A');
-      } finally {
-        setLoadingVehicles(false);
-      }
-    };
-    fetchTotalVehicles();
-    fetchVehicleAnalytics();
-
     const loadVehicles = async (retryCount = 3) => {
       try {
         setLoading(true);
@@ -174,7 +102,6 @@ const Vehicles = () => {
           .map(transformVehicleData)
           .filter(vehicle => vehicle !== null);
         setVehicles(transformedVehicles);
-        setAnalytics(response.analytics || {}); // <-- set analytics here
       } catch (err) {
         console.error('Error loading vehicles:', err);
 
@@ -472,7 +399,6 @@ const Vehicles = () => {
         .map(transformVehicleData)
         .filter(vehicle => vehicle !== null);
       setVehicles(transformedVehicles);
-      setAnalytics(response.analytics || {});
     } catch (error) {
       console.error('Error refreshing vehicles after assignment:', error);
     } finally {
