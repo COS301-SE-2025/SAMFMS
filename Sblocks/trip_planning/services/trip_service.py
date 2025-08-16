@@ -214,26 +214,48 @@ class TripService:
             logger.error(f"Failed to cancel trip {trip_id}: {e}")
             return False
     
-    async def get_active_trips(self) -> List[Trip]:
+    async def get_active_trips(self, driver_id: str = None) -> List[Trip]:
         """
-        Return all active trips (current time >= scheduled_start_time and not completed/canceled)
+        Return all active trips (current time >= scheduled_start_time and not completed/canceled),
+        optionally filtered by driver
         """
-        logger.info("[TripService.get_active_trips] Entered")
+        if driver_id:
+            logger.info(f"[TripService.get_active_trips] Getting active trips for driver: {driver_id}")
+        else:
+            logger.info("[TripService.get_active_trips] Getting all active trips")
+        
         try:
             now = datetime.utcnow()
-            query = {
-                "scheduled_start_time": {"$lte": now},
-                #"status": {"$in": [TripStatus.SCHEDULED, TripStatus.IN_PROGRESS]}
-            }
+            
+            # Base query for active trips
+            if driver_id:
+                query = {
+                    "scheduled_start_time": {"$lte": now},
+                }
+            else:
+                query = {
+                    "actual_start_time": {"$lte": now},
+                }
+            
+            # Add driver filter if provided
+            if driver_id:
+                query["driver_id"] = driver_id
+            
             logger.debug(f"[TripService.get_active_trips] Query: {query}")
-
+            
             cursor = self.db.trips.find(query)
             trips = []
+            
             async for trip_doc in cursor:
                 trip_doc["_id"] = str(trip_doc["_id"])
                 trips.append(Trip(**trip_doc))
-            logger.info(f"[TripService.get_active_trips] Retrieved {len(trips)} active trips")
+            
+            if driver_id:
+                logger.info(f"[TripService.get_active_trips] Retrieved {len(trips)} active trips for driver {driver_id}")
+            else:
+                logger.info(f"[TripService.get_active_trips] Retrieved {len(trips)} active trips")
             return trips
+            
         except Exception as e:
             logger.error(f"[TripService.get_active_trips] Failed: {e}")
             raise

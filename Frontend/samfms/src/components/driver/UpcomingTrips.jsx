@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Clock, User, Car, ChevronRight, ChevronDown, ChevronUp, Play } from 'lucide-react';
-import { getUpcomingTrips, updateTrip } from '../../backend/api/trips';
+import { MapPin, Clock, User, Car, ChevronRight, ChevronDown, ChevronUp, Play, Square } from 'lucide-react';
+import { getUpcomingTrips, updateTrip, getDriverActiveTrips } from '../../backend/api/trips';
 import { getCurrentUser } from '../../backend/api/auth';
-import { getDriverEMPID } from '../../backend/api/drivers';
+import { getDriverEMPID, TripFinishedStatus } from '../../backend/api/drivers';
 
-const UpcomingTrips = () => {
+const UpcomingTrips = ({ onTripStarted }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [upcomingTrips, setUpcomingTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [startingTrips, setStartingTrips] = useState(new Set()); // Track which trips are being started
+  const [endingTrips, setEndingTrips] = useState(new Set()); // Track which trips are being ended
+  const [tripStatuses, setTripStatuses] = useState(new Map()); // Track trip finish status
+  const [statusCheckIntervals, setStatusCheckIntervals] = useState(new Map()); // Track intervals for each trip
 
   // Get current user ID from authentication
   const getCurrentUserId = () => {
@@ -28,39 +31,99 @@ const UpcomingTrips = () => {
     }
   };
 
-  useEffect(() => {
-    const fetchUpcomingTrips = async () => {
-      try {
-        setLoading(true);
-        const driverId = getCurrentUserId();
-        
-        if (!driverId) {
-          throw new Error('No driver ID found');
-        }
+  // Function to check if trip is finished
+  const checkTripFinished = async (employeeId, tripId) => {
+    try {
+      const isFinished = await TripFinishedStatus(employeeId);
+      setTripStatuses(prev => new Map(prev.set(tripId, isFinished)));
+      return isFinished;
+    } catch (error) {
+      console.error(`Error checking trip status for trip ${tripId}:`, error);
+      return false;
+    }
+  };
 
-        // FIXED: Await the async function
-        const employeeID = await getEmployeeID(driverId);
-        console.log("EMP ID: ", employeeID);
-        
-        const response = await getUpcomingTrips(employeeID.data);
-        console.log("Response for upcoming trips: ", response);
-        
-        // FIXED: Access the correct path in the response
-        if (response?.data?.trips) {
-          setUpcomingTrips(response.data.trips);  // Changed from response.data.data to response.data.trips
-        } else {
-          setUpcomingTrips([]);  // Ensure it's always an array
-        }
-      } catch (err) {
-        console.error('Error fetching upcoming trips:', err);
-        setError(err.message);
-        setUpcomingTrips([]);  // Ensure it's always an array even on error
-      } finally {
-        setLoading(false);
+  // Start monitoring a trip's finish status
+  const startTripStatusMonitoring = (employeeId, tripId) => {
+    // Don't start monitoring if already monitoring this trip
+    if (statusCheckIntervals.has(tripId)) {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      await checkTripFinished(employeeId, tripId);
+    }, 30000); // Check every 30 seconds
+
+    setStatusCheckIntervals(prev => new Map(prev.set(tripId, interval)));
+    
+    // Also check immediately
+    checkTripFinished(employeeId, tripId);
+  };
+
+  // Stop monitoring a trip's finish status
+  const stopTripStatusMonitoring = (tripId) => {
+    const interval = statusCheckIntervals.get(tripId);
+    if (interval) {
+      clearInterval(interval);
+      setStatusCheckIntervals(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(tripId);
+        return newMap;
+      });
+    }
+    setTripStatuses(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(tripId);
+      return newMap;
+    });
+  };
+
+  const fetchUpcomingTrips = async () => {
+    try {
+      setLoading(true);
+      const driverId = getCurrentUserId();
+      
+      if (!driverId) {
+        throw new Error('No driver ID found');
       }
-    };
 
+      // FIXED: Await the async function
+      const employeeID = await getEmployeeID(driverId);
+      console.log("EMP ID: ", employeeID);
+      
+      const response = await getUpcomingTrips(employeeID.data);
+      console.log("Response for upcoming trips: ", response);
+      
+      // FIXED: Access the correct path in the response
+      if (response?.data?.trips) {
+        const trips = response.data.trips;
+        setUpcomingTrips(trips);
+        
+        // Start monitoring in-progress trips
+        trips.forEach(trip => {
+          if (trip.status === 'in-progress') {
+            startTripStatusMonitoring(employeeID.data, trip.id || trip._id);
+          }
+        });
+      } else {
+        setUpcomingTrips([]);  // Ensure it's always an array
+      }
+    } catch (err) {
+      console.error('Error fetching upcoming trips:', err);
+      setError(err.message);
+      setUpcomingTrips([]);  // Ensure it's always an array even on error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchUpcomingTrips();
+
+    // Cleanup intervals on unmount
+    return () => {
+      statusCheckIntervals.forEach(interval => clearInterval(interval));
+    };
   }, []);
 
   const formatTripData = trip => {
@@ -107,6 +170,8 @@ const UpcomingTrips = () => {
         return 'bg-green-100 text-green-800';
       case 'delayed':
         return 'bg-yellow-100 text-yellow-800';
+      case 'completed':
+        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -144,6 +209,11 @@ const UpcomingTrips = () => {
     return minutesDifference <= 15 && minutesDifference >= -15;
   };
 
+  // Check if trip can be ended (trip is in progress and driver has reached destination)
+  const canEndTrip = (tripId) => {
+    return tripStatuses.get(tripId) === true;
+  };
+
   // Handle starting a trip
   const handleStartTrip = async (tripId, event) => {
     event.stopPropagation(); // Prevent triggering the row click
@@ -151,26 +221,29 @@ const UpcomingTrips = () => {
     setStartingTrips(prev => new Set([...prev, tripId]));
     
     try {
-      // TODO: Replace with your actual API call to start the trip
-      // Example: await startTrip(tripId);
-      const now = new Date().toISOString();;
+      const now = new Date().toISOString();
       const data = {
         "actual_start_time": now,
       }
       console.log("Trip id: ", tripId);
-      const response = await updateTrip(tripId,data);
+      const response = await updateTrip(tripId, data);
       console.log("Response for updating: ", response);
       
-      // Update the trip status locally
-      setUpcomingTrips(prev => 
-        prev.map(trip => 
-          (trip.id || trip._id) === tripId 
-            ? { ...trip, status: 'in-progress' }
-            : trip
-        )
-      );
+      // Start monitoring this trip's finish status
+      const driverId = getCurrentUserId();
+      const employeeID = await getEmployeeID(driverId);
+      if (employeeID?.data) {
+        startTripStatusMonitoring(employeeID.data, tripId);
+      }
+
+      // Notify parent component that a trip has started
+      if (onTripStarted) {
+        onTripStarted(tripId);
+      }
+
+      // Refresh the upcoming trips list to remove the started trip
+      await fetchUpcomingTrips();
       
-      // You might want to redirect to a trip tracking page or show a success message
       console.log(`Trip ${tripId} started successfully`);
       
     } catch (error) {
@@ -178,6 +251,42 @@ const UpcomingTrips = () => {
       // Handle error - show toast notification or error message
     } finally {
       setStartingTrips(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(tripId);
+        return newSet;
+      });
+    }
+  };
+
+  // Handle ending a trip
+  const handleEndTrip = async (tripId, event) => {
+    event.stopPropagation(); // Prevent triggering the row click
+    
+    setEndingTrips(prev => new Set([...prev, tripId]));
+    
+    try {
+      const now = new Date().toISOString();
+      const data = {
+        "actual_end_time": now,
+        "status": "completed"
+      }
+      console.log("Ending trip id: ", tripId);
+      const response = await updateTrip(tripId, data);
+      console.log("Response for ending trip: ", response);
+      
+      // Stop monitoring this trip's finish status
+      stopTripStatusMonitoring(tripId);
+
+      // Refresh the upcoming trips list
+      await fetchUpcomingTrips();
+      
+      console.log(`Trip ${tripId} ended successfully`);
+      
+    } catch (error) {
+      console.error('Error ending trip:', error);
+      // Handle error - show toast notification or error message
+    } finally {
+      setEndingTrips(prev => {
         const newSet = new Set(prev);
         newSet.delete(tripId);
         return newSet;
@@ -231,7 +340,9 @@ const UpcomingTrips = () => {
             upcomingTrips.map(trip => {
               const formattedTrip = formatTripData(trip);
               const canStart = canStartTrip(formattedTrip);
+              const canEnd = canEndTrip(formattedTrip.id);
               const isStarting = startingTrips.has(formattedTrip.id);
+              const isEnding = endingTrips.has(formattedTrip.id);
               
               return (
                 <div
@@ -304,9 +415,10 @@ const UpcomingTrips = () => {
                     </div>
                   </div>
 
-                  {/* Start Trip Button */}
-                  {canStart && formattedTrip.status === 'scheduled' && (
-                    <div className="flex justify-end">
+                  {/* Action Buttons */}
+                  <div className="flex justify-end">
+                    {/* Start Trip Button */}
+                    {canStart && formattedTrip.status === 'scheduled' && (
                       <button
                         onClick={(e) => handleStartTrip(formattedTrip.id, e)}
                         disabled={isStarting}
@@ -324,13 +436,39 @@ const UpcomingTrips = () => {
                           </>
                         )}
                       </button>
-                    </div>
-                  )}
-                  
-                  {/* Time until trip starts (for scheduled trips) */}
-                  {formattedTrip.status === 'scheduled' && !canStart && (
-                    <div className="flex justify-end">
-                      <span className="text-xs text-muted-foreground">
+                    )}
+
+                    {/* End Trip Button */}
+                    {canEnd && formattedTrip.status === 'in-progress' && (
+                      <button
+                        onClick={(e) => handleEndTrip(formattedTrip.id, e)}
+                        disabled={isEnding}
+                        className="inline-flex items-center space-x-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
+                      >
+                        {isEnding ? (
+                          <>
+                            <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                            <span>Ending...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Square className="h-4 w-4" />
+                            <span>End Trip</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+
+                    {/* Status indicators for in-progress trips */}
+                    {formattedTrip.status === 'in-progress' && !canEnd && (
+                      <span className="text-xs text-muted-foreground px-3 py-1.5">
+                        Checking location...
+                      </span>
+                    )}
+
+                    {/* Time until trip starts (for scheduled trips) */}
+                    {formattedTrip.status === 'scheduled' && !canStart && (
+                      <span className="text-xs text-muted-foreground px-3 py-1.5">
                         {(() => {
                           const now = new Date();
                           const scheduledStart = new Date(formattedTrip.scheduledStartTime);
@@ -344,8 +482,8 @@ const UpcomingTrips = () => {
                           }
                         })()}
                       </span>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               );
             })

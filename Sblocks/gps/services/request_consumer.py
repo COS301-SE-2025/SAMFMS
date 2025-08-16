@@ -295,10 +295,18 @@ class ServiceRequestConsumer:
             if method == "GET":
                 # Parse endpoint for specific location operations
                 if "locations" in endpoint:
-                    locations = await location_service.get_all_vehicle_locations()
+                    vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                    if vehicle_id is None:
+                        locations = await location_service.get_all_vehicle_locations()
+                        return ResponseBuilder.success(
+                            data=[loc.model_dump() for loc in locations] if locations else None,
+                            message="Vehicle locations retrieved successfully"
+                        ).model_dump()
+                    
+                    location = await location_service.get_vehicle_location(vehicle_id)
                     return ResponseBuilder.success(
-                        data=[loc.model_dump() for loc in locations] if locations else None,
-                        message="Vehicle locations retrieved successfully"
+                        data=location,
+                        message="Vehicle location retrieved successfully"
                     ).model_dump()
                 
                 elif "vehicle" in endpoint and endpoint.count('/') > 0:

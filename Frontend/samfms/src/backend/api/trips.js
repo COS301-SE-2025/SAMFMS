@@ -7,6 +7,7 @@ const TRIPS_ENDPOINTS = {
   update: API_ENDPOINTS.TRIPS.UPDATE,
   delete: API_ENDPOINTS.TRIPS.DELETE,
   ACTIVE: API_ENDPOINTS.TRIPS.ACTIVE,
+  DriverActive: API_ENDPOINTS.TRIPS.DRIVERACTIVE,
   HISTORY: API_ENDPOINTS.TRIPS.HISTORY,
   finish: API_ENDPOINTS.TRIPS.FINISHED,
   allupcomming: API_ENDPOINTS.TRIPS.UPCOMMINGTRIPSALL,
@@ -87,6 +88,19 @@ export const deleteGeofence = async tripID => {
     throw error;
   }
 };
+
+export const getDriverActiveTrips = async (driver_id) => {
+  try {
+    const response = await httpClient.get(TRIPS_ENDPOINTS.DriverActive(driver_id));
+    console.log("Response for active trip: ", response);
+    const activeTrip = response.data.data;
+
+    return activeTrip;
+  } catch (error){
+    console.error('Error fetching active trip:', error);
+    throw error;
+  }
+}
 
 // Replace your getActiveTrips function with this:
 export const getActiveTrips = async () => {

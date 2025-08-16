@@ -14,6 +14,9 @@ const DRIVER_ENDPOINTS = {
   delete: API_ENDPOINTS.DRIVERS.DELETE,
   assign: API_ENDPOINTS.DRIVERS.ASSIGN,
   empid: API_ENDPOINTS.DRIVERS.EMPID,
+  driverASS: API_ENDPOINTS.ASSIGNMENTS.GETDRIVERASSIGNMENT,
+  vehicLoct: API_ENDPOINTS.LOCATIONS.GET,
+  vehicEndLoc: API_ENDPOINTS.TRIPS.VEHICLETRIP,
   TRIP_PLANNING_LIST: API_ENDPOINTS.DRIVERS.TRIP_PLANNING_LIST,
 };
 
@@ -281,3 +284,27 @@ export const getDriverEMPID = async security_id => {
     throw error;
   }
 };
+
+export const TripFinishedStatus = async employee_id => {
+  try {
+    const response = await httpClient.get(DRIVER_ENDPOINTS.driverASS(employee_id));
+    console.log("Response for current driver-vehicle-ass: ", response);
+
+    const vehicle_id = response.data.data.trip_id;
+    const current_location_response = await httpClient.get(DRIVER_ENDPOINTS.vehicLoct(vehicle_id));
+    const current_location = current_location_response.data.data.location.coordinates
+    
+    const end_location_response = await httpClient.get(DRIVER_ENDPOINTS.vehicEndLoc(vehicle_id));
+    const end_location = end_location_response.data.data.destination.location.coordinates
+
+    console.log("Current location: ", current_location)
+    console.log("End location: ", end_location)
+
+    return (current_location == end_location)
+
+
+  } catch (error){
+    console.error('Error fetching driver trip status:', error);
+    throw error;
+  }
+}

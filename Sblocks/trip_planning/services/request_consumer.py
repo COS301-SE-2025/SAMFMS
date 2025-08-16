@@ -271,6 +271,23 @@ class ServiceRequestConsumer:
             logger.info(f"[DEBUG] Full endpoint analysis: endpoint='{endpoint}', method='{method}'")
 
             if method == "GET":
+                if "vehicle" in endpoint:
+                    vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                    logger.info(f"Vehicle ID extracted for trip: {vehicle_id}")
+                    if vehicle_id is None:
+                        return ResponseBuilder.error(
+                            error="Error while processing trip request",
+                            message="Vehicle ID was not included",
+                        )
+                    from schemas.requests import TripFilterRequest
+                    trip = await trip_service.list_trips(TripFilterRequest(
+                        vehicle_id=vehicle_id
+                    ))
+
+                    return ResponseBuilder.success(
+                        data=trip,
+                        message="Trip retrieved successfully"
+                    )
                 if "polyline" in endpoint:
                     vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
                     logger.info(f"Vehicle ID extracted for polyline: {vehicle_id}")
@@ -441,11 +458,20 @@ class ServiceRequestConsumer:
                         message="Trips retrieved successfully"
                     ).model_dump()
                 elif "active" in endpoint:
-                    activeTrips = await trip_service.get_active_trips()
-                    logger.info(f"[_handle_trips_request] trip_service.get_active_trips() returned {len(activeTrips) if activeTrips else 0} trips")
+                    driver_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                    logger.info(f"Driver ID extracted for upcomming trips: {driver_id} ")
+                    if driver_id is None:
+                        activeTrips = await trip_service.get_active_trips()
+                        logger.info(f"[_handle_trips_request] trip_service.get_active_trips() returned {len(activeTrips) if activeTrips else 0} trips")
+                        return ResponseBuilder.success(
+                            data=[Atrip.model_dump() for Atrip in activeTrips] if activeTrips else None,
+                            message="Active Trips retrieved successfully"
+                        ).model_dump()
+                    
+                    activeTrip = await trip_service.get_active_trips(driver_id)
                     return ResponseBuilder.success(
-                        data=[Atrip.model_dump() for Atrip in activeTrips] if activeTrips else None,
-                        message="Active Trips retrieved successfully"
+                        data=activeTrip,
+                        message="Active Trip retrieved successfully"
                     ).model_dump()
 
                 else:

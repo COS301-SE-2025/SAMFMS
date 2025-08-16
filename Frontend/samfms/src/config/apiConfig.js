@@ -135,6 +135,7 @@ export const API_ENDPOINTS = {
   ASSIGNMENTS: {
     LIST: '/management/assignments',
     CREATE: '/management/assignments',
+    GETDRIVERASSIGNMENT: id => `/management/assignments/driver/${id}`,
     UPDATE: id => `/management/assignments/${id}`,
     DELETE: id => `/management/assignments/${id}`,
     COMPLETE: id => `/management/assignments/${id}/complete`,
@@ -163,6 +164,7 @@ export const API_ENDPOINTS = {
     UPDATE: id => `/trips/trips/${id}`,
     DELETE: id => `/trips/trips/${id}`,
     ACTIVE: '/trips/trips/active',
+    DRIVERACTIVE: id => `/trips/trips/active/${id}`,
     HISTORY: '/trips/history',
     FINISHED: 'trips/trips/completed',
     UPCOMMINGTRIPSALL: '/trips/trips/upcomming',
@@ -170,6 +172,7 @@ export const API_ENDPOINTS = {
     RECENTTRIPS: id => `/trips/trips/recent/${id}`,
     RECENTTRIPSALL: '/trips/recent',
     VEHICLEPOLYLINE: id => `/trips/trips/polyline/${id}`,
+    VEHICLETRIP: id => `/trips/trips/vehicle/${id}`,
     ANALYTICS: {
       // Trip History Statistics
       HISTORY_STATS: '/trips/analytics/trips/history-stats',
