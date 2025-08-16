@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import DriverList from '../components/drivers/DriverList';
 import DriverSearch from '../components/drivers/DriverSearch';
 import DriverActions from '../components/drivers/DriverActions';
@@ -7,7 +7,7 @@ import VehicleAssignmentModal from '../components/drivers/VehicleAssignmentModal
 import AddDriverModal from '../components/drivers/AddDriverModal';
 import EditDriverModal from '../components/drivers/EditDriverModal';
 
-import { deleteDriver, searchDrivers, getTripPlanningDrivers } from '../backend/api/drivers';
+import {deleteDriver, searchDrivers, getTripPlanningDrivers} from '../backend/api/drivers';
 
 const Drivers = () => {
   const [drivers, setDrivers] = useState([]);
@@ -44,11 +44,11 @@ const Drivers = () => {
         backendDriver.status === 'active'
           ? 'Active'
           : backendDriver.status === 'unavailable'
-          ? 'Unavailable'
-          : backendDriver.status === 'inactive'
-          ? 'Inactive'
-          : (backendDriver.status || 'Unknown').charAt(0).toUpperCase() +
-            (backendDriver.status || 'unknown').slice(1),
+            ? 'Unavailable'
+            : backendDriver.status === 'inactive'
+              ? 'Inactive'
+              : (backendDriver.status || 'Unknown').charAt(0).toUpperCase() +
+              (backendDriver.status || 'unknown').slice(1),
       employeeId: backendDriver.employee_id || 'N/A',
       department: backendDriver.department || 'N/A',
       licenseType: backendDriver.license_class || 'N/A',
@@ -63,7 +63,7 @@ const Drivers = () => {
       try {
         setLoading(true);
         setError(null);
-        const params = { limit: 100 };
+        const params = {limit: 100};
         if (filters.status) {
           // Map frontend status format to backend format
           params.status = filters.status.toLowerCase() === 'active' ? 'active' : 'inactive';
@@ -117,7 +117,7 @@ const Drivers = () => {
           ...(filters.status && {
             status: filters.status.toLowerCase() === 'active' ? 'active' : 'inactive',
           }),
-          ...(filters.department && { department: filters.department }),
+          ...(filters.department && {department: filters.department}),
         });
 
         // The trip planning service returns { drivers, total, skip, limit, has_more }
@@ -236,7 +236,7 @@ const Drivers = () => {
       console.error('Error processing new driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getTripPlanningDrivers({ limit: 100 });
+        const response = await getTripPlanningDrivers({limit: 100});
         const driversData = response?.drivers || [];
         const transformedDrivers = driversData.map(transformDriverData);
         setDrivers(transformedDrivers);
@@ -283,7 +283,7 @@ const Drivers = () => {
       console.error('Error processing updated driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getTripPlanningDrivers({ limit: 100 });
+        const response = await getTripPlanningDrivers({limit: 100});
         const driversData = response?.drivers || [];
         const transformedDrivers = driversData.map(transformDriverData);
         setDrivers(transformedDrivers);

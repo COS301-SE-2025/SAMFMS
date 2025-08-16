@@ -96,9 +96,6 @@ const ManualCreateUserModal = ({
     // Validate phone number in real-time
     if (name === 'phoneNo') {
       setPhoneError('');
-      if (value && value.trim() !== '' && !validatePhoneNumber(value)) {
-        setPhoneError('Please enter a valid South African phone number (e.g., 0826468537, +27826468537, or 27826468537)');
-      }
     }
   };
 
@@ -252,7 +249,6 @@ const ManualCreateUserModal = ({
                 onChange={handleChange}
                 className={`w-full p-2 border rounded-md bg-background text-foreground focus:ring-primary focus:border-primary ${phoneError ? 'border-destructive' : 'border-border'
                   }`}
-                placeholder="e.g., 0826468537, +27826468537, or 27826468537"
                 required
               />
               {phoneError && (
