@@ -202,3 +202,59 @@ class TestTripAPI(APITestMixin):
             response = await test_client.post("/api/v1/trips", json=sample_trip_data)
             
             self.assert_error_response(response, 500)
+
+
+class TestDriversAPI(APITestMixin):
+    """Test cases for Drivers API endpoints"""
+
+    @pytest.mark.asyncio
+    async def test_get_all_drivers_endpoint(self, test_client):
+        """Test GET /drivers endpoint"""
+        response = await test_client.get("/drivers")
+        
+        data = self.assert_success_response(response)
+        assert 'drivers' in data['data']
+        assert 'total' in data['data']
+        assert 'skip' in data['data']
+        assert 'limit' in data['data']
+        assert 'has_more' in data['data']
+
+    @pytest.mark.asyncio
+    async def test_get_drivers_with_filters(self, test_client):
+        """Test GET /drivers endpoint with filters"""
+        response = await test_client.get(
+            "/drivers", 
+            params={
+                "status": "active",
+                "department": "logistics",
+                "skip": 0,
+                "limit": 50
+            }
+        )
+        
+        data = self.assert_success_response(response)
+        assert 'drivers' in data['data']
+        assert data['data']['skip'] == 0
+        assert data['data']['limit'] == 50
+
+    @pytest.mark.asyncio
+    async def test_get_drivers_pagination(self, test_client):
+        """Test GET /drivers endpoint pagination"""
+        response = await test_client.get(
+            "/drivers", 
+            params={"skip": 10, "limit": 20}
+        )
+        
+        data = self.assert_success_response(response)
+        assert data['data']['skip'] == 10
+        assert data['data']['limit'] == 20
+
+    @pytest.mark.asyncio
+    async def test_get_drivers_service_error(self, test_client):
+        """Test handling of service layer errors in drivers endpoint"""
+        with patch('services.driver_service.driver_service.get_all_drivers') as mock_get:
+            mock_get.side_effect = Exception("Database connection failed")
+            
+            response = await test_client.get("/drivers")
+            
+            self.assert_error_response(response, 500)

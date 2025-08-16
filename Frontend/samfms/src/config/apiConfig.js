@@ -127,6 +127,8 @@ export const API_ENDPOINTS = {
     ACTIVATE: id => `/management/${id}/activate`,
     ASSIGN: '/management/assign-vehicle',
     EMPID: id => `/management/drivers/employee/${id}`,
+    // Trip Planning Service - Get All Drivers from drivers collection
+    TRIP_PLANNING_LIST: '/trips/drivers',
   },
 
   // Vehicle Assignments

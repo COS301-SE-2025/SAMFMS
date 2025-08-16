@@ -297,7 +297,7 @@ for exception_type, handler in EXCEPTION_HANDLERS.items():
 # Include routers with enhanced error handling
 app.include_router(analytics_router, tags=["analytics"])
 app.include_router(trips_router, tags=["trips"])
-app.include_router(drivers_router, tags=["drivers"])
+app.include_router(drivers_router, prefix="/drivers", tags=["drivers"])
 app.include_router(notifications_router, tags=["notifications"])
 
 @app.get("/")

@@ -7,8 +7,7 @@ import VehicleAssignmentModal from '../components/drivers/VehicleAssignmentModal
 import AddDriverModal from '../components/drivers/AddDriverModal';
 import EditDriverModal from '../components/drivers/EditDriverModal';
 
-import { getDrivers, deleteDriver, searchDrivers } from '../backend/api/drivers';
-import { getAllDrivers } from '../backend/api/drivers';
+import { deleteDriver, searchDrivers, getTripPlanningDrivers } from '../backend/api/drivers';
 
 const Drivers = () => {
   const [drivers, setDrivers] = useState([]);
@@ -36,12 +35,20 @@ const Drivers = () => {
   const transformDriverData = useCallback(backendDriver => {
     return {
       id: backendDriver.id,
-      name: `${backendDriver.full_name}`,
+      name: `${backendDriver.first_name || ''} ${backendDriver.last_name || ''}`.trim() || 'N/A',
       licenseNumber: backendDriver.license_number || 'N/A',
-      phone: backendDriver.phoneNo || 'N/A',
+      phone: backendDriver.phone || 'N/A', // Changed from phoneNo to phone
       licenseExpiry: backendDriver.license_expiry || 'N/A',
       email: backendDriver.email || 'N/A',
-      status: backendDriver.status === 'active' ? 'Active' : 'Inactive',
+      status:
+        backendDriver.status === 'active'
+          ? 'Active'
+          : backendDriver.status === 'unavailable'
+          ? 'Unavailable'
+          : backendDriver.status === 'inactive'
+          ? 'Inactive'
+          : (backendDriver.status || 'Unknown').charAt(0).toUpperCase() +
+            (backendDriver.status || 'unknown').slice(1),
       employeeId: backendDriver.employee_id || 'N/A',
       department: backendDriver.department || 'N/A',
       licenseType: backendDriver.license_class || 'N/A',
@@ -58,23 +65,32 @@ const Drivers = () => {
         setError(null);
         const params = { limit: 100 };
         if (filters.status) {
-          params.status_filter = filters.status.toLowerCase().replace(/\s+/g, '_');
+          // Map frontend status format to backend format
+          params.status = filters.status.toLowerCase() === 'active' ? 'active' : 'inactive';
         }
         if (filters.department) {
-          params.department_filter = filters.department;
+          params.department = filters.department;
         }
 
-        const response = await getDrivers(params);
-        console.log('Full response:', response); // Debug log
+        // Use the new trip planning service endpoint
+        const response = await getTripPlanningDrivers(params);
+        console.log('Full response from trip planning service:', response); // Debug log
 
-        // Access the correct nested data structure
-        const driversData = response?.data?.data?.drivers || response?.drivers || [];
+        // The trip planning service returns { drivers, total, skip, limit, has_more }
+        const driversData = response?.drivers || [];
+        console.log('Drivers data array:', driversData); // Debug log
 
         if (!Array.isArray(driversData)) {
           throw new Error('Invalid response format: drivers data is not an array');
         }
 
-        const transformedDrivers = driversData.map(transformDriverData);
+        const transformedDrivers = driversData.map((driver, index) => {
+          console.log(`Transforming driver ${index}:`, driver); // Debug log
+          const transformed = transformDriverData(driver);
+          console.log(`Transformed result ${index}:`, transformed); // Debug log
+          return transformed;
+        });
+        console.log('All transformed drivers:', transformedDrivers); // Debug log
         setDrivers(transformedDrivers);
         setFilteredDrivers([]); // Always reset filteredDrivers on load
       } catch (err) {
@@ -95,19 +111,22 @@ const Drivers = () => {
       setLoading(true);
       setError(null);
       if (!searchQuery.trim()) {
-        const response = await getDrivers({
+        // Use trip planning service for getting all drivers when search is empty
+        const response = await getTripPlanningDrivers({
           limit: 100,
           ...(filters.status && {
-            status_filter: filters.status.toLowerCase().replace(/\s+/g, '_'),
+            status: filters.status.toLowerCase() === 'active' ? 'active' : 'inactive',
           }),
-          ...(filters.department && { department_filter: filters.department }),
+          ...(filters.department && { department: filters.department }),
         });
 
-        // Access the correct nested data structure
-        const driversData = response?.data?.data?.drivers || response?.drivers || [];
+        // The trip planning service returns { drivers, total, skip, limit, has_more }
+        const driversData = response?.drivers || [];
         const transformedDrivers = driversData.map(transformDriverData);
         setFilteredDrivers(transformedDrivers);
       } else {
+        // For search, we still use the existing search function
+        // TODO: Consider implementing search in trip planning service as well
         const searchResults = await searchDrivers(searchQuery);
         // Handle search results - adjust based on your search API response format
         const resultsData =
@@ -217,8 +236,8 @@ const Drivers = () => {
       console.error('Error processing new driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getDrivers({ limit: 100 });
-        const driversData = response?.data?.data?.drivers || response?.drivers || [];
+        const response = await getTripPlanningDrivers({ limit: 100 });
+        const driversData = response?.drivers || [];
         const transformedDrivers = driversData.map(transformDriverData);
         setDrivers(transformedDrivers);
         setFilteredDrivers([]);
@@ -264,8 +283,8 @@ const Drivers = () => {
       console.error('Error processing updated driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getDrivers({ limit: 100 });
-        const driversData = response?.data?.data?.drivers || response?.drivers || [];
+        const response = await getTripPlanningDrivers({ limit: 100 });
+        const driversData = response?.drivers || [];
         const transformedDrivers = driversData.map(transformDriverData);
         setDrivers(transformedDrivers);
         setFilteredDrivers([]);
