@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Plus } from 'lucide-react';
+import React, {useState, useEffect, useCallback} from 'react';
+import {Plus} from 'lucide-react';
 import VehicleList from '../components/vehicles/VehicleList';
 import VehicleSearch from '../components/vehicles/VehicleSearch';
 import VehicleActions from '../components/vehicles/VehicleActions';
@@ -8,7 +8,7 @@ import DriverAssignmentModal from '../components/vehicles/DriverAssignmentModal'
 import AddVehicleModal from '../components/vehicles/AddVehicleModal';
 import EditVehicleModal from '../components/vehicles/EditVehicleModal';
 import Notification from '../components/common/Notification';
-import { getVehicles, deleteVehicle, searchVehicles } from '../backend/API';
+import {getVehicles, deleteVehicle, searchVehicles} from '../backend/API';
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
   // Removed unused state variable for filteredVehicles
@@ -87,10 +87,10 @@ const Vehicles = () => {
       status: backendVehicle.status
         ? backendVehicle.status.charAt(0).toUpperCase() + backendVehicle.status.slice(1)
         : backendVehicle.is_active !== undefined
-        ? backendVehicle.is_active
-          ? 'Active'
-          : 'Inactive'
-        : 'Active',
+          ? backendVehicle.is_active
+            ? 'Active'
+            : 'Inactive'
+          : 'Active',
       driver: backendVehicle.driver_name || backendVehicle.driver || 'Unassigned',
       driverId: backendVehicle.driver_id || backendVehicle.driverId || null,
       department: backendVehicle.department || 'N/A',
@@ -170,8 +170,8 @@ const Vehicles = () => {
         // If empty search, reload all vehicles
         const response = await getVehicles({
           limit: 100,
-          ...(filters.status && { status_filter: filters.status.toLowerCase() }),
-          ...(filters.make && { make_filter: filters.make }),
+          ...(filters.status && {status_filter: filters.status.toLowerCase()}),
+          ...(filters.make && {make_filter: filters.make}),
         });
         // Handle both array and object response formats with proper nesting
         const vehiclesArray =
@@ -328,7 +328,7 @@ const Vehicles = () => {
       console.error('Error processing updated vehicle:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getVehicles({ limit: 100 });
+        const response = await getVehicles({limit: 100});
         const transformedVehicles = response.map(transformVehicleData);
         setVehicles(transformedVehicles);
       } catch (refreshError) {
@@ -391,7 +391,7 @@ const Vehicles = () => {
         // Update selectAll state based on whether all current vehicles are selected
         setSelectAll(
           newSelected.length > 0 &&
-            currentVehicles.every(vehicle => newSelected.includes(vehicle.id))
+          currentVehicles.every(vehicle => newSelected.includes(vehicle.id))
         );
         return newSelected;
       } else {
@@ -431,8 +431,8 @@ const Vehicles = () => {
       setLoading(true);
       const params = {
         limit: 100,
-        ...(filters.status && { status_filter: filters.status.toLowerCase() }),
-        ...(filters.make && { make_filter: filters.make }),
+        ...(filters.status && {status_filter: filters.status.toLowerCase()}),
+        ...(filters.make && {make_filter: filters.make}),
       };
       const response = await getVehicles(params);
       const vehiclesArray = response.vehicles || response || [];
@@ -511,7 +511,7 @@ const Vehicles = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2.5}
-                    d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
+                    d="M5 7h14l-2 10H7L5 7zM5 7l-1-3H1m15 0h3l2 8M9 20.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm11 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"
                   />
                 </svg>
               </div>
@@ -550,7 +550,7 @@ const Vehicles = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2.5}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"
                   />
                 </svg>
               </div>
@@ -572,14 +572,14 @@ const Vehicles = () => {
                     const average =
                       validMileages.length > 0
                         ? validMileages.reduce((sum, mileage) => sum + mileage, 0) /
-                          validMileages.length
+                        validMileages.length
                         : 0;
                     return Math.round(average).toLocaleString();
                   })()}
                 </p>
                 <div className="flex items-center mt-2">
                   <div className="w-2 h-2 bg-orange-500 rounded-full mr-2 animate-pulse"></div>
-                  <p className="text-xs text-orange-600 dark:text-orange-400">miles traveled</p>
+                  <p className="text-xs text-orange-600 dark:text-orange-400">kilometers traveled</p>
                 </div>
               </div>
               <div className="h-14 w-14 bg-orange-500 dark:bg-orange-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
@@ -593,7 +593,7 @@ const Vehicles = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2.5}
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                    d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
               </div>
