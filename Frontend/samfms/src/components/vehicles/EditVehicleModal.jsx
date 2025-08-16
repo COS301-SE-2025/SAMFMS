@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Car, Hash, CreditCard } from 'lucide-react';
+import { X, Car, Hash } from 'lucide-react';
 import { updateVehicle } from '../../backend/API';
 import ColorDropdown from './ColorDropdown';
 import CustomDropdown from './CustomDropdown';
@@ -111,7 +111,7 @@ const colorMap = {
   Navy: '#000080',
 };
 
-const EditVehicleModal = ({ vehicle, closeModal, onVehicleUpdated }) => {
+const EditVehicleModal = ({ vehicle, closeModal, onVehicleUpdated, showNotification }) => {
   const [form, setForm] = useState({
     make: '',
     model: '',
@@ -310,7 +310,11 @@ const EditVehicleModal = ({ vehicle, closeModal, onVehicleUpdated }) => {
       closeModal();
     } catch (err) {
       console.error('Error updating vehicle:', err);
-      setError(err.message || 'Failed to update vehicle');
+      const errorMessage = err.message || 'Failed to update vehicle';
+      setError(errorMessage);
+      if (showNotification) {
+        showNotification(errorMessage, 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -552,63 +556,6 @@ const EditVehicleModal = ({ vehicle, closeModal, onVehicleUpdated }) => {
                     min="0"
                     required
                   />
-                </div>
-              </div>
-            </div>
-
-            {/* Status Information */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <CreditCard size={20} />
-                Status Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Status <span className="text-destructive">*</span>
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleChange({ target: { name: 'status', value: 'available' } })
-                      }
-                      className={`px-4 py-2 rounded-md border transition-all duration-200 ${
-                        form.status === 'available'
-                          ? 'bg-green-500 text-white border-green-500 shadow-md'
-                          : 'bg-background dark:bg-background border-border text-foreground hover:bg-green-50 dark:hover:bg-green-950 hover:border-green-300 dark:hover:border-green-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            form.status === 'available' ? 'bg-white' : 'bg-green-500'
-                          }`}
-                        ></div>
-                        Available
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleChange({ target: { name: 'status', value: 'unavailable' } })
-                      }
-                      className={`px-4 py-2 rounded-md border transition-all duration-200 ${
-                        form.status === 'unavailable'
-                          ? 'bg-red-500 text-white border-red-500 shadow-md'
-                          : 'bg-background dark:bg-background border-border text-foreground hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-300 dark:hover:border-red-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            form.status === 'unavailable' ? 'bg-white' : 'bg-red-500'
-                          }`}
-                        ></div>
-                        Unavailable
-                      </div>
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>

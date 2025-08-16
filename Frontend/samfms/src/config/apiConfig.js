@@ -126,7 +126,9 @@ export const API_ENDPOINTS = {
     SEARCH: query => `/management/drivers/search/${query}`,
     ACTIVATE: id => `/management/${id}/activate`,
     ASSIGN: '/management/assign-vehicle',
-    EMPID: id => `/management/drivers/employee/${id}`
+    EMPID: id => `/management/drivers/employee/${id}`,
+    // Trip Planning Service - Get All Drivers from drivers collection
+    TRIP_PLANNING_LIST: '/trips/drivers',
   },
 
   // Vehicle Assignments
@@ -163,10 +165,15 @@ export const API_ENDPOINTS = {
     ACTIVE: '/trips/trips/active',
     HISTORY: '/trips/history',
     FINISHED: 'trips/trips/completed',
-    UPCOMMINGTRIPSALL: "/trips/trips/upcomming",
+    UPCOMMINGTRIPSALL: '/trips/trips/upcomming',
     UPCOMMINGTRIPS: id => `/trips/trips/upcomming/${id}`,
     RECENTTRIPS: id => `/trips/trips/recent/${id}`,
+    RECENTTRIPSALL: '/trips/recent',
+    VEHICLEPOLYLINE: id => `/trips/trips/polyline/${id}`,
     ANALYTICS: {
+      // Trip History Statistics
+      HISTORY_STATS: '/trips/analytics/trips/history-stats',
+
       // Driver analytics with timeframe
       DRiVERSTATS: '/trips/analytics/drivers/stats',
       TOTALTRIPSDRIVER: '/trips/analytics/drivers/totaltrips',

@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DriverList from '../components/drivers/DriverList';
 import DriverSearch from '../components/drivers/DriverSearch';
 import DriverActions from '../components/drivers/DriverActions';
@@ -7,8 +7,7 @@ import VehicleAssignmentModal from '../components/drivers/VehicleAssignmentModal
 import AddDriverModal from '../components/drivers/AddDriverModal';
 import EditDriverModal from '../components/drivers/EditDriverModal';
 
-import {getDrivers, deleteDriver, searchDrivers} from '../backend/api/drivers';
-import {getAllDrivers} from '../backend/api/drivers';
+import { deleteDriver, searchDrivers, getTripPlanningDrivers } from '../backend/api/drivers';
 
 const Drivers = () => {
   const [drivers, setDrivers] = useState([]);
@@ -35,13 +34,21 @@ const Drivers = () => {
   // Transform backend driver data to frontend format
   const transformDriverData = useCallback(backendDriver => {
     return {
-      id: backendDriver._id,
-      name: `${backendDriver.first_name} ${backendDriver.last_name}`,
+      id: backendDriver.id,
+      name: `${backendDriver.first_name || ''} ${backendDriver.last_name || ''}`.trim() || 'N/A',
       licenseNumber: backendDriver.license_number || 'N/A',
-      phone: backendDriver.phone || 'N/A',
+      phone: backendDriver.phone || 'N/A', // Changed from phoneNo to phone
       licenseExpiry: backendDriver.license_expiry || 'N/A',
       email: backendDriver.email || 'N/A',
-      status: backendDriver.status === 'active' ? 'Active' : 'Inactive',
+      status:
+        backendDriver.status === 'active'
+          ? 'Active'
+          : backendDriver.status === 'unavailable'
+          ? 'Unavailable'
+          : backendDriver.status === 'inactive'
+          ? 'Inactive'
+          : (backendDriver.status || 'Unknown').charAt(0).toUpperCase() +
+            (backendDriver.status || 'unknown').slice(1),
       employeeId: backendDriver.employee_id || 'N/A',
       department: backendDriver.department || 'N/A',
       licenseType: backendDriver.license_class || 'N/A',
@@ -56,25 +63,34 @@ const Drivers = () => {
       try {
         setLoading(true);
         setError(null);
-        const params = {limit: 100};
+        const params = { limit: 100 };
         if (filters.status) {
-          params.status_filter = filters.status.toLowerCase().replace(/\s+/g, '_');
+          // Map frontend status format to backend format
+          params.status = filters.status.toLowerCase() === 'active' ? 'active' : 'inactive';
         }
         if (filters.department) {
-          params.department_filter = filters.department;
+          params.department = filters.department;
         }
 
-        const response = await getDrivers(params);
-        console.log('Full response:', response); // Debug log
+        // Use the new trip planning service endpoint
+        const response = await getTripPlanningDrivers(params);
+        console.log('Full response from trip planning service:', response); // Debug log
 
-        // Access the correct nested data structure
-        const driversData = response?.data?.data?.drivers || response?.drivers || [];
+        // The trip planning service returns { drivers, total, skip, limit, has_more }
+        const driversData = response?.drivers || [];
+        console.log('Drivers data array:', driversData); // Debug log
 
         if (!Array.isArray(driversData)) {
           throw new Error('Invalid response format: drivers data is not an array');
         }
 
-        const transformedDrivers = driversData.map(transformDriverData);
+        const transformedDrivers = driversData.map((driver, index) => {
+          console.log(`Transforming driver ${index}:`, driver); // Debug log
+          const transformed = transformDriverData(driver);
+          console.log(`Transformed result ${index}:`, transformed); // Debug log
+          return transformed;
+        });
+        console.log('All transformed drivers:', transformedDrivers); // Debug log
         setDrivers(transformedDrivers);
         setFilteredDrivers([]); // Always reset filteredDrivers on load
       } catch (err) {
@@ -95,19 +111,22 @@ const Drivers = () => {
       setLoading(true);
       setError(null);
       if (!searchQuery.trim()) {
-        const response = await getDrivers({
+        // Use trip planning service for getting all drivers when search is empty
+        const response = await getTripPlanningDrivers({
           limit: 100,
           ...(filters.status && {
-            status_filter: filters.status.toLowerCase().replace(/\s+/g, '_'),
+            status: filters.status.toLowerCase() === 'active' ? 'active' : 'inactive',
           }),
-          ...(filters.department && {department_filter: filters.department}),
+          ...(filters.department && { department: filters.department }),
         });
 
-        // Access the correct nested data structure
-        const driversData = response?.data?.data?.drivers || response?.drivers || [];
+        // The trip planning service returns { drivers, total, skip, limit, has_more }
+        const driversData = response?.drivers || [];
         const transformedDrivers = driversData.map(transformDriverData);
         setFilteredDrivers(transformedDrivers);
       } else {
+        // For search, we still use the existing search function
+        // TODO: Consider implementing search in trip planning service as well
         const searchResults = await searchDrivers(searchQuery);
         // Handle search results - adjust based on your search API response format
         const resultsData =
@@ -217,8 +236,8 @@ const Drivers = () => {
       console.error('Error processing new driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getDrivers({limit: 100});
-        const driversData = response?.data?.data?.drivers || response?.drivers || [];
+        const response = await getTripPlanningDrivers({ limit: 100 });
+        const driversData = response?.drivers || [];
         const transformedDrivers = driversData.map(transformDriverData);
         setDrivers(transformedDrivers);
         setFilteredDrivers([]);
@@ -264,8 +283,8 @@ const Drivers = () => {
       console.error('Error processing updated driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getDrivers({limit: 100});
-        const driversData = response?.data?.data?.drivers || response?.drivers || [];
+        const response = await getTripPlanningDrivers({ limit: 100 });
+        const driversData = response?.drivers || [];
         const transformedDrivers = driversData.map(transformDriverData);
         setDrivers(transformedDrivers);
         setFilteredDrivers([]);
@@ -346,19 +365,19 @@ const Drivers = () => {
             </div>
           </div>
 
-          {/* Active Drivers Card */}
+          {/* Available Drivers Card */}
           <div className="group bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border border-green-200 dark:border-green-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-green-600 dark:text-green-300 mb-2">
-                  Active Drivers
+                  Available Drivers
                 </p>
                 <p className="text-3xl font-bold text-green-900 dark:text-green-100 transition-colors duration-300">
-                  {drivers.filter(driver => driver.status?.toLowerCase() === 'active').length}
+                  {drivers.filter(driver => driver.status?.toLowerCase() !== 'unavailable').length}
                 </p>
                 <div className="flex items-center mt-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                  <p className="text-xs text-green-600 dark:text-green-400">Available for duty</p>
+                  <p className="text-xs text-green-600 dark:text-green-400">Ready for assignment</p>
                 </div>
               </div>
               <div className="h-14 w-14 bg-green-500 dark:bg-green-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
@@ -379,29 +398,37 @@ const Drivers = () => {
             </div>
           </div>
 
-          {/* Departments Count Card */}
-          <div className="group bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border border-purple-200 dark:border-purple-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6">
+          {/* Utilization Rate Card */}
+          <div className="group bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 border border-orange-200 dark:border-orange-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-600 dark:text-purple-300 mb-2">
-                  Departments
+                <p className="text-sm font-medium text-orange-600 dark:text-orange-300 mb-2">
+                  Utilization Rate
                 </p>
-                <p className="text-3xl font-bold text-purple-900 dark:text-purple-100 transition-colors duration-300">
+                <p className="text-3xl font-bold text-orange-900 dark:text-orange-100 transition-colors duration-300">
                   {(() => {
-                    const uniqueDepartments = new Set(
-                      drivers
-                        .map(driver => driver.department)
-                        .filter(dept => dept && dept !== 'N/A')
-                    );
-                    return uniqueDepartments.size;
+                    const totalDrivers = drivers.length;
+                    const unavailableDrivers = drivers.filter(
+                      driver => driver.status?.toLowerCase() === 'unavailable'
+                    ).length;
+
+                    if (totalDrivers === 0) return '0%';
+                    const utilizationRate = Math.round((unavailableDrivers / totalDrivers) * 100);
+                    return `${utilizationRate}%`;
                   })()}
                 </p>
                 <div className="flex items-center mt-2">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full mr-2 animate-pulse"></div>
-                  <p className="text-xs text-purple-600 dark:text-purple-400">unique divisions</p>
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-2 animate-pulse"></div>
+                  <p className="text-xs text-orange-600 dark:text-orange-400">
+                    {
+                      drivers.filter(driver => driver.status?.toLowerCase() === 'unavailable')
+                        .length
+                    }{' '}
+                    in use
+                  </p>
                 </div>
               </div>
-              <div className="h-14 w-14 bg-purple-500 dark:bg-purple-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
+              <div className="h-14 w-14 bg-orange-500 dark:bg-orange-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
                 <svg
                   className="h-7 w-7 text-white"
                   fill="none"
@@ -412,7 +439,7 @@ const Drivers = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2.5}
-                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
                   />
                 </svg>
               </div>

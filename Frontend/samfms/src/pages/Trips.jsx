@@ -1,7 +1,5 @@
-import React, {useState, useEffect} from 'react';
-import {Plus} from 'lucide-react';
-import ActiveTripsPanel from '../components/trips/ActiveTripsPanel';
-import SchedulingPanel from '../components/trips/SchedulingPanel';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus } from 'lucide-react';
 import TripsAnalytics from '../components/trips/TripsAnalytics';
 import TripsHistory from '../components/trips/TripsHistory';
 import TripSchedulingModal from '../components/trips/TripSchedulingModal';
@@ -17,10 +15,12 @@ import {
   getActiveTrips,
   getDriverAnalytics,
   getVehicleAnalytics,
+  listTrips,
+  getAllRecentTrips,
+  getTripHistoryStats,
 } from '../backend/api/trips';
-import {getVehicles} from '../backend/api/vehicles';
-import {getAllDrivers} from '../backend/api/drivers';
-import {mockUpcomingTrips, mockRecentTrips, mockActiveLocations} from '../data/mockTripsData';
+import { getVehicles } from '../backend/api/vehicles';
+import { getAllDrivers, getTripPlanningDrivers } from '../backend/api/drivers';
 
 const Trips = () => {
   // Existing state
@@ -29,6 +29,7 @@ const Trips = () => {
   // New state for features
   const [activeTrips, setActiveTrips] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [availableDriversCount, setAvailableDriversCount] = useState(0);
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState('week');
   const [driverAnalytics, setDriverAnalytics] = useState({
     drivers: [],
@@ -49,6 +50,23 @@ const Trips = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Trip data state
+  const [upcomingTrips, setUpcomingTrips] = useState([]);
+  const [recentTrips, setRecentTrips] = useState([]);
+  const [upcomingTripsLoading, setUpcomingTripsLoading] = useState(false);
+  const [recentTripsLoading, setRecentTripsLoading] = useState(false);
+
+  // Trip history statistics state
+  const [tripHistoryStats, setTripHistoryStats] = useState({
+    total_trips: 0,
+    total_duration_hours: 0,
+    total_distance_km: 0,
+    average_duration_hours: 0,
+    average_distance_km: 0,
+    time_period: 'All time',
+  });
+  const [historyStatsLoading, setHistoryStatsLoading] = useState(false);
+
   // Notification state
   const [notification, setNotification] = useState({
     isVisible: false,
@@ -60,20 +78,49 @@ const Trips = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   const tabs = [
-    {id: 'overview', label: 'Overview'},
-    {id: 'active', label: 'Active'},
-    {id: 'upcoming', label: 'Upcoming'},
-    {id: 'recent', label: 'Recent'},
-    {id: 'analytics', label: 'Analytics'},
+    { id: 'overview', label: 'Overview' },
+    { id: 'active', label: 'Active' },
+    { id: 'upcoming', label: 'Upcoming' },
+    { id: 'recent', label: 'Recent' },
+    { id: 'analytics', label: 'Analytics' },
   ];
 
   // Helper function to show notifications
-  const showNotification = (message, type = 'info') => {
+  const showNotification = useCallback((message, type = 'info') => {
     setNotification({
       isVisible: true,
       message,
       type,
     });
+  }, []);
+
+  // Helper function to transform active trips data for map display
+  const transformTripsForMap = trips => {
+    return trips.map(trip => ({
+      id: trip.id,
+      vehicleId: trip.vehicle_id, // Add vehicle ID for location tracking
+      vehicleName: `Vehicle ${trip.vehicle_id || 'Unknown'}`,
+      driver: trip.driver_assignment || 'No driver assigned',
+      destination: trip.destination?.name || 'Unknown destination',
+      position: trip.destination?.location?.coordinates
+        ? [trip.destination.location.coordinates[1], trip.destination.location.coordinates[0]] // [lat, lng]
+        : [0, 0],
+      origin: trip.origin?.location?.coordinates
+        ? [trip.origin.location.coordinates[1], trip.origin.location.coordinates[0]] // [lat, lng]
+        : [0, 0],
+      routeCoordinates: trip.route_info?.coordinates
+        ? trip.route_info.coordinates.map(coord => [coord[0], coord[1]]) // [lat, lng]
+        : [],
+      status:
+        trip.status === 'scheduled'
+          ? 'Loading'
+          : trip.status === 'in_progress'
+          ? 'In Transit'
+          : trip.status === 'completed'
+          ? 'At Destination'
+          : 'Unknown',
+      progress: trip.status === 'completed' ? 100 : trip.status === 'in_progress' ? 50 : 0,
+    }));
   };
 
   // Helper function to close notifications
@@ -83,6 +130,176 @@ const Trips = () => {
       isVisible: false,
     }));
   };
+
+  // Helper function to fetch all upcoming trips
+  const fetchUpcomingTrips = useCallback(async () => {
+    try {
+      setUpcomingTripsLoading(true);
+      const response = await listTrips();
+      console.log('Upcoming trips response:', response);
+
+      // Extract trips from the response structure - based on actual API response
+      let trips = [];
+      if (response?.data?.data?.data && Array.isArray(response.data.data.data)) {
+        trips = response.data.data.data;
+      } else if (response?.data?.data && Array.isArray(response.data.data)) {
+        trips = response.data.data;
+      } else if (Array.isArray(response?.data)) {
+        trips = response.data;
+      }
+
+      // Filter for scheduled/upcoming trips only
+      const upcomingTrips = trips.filter(trip => {
+        try {
+          return (
+            trip.status === 'scheduled' &&
+            trip.scheduled_start_time &&
+            new Date(trip.scheduled_start_time) > new Date()
+          );
+        } catch (error) {
+          console.warn('Invalid date format for trip:', trip.id);
+          return false;
+        }
+      });
+
+      // Transform API data to match component expectations
+      const transformedTrips = upcomingTrips.map(trip => {
+        let scheduledStart = 'Unknown';
+        try {
+          scheduledStart = new Date(trip.scheduled_start_time).toLocaleString();
+        } catch (error) {
+          console.warn('Invalid date format for trip scheduled start:', trip.id);
+        }
+
+        return {
+          id: trip.id,
+          tripName: trip.name || 'Unnamed Trip',
+          vehicle: trip.vehicle_id || 'Unknown Vehicle',
+          driver: trip.driver_assignment || 'Unassigned',
+          scheduledStart,
+          destination: trip.destination?.name || 'Unknown Destination',
+          priority:
+            trip.priority === 'normal'
+              ? 'Medium'
+              : trip.priority === 'high'
+              ? 'High'
+              : trip.priority === 'urgent'
+              ? 'High'
+              : 'Low',
+          status: 'Scheduled',
+        };
+      });
+
+      console.log('Transformed upcoming trips:', transformedTrips);
+      setUpcomingTrips(transformedTrips);
+    } catch (error) {
+      console.error('Error fetching upcoming trips:', error);
+      // Show user-friendly error message
+      showNotification('Failed to load upcoming trips. Please try again.', 'error');
+      setUpcomingTrips([]);
+    } finally {
+      setUpcomingTripsLoading(false);
+    }
+  }, [showNotification]);
+
+  // Helper function to fetch all recent trips using the new dedicated endpoint
+  const fetchRecentTrips = useCallback(async () => {
+    try {
+      setRecentTripsLoading(true);
+
+      // Use the new dedicated endpoint for recent trips
+      const response = await getAllRecentTrips(10, 30);
+      console.log('Recent trips response:', response);
+
+      // Extract trips from the response structure
+      let trips = [];
+      if (response?.data?.trips) {
+        trips = response.data.trips;
+      } else if (response?.data?.data) {
+        trips = Array.isArray(response.data.data) ? response.data.data : [];
+      } else if (Array.isArray(response?.data)) {
+        trips = response.data;
+      }
+
+      // Transform API data to match component expectations
+      const transformedTrips = trips.map(trip => {
+        let completedAt = 'Unknown';
+        let duration = 'Unknown';
+
+        try {
+          completedAt = new Date(trip.actualEndTime || trip.actual_end_time).toLocaleString();
+        } catch (error) {
+          console.warn('Invalid date format for trip completion:', trip.id);
+        }
+
+        try {
+          if (
+            (trip.actualStartTime || trip.actual_start_time) &&
+            (trip.actualEndTime || trip.actual_end_time)
+          ) {
+            const startTime = new Date(trip.actualStartTime || trip.actual_start_time);
+            const endTime = new Date(trip.actualEndTime || trip.actual_end_time);
+            const durationMs = endTime - startTime;
+            const durationMinutes = Math.round(durationMs / (1000 * 60));
+            const hours = Math.floor(durationMinutes / 60);
+            const minutes = durationMinutes % 60;
+            duration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+          }
+        } catch (error) {
+          console.warn('Could not calculate duration for trip:', trip.id);
+        }
+
+        return {
+          id: trip.id,
+          tripName: trip.name || 'Unnamed Trip',
+          vehicle: trip.vehicleId || trip.vehicle_id || 'Unknown Vehicle',
+          driver: trip.driverAssignment || trip.driver_assignment || 'Unknown Driver',
+          completedAt,
+          destination: trip.destination?.name || 'Unknown Destination',
+          duration,
+          status: 'Completed',
+          distance:
+            trip.estimatedDistance || trip.estimated_distance
+              ? ((trip.estimatedDistance || trip.estimated_distance) / 1000).toFixed(1)
+              : '0',
+        };
+      });
+
+      console.log('Transformed recent trips:', transformedTrips);
+      setRecentTrips(transformedTrips);
+    } catch (error) {
+      console.error('Error fetching recent trips:', error);
+      // Show user-friendly error message
+      showNotification('Failed to load recent trips. Please try again.', 'error');
+      setRecentTrips([]);
+    } finally {
+      setRecentTripsLoading(false);
+    }
+  }, [showNotification]);
+
+  // Helper function to fetch trip history statistics
+  const fetchTripHistoryStats = useCallback(
+    async (days = null) => {
+      try {
+        setHistoryStatsLoading(true);
+        console.log('Fetching trip history stats for days:', days);
+
+        const response = await getTripHistoryStats(days);
+        console.log('Trip history stats response:', response);
+
+        if (response?.data) {
+          setTripHistoryStats(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching trip history stats:', error);
+        showNotification('Failed to load trip statistics. Please try again.', 'error');
+        // Keep existing stats or use defaults
+      } finally {
+        setHistoryStatsLoading(false);
+      }
+    },
+    [showNotification]
+  );
 
   // Get current date and time for default values
   const getCurrentDate = () => {
@@ -162,9 +379,15 @@ const Trips = () => {
     const loadActiveTrips = async () => {
       try {
         const response = await getActiveTrips();
-        setActiveTrips(response.trips); // Update to use the new structure
+        console.log('Active trips response:', response);
+        // The API function now returns { data: tripsArray }
+        const tripsData = Array.isArray(response.data) ? response.data : [];
+
+        console.log('Processed trips data:', tripsData);
+        setActiveTrips(tripsData);
       } catch (error) {
         console.error('Error loading active trips:', error);
+        setActiveTrips([]);
       }
     };
 
@@ -198,55 +421,62 @@ const Trips = () => {
   useEffect(() => {
     const loadDrivers = async () => {
       try {
-        const response = await getAllDrivers();
-        console.log('Response received for drivers: ', response);
+        const response = await getTripPlanningDrivers();
+        console.log('Response received for drivers from trip planning: ', response);
 
-        // Extract drivers from the nested response structure - response.data.data.drivers
+        // Extract drivers from the trip planning service response
         let driversData = [];
-
-        if (response?.data?.data?.data?.drivers) {
-          // Handle nested data structure: response.data.data.data.drivers
-          driversData = response.data.data.data.drivers;
-        } else if (response?.data?.data?.drivers) {
-          // Handle nested data structure: response.data.data.drivers
-          driversData = response.data.data.drivers;
-        } else if (response?.data?.drivers) {
-          // Handle simpler structure: response.data.drivers
+        if (response?.data?.drivers) {
           driversData = response.data.drivers;
         } else if (response?.drivers) {
-          // Handle direct structure: response.drivers
           driversData = response.drivers;
         } else {
           driversData = [];
         }
 
-        // More permissive filtering to include drivers with different status formats
-        const availableDrivers = driversData.filter(driver => {
-          // Check if driver exists and has a valid structure
+        // Filter to count only drivers with "available" status for the stats card
+        const availableDriversCount = driversData.filter(driver => {
           if (!driver) return false;
-
-          // More inclusive filtering logic - accept available, active, and drivers without status
           const status = (driver.status || '').toLowerCase();
-          return (
-            status === 'available' ||
-            status === 'active' ||
-            status === '' || // Include drivers with no status
-            !driver.status || // Include drivers where status is not defined
-            driver.is_active !== false // Include drivers where is_active is not explicitly false
-          );
-        });
+          return status === 'available';
+        }).length;
 
-        console.log('All drivers from API: ', driversData);
-        console.log('Available drivers after filtering: ', availableDrivers);
-        setDrivers(availableDrivers);
+        console.log('All drivers from trip planning API: ', driversData);
+        console.log('Available drivers count: ', availableDriversCount);
+
+        // Set all drivers for general use but track available count separately
+        setDrivers(driversData);
+        // Store available drivers count for the stats card
+        setAvailableDriversCount(availableDriversCount);
       } catch (error) {
-        console.error('Error loading drivers:', error);
+        console.error('Error loading drivers from trip planning service:', error);
         setDrivers([]);
+        setAvailableDriversCount(0);
       }
     };
 
     loadDrivers();
   }, []);
+
+  // Fetch upcoming trips
+  useEffect(() => {
+    fetchUpcomingTrips();
+  }, [fetchUpcomingTrips]);
+
+  // Fetch recent trips
+  useEffect(() => {
+    fetchRecentTrips();
+  }, [fetchRecentTrips]);
+
+  // Refresh trip data when switching tabs
+  useEffect(() => {
+    if (activeTab === 'upcoming') {
+      fetchUpcomingTrips();
+    } else if (activeTab === 'recent') {
+      fetchRecentTrips();
+      fetchTripHistoryStats(); // Also fetch trip statistics for the recent tab
+    }
+  }, [activeTab, fetchUpcomingTrips, fetchRecentTrips, fetchTripHistoryStats]);
 
   const handleScheduleTrip = () => {
     // Update the form with current date and time values when opening
@@ -475,6 +705,7 @@ const Trips = () => {
   // More permissive filtering to include vehicles with different status formats
   const availableVehicles = vehicles.filter(v => {
     // Check if vehicle exists and has a valid structure
+    console.log('Entered available vehicle, ', v);
     if (!v) return false;
 
     // More inclusive filtering logic - accept available, operational, and inactive vehicles
@@ -489,7 +720,6 @@ const Trips = () => {
   });
 
   console.log('Filtered available vehicles:', availableVehicles);
-  const availableDrivers = drivers;
 
   if (loading) {
     return (
@@ -539,7 +769,7 @@ const Trips = () => {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold animate-fade-in text-foreground">Trip Management</h1>
           <button
-            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition animate-fade-in flex items-center gap-2"
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition animate-fade-in flex items-center gap-2"
             onClick={handleScheduleTrip}
           >
             <Plus size={18} />
@@ -555,10 +785,11 @@ const Trips = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
-                    }`}
+                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
+                  }`}
                 >
                   {tab.label}
                 </button>
@@ -575,29 +806,17 @@ const Trips = () => {
               {/* Stats Cards */}
               <OverviewStatsCards
                 availableVehicles={availableVehicles.length}
-                availableDrivers={availableDrivers.length}
+                availableDrivers={availableDriversCount}
               />
-
-              <div className="animate-fade-in animate-delay-200">
-                <SchedulingPanel
-                  availableVehicles={availableVehicles.length}
-                  availableDrivers={availableDrivers.length}
-                  onScheduleClick={handleScheduleTrip}
-                />
-              </div>
             </div>
           )}
 
           {/* Active Tab */}
           {activeTab === 'active' && (
             <div className="space-y-6 animate-fade-in">
-              <div className="animate-fade-in animate-delay-100">
-                <ActiveTripsPanel activeTrips={activeTrips} />
-              </div>
-
               {/* Active Trips Map */}
               <div className="animate-fade-in animate-delay-200">
-                <ActiveTripsMap activeLocations={mockActiveLocations} />
+                <ActiveTripsMap activeLocations={transformTripsForMap(activeTrips)} />
               </div>
             </div>
           )}
@@ -607,12 +826,26 @@ const Trips = () => {
             <div className="space-y-6 animate-fade-in">
               {/* Summary Cards */}
               <div className="animate-fade-in animate-delay-100">
-                <UpcomingTripsStats upcomingTrips={mockUpcomingTrips} />
+                {upcomingTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading upcoming trips...</span>
+                  </div>
+                ) : (
+                  <UpcomingTripsStats upcomingTrips={upcomingTrips} />
+                )}
               </div>
 
               {/* Trips Table */}
               <div className="animate-fade-in animate-delay-200">
-                <UpcomingTripsTable upcomingTrips={mockUpcomingTrips} />
+                {upcomingTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading trips table...</span>
+                  </div>
+                ) : (
+                  <UpcomingTripsTable upcomingTrips={upcomingTrips} />
+                )}
               </div>
             </div>
           )}
@@ -622,17 +855,35 @@ const Trips = () => {
             <div className="space-y-6 animate-fade-in">
               {/* Summary Cards */}
               <div className="animate-fade-in animate-delay-100">
-                <RecentTripsStats recentTrips={mockRecentTrips} />
+                {recentTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading recent trips...</span>
+                  </div>
+                ) : (
+                  <RecentTripsStats
+                    recentTrips={recentTrips}
+                    tripHistoryStats={tripHistoryStats}
+                    loading={historyStatsLoading}
+                  />
+                )}
               </div>
 
               {/* Trips Table */}
               <div className="animate-fade-in animate-delay-200">
-                <RecentTripsTable recentTrips={mockRecentTrips} />
+                {recentTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading trips table...</span>
+                  </div>
+                ) : (
+                  <RecentTripsTable recentTrips={recentTrips} />
+                )}
               </div>
 
               {/* Keep the existing TripsHistory component as well */}
               <div className="animate-fade-in animate-delay-300">
-                <TripsHistory trips={[]} />
+                <TripsHistory trips={recentTrips} />
               </div>
             </div>
           )}

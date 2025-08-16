@@ -1,6 +1,6 @@
-import React, {useState} from 'react';
-import {X, Car, Hash, CreditCard} from 'lucide-react';
-import {createVehicle} from '../../backend/API';
+import React, { useState } from 'react';
+import { X, Car, Hash } from 'lucide-react';
+import { createVehicle } from '../../backend/API';
 import ColorDropdown from './ColorDropdown';
 import CustomDropdown from './CustomDropdown';
 
@@ -13,13 +13,13 @@ const initialForm = {
   color: '',
   fuel_type: 'petrol',
   mileage: 0,
-  status: 'available',
+  status: 'available', // Set as default, not selectable
   customMake: '',
   customModel: '',
   customColor: '',
 };
 
-const AddVehicleModal = ({closeModal, vehicles, setVehicles}) => {
+const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -160,14 +160,14 @@ const AddVehicleModal = ({closeModal, vehicles, setVehicles}) => {
   };
 
   const currentYear = new Date().getFullYear();
-  const years = Array.from({length: currentYear - 1980 + 1}, (_, i) => currentYear - i);
+  const years = Array.from({ length: currentYear - 1980 + 1 }, (_, i) => currentYear - i);
 
   // Validation errors state
   const [validationErrors, setValidationErrors] = useState({});
 
   // Validate individual fields
   const validateField = (name, value) => {
-    const errors = {...validationErrors};
+    const errors = { ...validationErrors };
 
     switch (name) {
       case 'vin':
@@ -222,23 +222,23 @@ const AddVehicleModal = ({closeModal, vehicles, setVehicles}) => {
     setValidationErrors(errors);
   };
   const handleChange = e => {
-    const {name, value} = e.target;
-    setForm(prev => ({...prev, [name]: value}));
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
 
     // Validate the field
     validateField(name, value);
 
     // Reset custom fields when switching from "Specify" to specific option
     if (name === 'make' && value !== 'Specify') {
-      setForm(prev => ({...prev, customMake: ''}));
+      setForm(prev => ({ ...prev, customMake: '' }));
       validateField('customMake', '');
     }
     if (name === 'model' && value !== 'Specify') {
-      setForm(prev => ({...prev, customModel: ''}));
+      setForm(prev => ({ ...prev, customModel: '' }));
       validateField('customModel', '');
     }
     if (name === 'color' && value !== 'Specify') {
-      setForm(prev => ({...prev, customColor: ''}));
+      setForm(prev => ({ ...prev, customColor: '' }));
       validateField('customColor', '');
     }
   };
@@ -363,12 +363,12 @@ const AddVehicleModal = ({closeModal, vehicles, setVehicles}) => {
                   )}
                   <CustomDropdown
                     value={form.make}
-                    onChange={value => handleChange({target: {name: 'make', value}})}
+                    onChange={value => handleChange({ target: { name: 'make', value } })}
                     options={[
-                      {value: 'Specify', label: 'Specify'},
+                      { value: 'Specify', label: 'Specify' },
                       ...Object.keys(southAfricanVehicles)
                         .filter(make => make !== 'Other')
-                        .map(make => ({value: make, label: make})),
+                        .map(make => ({ value: make, label: make })),
                     ]}
                     placeholder="Select Make"
                     maxVisibleOptions={5}
@@ -401,10 +401,10 @@ const AddVehicleModal = ({closeModal, vehicles, setVehicles}) => {
                   )}
                   <CustomDropdown
                     value={form.model}
-                    onChange={value => handleChange({target: {name: 'model', value}})}
+                    onChange={value => handleChange({ target: { name: 'model', value } })}
                     options={
                       form.make
-                        ? getAvailableModels().map(model => ({value: model, label: model}))
+                        ? getAvailableModels().map(model => ({ value: model, label: model }))
                         : []
                     }
                     placeholder="Select Model"
@@ -439,7 +439,7 @@ const AddVehicleModal = ({closeModal, vehicles, setVehicles}) => {
                   )}
                   <CustomDropdown
                     value={form.year}
-                    onChange={value => handleChange({target: {name: 'year', value}})}
+                    onChange={value => handleChange({ target: { name: 'year', value } })}
                     options={years.map(year => ({
                       value: year.toString(),
                       label: year.toString(),
@@ -455,7 +455,7 @@ const AddVehicleModal = ({closeModal, vehicles, setVehicles}) => {
                   )}
                   <ColorDropdown
                     value={form.color}
-                    onChange={value => handleChange({target: {name: 'color', value}})}
+                    onChange={value => handleChange({ target: { name: 'color', value } })}
                     colors={vehicleColors}
                     colorMap={colorMap}
                     placeholder="Select Color"
@@ -538,12 +538,12 @@ const AddVehicleModal = ({closeModal, vehicles, setVehicles}) => {
                   </label>
                   <CustomDropdown
                     value={form.fuel_type}
-                    onChange={value => handleChange({target: {name: 'fuel_type', value}})}
+                    onChange={value => handleChange({ target: { name: 'fuel_type', value } })}
                     options={[
-                      {value: 'petrol', label: 'Petrol'},
-                      {value: 'diesel', label: 'Diesel'},
-                      {value: 'hybrid', label: 'Hybrid'},
-                      {value: 'electric', label: 'Electric'},
+                      { value: 'petrol', label: 'Petrol' },
+                      { value: 'diesel', label: 'Diesel' },
+                      { value: 'hybrid', label: 'Hybrid' },
+                      { value: 'electric', label: 'Electric' },
                     ]}
                     placeholder="Select Fuel Type"
                     maxVisibleOptions={5}
@@ -562,59 +562,6 @@ const AddVehicleModal = ({closeModal, vehicles, setVehicles}) => {
                     min="0"
                     required
                   />
-                </div>
-              </div>
-            </div>
-
-            {/* Status Information */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <CreditCard size={20} />
-                Status Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Status <span className="text-destructive">*</span>
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleChange({target: {name: 'status', value: 'available'}})
-                      }
-                      className={`px-4 py-2 rounded-md border transition-all duration-200 ${form.status === 'available'
-                          ? 'bg-green-500 text-white border-green-500 shadow-md'
-                          : 'bg-background dark:bg-background border-border text-foreground hover:bg-green-50 dark:hover:bg-green-950 hover:border-green-300 dark:hover:border-green-700'
-                        }`}
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        <div
-                          className={`w-2 h-2 rounded-full ${form.status === 'available' ? 'bg-white' : 'bg-green-500'
-                            }`}
-                        ></div>
-                        Available
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleChange({target: {name: 'status', value: 'unavailable'}})
-                      }
-                      className={`px-4 py-2 rounded-md border transition-all duration-200 ${form.status === 'unavailable'
-                          ? 'bg-red-500 text-white border-red-500 shadow-md'
-                          : 'bg-background dark:bg-background border-border text-foreground hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-300 dark:hover:border-red-700'
-                        }`}
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        <div
-                          className={`w-2 h-2 rounded-full ${form.status === 'unavailable' ? 'bg-white' : 'bg-red-500'
-                            }`}
-                        ></div>
-                        Unavailable
-                      </div>
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>

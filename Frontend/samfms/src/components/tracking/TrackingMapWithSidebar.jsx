@@ -20,6 +20,8 @@ import {
   Trash2,
   Locate,
   LocateFixed,
+  Crosshair,
+  Layers,
 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -28,12 +30,12 @@ import { listGeofences, deleteGeofence } from '../../backend/api/geofences';
 import { listLocations } from '../../backend/api/locations';
 import GeofenceManager from './GeofenceManager';
 
-// Fix for default markers in react-leaflet
+// Fix for marker icons in React-Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
 });
 
 // Custom vehicle icon
@@ -113,12 +115,28 @@ const MapUpdater = ({ center, zoom = 13 }) => {
   return null;
 };
 
+// Map controller for centering and follow mode
+const MapController = ({ followMode, focusLocation }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (followMode && focusLocation) {
+      map.setView([focusLocation.latitude, focusLocation.longitude], 15);
+    }
+  }, [followMode, focusLocation, map]);
+  return null;
+};
+
 const TrackingMapWithSidebar = () => {
   const [activeTab, setActiveTab] = useState('vehicles');
   const [vehicles, setVehicles] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [followMode, setFollowMode] = useState(false);
+  const [mapType, setMapType] = useState('streets');
+  const [focusLocation, setFocusLocation] = useState(null);
   const [geofences, setGeofences] = useState([]);
   const [showGeofences, setShowGeofences] = useState(true);
   const [showVehicles, setShowVehicles] = useState(true);
+  const [showLocations, setShowLocations] = useState(true); // New state for live locations
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showAddGeofenceModal, setShowAddGeofenceModal] = useState(false);
   const [editingGeofence, setEditingGeofence] = useState(null);
@@ -138,6 +156,36 @@ const TrackingMapWithSidebar = () => {
 
   // Ref for search container to handle click outside
   const searchContainerRef = useRef(null);
+
+  // Toggle follow mode
+  const toggleFollowMode = useCallback(() => {
+    setFollowMode(prev => !prev);
+  }, []);
+
+  // Get map layer based on type
+  const getMapLayer = () => {
+    switch (mapType) {
+      case 'satellite':
+        return {
+          url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+          attribution:
+            'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+        };
+      case 'terrain':
+        return {
+          url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+          attribution:
+            'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>',
+        };
+      case 'streets':
+      default:
+        return {
+          url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        };
+    }
+  };
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -201,53 +249,19 @@ const TrackingMapWithSidebar = () => {
     try {
       setLoading(true);
 
-      // Load both vehicles and locations
-      const [vehiclesResponse, locationsResponse] = await Promise.all([
-        getVehicles({ limit: 100 }),
-        listLocations(),
-      ]);
+      // Load vehicles
+      const vehiclesResponse = await getVehicles({ limit: 100 });
 
       const vehiclesData =
         vehiclesResponse.data?.data?.vehicles ||
         vehiclesResponse.vehicles ||
         vehiclesResponse.data?.vehicles ||
         [];
-      const locationsData =
-        locationsResponse.data?.data?.data ||
-        locationsResponse.data?.data ||
-        locationsResponse.data ||
-        [];
-
-      console.log('Locations response structure:', locationsResponse);
-      console.log('Extracted locationsData:', locationsData);
-      console.log('Is locationsData an array?', Array.isArray(locationsData));
-
-      // Ensure locationsData is an array before using forEach
-      if (!Array.isArray(locationsData)) {
-        console.warn('locationsData is not an array:', typeof locationsData, locationsData);
-        setVehicles([]); // Set empty array if no valid location data
-        return;
-      }
-
-      // Create a map of vehicle locations by vehicle_id
-      const locationMap = {};
-      locationsData.forEach(location => {
-        locationMap[location.vehicle_id] = {
-          lat: location.latitude,
-          lng: location.longitude,
-          location: location, // Store full location data
-        };
-      });
 
       // Only include vehicles that have actual GPS location data
       const transformedVehicles = vehiclesData
-        .filter(vehicle => {
-          const vehicleId = vehicle.id || vehicle.vehicle_id;
-          return locationMap[vehicleId]; // Only include vehicles with GPS data
-        })
         .map(vehicle => {
           const vehicleId = vehicle.id || vehicle.vehicle_id;
-          const vehicleLocation = locationMap[vehicleId];
           return {
             id: vehicleId,
             name: vehicle.vehicle_name || vehicle.name || `Vehicle ${vehicleId}`,
@@ -255,12 +269,6 @@ const TrackingMapWithSidebar = () => {
             model: vehicle.model || 'Unknown',
             status: vehicle.status || 'unknown',
             license_plate: vehicle.license_plate || 'N/A',
-            coordinates: {
-              lat: vehicleLocation.lat,
-              lng: vehicleLocation.lng,
-            },
-            hasLocation: true, // All displayed vehicles have real location data
-            locationData: vehicleLocation.location, // Store full location data for additional info
           };
         });
 
@@ -288,13 +296,13 @@ const TrackingMapWithSidebar = () => {
           // Extract coordinates from geometry.center
           coordinates: geofence.geometry?.center
             ? {
-                lat: geofence.geometry.center.latitude,
-                lng: geofence.geometry.center.longitude,
-              }
+              lat: geofence.geometry.center.latitude,
+              lng: geofence.geometry.center.longitude,
+            }
             : {
-                lat: 37.7749 + (Math.random() - 0.5) * 0.1,
-                lng: -122.4194 + (Math.random() - 0.5) * 0.1,
-              },
+              lat: 37.7749 + (Math.random() - 0.5) * 0.1,
+              lng: -122.4194 + (Math.random() - 0.5) * 0.1,
+            },
           radius: geofence.geometry?.radius || 1000,
           status: geofence.status || 'active',
         }))
@@ -311,6 +319,30 @@ const TrackingMapWithSidebar = () => {
     }
   }, []);
 
+  // Load live locations data with auto-refresh
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        const response = await listLocations();
+        console.log('Response received from Core: ');
+        console.log(response);
+        const locationsData = response.data?.data || [];
+        setLocations(locationsData);
+
+        // Auto-focus on first location if follow mode is enabled and we have locations
+        if (followMode && locationsData.length > 0 && !focusLocation) {
+          setFocusLocation(locationsData[0]);
+        }
+      } catch (err) {
+        console.error('Failed to load locations:', err);
+      }
+    };
+
+    loadLocations();
+    const interval = setInterval(loadLocations, 5000); // Refresh every 5 seconds
+    return () => clearInterval(interval);
+  }, [followMode, focusLocation]);
+
   // Load data on mount
   useEffect(() => {
     const loadData = async () => {
@@ -323,18 +355,18 @@ const TrackingMapWithSidebar = () => {
   const filteredItems =
     activeTab === 'vehicles'
       ? vehicles.filter(
-          vehicle =>
-            (vehicle.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-            (vehicle.make?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-            (vehicle.model?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-            (vehicle.license_plate?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-        )
+        vehicle =>
+          (vehicle.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+          (vehicle.make?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+          (vehicle.model?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+          (vehicle.license_plate?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+      )
       : geofences.filter(
-          geofence =>
-            (geofence.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-            (geofence.description?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-            (geofence.type?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-        );
+        geofence =>
+          (geofence.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+          (geofence.description?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+          (geofence.type?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+      );
 
   // Handle geofence changes from the GeofenceManager
   const handleGeofenceChange = useCallback(async updatedGeofences => {
@@ -357,7 +389,22 @@ const TrackingMapWithSidebar = () => {
   // Handle item selection and map centering
   const handleItemSelect = item => {
     setSelectedItem(item);
-    setMapCenter([item.coordinates.lat, item.coordinates.lng]);
+    const location = locations.find(loc => loc.vehicle_id === item.id);
+    console.log("FOund location: ", location)
+
+    const [lng, lat] = location.location.coordinates;
+    if (lat != null && lng != null) {
+      setMapCenter([lat, lng]);
+    } else {
+      console.warn("No location found for item", item);
+    }
+  };
+
+  // Handle live location selection
+  const handleLocationSelect = location => {
+    setFocusLocation(location);
+    setMapCenter([location.latitude, location.longitude]);
+    setFollowMode(true); // Enable follow mode when selecting a live location
   };
 
   // Handle geofence editing
@@ -477,6 +524,9 @@ const TrackingMapWithSidebar = () => {
       }
     }
   };
+
+  const currentMapLayer = getMapLayer();
+
   if (loading && vehicles.length === 0 && geofences.length === 0) {
     return (
       <div
@@ -515,11 +565,10 @@ const TrackingMapWithSidebar = () => {
               {/* Location Button */}
               <button
                 onClick={handleLocationButtonClick}
-                className={`flex items-center justify-center rounded-lg shadow-lg border px-3 py-2 h-10 transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 ${
-                  showUserLocation
-                    ? 'bg-blue-500 hover:bg-blue-600 border-blue-600 text-white'
-                    : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300'
-                }`}
+                className={`flex items-center justify-center rounded-lg shadow-lg border px-3 py-2 h-10 transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 ${showUserLocation
+                  ? 'bg-blue-500 hover:bg-blue-600 border-blue-600 text-white'
+                  : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300'
+                  }`}
                 title="Go to my location"
               >
                 {showUserLocation ? (
@@ -586,14 +635,26 @@ const TrackingMapWithSidebar = () => {
 
               {/* Control Buttons Container - Fixed height regardless of search state */}
               <div className="flex items-center gap-2 h-10">
+                {/* Live Locations Toggle */}
+                <button
+                  onClick={() => setShowLocations(!showLocations)}
+                  className={`flex items-center gap-2 px-3 py-2 h-10 rounded-lg shadow-lg border transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 ${showLocations
+                    ? 'bg-orange-500 hover:bg-orange-600 border-orange-600 text-white'
+                    : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300'
+                    }`}
+                  title={`${showLocations ? 'Hide' : 'Show'} Live Locations`}
+                >
+                  <Navigation className="w-4 h-4 transition-transform duration-200" />
+                  <span className="text-sm font-medium hidden sm:inline">Live</span>
+                </button>
+
                 {/* Vehicles Toggle */}
                 <button
                   onClick={() => setShowVehicles(!showVehicles)}
-                  className={`flex items-center gap-2 px-3 py-2 h-10 rounded-lg shadow-lg border transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 ${
-                    showVehicles
-                      ? 'bg-green-500 hover:bg-green-600 border-green-600 text-white'
-                      : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300'
-                  }`}
+                  className={`flex items-center gap-2 px-3 py-2 h-10 rounded-lg shadow-lg border transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 ${showVehicles
+                    ? 'bg-green-500 hover:bg-green-600 border-green-600 text-white'
+                    : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300'
+                    }`}
                   title={`${showVehicles ? 'Hide' : 'Show'} Vehicles`}
                 >
                   <Car className="w-4 h-4 transition-transform duration-200" />
@@ -603,15 +664,27 @@ const TrackingMapWithSidebar = () => {
                 {/* Geofences Toggle */}
                 <button
                   onClick={() => setShowGeofences(!showGeofences)}
-                  className={`flex items-center gap-2 px-3 py-2 h-10 rounded-lg shadow-lg border transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 ${
-                    showGeofences
-                      ? 'bg-blue-500 hover:bg-blue-600 border-blue-600 text-white'
-                      : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300'
-                  }`}
+                  className={`flex items-center gap-2 px-3 py-2 h-10 rounded-lg shadow-lg border transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 ${showGeofences
+                    ? 'bg-blue-500 hover:bg-blue-600 border-blue-600 text-white'
+                    : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300'
+                    }`}
                   title={`${showGeofences ? 'Hide' : 'Show'} Geofences`}
                 >
                   <Shield className="w-4 h-4 transition-transform duration-200" />
                   <span className="text-sm font-medium hidden sm:inline">Geofences</span>
+                </button>
+
+                {/* Follow Mode Toggle */}
+                <button
+                  onClick={toggleFollowMode}
+                  className={`flex items-center gap-2 px-3 py-2 h-10 rounded-lg shadow-lg border transition-all duration-300 ease-in-out hover:scale-105 active:scale-95 ${followMode
+                    ? 'bg-purple-500 hover:bg-purple-600 border-purple-600 text-white'
+                    : 'bg-white hover:bg-gray-50 border-gray-300 text-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300'
+                    }`}
+                  title={`${followMode ? 'Disable' : 'Enable'} Follow Mode`}
+                >
+                  <Crosshair className="w-4 h-4 transition-transform duration-200" />
+                  <span className="text-sm font-medium hidden sm:inline">Follow</span>
                 </button>
 
                 {/* Sidebar Toggle Button */}
@@ -621,9 +694,8 @@ const TrackingMapWithSidebar = () => {
                   title={sidebarCollapsed ? 'Show Sidebar' : 'Hide Sidebar'}
                 >
                   <Menu
-                    className={`w-4 h-4 text-gray-600 dark:text-gray-300 transition-transform duration-300 ${
-                      sidebarCollapsed ? 'rotate-0' : 'rotate-180'
-                    }`}
+                    className={`w-4 h-4 text-gray-600 dark:text-gray-300 transition-transform duration-300 ${sidebarCollapsed ? 'rotate-0' : 'rotate-180'
+                      }`}
                   />
                 </button>
               </div>
@@ -637,42 +709,40 @@ const TrackingMapWithSidebar = () => {
             zoomControl={false}
           >
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution={currentMapLayer.attribution}
+              url={currentMapLayer.url}
             />
+            <MapController followMode={followMode} focusLocation={focusLocation} />
             <MapUpdater center={mapCenter} />
 
-            {/* Vehicle Markers */}
-            {showVehicles &&
-              vehicles.map(vehicle => (
-                <Marker
-                  key={`vehicle-${vehicle.id}`}
-                  position={[vehicle.coordinates.lat, vehicle.coordinates.lng]}
-                  icon={createVehicleIcon(vehicle.status)}
-                >
-                  <Popup>
-                    <div className="text-sm">
-                      <h4 className="font-medium">{vehicle.name}</h4>
-                      <p className="text-muted-foreground">
-                        {vehicle.make} {vehicle.model}
-                      </p>
-                      <p className="text-muted-foreground">Plate: {vehicle.license_plate}</p>
-                      <div className="flex items-center mt-1">
-                        <div
-                          className={`w-2 h-2 rounded-full mr-2 ${
-                            vehicle.status === 'active'
-                              ? 'bg-green-500'
-                              : vehicle.status === 'inactive'
-                              ? 'bg-red-500'
-                              : 'bg-yellow-500'
-                          }`}
-                        ></div>
-                        <span className="text-xs capitalize">{vehicle.status}</span>
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
+            {/* Live vehicle locations - Main feature like TrackingMap */}
+            {showLocations && locations.map(loc => (
+              <Marker
+                key={loc.id}
+                position={[loc.latitude, loc.longitude]}
+                icon={L.divIcon({
+                  className: 'custom-location-icon',
+                  html: `<div style="background:#ff9800;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>`,
+                  iconSize: [22, 22],
+                  iconAnchor: [11, 11],
+                })}
+                eventHandlers={{
+                  click: () => handleLocationSelect(loc),
+                }}
+              >
+                <Popup>
+                  <div className="text-sm">
+                    <h4 className="font-medium">Vehicle {loc.vehicle_id}</h4>
+                    <p><strong>Speed:</strong> {loc.speed} km/h</p>
+                    <p><strong>Heading:</strong> {loc.heading}°</p>
+                    <p><strong>Updated:</strong> {new Date(loc.updated_at).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Lat: {loc.latitude.toFixed(6)}, Lng: {loc.longitude.toFixed(6)}
+                    </p>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
 
             {/* User Location Marker */}
             {showUserLocation && userLocation && userLocation[0] && userLocation[1] && (
@@ -718,15 +788,14 @@ const TrackingMapWithSidebar = () => {
                         <p className="text-muted-foreground">{geofence.description}</p>
                         <div className="flex items-center mt-1">
                           <div
-                            className={`w-2 h-2 rounded-full mr-2 ${
-                              geofence.type === 'depot'
-                                ? 'bg-blue-500'
-                                : geofence.type === 'restricted'
+                            className={`w-2 h-2 rounded-full mr-2 ${geofence.type === 'depot'
+                              ? 'bg-blue-500'
+                              : geofence.type === 'restricted'
                                 ? 'bg-red-500'
                                 : geofence.type === 'safe_zone'
-                                ? 'bg-green-500'
-                                : 'bg-purple-500'
-                            }`}
+                                  ? 'bg-green-500'
+                                  : 'bg-purple-500'
+                              }`}
                           ></div>
                           <span className="text-xs capitalize">{geofence.type}</span>
                         </div>
@@ -754,6 +823,55 @@ const TrackingMapWithSidebar = () => {
               </LayerGroup>
             )}
           </MapContainer>
+
+          {/* Map Controls - Bottom Right */}
+          <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-[1000]">
+            <div className="bg-white dark:bg-gray-800 p-2 rounded-lg shadow-lg border border-gray-300 dark:border-gray-600">
+              <button
+                className={`p-2 rounded-md w-8 h-8 flex items-center justify-center transition-all duration-200 ${mapType === 'streets'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                onClick={() => setMapType('streets')}
+                title="Street map"
+              >
+                <Navigation size={16} />
+              </button>
+              <button
+                className={`p-2 rounded-md w-8 h-8 flex items-center justify-center mt-1 transition-all duration-200 ${mapType === 'satellite'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                onClick={() => setMapType('satellite')}
+                title="Satellite map"
+              >
+                <Layers size={16} />
+              </button>
+              <button
+                className={`p-2 rounded-md w-8 h-8 flex items-center justify-center mt-1 transition-all duration-200 ${mapType === 'terrain'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                onClick={() => setMapType('terrain')}
+                title="Terrain map"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m2 22 10-10 10 10M12 12V3" />
+                  <path d="m9 6 3-3 3 3" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Sidebar Backdrop - More prominent on mobile */}
@@ -766,19 +884,17 @@ const TrackingMapWithSidebar = () => {
 
         {/* Sidebar - Overlay on top of map */}
         <div
-          className={`absolute top-20 right-4 w-full sm:w-80 h-[calc(100vh-174px)] bg-card border border-border shadow-xl rounded-2xl z-[999] transition-all duration-500 ease-in-out transform ${
-            sidebarCollapsed ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'
-          }`}
+          className={`absolute top-20 right-4 w-full sm:w-80 h-[calc(100vh-174px)] bg-card border border-border shadow-xl rounded-2xl z-[999] transition-all duration-500 ease-in-out transform ${sidebarCollapsed ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'
+            }`}
         >
           <div className="flex flex-col h-full p-4 animate-in slide-in-from-right-4 duration-300">
             {/* Tabs */}
             <div className="flex border-b border-border mb-4">
               <button
-                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-all duration-300 ease-in-out ${
-                  activeTab === 'vehicles'
-                    ? 'border-primary text-primary bg-primary/5 transform scale-105'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-accent/50'
-                }`}
+                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-all duration-300 ease-in-out ${activeTab === 'vehicles'
+                  ? 'border-primary text-primary bg-primary/5 transform scale-105'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-accent/50'
+                  }`}
                 onClick={() => {
                   setActiveTab('vehicles');
                   setSearchTerm('');
@@ -786,18 +902,16 @@ const TrackingMapWithSidebar = () => {
                 }}
               >
                 <Car
-                  className={`w-4 h-4 inline mr-2 transition-transform duration-200 ${
-                    activeTab === 'vehicles' ? 'scale-110' : ''
-                  }`}
+                  className={`w-4 h-4 inline mr-2 transition-transform duration-200 ${activeTab === 'vehicles' ? 'scale-110' : ''
+                    }`}
                 />
                 Vehicles ({vehicles.length})
               </button>
               <button
-                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-all duration-300 ease-in-out ${
-                  activeTab === 'geofences'
-                    ? 'border-primary text-primary bg-primary/5 transform scale-105'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-accent/50'
-                }`}
+                className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-all duration-300 ease-in-out ${activeTab === 'geofences'
+                  ? 'border-primary text-primary bg-primary/5 transform scale-105'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-accent/50'
+                  }`}
                 onClick={() => {
                   setActiveTab('geofences');
                   setSearchTerm('');
@@ -805,9 +919,8 @@ const TrackingMapWithSidebar = () => {
                 }}
               >
                 <Shield
-                  className={`w-4 h-4 inline mr-2 transition-transform duration-200 ${
-                    activeTab === 'geofences' ? 'scale-110' : ''
-                  }`}
+                  className={`w-4 h-4 inline mr-2 transition-transform duration-200 ${activeTab === 'geofences' ? 'scale-110' : ''
+                    }`}
                 />
                 Geofences ({geofences.length})
               </button>
@@ -838,6 +951,26 @@ const TrackingMapWithSidebar = () => {
               </div>
             )}
 
+            {/* Live Locations Summary - Show when locations are available */}
+            {locations.length > 0 && (
+              <div className="mb-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg animate-in fade-in duration-300">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                    Live Tracking Active
+                  </span>
+                </div>
+                <p className="text-xs text-orange-700 dark:text-orange-300">
+                  {locations.length} vehicle{locations.length > 1 ? 's' : ''} being tracked
+                </p>
+                {followMode && focusLocation && (
+                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                    Following Vehicle {focusLocation.vehicle_id}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Items List */}
             <div className="flex-1 overflow-y-auto space-y-2">
               {filteredItems.length === 0 ? (
@@ -849,11 +982,10 @@ const TrackingMapWithSidebar = () => {
                 filteredItems.map((item, index) => (
                   <div
                     key={item.id}
-                    className={`w-full p-3 border border-border cursor-pointer transition-all duration-300 ease-in-out hover:bg-accent hover:scale-[1.02] hover:shadow-md transform animate-in fade-in slide-in-from-left-2 rounded-xl ${
-                      selectedItem?.id === item.id
-                        ? 'bg-primary/10 border-primary scale-[1.02] shadow-md'
-                        : ''
-                    }`}
+                    className={`w-full p-3 border border-border cursor-pointer transition-all duration-300 ease-in-out hover:bg-accent hover:scale-[1.02] hover:shadow-md transform animate-in fade-in slide-in-from-left-2 rounded-xl ${selectedItem?.id === item.id
+                      ? 'bg-primary/10 border-primary scale-[1.02] shadow-md'
+                      : ''
+                      }`}
                     style={{ animationDelay: `${index * 50}ms` }}
                     onClick={() => handleItemSelect(item)}
                   >
@@ -872,13 +1004,12 @@ const TrackingMapWithSidebar = () => {
                             </p>
                             <div className="flex items-center mt-1">
                               <div
-                                className={`w-2 h-2 rounded-full mr-2 transition-all duration-300 ${
-                                  item.status === 'active'
-                                    ? 'bg-green-500 animate-pulse'
-                                    : item.status === 'inactive'
+                                className={`w-2 h-2 rounded-full mr-2 transition-all duration-300 ${item.status === 'active'
+                                  ? 'bg-green-500 animate-pulse'
+                                  : item.status === 'inactive'
                                     ? 'bg-red-500'
                                     : 'bg-yellow-500 animate-pulse'
-                                }`}
+                                  }`}
                               ></div>
                               <span className="text-xs capitalize text-muted-foreground transition-colors duration-200">
                                 {item.status}
@@ -892,13 +1023,12 @@ const TrackingMapWithSidebar = () => {
                             </p>
                             <div className="flex items-center mt-1">
                               <div
-                                className={`w-2 h-2 rounded-full mr-2 transition-all duration-300 ${
-                                  item.type === 'depot'
-                                    ? 'bg-blue-500'
-                                    : item.type === 'restricted'
+                                className={`w-2 h-2 rounded-full mr-2 transition-all duration-300 ${item.type === 'depot'
+                                  ? 'bg-blue-500'
+                                  : item.type === 'restricted'
                                     ? 'bg-red-500'
                                     : 'bg-purple-500'
-                                }`}
+                                  }`}
                               ></div>
                               <span className="text-xs capitalize text-muted-foreground transition-colors duration-200">
                                 {item.type}
