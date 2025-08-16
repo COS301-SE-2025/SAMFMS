@@ -127,7 +127,7 @@ class Driver(BaseModel):
     last_name: str
     email: str
     phone: str
-    license_number: str
+    license_number: Optional[str] = None
     license_class: List[LicenseClass]
     license_expiry: datetime
     status: DriverStatus = DriverStatus.ACTIVE

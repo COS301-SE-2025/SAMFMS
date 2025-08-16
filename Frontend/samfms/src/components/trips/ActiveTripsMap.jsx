@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MapPin, Menu, Search, Navigation, Car, Clock, User, Locate } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import { getLocation } from '../../backend/api/locations';
+import { getVehiclePolyline } from '../../backend/api/trips';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -51,51 +52,49 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [mapCenter, setMapCenter] = useState([37.7749, -122.4194]);
   const [mapBounds, setMapBounds] = useState(null);
-  const [vehicleLocations, setVehicleLocations] = useState({}); // Store vehicle locations by vehicle ID
-  const [showTrips, setShowTrips] = useState(true); // Toggle for trip display
-  const [showVehicles, setShowVehicles] = useState(true); // Toggle for vehicle display
+  const [vehicleLocations, setVehicleLocations] = useState({});
+  const [vehiclePolylines, setVehiclePolylines] = useState({}); // New state for dynamic polylines
+  const [showTrips, setShowTrips] = useState(true);
+  const [showVehicles, setShowVehicles] = useState(true);
+  const [useDynamicRoutes, setUseDynamicRoutes] = useState(true); // Toggle for dynamic vs static routes
 
-  // Debug: Log vehicle locations when they change
+  // Debug: Log vehicle locations and polylines when they change
   useEffect(() => {
     console.log('Vehicle locations updated:', vehicleLocations);
+    console.log('Vehicle polylines updated:', vehiclePolylines);
     console.log('Number of vehicle locations:', Object.keys(vehicleLocations).length);
+    console.log('Number of vehicle polylines:', Object.keys(vehiclePolylines).length);
     console.log('Active locations (trips):', activeLocations);
-    // Log which vehicle IDs we're trying to fetch locations for
-    const vehicleIds = activeLocations.map(loc => loc.vehicleId).filter(Boolean);
-    console.log('Vehicle IDs to track:', vehicleIds);
-  }, [vehicleLocations, activeLocations]);
+  }, [vehicleLocations, vehiclePolylines, activeLocations]);
 
   // Function to fetch vehicle location
   const fetchVehicleLocation = async vehicleId => {
     try {
       const response = await getLocation(vehicleId);
-      // Handle the response structure based on the API response you provided
       console.log(`Vehicle ${vehicleId} location:`, response);
 
-      // Handle the nested response structure: response.data.data is an array of location objects
       if (
         response.data &&
         response.data.data &&
         Array.isArray(response.data.data) &&
         response.data.data.length > 0
       ) {
-        const locationData = response.data.data[0]; // Take the first (most recent) location
+        const locationData = response.data.data[0];
 
         if (locationData.location && locationData.location.coordinates) {
           return {
             id: vehicleId,
-            position: [locationData.location.coordinates[1], locationData.location.coordinates[0]], // [lat, lng] for Leaflet
+            position: [locationData.location.coordinates[1], locationData.location.coordinates[0]],
             speed: locationData.speed || null,
             heading: locationData.heading || null,
             lastUpdated: new Date(locationData.timestamp || locationData.updated_at),
           };
         }
 
-        // Fallback to direct coordinates if location.coordinates doesn't exist
         if (locationData.latitude && locationData.longitude) {
           return {
             id: vehicleId,
-            position: [locationData.latitude, locationData.longitude], // [lat, lng] for Leaflet
+            position: [locationData.latitude, locationData.longitude],
             speed: locationData.speed || null,
             heading: locationData.heading || null,
             lastUpdated: new Date(locationData.timestamp || locationData.updated_at),
@@ -111,8 +110,30 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
     }
   };
 
-  // Function to fetch all vehicle locations for active trips
-  const fetchAllVehicleLocations = useCallback(async () => {
+  // Function to fetch vehicle polyline
+  const fetchVehiclePolyline = async vehicleId => {
+    try {
+      console.log(`Fetching polyline for vehicle ${vehicleId}`);
+      const response = await getVehiclePolyline(vehicleId);
+      
+      // Handle the response based on your backend structure
+      // Assuming the response contains the polyline coordinates
+      if (response && response.data) {
+        const polylineData = response.data.data;
+
+        return polylineData
+      }
+      
+      console.warn(`No valid polyline data found for vehicle ${vehicleId}`);
+      return null;
+    } catch (error) {
+      console.error(`Error fetching polyline for vehicle ${vehicleId}:`, error);
+      return null;
+    }
+  };
+
+  // Function to fetch all vehicle locations and polylines for active trips
+  const fetchAllVehicleData = useCallback(async () => {
     const locationPromises = activeLocations.map(async trip => {
       if (trip.vehicleId) {
         const location = await fetchVehicleLocation(trip.vehicleId);
@@ -121,17 +142,39 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
       return null;
     });
 
-    const results = await Promise.all(locationPromises);
-    const locationsMap = {};
+    // Fetch polylines only if dynamic routes are enabled
+    const polylinePromises = useDynamicRoutes ? activeLocations.map(async trip => {
+      if (trip.vehicleId) {
+        const polyline = await fetchVehiclePolyline(trip.vehicleId);
+        return { vehicleId: trip.vehicleId, polyline };
+      }
+      return null;
+    }) : [];
 
-    results.forEach(result => {
+    const [locationResults, polylineResults] = await Promise.all([
+      Promise.all(locationPromises),
+      Promise.all(polylinePromises)
+    ]);
+
+    // Process location results
+    const locationsMap = {};
+    locationResults.forEach(result => {
       if (result && result.location) {
         locationsMap[result.vehicleId] = result.location;
       }
     });
 
+    // Process polyline results
+    const polylinesMap = {};
+    polylineResults.forEach(result => {
+      if (result && result.polyline) {
+        polylinesMap[result.vehicleId] = result.polyline;
+      }
+    });
+
     setVehicleLocations(locationsMap);
-  }, [activeLocations]);
+    setVehiclePolylines(polylinesMap);
+  }, [activeLocations, useDynamicRoutes]);
 
   // Filter active trips based on search term
   const filteredTrips = activeLocations.filter(
@@ -146,10 +189,17 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
   const handleTripSelect = trip => {
     setSelectedTrip(trip);
 
-    // If the trip has route coordinates, fit the map to show the entire route
-    if (trip.routeCoordinates && trip.routeCoordinates.length > 0) {
+    // Check if we have a dynamic polyline for this trip
+    const dynamicPolyline = vehiclePolylines[trip.vehicleId];
+    
+    if (useDynamicRoutes && dynamicPolyline && dynamicPolyline.length > 0) {
+      // Use dynamic polyline for bounds
+      setMapBounds(dynamicPolyline);
+      setMapCenter(null);
+    } else if (trip.routeCoordinates && trip.routeCoordinates.length > 0) {
+      // Fallback to original route coordinates
       setMapBounds(trip.routeCoordinates);
-      setMapCenter(null); // Don't use center when using bounds
+      setMapCenter(null);
     } else {
       // Fallback to centering on destination
       setMapCenter(trip.position);
@@ -169,28 +219,28 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [sidebarCollapsed]);
 
-  // Fetch vehicle locations when active locations change and poll for updates
+  // Fetch vehicle data when active locations change and poll for updates
   useEffect(() => {
     if (activeLocations.length === 0) {
       setVehicleLocations({});
+      setVehiclePolylines({});
       return;
     }
 
     // Initial fetch
-    fetchAllVehicleLocations();
+    fetchAllVehicleData();
 
-    // Set up polling every 3 seconds for live location updates
-    const locationInterval = setInterval(() => {
-      fetchAllVehicleLocations();
-    }, 500);
+    // Set up polling every 5 seconds for live updates
+    const dataInterval = setInterval(() => {
+      fetchAllVehicleData();
+    }, 5000);
 
-    return () => clearInterval(locationInterval);
-  }, [activeLocations, fetchAllVehicleLocations]); // Re-fetch when active trips change
+    return () => clearInterval(dataInterval);
+  }, [activeLocations, fetchAllVehicleData]);
 
   // Auto-center map when active locations load
   useEffect(() => {
     if (activeLocations.length > 0 && !selectedTrip) {
-      // Center on the first location or calculate center of all locations
       const validLocations = activeLocations.filter(
         loc => loc.position && loc.position[0] !== 0 && loc.position[1] !== 0
       );
@@ -198,7 +248,6 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
       if (validLocations.length === 1) {
         setMapCenter(validLocations[0].position);
       } else if (validLocations.length > 1) {
-        // Calculate approximate center of all locations
         const avgLat =
           validLocations.reduce((sum, loc) => sum + loc.position[0], 0) / validLocations.length;
         const avgLng =
@@ -207,6 +256,22 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
       }
     }
   }, [activeLocations, selectedTrip]);
+
+  // Function to get the polyline coordinates for a trip
+  const getTripPolyline = (trip) => {
+    if (useDynamicRoutes && vehiclePolylines[trip.vehicleId]) {
+      return vehiclePolylines[trip.vehicleId];
+    }
+    return trip.routeCoordinates;
+  };
+
+  // Function to get origin coordinates for a trip
+  const getTripOrigin = (trip) => {
+    if (useDynamicRoutes && vehiclePolylines[trip.vehicleId] && vehiclePolylines[trip.vehicleId].length > 0) {
+      return vehiclePolylines[trip.vehicleId][0];
+    }
+    return trip.origin;
+  };
 
   return (
     <div className="h-96 relative">
@@ -223,121 +288,130 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
         />
         <MapUpdater center={mapCenter} zoom={13} bounds={mapBounds} />
 
-        {/* Render route polylines */}
+        {/* Render route polylines with dynamic or static routes */}
         {showTrips &&
           activeLocations &&
           activeLocations.length > 0 &&
-          activeLocations.map(location => (
-            <React.Fragment key={`route-${location.id}`}>
-              {/* Route polyline */}
-              {location.routeCoordinates && location.routeCoordinates.length > 0 && (
-                <Polyline
-                  positions={location.routeCoordinates}
-                  pathOptions={{
-                    color:
-                      location.status === 'In Transit'
-                        ? '#3b82f6'
-                        : location.status === 'At Destination'
-                        ? '#22c55e'
-                        : '#f59e0b',
-                    weight: 4,
-                    opacity: 0.8,
-                  }}
-                />
-              )}
+          activeLocations.map(location => {
+            const polylineCoords = getTripPolyline(location);
+            const originCoords = getTripOrigin(location);
+            
+            return (
+              <React.Fragment key={`route-${location.id}`}>
+                {/* Route polyline */}
+                {polylineCoords && polylineCoords.length > 0 && (
+                  <Polyline
+                    positions={polylineCoords}
+                    pathOptions={{
+                      color:
+                        location.status === 'In Transit'
+                          ? '#3b82f6'
+                          : location.status === 'At Destination'
+                          ? '#22c55e'
+                          : '#f59e0b',
+                      weight: useDynamicRoutes && vehiclePolylines[location.vehicleId] ? 5 : 4,
+                      opacity: 0.8,
+                      dashArray: useDynamicRoutes && vehiclePolylines[location.vehicleId] ? '10, 5' : null,
+                    }}
+                  />
+                )}
 
-              {/* Origin marker - White flag for starting point */}
-              {location.origin && location.origin[0] !== 0 && location.origin[1] !== 0 && (
+                {/* Origin marker - Updated to use dynamic origin if available */}
+                {originCoords && originCoords[0] !== 0 && originCoords[1] !== 0 && (
+                  <Marker
+                    position={originCoords}
+                    icon={L.divIcon({
+                      html: `<div style="background-color: ${useDynamicRoutes && vehiclePolylines[location.vehicleId] ? '#3b82f6' : 'white'}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid #64748b; box-shadow: 0 3px 8px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center;">
+                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="${useDynamicRoutes && vehiclePolylines[location.vehicleId] ? 'white' : '#64748b'}">
+                                   <path d="M14.4,6H20V16H13L11,13V21A1,1 0 0,1 10,22H9A1,1 0 0,1 8,21V4A1,1 0 0,1 9,3H10A1,1 0 0,1 11,4V6H14.4L14.4,6Z"/>
+                                 </svg>
+                               </div>`,
+                      className: 'custom-origin-marker',
+                      iconSize: [24, 24],
+                      iconAnchor: [12, 12],
+                    })}
+                  >
+                    <Popup>
+                      <div className="text-sm">
+                        <h4 className="font-semibold flex items-center gap-2">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="#64748b">
+                            <path d="M14.4,6H20V16H13L11,13V21A1,1 0 0,1 10,22H9A1,1 0 0,1 8,21V4A1,1 0 0,1 9,3H10A1,1 0 0,1 11,4V6H14.4L14.4,6Z" />
+                          </svg>
+                          {useDynamicRoutes && vehiclePolylines[location.vehicleId] ? 'Current Route Start' : 'Original Start'}
+                        </h4>
+                        <p className="text-muted-foreground">{location.vehicleName}</p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                )}
+
+                {/* Destination marker */}
                 <Marker
-                  position={location.origin}
+                  position={location.position}
                   icon={L.divIcon({
-                    html: `<div style="background-color: white; width: 24px; height: 24px; border-radius: 50%; border: 3px solid #64748b; box-shadow: 0 3px 8px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center;">
-                               <svg width="14" height="14" viewBox="0 0 24 24" fill="#64748b">
+                    html: `<div style="background-color: #22c55e; width: 28px; height: 28px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center;">
+                               <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
                                  <path d="M14.4,6H20V16H13L11,13V21A1,1 0 0,1 10,22H9A1,1 0 0,1 8,21V4A1,1 0 0,1 9,3H10A1,1 0 0,1 11,4V6H14.4L14.4,6Z"/>
                                </svg>
                              </div>`,
-                    className: 'custom-origin-marker',
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12],
+                    className: 'custom-destination-marker',
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14],
                   })}
                 >
                   <Popup>
                     <div className="text-sm">
                       <h4 className="font-semibold flex items-center gap-2">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="#64748b">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="#22c55e">
                           <path d="M14.4,6H20V16H13L11,13V21A1,1 0 0,1 10,22H9A1,1 0 0,1 8,21V4A1,1 0 0,1 9,3H10A1,1 0 0,1 11,4V6H14.4L14.4,6Z" />
                         </svg>
-                        Starting Point
+                        Destination
                       </h4>
                       <p className="text-muted-foreground">{location.vehicleName}</p>
+                      <p className="text-muted-foreground">Driver: {location.driver}</p>
+                      <p className="text-muted-foreground">Going to: {location.destination}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            location.status === 'In Transit'
+                              ? 'bg-blue-500'
+                              : location.status === 'At Destination'
+                              ? 'bg-green-500'
+                              : 'bg-orange-500'
+                          }`}
+                        ></div>
+                        <span className="text-xs">{location.status}</span>
+                      </div>
+                      <div className="mt-1">
+                        <div className="flex justify-between text-xs">
+                          <span>Progress</span>
+                          <span>{location.progress}%</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5 mt-1">
+                          <div
+                            className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                            style={{ width: `${location.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      {useDynamicRoutes && vehiclePolylines[location.vehicleId] && (
+                        <div className="mt-2 text-xs text-blue-600">
+                          📍 Using dynamic route from current location
+                        </div>
+                      )}
                     </div>
                   </Popup>
                 </Marker>
-              )}
+              </React.Fragment>
+            );
+          })}
 
-              {/* Destination marker - Green flag for end location */}
-              <Marker
-                position={location.position}
-                icon={L.divIcon({
-                  html: `<div style="background-color: #22c55e; width: 28px; height: 28px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center;">
-                             <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-                               <path d="M14.4,6H20V16H13L11,13V21A1,1 0 0,1 10,22H9A1,1 0 0,1 8,21V4A1,1 0 0,1 9,3H10A1,1 0 0,1 11,4V6H14.4L14.4,6Z"/>
-                             </svg>
-                           </div>`,
-                  className: 'custom-destination-marker',
-                  iconSize: [28, 28],
-                  iconAnchor: [14, 14],
-                })}
-              >
-                <Popup>
-                  <div className="text-sm">
-                    <h4 className="font-semibold flex items-center gap-2">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="#22c55e">
-                        <path d="M14.4,6H20V16H13L11,13V21A1,1 0 0,1 10,22H9A1,1 0 0,1 8,21V4A1,1 0 0,1 9,3H10A1,1 0 0,1 11,4V6H14.4L14.4,6Z" />
-                      </svg>
-                      Destination
-                    </h4>
-                    <p className="text-muted-foreground">{location.vehicleName}</p>
-                    <p className="text-muted-foreground">Driver: {location.driver}</p>
-                    <p className="text-muted-foreground">Going to: {location.destination}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          location.status === 'In Transit'
-                            ? 'bg-blue-500'
-                            : location.status === 'At Destination'
-                            ? 'bg-green-500'
-                            : 'bg-orange-500'
-                        }`}
-                      ></div>
-                      <span className="text-xs">{location.status}</span>
-                    </div>
-                    <div className="mt-1">
-                      <div className="flex justify-between text-xs">
-                        <span>Progress</span>
-                        <span>{location.progress}%</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-1.5 mt-1">
-                        <div
-                          className="bg-primary h-1.5 rounded-full transition-all duration-300"
-                          style={{ width: `${location.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            </React.Fragment>
-          ))}
-
-        {/* Legacy markers (keeping for backwards compatibility - remove these when not needed) */}
+        {/* Legacy markers for trips without routes */}
         {showTrips &&
           activeLocations &&
           activeLocations.length > 0 &&
           activeLocations
-            .filter(
-              location => !location.routeCoordinates || location.routeCoordinates.length === 0
-            )
+            .filter(location => !getTripPolyline(location) || getTripPolyline(location).length === 0)
             .map(location => (
               <Marker
                 key={location.id}
@@ -378,10 +452,9 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
               </Marker>
             ))}
 
-        {/* Render live vehicle location markers - LAST to ensure they appear on top */}
+        {/* Render live vehicle location markers */}
         {showVehicles &&
           Object.entries(vehicleLocations).map(([vehicleId, locationData]) => {
-            // Find the corresponding trip for this vehicle
             const trip = activeLocations.find(loc => loc.vehicleId === vehicleId);
 
             return (
@@ -398,7 +471,7 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
                   iconSize: [20, 20],
                   iconAnchor: [10, 10],
                 })}
-                zIndexOffset={1000} // Ensure this marker appears above all others
+                zIndexOffset={1000}
               >
                 <Popup>
                   <div className="text-sm">
@@ -466,40 +539,18 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
             <div className="flex items-center gap-2 border-t border-border pt-2">
               <div className="flex items-center gap-1">
                 <div className="w-3 h-0.5 bg-blue-500"></div>
-                <span className="text-muted-foreground text-xs">Route</span>
+                <span className="text-muted-foreground text-xs">Static Route</span>
               </div>
               <div className="flex items-center gap-1">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="#64748b">
-                  <path d="M14.4,6H20V16H13L11,13V21A1,1 0 0,1 10,22H9A1,1 0 0,1 8,21V4A1,1 0 0,1 9,3H10A1,1 0 0,1 11,4V6H14.4L14.4,6Z" />
-                </svg>
-                <span className="text-muted-foreground text-xs">Start</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="#22c55e">
-                  <path d="M14.4,6H20V16H13L11,13V21A1,1 0 0,1 10,22H9A1,1 0 0,1 8,21V4A1,1 0 0,1 9,3H10A1,1 0 0,1 11,4V6H14.4L14.4,6Z" />
-                </svg>
-                <span className="text-muted-foreground text-xs">End</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="#3b82f6">
-                  <path d="M5,11L6.5,6.5H17.5L19,11M17.5,16A1.5,1.5 0 0,1 16,14.5A1.5,1.5 0 0,1 17.5,13A1.5,1.5 0 0,1 19,14.5A1.5,1.5 0 0,1 17.5,16M6.5,16A1.5,1.5 0 0,1 5,14.5A1.5,1.5 0 0,1 6.5,13A1.5,1.5 0 0,1 8,14.5A1.5,1.5 0 0,1 6.5,16M18.92,6C18.72,5.42 18.16,5 17.5,5H6.5C5.84,5 5.28,5.42 5.08,6L3,12V20A1,1 0 0,0 4,21H5A1,1 0 0,0 6,20V19H18V20A1,1 0 0,0 19,21H20A1,1 0 0,0 21,20V12L18.92,6Z" />
-                </svg>
-                <span className="text-muted-foreground text-xs">Live Vehicle</span>
+                <div className="w-3 h-0.5 bg-blue-500" style={{borderStyle: 'dashed', borderTop: '2px dashed #3b82f6', background: 'none', height: '0px'}}></div>
+                <span className="text-muted-foreground text-xs">Dynamic Route</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Sidebar Backdrop */}
-      {!sidebarCollapsed && (
-        <div
-          className="absolute inset-0 bg-black bg-opacity-10 z-[998] transition-opacity duration-300"
-          onClick={() => setSidebarCollapsed(true)}
-        />
-      )}
-
-      {/* Sidebar - Overlay on left side */}
+      {/* Sidebar - Enhanced with dynamic route toggle */}
       <div
         className={`absolute top-0 left-0 w-80 h-full bg-card border-r border-border shadow-xl z-[999] transition-all duration-500 ease-in-out transform ${
           sidebarCollapsed ? '-translate-x-full opacity-0' : 'translate-x-0 opacity-100'
@@ -551,6 +602,24 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
                   />
                 </button>
               </div>
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-sm text-muted-foreground">Dynamic Routes</span>
+                  <span className="text-xs text-muted-foreground/70">From current location</span>
+                </div>
+                <button
+                  onClick={() => setUseDynamicRoutes(!useDynamicRoutes)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    useDynamicRoutes ? 'bg-primary' : 'bg-muted-foreground/20'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      useDynamicRoutes ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -575,84 +644,105 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
                 {searchTerm && <p className="text-xs mt-1">Try adjusting your search</p>}
               </div>
             ) : (
-              filteredTrips.map((trip, index) => (
-                <div
-                  key={trip.id}
-                  className={`p-3 border border-border cursor-pointer transition-all duration-300 ease-in-out hover:bg-accent hover:scale-[1.02] hover:shadow-md transform rounded-xl ${
-                    selectedTrip?.id === trip.id
-                      ? 'bg-primary/10 border-primary scale-[1.02] shadow-md'
-                      : ''
-                  }`}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                  onClick={() => handleTripSelect(trip)}
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-start justify-between">
-                      <h5 className="font-medium text-sm truncate flex-1">{trip.vehicleName}</h5>
-                      <div className="flex items-center ml-2">
-                        <div
-                          className={`w-2 h-2 rounded-full mr-1 ${
-                            trip.status === 'In Transit'
-                              ? 'bg-blue-500 animate-pulse'
-                              : trip.status === 'At Destination'
-                              ? 'bg-green-500'
-                              : 'bg-orange-500 animate-pulse'
-                          }`}
-                        ></div>
-                        <span className="text-xs text-muted-foreground capitalize">
-                          {trip.status.toLowerCase()}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <User className="w-3 h-3 mr-1" />
-                        <span className="truncate">{trip.driver}</span>
+              filteredTrips.map((trip, index) => {
+                const hasDynamicRoute = useDynamicRoutes && vehiclePolylines[trip.vehicleId];
+                const hasLiveLocation = vehicleLocations[trip.vehicleId];
+                
+                return (
+                  <div
+                    key={trip.id}
+                    className={`p-3 border border-border cursor-pointer transition-all duration-300 ease-in-out hover:bg-accent hover:scale-[1.02] hover:shadow-md transform rounded-xl ${
+                      selectedTrip?.id === trip.id
+                        ? 'bg-primary/10 border-primary scale-[1.02] shadow-md'
+                        : ''
+                    }`}
+                    style={{ animationDelay: `${index * 50}ms` }}
+                    onClick={() => handleTripSelect(trip)}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between">
+                        <h5 className="font-medium text-sm truncate flex-1">{trip.vehicleName}</h5>
+                        <div className="flex items-center ml-2">
+                          <div
+                            className={`w-2 h-2 rounded-full mr-1 ${
+                              trip.status === 'In Transit'
+                                ? 'bg-blue-500 animate-pulse'
+                                : trip.status === 'At Destination'
+                                ? 'bg-green-500'
+                                : 'bg-orange-500 animate-pulse'
+                            }`}
+                          ></div>
+                          <span className="text-xs text-muted-foreground capitalize">
+                            {trip.status.toLowerCase()}
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <Navigation className="w-3 h-3 mr-1" />
-                        <span className="truncate">{trip.destination}</span>
-                      </div>
-                    </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <User className="w-3 h-3 mr-1" />
+                          <span className="truncate">{trip.driver}</span>
+                        </div>
 
-                    {/* Progress bar */}
-                    <div className="mt-2">
-                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                        <span>Progress</span>
-                        <span>{trip.progress}%</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-1.5">
-                        <div
-                          className={`h-1.5 rounded-full transition-all duration-300 ${
-                            trip.status === 'In Transit'
-                              ? 'bg-blue-500'
-                              : trip.status === 'At Destination'
-                              ? 'bg-green-500'
-                              : 'bg-orange-500'
-                          }`}
-                          style={{ width: `${trip.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <Navigation className="w-3 h-3 mr-1" />
+                          <span className="truncate">{trip.destination}</span>
+                        </div>
 
-                    {/* Action button */}
-                    <div className="pt-2">
-                      <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleTripSelect(trip);
-                        }}
-                        className="w-full flex items-center justify-center gap-1 px-2 py-1 bg-primary/10 hover:bg-primary/20 text-primary text-xs rounded-md transition-colors duration-200"
-                      >
-                        <Locate className="w-3 h-3" />
-                        <span>Focus on Map</span>
-                      </button>
+                        {/* Status indicators for dynamic route and live location */}
+                        <div className="flex items-center gap-2 text-xs">
+                          {hasDynamicRoute && (
+                            <div className="flex items-center gap-1 text-blue-600">
+                              <div className="w-2 h-0.5 bg-blue-600" style={{borderStyle: 'dashed'}}></div>
+                              <span>Dynamic Route</span>
+                            </div>
+                          )}
+                          {hasLiveLocation && (
+                            <div className="flex items-center gap-1 text-green-600">
+                              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                              <span>Live GPS</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Progress bar */}
+                      <div className="mt-2">
+                        <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                          <span>Progress</span>
+                          <span>{trip.progress}%</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5">
+                          <div
+                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                              trip.status === 'In Transit'
+                                ? 'bg-blue-500'
+                                : trip.status === 'At Destination'
+                                ? 'bg-green-500'
+                                : 'bg-orange-500'
+                            }`}
+                            style={{ width: `${trip.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Action button */}
+                      <div className="pt-2">
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleTripSelect(trip);
+                          }}
+                          className="w-full flex items-center justify-center gap-1 px-2 py-1 bg-primary/10 hover:bg-primary/20 text-primary text-xs rounded-md transition-colors duration-200"
+                        >
+                          <Locate className="w-3 h-3" />
+                          <span>Focus on Map</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

@@ -582,8 +582,8 @@ export const getTripHistoryStats = async (days = null) => {
 
 export const getVehiclePolyline = async (VehicleID) => {
   try {
-    const response = httpClient.get(TRIPS_ENDPOINTS.polyline(VehicleID));
-    
+    const response = await httpClient.get(TRIPS_ENDPOINTS.polyline(VehicleID));
+    console.log("Response for polyline: ", response)
     return response;
   } catch (error) {
     console.error("Error fetching polyline for vehicle: ", VehicleID)

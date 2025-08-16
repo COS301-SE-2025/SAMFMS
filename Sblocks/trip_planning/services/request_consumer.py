@@ -277,7 +277,7 @@ class ServiceRequestConsumer:
                             message="Vehicle ID was not included",
                         )
                     
-                    polyline = await trip_service.get_vehicle_polyline()
+                    polyline = await trip_service.get_vehicle_polyline(vehicle_id)
                     return ResponseBuilder.success(
                         data=polyline,
                         message="Successfully retrieved polyline"

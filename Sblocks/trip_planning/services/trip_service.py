@@ -19,6 +19,7 @@ class TripService:
     
     def __init__(self):
         self.db = db_manager
+        self.db_gps = db_manager_gps
 
     async def create_trip(
         self, 
@@ -94,7 +95,7 @@ class TripService:
 
     async def get_vehicle_location(self, vehicle_id: str) -> VehicleLocation:
         try:
-            location = await db_manager_gps.db.vehicle_locations.find_one(
+            location = await self.db_gps.db.vehicle_locations.find_one(
                 {"vehicle_id": vehicle_id}
             )
 
