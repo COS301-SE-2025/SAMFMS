@@ -113,51 +113,52 @@ class DriverService:
             existing = await self.driver_repo.get_by_employee_id(driver_request.employee_id)
             if existing:
                 raise ValueError(f"Driver with employee ID {driver_request.employee_id} already exists")
-            
+                        
             # Check if email already exists
             existing_email = await self.driver_repo.get_by_email(driver_request.email)
             if existing_email:
                 raise ValueError(f"Driver with email {driver_request.email} already exists")
-            
-            # Check if license number already exists (only if license number is provided)
-            if driver_request.license_number and driver_request.license_number.strip():
+                        
+            # Check if license number already exists (only if license number is provided and not empty)
+            if (hasattr(driver_request, 'license_number') and 
+                driver_request.license_number is not None and 
+                str(driver_request.license_number).strip()):
                 existing_license = await self.driver_repo.get_by_license_number(driver_request.license_number)
                 if existing_license:
                     raise ValueError(f"Driver with license number {driver_request.license_number} already exists")
-            
-            
+                                    
             # Convert to dict and add metadata
             driver_data = driver_request.model_dump(exclude_unset=True)
-            driver_data["status"] = "available"  # Set initial status
-
+            driver_data["status"] = "available"  # Set initial status 
+            
             # Ensure license_number is completely removed if it's empty or None
             if "license_number" in driver_data and (
                 driver_data["license_number"] is None or 
                 not str(driver_data["license_number"]).strip()
             ):
                 driver_data.pop("license_number", None)
-            
+                        
             # Create driver
             driver_id = await self.driver_repo.create(driver_data)
-
-            logger.info(f"Created driver: {driver_id}")
             
+            logger.info(f"Created driver: {driver_id}")
+                        
             # Create user account in security service
             user_created = await self._create_user_account(driver_data)
             if not user_created:
                 logger.warning(f"Failed to create user account for driver {driver_id}, but driver record was created")
-            
+                        
             # Get full driver data for event publishing
             driver = await self.driver_repo.get_by_id(driver_id)
             logger.info(f"Driver returned by id: {driver}")
-            
+                        
             # Transform response for API (change _id to id)
             if driver and '_id' in driver:
                 driver['id'] = str(driver.pop('_id'))
-        
+                    
             logger.info(f"Created driver: {driver_id}")
             return driver
-            
+                    
         except ValueError as e:
             logger.warning(f"Driver creation validation error: {e}")
             raise

@@ -1,7 +1,7 @@
 """
 Entity schemas for Trip Planning service
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from enum import Enum
@@ -252,3 +252,19 @@ class NotificationPreferences(BaseModel):
     
     class Config:
         populate_by_name = True
+
+class VehicleLocation(BaseModel):
+    """Current vehicle location"""
+    model_config = ConfigDict(populate_by_name=True)
+    
+    id: Optional[str] = Field(None, alias="_id", description="Document ID")
+    vehicle_id: str = Field(..., description="Vehicle identifier")
+    location: LocationPoint = Field(..., description="GeoJSON point")
+    latitude: float = Field(..., ge=-90, le=90, description="Latitude coordinate")
+    longitude: float = Field(..., ge=-180, le=180, description="Longitude coordinate")
+    altitude: Optional[float] = Field(None, description="Altitude in meters")
+    speed: Optional[float] = Field(None, ge=0, description="Speed in km/h")
+    heading: Optional[float] = Field(None, ge=0, lt=360, description="Heading in degrees")
+    accuracy: Optional[float] = Field(None, ge=0, description="GPS accuracy in meters")
+    timestamp: datetime = Field(..., description="Location timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")

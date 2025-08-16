@@ -6,8 +6,8 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from bson import ObjectId
 
-from repositories.database import db_manager
-from schemas.entities import Trip, TripStatus, TripConstraint
+from repositories.database import db_manager, db_manager_gps
+from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation
 from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest
 from events.publisher import event_publisher
 
@@ -19,6 +19,7 @@ class TripService:
     
     def __init__(self):
         self.db = db_manager
+        self.db_gps = db_manager_gps
 
     async def create_trip(
         self, 
@@ -90,6 +91,88 @@ class TripService:
             return trips
         except Exception as e:
             logger.error(f"[TripService.get_all_trips] Failed: {e}")
+            raise
+
+    async def get_vehicle_location(self, vehicle_id: str) -> VehicleLocation:
+        try:
+            location = await self.db_gps.db.vehicle_locations.find_one(
+                {"vehicle_id": vehicle_id}
+            )
+
+            if location:
+                location["_id"] = str(location["_id"])
+                return VehicleLocation(**location)
+            return None
+        except Exception as e:
+            logger.error(f"Error getting vehicle location: {e}")
+            raise
+
+    async def get_vehicle_polyline(self, vehicle_id: str) -> Optional[List[List[float]]]:
+        """
+        Get the polyline coordinates for a vehicle's route, starting from current location if available
+        """
+        logger.info(f"[TripService.get_vehicle_polyline] Getting polyline for vehicle {vehicle_id}")
+        
+        try:
+            # Find the active trip for this vehicle
+            trip_doc = await self.db.trips.find_one({
+                "vehicle_id": vehicle_id
+            })
+            
+            if not trip_doc:
+                logger.warning(f"[TripService.get_vehicle_polyline] No active trip found for vehicle {vehicle_id}")
+                return None
+                
+            if not trip_doc.get("route_info") or not trip_doc["route_info"].get("coordinates"):
+                logger.warning(f"[TripService.get_vehicle_polyline] No route coordinates found for vehicle {vehicle_id}")
+                return None
+                
+            original_coordinates = trip_doc["route_info"]["coordinates"]
+            logger.debug(f"[TripService.get_vehicle_polyline] Found {len(original_coordinates)} original coordinates")
+            
+            try:
+                # Try to get current vehicle location
+                logger.debug(f"[TripService.get_vehicle_polyline] Attempting to get current location for vehicle {vehicle_id}")
+                current_location = await self.get_vehicle_location(vehicle_id)
+                
+                if current_location and current_location.latitude and current_location.longitude:
+                    logger.info(f"[TripService.get_vehicle_polyline] Found current location: [{current_location.latitude}, {current_location.longitude}]")
+                    
+                    # Create new polyline starting from current location
+                    current_coords = [current_location.latitude, current_location.longitude]
+                    
+                    # Find the closest point in the original route to minimize route deviation
+                    min_distance = float('inf')
+                    closest_index = 0
+                    
+                    for i, coord in enumerate(original_coordinates):
+                        # Simple Euclidean distance calculation
+                        distance = ((current_coords[0] - coord[0]) ** 2 + (current_coords[1] - coord[1]) ** 2) ** 0.5
+                        if distance < min_distance:
+                            min_distance = distance
+                            closest_index = i
+                    
+                    logger.debug(f"[TripService.get_vehicle_polyline] Closest route point at index {closest_index}, distance: {min_distance}")
+                    
+                    # Create polyline starting from current location, then continuing from the closest point forward
+                    polyline_coordinates = [current_coords]
+                    
+                    # Add remaining coordinates from the closest point onwards
+                    if closest_index < len(original_coordinates):
+                        polyline_coordinates.extend(original_coordinates[closest_index:])
+                        
+                    logger.info(f"[TripService.get_vehicle_polyline] Created modified polyline with {len(polyline_coordinates)} coordinates")
+                    return polyline_coordinates
+                    
+            except Exception as location_error:
+                logger.warning(f"[TripService.get_vehicle_polyline] Failed to get current location for vehicle {vehicle_id}: {location_error}")
+            
+            # Fallback to original route coordinates if current location is unavailable
+            logger.info(f"[TripService.get_vehicle_polyline] Using original route coordinates ({len(original_coordinates)} points)")
+            return original_coordinates
+            
+        except Exception as e:
+            logger.error(f"[TripService.get_vehicle_polyline] Failed to get polyline for vehicle {vehicle_id}: {e}")
             raise
     
     async def cancel_trip(self, trip_id: str, reason: str = "cancelled"):
