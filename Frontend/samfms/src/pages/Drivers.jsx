@@ -365,19 +365,19 @@ const Drivers = () => {
             </div>
           </div>
 
-          {/* Active Drivers Card */}
+          {/* Available Drivers Card */}
           <div className="group bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border border-green-200 dark:border-green-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-green-600 dark:text-green-300 mb-2">
-                  Active Drivers
+                  Available Drivers
                 </p>
                 <p className="text-3xl font-bold text-green-900 dark:text-green-100 transition-colors duration-300">
-                  {drivers.filter(driver => driver.status?.toLowerCase() === 'active').length}
+                  {drivers.filter(driver => driver.status?.toLowerCase() !== 'unavailable').length}
                 </p>
                 <div className="flex items-center mt-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                  <p className="text-xs text-green-600 dark:text-green-400">Available for duty</p>
+                  <p className="text-xs text-green-600 dark:text-green-400">Ready for assignment</p>
                 </div>
               </div>
               <div className="h-14 w-14 bg-green-500 dark:bg-green-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
@@ -398,29 +398,37 @@ const Drivers = () => {
             </div>
           </div>
 
-          {/* Departments Count Card */}
-          <div className="group bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border border-purple-200 dark:border-purple-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6">
+          {/* Utilization Rate Card */}
+          <div className="group bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 border border-orange-200 dark:border-orange-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-600 dark:text-purple-300 mb-2">
-                  Departments
+                <p className="text-sm font-medium text-orange-600 dark:text-orange-300 mb-2">
+                  Utilization Rate
                 </p>
-                <p className="text-3xl font-bold text-purple-900 dark:text-purple-100 transition-colors duration-300">
+                <p className="text-3xl font-bold text-orange-900 dark:text-orange-100 transition-colors duration-300">
                   {(() => {
-                    const uniqueDepartments = new Set(
-                      drivers
-                        .map(driver => driver.department)
-                        .filter(dept => dept && dept !== 'N/A')
-                    );
-                    return uniqueDepartments.size;
+                    const totalDrivers = drivers.length;
+                    const unavailableDrivers = drivers.filter(
+                      driver => driver.status?.toLowerCase() === 'unavailable'
+                    ).length;
+
+                    if (totalDrivers === 0) return '0%';
+                    const utilizationRate = Math.round((unavailableDrivers / totalDrivers) * 100);
+                    return `${utilizationRate}%`;
                   })()}
                 </p>
                 <div className="flex items-center mt-2">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full mr-2 animate-pulse"></div>
-                  <p className="text-xs text-purple-600 dark:text-purple-400">unique divisions</p>
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-2 animate-pulse"></div>
+                  <p className="text-xs text-orange-600 dark:text-orange-400">
+                    {
+                      drivers.filter(driver => driver.status?.toLowerCase() === 'unavailable')
+                        .length
+                    }{' '}
+                    in use
+                  </p>
                 </div>
               </div>
-              <div className="h-14 w-14 bg-purple-500 dark:bg-purple-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
+              <div className="h-14 w-14 bg-orange-500 dark:bg-orange-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
                 <svg
                   className="h-7 w-7 text-white"
                   fill="none"
@@ -431,7 +439,7 @@ const Drivers = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2.5}
-                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
                   />
                 </svg>
               </div>

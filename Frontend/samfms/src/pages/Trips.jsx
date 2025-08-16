@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus } from 'lucide-react';
-import ActiveTripsPanel from '../components/trips/ActiveTripsPanel';
-import SchedulingPanel from '../components/trips/SchedulingPanel';
 import TripsAnalytics from '../components/trips/TripsAnalytics';
 import TripsHistory from '../components/trips/TripsHistory';
 import TripSchedulingModal from '../components/trips/TripSchedulingModal';
@@ -22,7 +20,7 @@ import {
   getTripHistoryStats,
 } from '../backend/api/trips';
 import { getVehicles } from '../backend/api/vehicles';
-import { getAllDrivers } from '../backend/api/drivers';
+import { getAllDrivers, getTripPlanningDrivers } from '../backend/api/drivers';
 
 const Trips = () => {
   // Existing state
@@ -31,6 +29,7 @@ const Trips = () => {
   // New state for features
   const [activeTrips, setActiveTrips] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [availableDriversCount, setAvailableDriversCount] = useState(0);
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState('week');
   const [driverAnalytics, setDriverAnalytics] = useState({
     drivers: [],
@@ -422,51 +421,37 @@ const Trips = () => {
   useEffect(() => {
     const loadDrivers = async () => {
       try {
-        const response = await getAllDrivers();
-        console.log('Response received for drivers: ', response);
+        const response = await getTripPlanningDrivers();
+        console.log('Response received for drivers from trip planning: ', response);
 
-        // Extract drivers from the nested response structure - response.data.data.drivers
+        // Extract drivers from the trip planning service response
         let driversData = [];
-
-        if (response?.data?.data?.data?.drivers) {
-          // Handle nested data structure: response.data.data.data.drivers
-          driversData = response.data.data.data.drivers;
-        } else if (response?.data?.data?.drivers) {
-          // Handle nested data structure: response.data.data.drivers
-          driversData = response.data.data.drivers;
-        } else if (response?.data?.drivers) {
-          // Handle simpler structure: response.data.drivers
+        if (response?.data?.drivers) {
           driversData = response.data.drivers;
         } else if (response?.drivers) {
-          // Handle direct structure: response.drivers
           driversData = response.drivers;
         } else {
           driversData = [];
         }
 
-        // More permissive filtering to include drivers with different status formats
-        const availableDrivers = driversData.filter(driver => {
-          // Check if driver exists and has a valid structure
-          console.log("Entered available drivers: ", driver)
+        // Filter to count only drivers with "available" status for the stats card
+        const availableDriversCount = driversData.filter(driver => {
           if (!driver) return false;
-
-          // More inclusive filtering logic - accept available, active, and drivers without status
           const status = (driver.status || '').toLowerCase();
-          return (
-            status === 'available' ||
-            status === 'active' ||
-            status === '' || // Include drivers with no status
-            !driver.status || // Include drivers where status is not defined
-            driver.is_active !== false // Include drivers where is_active is not explicitly false
-          );
-        });
+          return status === 'available';
+        }).length;
 
-        console.log('All drivers from API: ', driversData);
-        console.log('Available drivers after filtering: ', availableDrivers);
-        setDrivers(availableDrivers);
+        console.log('All drivers from trip planning API: ', driversData);
+        console.log('Available drivers count: ', availableDriversCount);
+
+        // Set all drivers for general use but track available count separately
+        setDrivers(driversData);
+        // Store available drivers count for the stats card
+        setAvailableDriversCount(availableDriversCount);
       } catch (error) {
-        console.error('Error loading drivers:', error);
+        console.error('Error loading drivers from trip planning service:', error);
         setDrivers([]);
+        setAvailableDriversCount(0);
       }
     };
 
@@ -720,7 +705,7 @@ const Trips = () => {
   // More permissive filtering to include vehicles with different status formats
   const availableVehicles = vehicles.filter(v => {
     // Check if vehicle exists and has a valid structure
-    console.log("Entered available vehicle, ", v);
+    console.log('Entered available vehicle, ', v);
     if (!v) return false;
 
     // More inclusive filtering logic - accept available, operational, and inactive vehicles
@@ -735,7 +720,6 @@ const Trips = () => {
   });
 
   console.log('Filtered available vehicles:', availableVehicles);
-  const availableDrivers = drivers;
 
   if (loading) {
     return (
@@ -822,26 +806,14 @@ const Trips = () => {
               {/* Stats Cards */}
               <OverviewStatsCards
                 availableVehicles={availableVehicles.length}
-                availableDrivers={availableDrivers.length}
+                availableDrivers={availableDriversCount}
               />
-
-              <div className="animate-fade-in animate-delay-200">
-                <SchedulingPanel
-                  availableVehicles={availableVehicles.length}
-                  availableDrivers={availableDrivers.length}
-                  onScheduleClick={handleScheduleTrip}
-                />
-              </div>
             </div>
           )}
 
           {/* Active Tab */}
           {activeTab === 'active' && (
             <div className="space-y-6 animate-fade-in">
-              <div className="animate-fade-in animate-delay-100">
-                <ActiveTripsPanel activeTrips={activeTrips} />
-              </div>
-
               {/* Active Trips Map */}
               <div className="animate-fade-in animate-delay-200">
                 <ActiveTripsMap activeLocations={transformTripsForMap(activeTrips)} />
