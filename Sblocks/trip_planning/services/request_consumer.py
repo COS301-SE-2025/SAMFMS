@@ -243,6 +243,9 @@ class ServiceRequestConsumer:
             elif "trips" in endpoint or endpoint.startswith("driver/") or endpoint == "recent":
                 logger.info(f"[_route_request] Routing to _handle_trips_request()")
                 return await self._handle_trips_request(method, user_context)
+            elif endpoint == "drivers" or endpoint.startswith("drivers/"):
+                logger.info(f"[_route_request] Routing to _handle_drivers_request()")
+                return await self._handle_drivers_request(method, user_context)
             elif "notifications" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_notifications_request()")
                 return await self._handle_notifications_request(method, user_context)
@@ -573,6 +576,58 @@ class ServiceRequestConsumer:
             return ResponseBuilder.error(
                 error="TripsRequestError",
                 message=f"Failed to process trips request: {str(e)}"
+            ).model_dump()
+
+    async def _handle_drivers_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle drivers-related requests"""
+        try:
+            from services.driver_service import driver_service
+            from schemas.responses import ResponseBuilder
+            
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            logger.info(f"[_handle_drivers_request] Endpoint: '{endpoint}', Method: '{method}', Data: {data}")
+            
+            if method == "GET" and endpoint == "drivers":
+                # Handle GET /drivers - get all drivers from drivers collection
+                logger.info(f"[_handle_drivers_request] Processing GET /drivers request")
+                
+                # Extract query parameters from the request data
+                query_params = user_context.get("params", {}) or user_context.get("query_params", {})
+                
+                # Get parameters with defaults
+                status = query_params.get("status")
+                department = query_params.get("department") 
+                skip = int(query_params.get("skip", 0))
+                limit = int(query_params.get("limit", 100))
+                
+                logger.info(f"[_handle_drivers_request] Query params: status={status}, department={department}, skip={skip}, limit={limit}")
+                
+                # Call the driver service method
+                result = await driver_service.get_all_drivers(
+                    status=status,
+                    department=department,
+                    skip=skip,
+                    limit=limit
+                )
+                
+                return ResponseBuilder.success(
+                    data=result,
+                    message=f"Retrieved {len(result['drivers'])} drivers successfully"
+                ).model_dump()
+                
+            else:
+                logger.warning(f"[_handle_drivers_request] Unsupported method/endpoint: {method} {endpoint}")
+                return ResponseBuilder.error(
+                    error="UnsupportedEndpoint", 
+                    message=f"Endpoint {method} {endpoint} not supported"
+                ).model_dump()
+                
+        except Exception as e:
+            logger.error(f"[_handle_drivers_request] Exception: {e}")
+            return ResponseBuilder.error(
+                error="DriversRequestError",
+                message=f"Failed to process drivers request: {str(e)}"
             ).model_dump()
 
     async def _handle_driver_analytics_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:

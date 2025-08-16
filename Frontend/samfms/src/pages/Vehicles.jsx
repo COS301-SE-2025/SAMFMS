@@ -7,6 +7,7 @@ import VehicleDetailsModal from '../components/vehicles/VehicleDetailsModal';
 import DriverAssignmentModal from '../components/vehicles/DriverAssignmentModal';
 import AddVehicleModal from '../components/vehicles/AddVehicleModal';
 import EditVehicleModal from '../components/vehicles/EditVehicleModal';
+import Notification from '../components/common/Notification';
 import { getVehicles, deleteVehicle, searchVehicles } from '../backend/API';
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
@@ -29,6 +30,30 @@ const Vehicles = () => {
     status: '',
     make: '',
   });
+
+  // Notification state
+  const [notification, setNotification] = useState({
+    isVisible: false,
+    message: '',
+    type: 'info',
+  });
+
+  // Function to show notifications
+  const showNotification = (message, type = 'info') => {
+    setNotification({
+      isVisible: true,
+      message,
+      type,
+    });
+  };
+
+  // Function to close notifications
+  const closeNotification = () => {
+    setNotification(prev => ({
+      ...prev,
+      isVisible: false,
+    }));
+  };
 
   // Enhanced error handling with retry logic
   const handleAPIError = async (error, retryFn, maxRetries = 3) => {
@@ -234,6 +259,21 @@ const Vehicles = () => {
         throw new Error('Invalid vehicle ID: ID is undefined');
       }
 
+      // Find the vehicle to check if it has unavailable status
+      const vehicle = vehicles.find(v => v.id === vehicleId);
+      if (!vehicle) {
+        throw new Error('Vehicle not found');
+      }
+
+      // Check if vehicle status is unavailable
+      if (vehicle.status === 'unavailable') {
+        showNotification(
+          `Cannot delete ${vehicle.make} ${vehicle.model} because its status is unavailable.`,
+          'warning'
+        );
+        return;
+      }
+
       setLoading(true);
       await deleteVehicle(vehicleId);
 
@@ -245,10 +285,10 @@ const Vehicles = () => {
       setSelectedVehicles(selectedVehicles.filter(id => id !== vehicleId));
 
       // Show success message
-      console.log('Vehicle deleted successfully');
+      showNotification(`Vehicle ${vehicle.make} ${vehicle.model} deleted successfully`, 'success');
     } catch (err) {
       console.error('Error deleting vehicle:', err);
-      setError(err.message || 'Failed to delete vehicle');
+      showNotification(err.message || 'Failed to delete vehicle', 'error');
     } finally {
       setLoading(false);
     }
@@ -280,8 +320,9 @@ const Vehicles = () => {
       );
 
       // Show success message
-      alert(
-        `Vehicle "${transformedVehicle.make} ${transformedVehicle.model}" has been updated successfully!`
+      showNotification(
+        `Vehicle "${transformedVehicle.make} ${transformedVehicle.model}" has been updated successfully!`,
+        'success'
       );
     } catch (error) {
       console.error('Error processing updated vehicle:', error);
@@ -669,8 +710,16 @@ const Vehicles = () => {
             vehicle={vehicleToEdit}
             closeModal={closeEditVehicleModal}
             onVehicleUpdated={handleVehicleUpdated}
+            showNotification={showNotification}
           />
         )}
+        {/* Notification Component */}
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          isVisible={notification.isVisible}
+          onClose={closeNotification}
+        />
       </div>
     </div>
   );
