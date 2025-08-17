@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import ActiveTripsPanel from '../components/trips/ActiveTripsPanel';
-import SchedulingPanel from '../components/trips/SchedulingPanel';
 import TripsAnalytics from '../components/trips/TripsAnalytics';
 import TripsHistory from '../components/trips/TripsHistory';
 import TripSchedulingModal from '../components/trips/TripSchedulingModal';
@@ -453,11 +452,7 @@ const Trips = () => {
           // More inclusive filtering logic - accept available, active, and drivers without status
           const status = (driver.status || '').toLowerCase();
           return (
-            status === 'available' ||
-            status === 'active' ||
-            status === '' || // Include drivers with no status
-            !driver.status || // Include drivers where status is not defined
-            driver.is_active !== false // Include drivers where is_active is not explicitly false
+            status === 'available'
           );
         });
 
@@ -824,14 +819,6 @@ const Trips = () => {
                 availableVehicles={availableVehicles.length}
                 availableDrivers={availableDrivers.length}
               />
-
-              <div className="animate-fade-in animate-delay-200">
-                <SchedulingPanel
-                  availableVehicles={availableVehicles.length}
-                  availableDrivers={availableDrivers.length}
-                  onScheduleClick={handleScheduleTrip}
-                />
-              </div>
             </div>
           )}
 
