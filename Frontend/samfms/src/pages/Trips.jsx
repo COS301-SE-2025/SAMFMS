@@ -19,6 +19,7 @@ import {
   listTrips,
   getAllRecentTrips,
   getTripHistoryStats,
+  getAllUpcommingTrip,
 } from '../backend/api/trips';
 import { getVehicles } from '../backend/api/vehicles';
 import { getAllDrivers } from '../backend/api/drivers';
@@ -135,63 +136,13 @@ const Trips = () => {
   const fetchUpcomingTrips = useCallback(async () => {
     try {
       setUpcomingTripsLoading(true);
-      const response = await listTrips();
+      const response = await getAllUpcommingTrip();
       console.log('Upcoming trips response:', response);
 
       // Extract trips from the response structure - based on actual API response
-      let trips = [];
-      if (response?.data?.data?.data && Array.isArray(response.data.data.data)) {
-        trips = response.data.data.data;
-      } else if (response?.data?.data && Array.isArray(response.data.data)) {
-        trips = response.data.data;
-      } else if (Array.isArray(response?.data)) {
-        trips = response.data;
-      }
-
-      // Filter for scheduled/upcoming trips only
-      const upcomingTrips = trips.filter(trip => {
-        try {
-          return (
-            trip.status === 'scheduled' &&
-            trip.scheduled_start_time &&
-            new Date(trip.scheduled_start_time) > new Date()
-          );
-        } catch (error) {
-          console.warn('Invalid date format for trip:', trip.id);
-          return false;
-        }
-      });
-
-      // Transform API data to match component expectations
-      const transformedTrips = upcomingTrips.map(trip => {
-        let scheduledStart = 'Unknown';
-        try {
-          scheduledStart = new Date(trip.scheduled_start_time).toLocaleString();
-        } catch (error) {
-          console.warn('Invalid date format for trip scheduled start:', trip.id);
-        }
-
-        return {
-          id: trip.id,
-          tripName: trip.name || 'Unnamed Trip',
-          vehicle: trip.vehicle_id || 'Unknown Vehicle',
-          driver: trip.driver_assignment || 'Unassigned',
-          scheduledStart,
-          destination: trip.destination?.name || 'Unknown Destination',
-          priority:
-            trip.priority === 'normal'
-              ? 'Medium'
-              : trip.priority === 'high'
-              ? 'High'
-              : trip.priority === 'urgent'
-              ? 'High'
-              : 'Low',
-          status: 'Scheduled',
-        };
-      });
-
-      console.log('Transformed upcoming trips:', transformedTrips);
-      setUpcomingTrips(transformedTrips);
+      let trips = response.data.trips
+      
+      setUpcomingTrips(trips);
     } catch (error) {
       console.error('Error fetching upcoming trips:', error);
       // Show user-friendly error message
