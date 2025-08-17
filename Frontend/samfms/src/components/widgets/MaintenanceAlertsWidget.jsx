@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { BaseWidget } from '../dashboard/BaseWidget';
-import { maintenanceAPI } from '../../backend/api/maintenance';
-import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
-import { Bell, AlertCircle } from 'lucide-react';
+import React, {useState, useEffect} from 'react';
+import {BaseWidget} from '../dashboard/BaseWidget';
+import {maintenanceAPI} from '../../backend/api/maintenance';
+import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
+import {Bell, AlertCircle} from 'lucide-react';
 
-const MaintenanceAlertsWidget = ({ id, config = {} }) => {
+const MaintenanceAlertsWidget = ({id, config = {}}) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -41,7 +41,7 @@ const MaintenanceAlertsWidget = ({ id, config = {} }) => {
     try {
       await maintenanceAPI.markNotificationAsRead(notificationId);
       setNotifications(prev =>
-        prev.map(notif => (notif.id === notificationId ? { ...notif, is_read: true } : notif))
+        prev.map(notif => (notif.id === notificationId ? {...notif, is_read: true} : notif))
       );
     } catch (err) {
       console.error('Error marking notification as read:', err);
@@ -125,14 +125,14 @@ registerWidget(WIDGET_TYPES.MAINTENANCE_ALERTS, MaintenanceAlertsWidget, {
   title: 'Maintenance Alerts',
   description: 'Important maintenance notifications and alerts',
   category: WIDGET_CATEGORIES.MAINTENANCE,
-  defaultSize: { w: 3, h: 3 },
-  minSize: { w: 2, h: 2 },
-  maxSize: { w: 4, h: 4 },
+  defaultSize: {w: 3, h: 6},
+  minSize: {w: 2, h: 2},
+  maxSize: {w: 8, h: 8},
   icon: <Bell size={20} />,
   configSchema: {
-    title: { type: 'string', default: 'Maintenance Alerts' },
-    refreshInterval: { type: 'number', default: 30, min: 10 },
-    maxAlerts: { type: 'number', default: 5, min: 3, max: 10 },
+    title: {type: 'string', default: 'Maintenance Alerts'},
+    refreshInterval: {type: 'number', default: 30, min: 10},
+    maxAlerts: {type: 'number', default: 5, min: 3, max: 10},
   },
 });
 

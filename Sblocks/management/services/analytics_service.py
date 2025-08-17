@@ -10,7 +10,8 @@ from repositories.repositories import (
     VehicleAssignmentRepository, 
     VehicleUsageLogRepository, 
     DriverRepository,
-    AnalyticsRepository
+    AnalyticsRepository,
+    DriverCountRepository
 )
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ class AnalyticsService:
         self.usage_repo = VehicleUsageLogRepository()
         self.driver_repo = DriverRepository()
         self.analytics_repo = AnalyticsRepository()
+        self.drivers_repo = DriverCountRepository()
         
         # Cache TTL in minutes
         self.cache_ttl = {
@@ -33,6 +35,8 @@ class AnalyticsService:
             "driver_performance": 30,  # 30 minutes
             "cost_analytics": 60      # 1 hour
         }
+
+
     
     async def get_fleet_utilization(self, use_cache: bool = True) -> Dict[str, Any]:
         """Get fleet utilization metrics"""
@@ -80,7 +84,7 @@ class AnalyticsService:
         """Get vehicle usage analytics"""
         metric_type = "vehicle_usage"
         
-        if use_cache:
+        if not use_cache:#remove not for prod
             cached = await self.analytics_repo.get_cached_metric(metric_type)
             if cached:
                 logger.info(f"Returning cached {metric_type}")
@@ -202,6 +206,108 @@ class AnalyticsService:
         )
         
         return data
+    
+    async def get_driver_performance_by_id(self, driver_id: str, use_cache: bool = True) -> Dict[str, Any]:
+        """Get performance analytics for a specific driver"""
+        try:
+            # Get driver basic info
+            driver_info = await self.driver_repo.find_by_id(driver_id)
+            if not driver_info:
+                raise ValueError(f"Driver with ID {driver_id} not found")
+            
+            # Get driver's performance stats from usage logs
+            pipeline = [
+                {"$match": {"driver_id": driver_id}},
+                {
+                    "$group": {
+                        "_id": "$driver_id",
+                        "total_distance": {"$sum": "$distance_km"},
+                        "total_fuel": {"$sum": "$fuel_consumed"},
+                        "trip_count": {"$sum": 1},
+                        "avg_distance": {"$avg": "$distance_km"},
+                        "avg_fuel_per_trip": {"$avg": "$fuel_consumed"},
+                        "first_trip": {"$min": "$created_at"},
+                        "last_trip": {"$max": "$created_at"}
+                    }
+                }
+            ]
+            
+            performance_stats = await self.usage_repo.aggregate(pipeline)
+            
+            if not performance_stats:
+                # Driver exists but has no trip data
+                data = {
+                    "driver_id": driver_id,
+                    "driver_info": {
+                        "name": driver_info.get("name", "Unknown"),
+                        "employee_id": driver_info.get("employee_id"),
+                        "status": driver_info.get("status", "unknown")
+                    },
+                    "performance": {
+                        "total_distance": 0,
+                        "total_fuel": 0,
+                        "trip_count": 0,
+                        "avg_distance_per_trip": 0,
+                        "avg_fuel_per_trip": 0,
+                        "fuel_efficiency": 0,
+                        "first_trip": None,
+                        "last_trip": None
+                    },
+                    "score": {
+                        "overall_score": 0,
+                        "efficiency_score": 0,
+                        "activity_score": 0,
+                        "consistency_score": 0
+                    },
+                    "generated_at": datetime.utcnow().isoformat()
+                }
+            else:
+                stats = performance_stats[0]
+                total_distance = stats.get("total_distance", 0)
+                total_fuel = stats.get("total_fuel", 0)
+                trip_count = stats.get("trip_count", 0)
+                
+                # Calculate fuel efficiency (km per liter)
+                fuel_efficiency = total_distance / total_fuel if total_fuel > 0 else 0
+                
+                # Calculate performance scores (0-100 scale)
+                # These are sample calculations - can be refined based on business logic
+                efficiency_score = min(fuel_efficiency * 10, 100) if fuel_efficiency > 0 else 0
+                activity_score = min(trip_count * 5, 100) if trip_count > 0 else 0
+                consistency_score = min((total_distance / max(trip_count, 1)) * 2, 100) if trip_count > 0 else 0
+                overall_score = (efficiency_score + activity_score + consistency_score) / 3
+                
+                data = {
+                    "driver_id": driver_id,
+                    "driver_info": {
+                        "name": driver_info.get("name", "Unknown"),
+                        "employee_id": driver_info.get("employee_id"),
+                        "status": driver_info.get("status", "unknown")
+                    },
+                    "performance": {
+                        "total_distance": round(total_distance, 2),
+                        "total_fuel": round(total_fuel, 2),
+                        "trip_count": trip_count,
+                        "avg_distance_per_trip": round(stats.get("avg_distance", 0), 2),
+                        "avg_fuel_per_trip": round(stats.get("avg_fuel_per_trip", 0), 2),
+                        "fuel_efficiency": round(fuel_efficiency, 2),
+                        "first_trip": stats.get("first_trip").isoformat() if stats.get("first_trip") else None,
+                        "last_trip": stats.get("last_trip").isoformat() if stats.get("last_trip") else None
+                    },
+                    "score": {
+                        "overall_score": round(overall_score, 1),
+                        "efficiency_score": round(efficiency_score, 1),
+                        "activity_score": round(activity_score, 1),
+                        "consistency_score": round(consistency_score, 1)
+                    },
+                    "generated_at": datetime.utcnow().isoformat()
+                }
+            
+            return data
+            
+        except Exception as e:
+            logger.error(f"Error getting driver performance for {driver_id}: {e}")
+            raise
     
     async def get_dashboard_summary(self, use_cache: bool = True) -> Dict[str, Any]:
         """Get dashboard summary with key metrics"""
@@ -381,6 +487,93 @@ class AnalyticsService:
         except Exception as e:
             logger.error(f"Error getting analytics data: {e}")
             raise
+
+    async def handle_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle analytics-related requests from request consumer"""
+        try:
+            from schemas.responses import ResponseBuilder
+            
+            # Extract data and endpoint from user_context
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            use_cache = data.get("use_cache", True)
+            
+            # Create mock user for service calls
+            current_user = {"user_id": user_context.get("user_id", "system")}
+            
+            # Handle HTTP methods and route to appropriate analytics logic
+            if method == "GET":
+                # Route based on specific analytics endpoint (mimic route structure)
+                if "dashboard" in endpoint:
+                    dashboard_data = await self.get_dashboard_summary(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=dashboard_data,
+                        message="Dashboard analytics retrieved successfully"
+                    ).model_dump()
+                    
+                elif "fleet-utilization" in endpoint or "fleet_utilization" in endpoint:
+                    utilization_data = await self.get_fleet_utilization(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=utilization_data,
+                        message="Fleet utilization data retrieved successfully"
+                    ).model_dump()
+                    
+                elif "driver-performance" in endpoint or "driver_performance" in endpoint:
+                    performance_data = await self.get_driver_performance(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=performance_data,
+                        message="Driver performance data retrieved successfully"
+                    ).model_dump()
+                    
+                elif "maintenance-costs" in endpoint or "maintenance_costs" in endpoint:
+                    costs_data = await self.get_maintenance_costs(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=costs_data,
+                        message="Maintenance costs data retrieved successfully"
+                    ).model_dump()
+                
+                elif "vehicle-usage" in endpoint or "vehicle_usage" in endpoint:
+                    usage_data = await self.get_vehicle_usage_analytics(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=usage_data,
+                        message="Vehicle usage data retrieved successfully"
+                    ).model_dump()
+                
+
+                    
+                elif "fuel-consumption" in endpoint or "fuel_consumption" in endpoint:
+                    fuel_data = await self.get_fuel_consumption(use_cache=use_cache)
+                    return ResponseBuilder.success(
+                        data=fuel_data,
+                        message="Fuel consumption data retrieved successfully"
+                    ).model_dump()
+                    
+                else:
+                    # Default analytics data
+                    analytics_data = await self.get_analytics_data(data)
+                    return ResponseBuilder.success(
+                        data=analytics_data,
+                        message="Analytics data retrieved successfully"
+                    ).model_dump()
+                    
+            elif method == "POST":
+                # POST for custom analytics queries
+                analytics_data = await self.get_analytics_data(data)
+                return ResponseBuilder.success(
+                    data=analytics_data,
+                    message="Custom analytics query processed successfully"
+                ).model_dump()
+                
+            else:
+                raise ValueError(f"Unsupported HTTP method for analytics: {method}")
+                
+        except Exception as e:
+            from schemas.responses import ResponseBuilder
+            logger.error(f"Error handling analytics request {method} {endpoint}: {e}")
+            return ResponseBuilder.error(
+                error="AnalyticsRequestError",
+                message=f"Failed to process analytics request: {str(e)}"
+            ).model_dump()
 
 
 # Global analytics service instance

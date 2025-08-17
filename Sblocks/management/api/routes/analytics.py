@@ -177,6 +177,50 @@ async def get_driver_performance(
             ).model_dump()
 
 
+@router.get("/analytics/driver-performance/{driver_id}")
+async def get_driver_performance_by_id(
+    driver_id: str,
+    request: Request,
+    use_cache: bool = Query(True, description="Use cached data if available"),
+    current_user = Depends(require_permission("analytics:read"))
+):
+    """Get performance analytics for a specific driver"""
+    request_id = await get_request_id(request)
+    
+    with RequestTimer() as timer:
+        try:
+            logger.info(f"Driver performance analytics for driver {driver_id} requested by user {current_user.get('user_id')}")
+            
+            performance_data = await analytics_service.get_driver_performance_by_id(driver_id, use_cache=use_cache)
+            
+            return ResponseBuilder.success(
+                data=performance_data,
+                message=f"Driver performance analytics retrieved successfully for driver {driver_id}",
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+            
+        except ValueError as ve:
+            logger.warning(f"Invalid driver ID {driver_id}: {ve}")
+            return ResponseBuilder.error(
+                error="InvalidDriverId",
+                message=str(ve),
+                details={"driver_id": driver_id},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+            
+        except Exception as e:
+            logger.error(f"Error getting driver performance for {driver_id}: {e}")
+            return ResponseBuilder.error(
+                error="DriverPerformanceError",
+                message=f"Failed to retrieve driver performance analytics for driver {driver_id}",
+                details={"error": str(e), "driver_id": driver_id},
+                request_id=request_id,
+                execution_time_ms=timer.execution_time_ms
+            ).model_dump()
+
+
 @router.post("/analytics/refresh")
 async def refresh_analytics_cache(
     request: Request,

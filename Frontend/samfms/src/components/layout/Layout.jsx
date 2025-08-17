@@ -61,6 +61,7 @@ const Layout = () => {
   const getCurrentPageTitle = () => {
     const path = location.pathname.split('/')[1];
     if (!path) return 'Dashboard';
+    if (path === 'driver-home') return 'Home';
     return path.charAt(0).toUpperCase() + path.slice(1);
   };
   return (
@@ -73,7 +74,7 @@ const Layout = () => {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top navigation bar */}
-        <nav className="bg-card shadow-sm border-b border-border z-10">
+        <nav className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 shadow-sm border-b border-border z-10">
           <div className="px-4 py-3 flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <MobileNav />
@@ -84,7 +85,7 @@ const Layout = () => {
         </nav>
 
         {/* Main content area */}
-        <main className="flex-1 overflow-auto bg-background p-6">
+        <main className="flex-1 overflow-auto bg-background">
           <Outlet />
         </main>
       </div>

@@ -12,6 +12,9 @@ const DRIVER_ENDPOINTS = {
   get: API_ENDPOINTS.DRIVERS.GET,
   update: API_ENDPOINTS.DRIVERS.UPDATE,
   delete: API_ENDPOINTS.DRIVERS.DELETE,
+  assign: API_ENDPOINTS.DRIVERS.ASSIGN,
+  empid: API_ENDPOINTS.DRIVERS.EMPID,
+  TRIP_PLANNING_LIST: API_ENDPOINTS.DRIVERS.TRIP_PLANNING_LIST,
 };
 
 /**
@@ -21,9 +24,74 @@ const DRIVER_ENDPOINTS = {
  */
 export const createDriver = async driverData => {
   try {
-    return await httpClient.post(DRIVER_ENDPOINTS.create, driverData);
+    const response = await httpClient.post(DRIVER_ENDPOINTS.create, driverData);
+    console.log('Response for create driver: ', response);
+    return response;
   } catch (error) {
     console.error('Error creating driver:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all drivers from the trip planning service drivers collection
+ * @param {Object} params - Query parameters (status, department, skip, limit)
+ * @returns {Promise<Object>} Drivers list from trip planning service
+ */
+export const getTripPlanningDrivers = async (params = {}) => {
+  try {
+    console.log('Fetching drivers from trip planning service...');
+
+    // Build query parameters
+    const queryParams = {};
+    if (params.status) {
+      queryParams.status = params.status;
+    }
+    if (params.department) {
+      queryParams.department = params.department;
+    }
+    if (params.skip !== undefined) {
+      queryParams.skip = parseInt(params.skip) || 0;
+    }
+    if (params.limit !== undefined) {
+      queryParams.limit = parseInt(params.limit) || 100;
+    }
+
+    console.log('Sending query params to trip planning drivers:', queryParams);
+
+    const response = await httpClient.get(DRIVER_ENDPOINTS.TRIP_PLANNING_LIST, {
+      params: queryParams,
+    });
+
+    console.log('Response from trip planning service:', response);
+
+    // The trip planning service returns data in a nested structure
+    if (response.data && response.data.data) {
+      return response.data.data; // This contains { drivers, total, skip, limit, has_more }
+    }
+
+    return response;
+  } catch (error) {
+    console.error('Error fetching drivers from trip planning service:', error);
+    throw error;
+  }
+};
+
+export const getAllDrivers = async (filters = {}) => {
+  try {
+    // Ensure numeric parameters are integers
+    const queryParams = {
+      ...filters,
+      limit: Number.parseInt(filters.limit || 100), // Ensure integer
+      skip: Number.parseInt(filters.skip || 0), // Ensure integer
+    };
+
+    console.log('Sending query params to getAllDrivers:', queryParams);
+    const response = await httpClient.get(DRIVER_ENDPOINTS.list, { params: queryParams });
+    console.log('Response received from backend:', response);
+    return response;
+  } catch (error) {
+    console.error('Error fetching all drivers:', error);
     throw error;
   }
 };
@@ -43,6 +111,7 @@ export const getDrivers = async (params = {}) => {
 
     // Filter for users with 'driver' role
     const drivers = allUsers.filter(user => user.role === 'driver');
+    console.log(drivers);
 
     console.log(`Found ${drivers.length} drivers out of ${allUsers.length} total users`);
 
@@ -183,6 +252,32 @@ export const searchDrivers = async query => {
     return matchingDrivers;
   } catch (error) {
     console.error(`Error searching drivers with query "${query}":`, error);
+    throw error;
+  }
+};
+
+export const assignVehicle = async data => {
+  try {
+    console.log('Vehicle and driver data', data);
+    return await httpClient.post(DRIVER_ENDPOINTS.assign, data);
+  } catch (error) {
+    console.error('Error assigning vehicle to driver: ', error);
+    throw error;
+  }
+};
+
+export const getDriverEMPID = async security_id => {
+  try {
+    if (!security_id) {
+      throw new Error('Security ID is required');
+    }
+    console.log('Security_id:', security_id);
+
+    // FIXED: Added return statement and fixed variable name
+    const response = await httpClient.get(DRIVER_ENDPOINTS.empid(security_id));
+    return response; // Return the response
+  } catch (error) {
+    console.error('Error fetching driver employee ID:', error);
     throw error;
   }
 };

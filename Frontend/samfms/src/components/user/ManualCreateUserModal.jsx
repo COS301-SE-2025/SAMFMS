@@ -1,6 +1,6 @@
-import React, {useState} from 'react';
-import {Button} from '../ui/button';
-import {useAuth, ROLES} from '../auth/RBACUtils';
+import React, { useState } from 'react';
+import { Button } from '../ui/button';
+import { useAuth, ROLES } from '../auth/RBACUtils';
 
 const ManualCreateUserModal = ({
   isOpen,
@@ -9,7 +9,7 @@ const ManualCreateUserModal = ({
   loading,
   preselectedRole = 'driver',
 }) => {
-  const {hasRole} = useAuth();
+  const { hasRole } = useAuth();
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -29,7 +29,7 @@ const ManualCreateUserModal = ({
   }, [preselectedRole]);
 
   const handleChange = e => {
-    const {name, value} = e.target;
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value,
@@ -108,7 +108,7 @@ const ManualCreateUserModal = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-2xl border border-border">
+      <div className="bg-card bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-xl p-6 w-full max-w-2xl border border-border">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-foreground">
             Add {getRoleDisplayName(preselectedRole)}
@@ -144,20 +144,7 @@ const ManualCreateUserModal = ({
                 className="w-full p-2 border border-border rounded-md bg-background text-foreground focus:ring-primary focus:border-primary"
                 required
               />
-            </div>{' '}
-            {/* <div>
-              <label className="block text-sm font-medium mb-1 text-foreground">Role *</label>
-              <select
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                className="w-full p-2 border border-border rounded-md bg-background text-foreground focus:ring-primary focus:border-primary"
-              >
-                {hasRole(ROLES.ADMIN) && <option value="admin">Administrator</option>}
-                {hasRole(ROLES.ADMIN) && <option value="fleet_manager">Fleet Manager</option>}
-                <option value="driver">Driver</option>
-              </select>
-            </div> */}
+            </div>
             <div>
               <input type="hidden" name="role" value={preselectedRole} />
               <label className="block text-sm font-medium mb-1 text-foreground">Phone Number</label>

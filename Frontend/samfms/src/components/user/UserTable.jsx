@@ -1,6 +1,6 @@
-import React, {useState, useEffect} from 'react';
-import {Button} from '../ui/button';
-import {Plus, Search, ChevronUp, ChevronDown} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import FadeIn from '../ui/FadeIn';
 
 const UserTable = ({
   title,
@@ -12,45 +12,67 @@ const UserTable = ({
   actions = [],
   search = '',
   setSearch,
-  sort = {field: 'full_name', direction: 'asc'},
+  sort = { field: 'full_name', direction: 'asc' },
   onSortChange,
   onAddUser,
   showAddButton = true,
 }) => {
   const [filteredUsers, setFilteredUsers] = useState(users);
   const [searchField, setSearchField] = useState(search);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [usersPerPage, setUsersPerPage] = useState(5);
 
   useEffect(() => {
     setFilteredUsers(users);
+    setCurrentPage(1);
   }, [users]);
+
+  // Calculate pagination values
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
 
   if (loading && !users.length) {
     return (
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">{title}</h2>
-          {showAddButton && onAddUser && (
-            <Button
-              onClick={onAddUser}
-              size="sm"
-              className="h-8 w-8 rounded-full p-0"
-              title={`Add ${title.slice(0, -1)}`}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          )}
+      <FadeIn delay={0.2}>
+        <div className="mb-8">
+          <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <h2 className="text-xl font-semibold">{title}</h2>
+            {showAddButton && onAddUser && (
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <input
+                    type="text"
+                    placeholder={`Search ${title.toLowerCase()}...`}
+                    disabled
+                    className="pl-10 pr-4 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                  />
+                </div>
+                <button
+                  onClick={onAddUser}
+                  type="button"
+                  className="bg-green-600 text-white p-3 rounded-md hover:bg-green-700 transition-colors"
+                  title={`Add ${title.slice(0, -1)}`}
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="text-center py-8">Loading {title.toLowerCase()}...</div>
         </div>
-        <div className="text-center py-8">Loading {title.toLowerCase()}...</div>
-      </div>
+      </FadeIn>
     );
   }
 
   const getSortIcon = field => {
     if (sort.field !== field) return null;
     return sort.direction === 'asc' ? (
-      <ChevronUp className="inline-block h-4 w-4 ml-1" />
+      <ArrowUp className="inline ml-1" size={14} />
     ) : (
-      <ChevronDown className="inline-block h-4 w-4 ml-1" />
+      <ArrowDown className="inline ml-1" size={14} />
     );
   };
 
@@ -61,9 +83,9 @@ const UserTable = ({
   };
 
   const handleSearchChange = async e => {
-    console.log("Changing search query:", e.target.value);
     const query = e.target.value;
     setSearchField(query);
+    setCurrentPage(1);
     if (!query.trim()) {
       setFilteredUsers(users);
       return;
@@ -78,118 +100,194 @@ const UserTable = ({
     );
   };
 
-  return (
-    <div className="mb-8">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-semibold">{title}</h2>
-      </div>
+  const goToNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
 
-      {/* Search Bar and Green Plus Button */}
-      <div className="mb-4 flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <input
-            type="text"
-            placeholder={`Search ${title.toLowerCase()}...`}
-            value={searchField}
-            onChange={handleSearchChange}
-            className="w-full pl-10 pr-4 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-          />
+  const goToPrevPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const changeItemsPerPage = e => {
+    setUsersPerPage(Number(e.target.value));
+    setCurrentPage(1);
+  };
+
+  return (
+    <FadeIn delay={0.2}>
+      <div className="mb-8">
+        {/* Header layout matching vehicles table */}
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+          <h2 className="text-xl font-semibold">{title}</h2>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <input
+                type="text"
+                placeholder={`Search ${title.toLowerCase()}...`}
+                value={searchField}
+                onChange={handleSearchChange}
+                className="pl-10 pr-4 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              />
+            </div>
+            {showAddButton && onAddUser && (
+              <button
+                onClick={onAddUser}
+                type="button"
+                className="bg-green-600 text-white p-3 rounded-md hover:bg-green-700 transition-colors"
+                title={`Add ${title.slice(0, -1)}`}
+              >
+                <Plus size={18} />
+              </button>
+            )}
+          </div>
         </div>
 
-        <button
-          onClick={onAddUser}
-          type="button"
-          className="bg-green-600 hover:bg-green-700 text-white rounded-full p-2 flex items-center justify-center transition-colors flex-shrink-0"
-          title={`Add ${title.slice(0, -1)}`}
-        >
-          <Plus className="h-5 w-5" />
-        </button>
-      </div>
-
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-muted/50">
-            <tr>
-              <th
-                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                  }`}
-                onClick={() => handleHeaderClick('full_name')}
-              >
-                Name {getSortIcon('full_name')}
-              </th>
-              <th
-                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                  }`}
-                onClick={() => handleHeaderClick('email')}
-              >
-                Email {getSortIcon('email')}
-              </th>
-              <th
-                className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
-                  }`}
-                onClick={() => handleHeaderClick('phoneNo')}
-              >
-                Phone {getSortIcon('phoneNo')}
-              </th>
-              {showRole && (
-                <th
-                  className={`px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${onSortChange ? 'cursor-pointer hover:bg-muted/70' : ''
+        {/* Table exactly matching vehicles table */}
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-border">
+                  <th
+                    className={`text-left py-3 px-4 ${
+                      onSortChange ? 'cursor-pointer hover:bg-accent/10' : ''
                     }`}
-                  onClick={() => handleHeaderClick('role')}
-                >
-                  Role {getSortIcon('role')}
-                </th>
-              )}
-              {/* Removed actions column */}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {filteredUsers.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={
-                    (showRole ? 1 : 0) + 3 // Name, Email, Phone
-                  }
-                  className="px-6 py-4 text-center text-muted-foreground"
-                >
-                  {emptyMessage}
-                </td>
-              </tr>
-            ) : (
-              filteredUsers.map(user => (
-                <tr key={user.id || user.email} className="hover:bg-muted/30">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-foreground">
-                      {user.full_name || 'Unknown'}
-                      {user.isCurrentUser && (
-                        <span className="ml-2 text-xs text-blue-600 font-semibold">(you)</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-muted-foreground">{user.email}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-muted-foreground">
-                      {user.phoneNo || user.phone || 'N/A'}
-                    </div>
-                  </td>
+                    onClick={() => handleHeaderClick('full_name')}
+                  >
+                    Name {getSortIcon('full_name')}
+                  </th>
+                  <th
+                    className={`text-left py-3 px-4 ${
+                      onSortChange ? 'cursor-pointer hover:bg-accent/10' : ''
+                    }`}
+                    onClick={() => handleHeaderClick('email')}
+                  >
+                    Email {getSortIcon('email')}
+                  </th>
                   {showRole && (
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
-                        {user.role?.replace('_', ' ') || 'N/A'}
-                      </span>
-                    </td>
+                    <th
+                      className={`text-left py-3 px-4 ${
+                        onSortChange ? 'cursor-pointer hover:bg-accent/10' : ''
+                      }`}
+                      onClick={() => handleHeaderClick('role')}
+                    >
+                      Role {getSortIcon('role')}
+                    </th>
                   )}
-                  {/* Removed actions cell */}
+                  {showActions && actions.length > 0 && (
+                    <th className="text-left py-3 px-4">Actions</th>
+                  )}
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {filteredUsers.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={2 + (showRole ? 1 : 0) + (showActions && actions.length > 0 ? 1 : 0)}
+                      className="px-4 py-8 text-center text-muted-foreground"
+                    >
+                      {emptyMessage}
+                    </td>
+                  </tr>
+                ) : (
+                  currentUsers.map(user => (
+                    <tr
+                      key={user.id || user.email}
+                      className="border-b border-border hover:bg-accent/10 cursor-pointer"
+                    >
+                      <td className="py-3 px-4">
+                        <div className="text-sm font-medium text-foreground">
+                          {user.full_name || 'Unknown'}
+                          {user.isCurrentUser && (
+                            <span className="ml-2 text-xs text-blue-600 font-semibold">(you)</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="text-sm text-muted-foreground">{user.email}</div>
+                      </td>
+                      {showRole && (
+                        <td className="py-3 px-4">
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
+                            {user.role?.replace('_', ' ') || 'N/A'}
+                          </span>
+                        </td>
+                      )}
+                      {showActions && actions.length > 0 && (
+                        <td className="py-3 px-4" onClick={e => e.stopPropagation()}>
+                          <div className="flex space-x-2">
+                            {actions.map((action, index) => (
+                              <button
+                                key={index}
+                                className={action.className || 'text-primary hover:text-primary/80'}
+                                title={action.title}
+                                onClick={() => action.onClick(user)}
+                              >
+                                {action.icon}
+                              </button>
+                            ))}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination exactly matching vehicles table */}
+          {totalPages > 1 && (
+            <div className="mt-6 flex items-center justify-between">
+              <div>
+                <select
+                  value={usersPerPage}
+                  onChange={changeItemsPerPage}
+                  className="border border-border rounded-md bg-background py-1 pl-2 pr-8"
+                >
+                  <option value="5">5 per page</option>
+                  <option value="10">10 per page</option>
+                  <option value="20">20 per page</option>
+                  <option value="50">50 per page</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={goToPrevPage}
+                    disabled={currentPage === 1}
+                    className={`p-1 rounded ${
+                      currentPage === 1
+                        ? 'text-muted-foreground cursor-not-allowed'
+                        : 'hover:bg-accent'
+                    }`}
+                    title="Previous page"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    onClick={goToNextPage}
+                    disabled={currentPage === totalPages}
+                    className={`p-1 rounded ${
+                      currentPage === totalPages
+                        ? 'text-muted-foreground cursor-not-allowed'
+                        : 'hover:bg-accent'
+                    }`}
+                    title="Next page"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </FadeIn>
   );
 };
 

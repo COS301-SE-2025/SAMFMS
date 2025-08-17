@@ -1,6 +1,7 @@
 """
 Driver assignment and availability API routes
 """
+import logging
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -11,7 +12,35 @@ from schemas.entities import Trip
 from services.driver_service import driver_service
 from api.dependencies import get_current_user, validate_trip_access
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+@router.get("/", response_model=Dict[str, Any])
+async def get_all_drivers(
+    status: Optional[str] = Query(None, description="Filter by driver status"),
+    department: Optional[str] = Query(None, description="Filter by department"),
+    skip: int = Query(0, ge=0, description="Number of drivers to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Number of drivers to return"),
+    current_user: str = Depends(get_current_user)
+):
+    """Get all drivers from the drivers collection"""
+    try:
+        result = await driver_service.get_all_drivers(
+            status=status,
+            department=department, 
+            skip=skip,
+            limit=limit
+        )
+        
+        return ResponseBuilder.success(
+            data=result,
+            message=f"Retrieved {len(result['drivers'])} drivers successfully"
+        )
+    
+    except Exception as e:
+        logger.error(f"Error getting all drivers: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve drivers")
 
 
 @router.post("/{trip_id}/assign", response_model=Dict[str, Any])

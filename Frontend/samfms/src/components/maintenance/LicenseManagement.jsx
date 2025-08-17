@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { maintenanceAPI } from '../../backend/api/maintenance';
 
 const LicenseManagement = ({ vehicles }) => {
@@ -11,6 +12,30 @@ const LicenseManagement = ({ vehicles }) => {
     vehicleId: '',
     licenseType: '',
   });
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Calculate pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentLicenses = licenses.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(licenses.length / itemsPerPage);
+
+  // Pagination functions
+  const goToNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  const goToPrevPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const changeItemsPerPage = e => {
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1);
+  };
 
   const [formData, setFormData] = useState({
     vehicle_id: '',
@@ -213,14 +238,15 @@ const LicenseManagement = ({ vehicles }) => {
             resetForm();
             setShowModal(true);
           }}
-          className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition"
+          className="bg-green-600 text-white p-3 rounded-md hover:bg-green-700 transition-colors"
+          title="Add New License"
         >
-          Add New License
+          <Plus size={20} />
         </button>
       </div>
 
       {/* Filters */}
-      <div className="bg-card rounded-lg shadow-md p-4">
+      <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Filter by Vehicle</label>
@@ -283,11 +309,11 @@ const LicenseManagement = ({ vehicles }) => {
           <span className="ml-3">Loading license records...</span>
         </div>
       ) : (
-        <div className="bg-card rounded-lg shadow-md overflow-hidden">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6 border border-border">
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-muted">
-                <tr>
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-border">
                   <th className="text-left py-3 px-4 font-medium">Vehicle</th>
                   <th className="text-left py-3 px-4 font-medium">License Type</th>
                   <th className="text-left py-3 px-4 font-medium">License Number</th>
@@ -299,9 +325,9 @@ const LicenseManagement = ({ vehicles }) => {
                 </tr>
               </thead>
               <tbody>
-                {licenses.length > 0 ? (
-                  licenses.map(license => (
-                    <tr key={license.id} className="border-b border-border hover:bg-accent/10">
+                {currentLicenses.length > 0 ? (
+                  currentLicenses.map(license => (
+                    <tr key={license.id} className="border-b border-border hover:bg-muted/30">
                       <td className="py-3 px-4">{getVehicleName(license.vehicle_id)}</td>
                       <td className="py-3 px-4">
                         <div>
@@ -371,6 +397,53 @@ const LicenseManagement = ({ vehicles }) => {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Pagination - matching vehicles page style */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between">
+          <div>
+            <select
+              value={itemsPerPage}
+              onChange={changeItemsPerPage}
+              className="border border-border rounded-md bg-background py-1 pl-2 pr-8"
+            >
+              <option value="5">5 per page</option>
+              <option value="10">10 per page</option>
+              <option value="20">20 per page</option>
+              <option value="50">50 per page</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </span>
+            <div className="flex gap-1">
+              <button
+                onClick={goToPrevPage}
+                disabled={currentPage === 1}
+                className={`p-1 rounded ${
+                  currentPage === 1 ? 'text-muted-foreground cursor-not-allowed' : 'hover:bg-accent'
+                }`}
+                title="Previous page"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className={`p-1 rounded ${
+                  currentPage === totalPages
+                    ? 'text-muted-foreground cursor-not-allowed'
+                    : 'hover:bg-accent'
+                }`}
+                title="Next page"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
           </div>
         </div>
       )}

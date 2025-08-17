@@ -112,7 +112,7 @@ export const API_ENDPOINTS = {
     UPDATE: id => `/management/vehicles/${id}`,
     DELETE: id => `/management/vehicles/${id}`,
     SEARCH: query => `/management/vehicles/search/${query}`,
-    ASSIGNMENTS: id => `/management/vehicles/${id}/assignments`,
+    ASSIGN: '/management/vehicles/assign-driver',
     USAGE: id => `/management/vehicles/${id}/usage`,
   },
 
@@ -125,7 +125,10 @@ export const API_ENDPOINTS = {
     DELETE: id => `/management/drivers/${id}`,
     SEARCH: query => `/management/drivers/search/${query}`,
     ACTIVATE: id => `/management/${id}/activate`,
-    ASSIGN: id => `/management/${id}/assign-vehicle`,
+    ASSIGN: '/management/assign-vehicle',
+    EMPID: id => `/management/drivers/employee/${id}`,
+    // Trip Planning Service - Get All Drivers from drivers collection
+    TRIP_PLANNING_LIST: '/trips/drivers',
   },
 
   // Vehicle Assignments
@@ -157,14 +160,31 @@ export const API_ENDPOINTS = {
   TRIPS: {
     LIST: '/trips/trips',
     CREATE: '/trips/trips/create',
-    UPDATE: id =>  `/trips/trips/${id}`,
+    UPDATE: id => `/trips/trips/${id}`,
     DELETE: id => `/trips/trips/${id}`,
     ACTIVE: '/trips/trips/active',
     HISTORY: '/trips/history',
+    FINISHED: 'trips/trips/completed',
+    UPCOMMINGTRIPSALL: '/trips/trips/upcomming',
+    UPCOMMINGTRIPS: id => `/trips/trips/upcomming/${id}`,
+    RECENTTRIPS: id => `/trips/trips/recent/${id}`,
+    RECENTTRIPSALL: '/trips/recent',
+    VEHICLEPOLYLINE: id => `/trips/trips/polyline/${id}`,
     ANALYTICS: {
-      DRIVERS: '/trips/analytics/drivers',
-      VEHICLES: '/trips/analytics/vehicles'
-    }
+      // Trip History Statistics
+      HISTORY_STATS: '/trips/analytics/trips/history-stats',
+
+      // Driver analytics with timeframe
+      DRiVERSTATS: '/trips/analytics/drivers/stats',
+      TOTALTRIPSDRIVER: '/trips/analytics/drivers/totaltrips',
+      COMPLETIONRATEDRIVERS: '/trips/analytics/drivers/completionrate',
+      AVGTRIPSPERDAYDRIVERS: '/trips/analytics/drivers/averagedaytrips',
+
+      // Vehicle analytics with timeframe
+      TOTALTRIPSVEHICLES: '/trips/analytics/vehicles/totaltrips',
+      COMPLETIONRATEVEHICLES: '/trips/analytics/vehicles/completionrate',
+      AVGTRIPSPERDAYVEHICLES: '/trips/analytics/vehicles/averagedaytrips',
+    },
   },
 
   PLUGINSTATUS: {
@@ -224,6 +244,7 @@ export const API_ENDPOINTS = {
     ASSIGNMENT_METRICS: '/management/analytics/assignment-metrics',
     // MAINTENANCE: '/management/analytics/maintenance',
     DRIVER_PERFORMANCE: '/management/analytics/driver-performance',
+    DRIVER_PERFORMANCE_BY_ID: '/management/analytics/driver-performance',
     // COSTS: '/management/analytics/costs',
     // STATUS_BREAKDOWN: '/management/analytics/status-breakdown',
     // INCIDENTS: '/management/analytics/incidents',

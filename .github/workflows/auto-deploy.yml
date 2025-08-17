@@ -1,0 +1,70 @@
+name: Auto Deploy via SAMDS API
+
+on:
+  push:
+    branches: 
+      - main
+      - master
+      - code-cleanup
+      - develop
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - master
+      - code-cleanup
+
+jobs:
+  auto-deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    
+    steps:
+      - name: Trigger Pull from SAMDS API
+        run: |
+          echo "Triggering pull from SAMDS API..."
+          response=$(curl -s -w "%{http_code}" -X POST \
+            -H "x-api-key: ${{ secrets.SAMDS_API_KEY }}" \
+            "${{ secrets.SAMDS_ENDPOINT }}/pull")
+          
+          http_code="${response: -3}"
+          body="${response%???}"
+          
+          echo "Pull Response Code: $http_code"
+          echo "Pull Response Body: $body"
+          
+          if [ "$http_code" != "200" ]; then
+            echo "❌ Pull failed with code: $http_code"
+            exit 1
+          else
+            echo "✅ Pull successful"
+          fi
+
+      - name: Trigger Deploy from SAMDS API
+        run: |
+          echo "Triggering deploy from SAMDS API..."
+          response=$(curl -s -w "%{http_code}" -X POST \
+            -H "x-api-key: ${{ secrets.SAMDS_API_KEY }}" \
+            "${{ secrets.SAMDS_ENDPOINT }}/deploy")
+          
+          http_code="${response: -3}"
+          body="${response%???}"
+          
+          echo "Deploy Response Code: $http_code"
+          echo "Deploy Response Body: $body"
+          
+          if [ "$http_code" != "200" ]; then
+            echo "❌ Deploy failed with code: $http_code"
+            echo "Response: $body"
+            exit 1
+          else
+            echo "✅ Deploy successful"
+          fi
+
+      - name: Deployment Summary
+        run: |
+          echo "🚀 Deployment completed successfully!"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Triggered by: ${{ github.event_name }}"

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '../components/ui/button';
-import { useNavigate } from 'react-router-dom';
+import React, {useState, useEffect} from 'react';
+import {Button} from '../components/ui/button';
+import {useNavigate} from 'react-router-dom';
 import {
   signup,
   isAuthenticated,
@@ -154,7 +154,7 @@ const Signup = () => {
 
   // Handle blur events
   const handleBlur = field => {
-    setTouched({ ...touched, [field]: true });
+    setTouched({...touched, [field]: true});
 
     let error = '';
     switch (field) {
@@ -313,12 +313,12 @@ const Signup = () => {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row overflow-hidden bg-background">
-      {/* Left section - plain background */}
-      <div className="flex w-full md:w-1/2 flex-col justify-center items-center p-8 relative z-10 bg-background">
+      {/* Left section - plain background - hidden on mobile */}
+      <div className="hidden md:flex w-full md:w-1/2 flex-col justify-center items-center p-8 relative z-10 bg-background">
         <img
           src="/logo/logo_dark.svg"
           alt="SAMFMS Logo"
-          className="h-32 mb-4 animate-fadeIn transition-all duration-300 drop-shadow-lg"
+          className="h-48 mb-8 animate-fadeIn transition-all duration-300 drop-shadow-lg"
         />
         <p className="text-lg text-primary-700">Smart Fleet Management System</p>
       </div>
@@ -354,6 +354,7 @@ const Signup = () => {
             e.currentTarget.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg)';
           }}
         >
+          {/* Mobile logo - only visible on mobile */}
           <div className="md:hidden mb-6 text-center">
             <img
               src="/logo/logo_dark.svg"
@@ -387,11 +388,10 @@ const Signup = () => {
                 onChange={e => handleChange('fullName', e.target.value)}
                 onBlur={() => handleBlur('fullName')}
                 required
-                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
-                  validationErrors.fullName && touched.fullName
-                    ? 'border-red-500'
-                    : 'border-primary-200'
-                }`}
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${validationErrors.fullName && touched.fullName
+                  ? 'border-red-500'
+                  : 'border-primary-200'
+                  }`}
               />
               {validationErrors.fullName && touched.fullName && (
                 <p className="text-red-500 text-xs mt-1">{validationErrors.fullName}</p>
@@ -409,9 +409,8 @@ const Signup = () => {
                 onChange={e => handleChange('email', e.target.value)}
                 onBlur={() => handleBlur('email')}
                 required
-                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
-                  validationErrors.email && touched.email ? 'border-red-500' : 'border-primary-200'
-                }`}
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${validationErrors.email && touched.email ? 'border-red-500' : 'border-primary-200'
+                  }`}
               />
               {validationErrors.email && touched.email && (
                 <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>
@@ -429,11 +428,10 @@ const Signup = () => {
                 onChange={e => handleChange('password', e.target.value)}
                 onBlur={() => handleBlur('password')}
                 required
-                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
-                  validationErrors.password && touched.password
-                    ? 'border-red-500'
-                    : 'border-primary-200'
-                }`}
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${validationErrors.password && touched.password
+                  ? 'border-red-500'
+                  : 'border-primary-200'
+                  }`}
               />
               {validationErrors.password && touched.password && (
                 <p className="text-red-500 text-xs mt-1">{validationErrors.password}</p>
@@ -454,11 +452,10 @@ const Signup = () => {
                 onChange={e => handleChange('confirmPassword', e.target.value)}
                 onBlur={() => handleBlur('confirmPassword')}
                 required
-                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
-                  validationErrors.confirmPassword && touched.confirmPassword
-                    ? 'border-red-500'
-                    : 'border-primary-200'
-                }`}
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${validationErrors.confirmPassword && touched.confirmPassword
+                  ? 'border-red-500'
+                  : 'border-primary-200'
+                  }`}
               />
               {validationErrors.confirmPassword && touched.confirmPassword && (
                 <p className="text-red-500 text-xs mt-1">{validationErrors.confirmPassword}</p>
@@ -475,9 +472,8 @@ const Signup = () => {
                 value={phone}
                 onChange={e => handleChange('phone', e.target.value)}
                 onBlur={() => handleBlur('phone')}
-                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${
-                  validationErrors.phone && touched.phone ? 'border-red-500' : 'border-primary-200'
-                }`}
+                className={`w-full p-2 border rounded-md bg-primary-50 text-primary-900 focus:ring-primary-700 focus:border-primary-700 focus:shadow-lg hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] ${validationErrors.phone && touched.phone ? 'border-red-500' : 'border-primary-200'
+                  }`}
               />
               {validationErrors.phone && touched.phone && (
                 <p className="text-red-500 text-xs mt-1">{validationErrors.phone}</p>

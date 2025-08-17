@@ -1,5 +1,5 @@
 import React from 'react';
-import {Edit2, Trash2} from 'lucide-react';
+import { Edit2, Trash2 } from 'lucide-react';
 import SortableHeader from './SortableHeader';
 import StatusBadge from './StatusBadge';
 import Pagination from './Pagination';
@@ -24,6 +24,11 @@ const VehicleList = ({
   goToPrevPage,
   totalVehicles,
 }) => {
+  // Helper function to check if a vehicle can be deleted
+  const canDeleteVehicle = vehicle => {
+    return vehicle.status !== 'unavailable';
+  };
+
   if (!vehicles || vehicles.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground text-lg">
@@ -93,7 +98,6 @@ const VehicleList = ({
                 sortDirection={sortDirection}
                 handleSort={handleSort}
               />
-              <th className="text-left py-3 px-4">Driver</th>
               <th className="text-left py-3 px-4">Status</th>
               <th className="text-left py-3 px-4">Actions</th>
             </tr>
@@ -120,20 +124,7 @@ const VehicleList = ({
                 <td className="py-3 px-4">{vehicle.year}</td>
                 <td className="py-3 px-4 capitalize">{vehicle.color}</td>
                 <td className="py-3 px-4 capitalize">{vehicle.fuelType}</td>
-                <td className="py-3 px-4">{vehicle.mileage} km</td>{' '}
-                <td className="py-3 px-4">
-                  <div className="flex items-center">
-                    <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium mr-2">
-                      {vehicle.driver && vehicle.driver !== 'Unassigned'
-                        ? vehicle.driver
-                          .split(' ')
-                          .map(n => n[0])
-                          .join('')
-                        : 'UA'}
-                    </div>
-                    {vehicle.driver || 'Unassigned'}
-                  </div>
-                </td>
+                <td className="py-3 px-4">{vehicle.mileage} km</td>
                 <td className="py-3 px-4">
                   <StatusBadge status={vehicle.status} />
                 </td>{' '}
@@ -147,15 +138,26 @@ const VehicleList = ({
                       <Edit2 size={16} />
                     </button>
                     <button
-                      className="text-destructive hover:text-destructive/80"
-                      title="Delete"
+                      className={`${
+                        canDeleteVehicle(vehicle)
+                          ? 'text-destructive hover:text-destructive/80'
+                          : 'text-muted-foreground/30 cursor-not-allowed'
+                      }`}
+                      title={
+                        canDeleteVehicle(vehicle)
+                          ? 'Delete'
+                          : 'Cannot delete - Vehicle status is unavailable'
+                      }
+                      disabled={!canDeleteVehicle(vehicle)}
                       onClick={() => {
-                        if (
-                          window.confirm(
-                            `Are you sure you want to delete ${vehicle.make} ${vehicle.model}?`
-                          )
-                        ) {
-                          onDeleteVehicle?.(vehicle.id);
+                        if (canDeleteVehicle(vehicle)) {
+                          if (
+                            window.confirm(
+                              `Are you sure you want to delete ${vehicle.make} ${vehicle.model}?`
+                            )
+                          ) {
+                            onDeleteVehicle?.(vehicle.id);
+                          }
                         }
                       }}
                     >

@@ -9,6 +9,7 @@ const ANALYTICS_API = {
   assignmentMetrics: buildApiUrl(API_ENDPOINTS.ANALYTICS.ASSIGNMENT_METRICS),
   maintenance: buildApiUrl(API_ENDPOINTS.ANALYTICS.MAINTENANCE),
   driverPerformance: buildApiUrl(API_ENDPOINTS.ANALYTICS.DRIVER_PERFORMANCE),
+  driverPerformanceById: buildApiUrl(API_ENDPOINTS.ANALYTICS.DRIVER_PERFORMANCE_BY_ID),
   costAnalytics: buildApiUrl(API_ENDPOINTS.ANALYTICS.COSTS),
   statusBreakdown: buildApiUrl(API_ENDPOINTS.ANALYTICS.STATUS_BREAKDOWN),
   incidentStatistics: buildApiUrl(API_ENDPOINTS.ANALYTICS.INCIDENTS),
@@ -68,7 +69,7 @@ export const getVehicleUsage = async (useCache = true) => {
 
 export const getAssignmentMetrics = async (useCache = true) => {
   try {
-    console.log('Access getAssignmentMetrics from Dashboard')
+    console.log('Access getAssignmentMetrics from Dashboard');
     const url = `${ANALYTICS_API.assignmentMetrics}?use_cache=${useCache}`;
     const response = await authFetch(url);
     return await handleResponse(response, 'Failed to fetch assignment metrics');
@@ -96,6 +97,30 @@ export const getDriverPerformance = async (useCache = true) => {
     return await handleResponse(response, 'Failed to fetch driver performance metrics');
   } catch (err) {
     console.error('Error in getDriverPerformance:', err);
+    throw err;
+  }
+};
+
+/**
+ * Get performance analytics for a specific driver
+ * @param {string} driverId - The driver ID
+ * @param {boolean} useCache - Whether to use cached data
+ * @returns {Promise<Object>} Driver performance data
+ */
+export const getDriverPerformanceById = async (driverId, useCache = true) => {
+  try {
+    if (!driverId) {
+      throw new Error('Driver ID is required');
+    }
+
+    const url = `${ANALYTICS_API.driverPerformanceById}/${driverId}?use_cache=${useCache}`;
+    const response = await authFetch(url);
+    return await handleResponse(
+      response,
+      `Failed to fetch driver performance metrics for driver ${driverId}`
+    );
+  } catch (err) {
+    console.error(`Error in getDriverPerformanceById for driver ${driverId}:`, err);
     throw err;
   }
 };
@@ -156,5 +181,6 @@ export const getVehicleUsageData = getVehicleUsage;
 export const getAssignmentMetricsData = getAssignmentMetrics;
 export const getMaintenanceAnalyticsData = getMaintenanceAnalytics;
 export const getDriverPerformanceData = getDriverPerformance;
+export const getDriverPerformanceByIdData = getDriverPerformanceById;
 export const getCostAnalyticsData = getCostAnalytics;
 export const getStatusBreakdownData = getStatusBreakdown;

@@ -855,6 +855,126 @@ class AnalyticsService:
             "average_rating": None
         }
 
+    async def get_trip_history_stats(self, days: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Get trip history statistics including totals and averages
+        
+        Args:
+            days: Number of days to look back (None for all time)
+            
+        Returns:
+            Dictionary containing trip history statistics
+        """
+        try:
+            logger.info(f"[TripHistoryStats] Starting calculation for days: {days}")
+            
+            # Build query for completed trips
+            query = {
+                "status": TripStatus.COMPLETED.value
+            }
+            
+            # Add date filter if specified
+            if days:
+                end_date = datetime.utcnow()
+                start_date = end_date - timedelta(days=days)
+                query["actual_end_time"] = {
+                    "$gte": start_date,
+                    "$lte": end_date
+                }
+                logger.info(f"[TripHistoryStats] Filtering by date range: {start_date} to {end_date}")
+            else:
+                logger.info("[TripHistoryStats] Calculating stats for all time")
+            
+            # MongoDB aggregation pipeline to calculate statistics
+            pipeline = [
+                {"$match": query},
+                {
+                    "$addFields": {
+                        # Calculate trip duration in hours
+                        "duration_hours": {
+                            "$cond": {
+                                "if": {"$and": ["$actual_start_time", "$actual_end_time"]},
+                                "then": {
+                                    "$divide": [
+                                        {"$subtract": ["$actual_end_time", "$actual_start_time"]},
+                                        3600000  # Convert milliseconds to hours
+                                    ]
+                                },
+                                "else": 0
+                            }
+                        },
+                        # Use route_info distance first, then actual_distance, then estimated_distance
+                        "trip_distance": {
+                            "$cond": {
+                                "if": {"$gt": [{"$ifNull": ["$route_info.distance", 0]}, 0]},
+                                "then": {"$divide": ["$route_info.distance", 1000]},  # Convert meters to km
+                                "else": {
+                                    "$cond": {
+                                        "if": {"$gt": [{"$ifNull": ["$actual_distance", 0]}, 0]},
+                                        "then": "$actual_distance",
+                                        "else": {"$ifNull": ["$estimated_distance", 0]}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": None,
+                        "total_trips": {"$sum": 1},
+                        "total_duration_hours": {"$sum": "$duration_hours"},
+                        "total_distance": {"$sum": "$trip_distance"},
+                        "avg_duration_hours": {"$avg": "$duration_hours"},
+                        "avg_distance": {"$avg": "$trip_distance"},
+                        # Additional metrics
+                        "max_duration": {"$max": "$duration_hours"},
+                        "min_duration": {"$min": "$duration_hours"},
+                        "max_distance": {"$max": "$trip_distance"},
+                        "min_distance": {"$min": "$trip_distance"}
+                    }
+                }
+            ]
+            
+            logger.info("[TripHistoryStats] Executing MongoDB aggregation pipeline")
+            result = await db_manager.trip_history.aggregate(pipeline).to_list(None)
+            
+            if result:
+                data = result[0]
+                stats = {
+                    "total_trips": data.get("total_trips", 0),
+                    "total_duration_hours": round(data.get("total_duration_hours", 0), 2),
+                    "total_distance_km": round(data.get("total_distance", 0), 2),
+                    "average_duration_hours": round(data.get("avg_duration_hours", 0), 2),
+                    "average_distance_km": round(data.get("avg_distance", 0), 2),
+                    "max_duration_hours": round(data.get("max_duration", 0), 2),
+                    "min_duration_hours": round(data.get("min_duration", 0), 2),
+                    "max_distance_km": round(data.get("max_distance", 0), 2),
+                    "min_distance_km": round(data.get("min_distance", 0), 2),
+                    "time_period": f"Last {days} days" if days else "All time"
+                }
+                
+                logger.info(f"[TripHistoryStats] Successfully calculated stats: {stats}")
+                return stats
+            else:
+                logger.info("[TripHistoryStats] No completed trips found")
+                return {
+                    "total_trips": 0,
+                    "total_duration_hours": 0,
+                    "total_distance_km": 0,
+                    "average_duration_hours": 0,
+                    "average_distance_km": 0,
+                    "max_duration_hours": 0,
+                    "min_duration_hours": 0,
+                    "max_distance_km": 0,
+                    "min_distance_km": 0,
+                    "time_period": f"Last {days} days" if days else "All time"
+                }
+            
+        except Exception as e:
+            logger.error(f"[TripHistoryStats] Error calculating statistics: {str(e)}", exc_info=True)
+            raise
+
 
 # Global instance
 analytics_service = AnalyticsService()

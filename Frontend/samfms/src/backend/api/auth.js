@@ -405,6 +405,14 @@ export const login = async (email, password) => {
     setCookie('permissions', JSON.stringify(data.permissions), 1); // 1 day
     setCookie('preferences', JSON.stringify(data.preferences), 1); // 1 day
 
+    // Apply user theme preference immediately
+    try {
+      const { applyUserThemePreference } = await import('../../utils/themeUtils');
+      applyUserThemePreference();
+    } catch (error) {
+      console.error('Failed to apply theme preference:', error);
+    }
+
     // Start automatic token refresh
     const { startTokenRefresh } = await import('../../utils/tokenManager');
     startTokenRefresh();

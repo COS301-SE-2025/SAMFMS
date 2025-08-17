@@ -74,7 +74,22 @@ class VehicleService:
         except Exception as e:
             logger.error(f"Error getting vehicles: {e}")
             raise
+
+
+    async def get_num_vehicles(self, 
+        department: Optional[str] = None,
+        status: Optional[str] = None, 
+        vehicle_type: Optional[str] = None,
+        pagination: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        response = await self.get_vehicles(department, status, vehicle_type, pagination)
+        total_vehicles = len(response["vehicles"])
+
+        return {
+            "Total vehicles": total_vehicles,
+        }
     
+
     async def create_vehicle(self, vehicle_request: VehicleCreateRequest, created_by: str) -> Dict[str, Any]:
         """Create new vehicle with validation"""
         try:
@@ -331,3 +346,161 @@ class VehicleService:
         except Exception as e:
             logger.error(f"Error getting vehicle usage stats for {vehicle_id}: {e}")
             raise
+
+    async def handle_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle vehicle-related requests from request consumer"""
+        try:
+            from schemas.requests import VehicleCreateRequest, VehicleUpdateRequest
+            from schemas.responses import ResponseBuilder
+            
+            # Extract data and endpoint from user_context
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            # Create mock user for service calls
+            current_user = {"user_id": user_context.get("user_id", "system")}
+            
+            # Handle HTTP methods and route to appropriate logic
+            if method == "GET":
+                # Parse endpoint for specific vehicle operations
+                if "search" in endpoint:
+                    query = data.get("query", "")
+                    vehicles = await self.search_vehicles(query)
+                elif endpoint.count('/') > 0 and endpoint.split('/')[-1] and endpoint.split('/')[-1] != "vehicles":
+                    # vehicles/{id} pattern
+                    vehicle_id = endpoint.split('/')[-1]
+                    vehicles = await self.get_vehicle_by_id(vehicle_id)
+
+                elif "vehicles-total" in endpoint or "vehicles_total" in endpoint:
+                    usage_data = await self.get_num_vehicles(
+                        department=data.get("department"),
+                        status=data.get("status"),
+                        vehicle_type=data.get("vehicle_type"),
+                        pagination=data.get("pagination", {"skip": 0, "limit": 50})
+                    )
+                    return ResponseBuilder.success(
+                        data=usage_data,
+                        message="Total vehicles data retrieved successfully penis"
+                    ).model_dump()
+
+                else:
+                    # Get all vehicles with optional filters
+                    department = data.get("department")
+                    status = data.get("status") 
+                    vehicle_type = data.get("vehicle_type")
+                    pagination = data.get("pagination", {"skip": 0, "limit": 50})
+                    
+                    vehicles = await self.get_vehicles(
+                        department=department,
+                        status=status,
+                        vehicle_type=vehicle_type,
+                        pagination=pagination
+                    )
+                
+                # Transform _id to id for frontend compatibility
+                vehicles = self._transform_vehicle_data(vehicles)
+                
+                return ResponseBuilder.success(
+                    data=vehicles,
+                    message="Vehicles retrieved successfully"
+                ).model_dump()
+                
+            elif method == "POST":
+                if not data:
+                    raise ValueError("Request data is required for POST operation")
+                
+                if "assign-driver" in endpoint:
+                    logger.info(f"Data received for driver assignment: {data} ")
+                else:
+                    # Create vehicle
+                    vehicle_request = VehicleCreateRequest(**data)
+                    created_by = current_user["user_id"]
+                    result = await self.create_vehicle(vehicle_request, created_by)
+                    
+                    # Transform _id to id for frontend compatibility
+                    result = self._transform_vehicle_data(result)
+                    
+                    return ResponseBuilder.success(
+                        data=result,
+                        message="Vehicle created successfully"
+                    ).model_dump()
+
+                
+                
+            elif method == "PUT":
+                vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not vehicle_id:
+                    raise ValueError("Vehicle ID is required for PUT operation")
+                if not data:
+                    raise ValueError("Request data is required for PUT operation")
+                
+                # Update vehicle
+                vehicle_update_request = VehicleUpdateRequest(**data)
+                updated_by = current_user["user_id"]
+                result = await self.update_vehicle(vehicle_id, vehicle_update_request, updated_by)
+                
+                # Transform _id to id for frontend compatibility
+                result = self._transform_vehicle_data(result)
+                
+                return ResponseBuilder.success(
+                    data=result,
+                    message="Vehicle updated successfully"
+                ).model_dump()
+                
+            elif method == "DELETE":
+                vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not vehicle_id:
+                    raise ValueError("Vehicle ID is required for DELETE operation")
+                
+                # Delete vehicle
+                deleted_by = current_user["user_id"]
+                result = await self.delete_vehicle(vehicle_id, deleted_by)
+                
+                return ResponseBuilder.success(
+                    data=result,
+                    message="Vehicle deleted successfully"
+                ).model_dump()
+                
+            else:
+                raise ValueError(f"Unsupported HTTP method for vehicles: {method}")
+                
+        except Exception as e:
+            from schemas.responses import ResponseBuilder
+            logger.error(f"Error handling vehicles request {method} {endpoint}: {e}")
+            return ResponseBuilder.error(
+                error="VehicleRequestError",
+                message=f"Failed to process vehicle request: {str(e)}"
+            ).model_dump()
+
+    def _transform_vehicle_data(self, data):
+        """Transform vehicle data to convert _id to id for frontend compatibility"""
+        if data is None:
+            return data
+        
+        def transform_single_vehicle(vehicle):
+            """Transform a single vehicle object"""
+            if isinstance(vehicle, dict) and "_id" in vehicle:
+                # Create new dict with id field
+                transformed = vehicle.copy()
+                transformed["id"] = transformed.pop("_id")
+                return transformed
+            return vehicle
+        
+        if isinstance(data, dict):
+            # Check if it's a vehicle list response
+            if "vehicles" in data and isinstance(data["vehicles"], list):
+                # Transform list of vehicles
+                data["vehicles"] = [transform_single_vehicle(v) for v in data["vehicles"]]
+                return data
+            else:
+                # Single vehicle response
+                return transform_single_vehicle(data)
+        elif isinstance(data, list):
+            # Direct list of vehicles
+            return [transform_single_vehicle(v) for v in data]
+        
+        return data
+
+
+# Global service instance
+vehicle_service = VehicleService()

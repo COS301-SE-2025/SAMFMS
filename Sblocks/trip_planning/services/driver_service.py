@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from bson import ObjectId
 
-from repositories.database import db_manager
+from repositories.database import db_manager, db_manager_management
 from schemas.entities import DriverAssignment, Trip, TripStatus
 from schemas.requests import AssignDriverRequest, DriverAvailabilityRequest
 from events.publisher import event_publisher
@@ -19,7 +19,44 @@ class DriverService:
     
     def __init__(self):
         self.db = db_manager
-        
+        self.db_management = db_manager_management
+    
+    async def deactivateDriver(self, driver_id: str):
+        """Use this function when a driver was assigned to a trip"""
+        try:
+            driver = await self.db_management.drivers.find_one({"employee_id": driver_id})
+            if not driver:
+                raise ValueError("Driver not found")
+
+            await self.db_management.drivers.update_one(
+                {"employee_id": driver_id},
+                {"$set": {"status": "unavailable", "updated_at": datetime.utcnow()}}
+            )
+
+            logger.info(f"Driver {driver_id} deactivated successfully")
+
+        except Exception as e:
+            logger.error(f"Error deactivating driver {driver_id}: {e}")
+            raise
+    
+    async def activateDriver(self, driver_id: str):
+        """Use this function to mark a driver as active/available"""
+        try:
+            driver = await self.db_management.drivers.find_one({"employee_id": driver_id})
+            if not driver:
+                raise ValueError("Driver not found")
+
+            await self.db_management.drivers.update_one(
+                {"employee_id": driver_id},
+                {"$set": {"status": "available", "updated_at": datetime.utcnow()}}
+            )
+
+            logger.info(f"Driver {driver_id} activated successfully")
+
+        except Exception as e:
+            logger.error(f"Error activating driver {driver_id}: {e}")
+            raise
+   
     async def assign_driver_to_trip(
         self,
         trip_id: str,
@@ -268,7 +305,46 @@ class DriverService:
         except Exception as e:
             logger.error(f"Failed to get driver assignments: {e}")
             raise
-    
+
+    async def get_all_drivers(self, status: Optional[str] = None, department: Optional[str] = None, skip: int = 0, limit: int = 100) -> Dict[str, Any]:
+        """Get all drivers from the drivers collection with optional filtering"""
+        try:
+            # Build filter query
+            filter_query = {}
+            if status:
+                filter_query["status"] = status
+            if department:
+                filter_query["department"] = department
+            
+            # Get total count for pagination
+            total_count = await self.db_management.drivers.count_documents(filter_query)
+            
+            # Get drivers with pagination
+            cursor = self.db_management.drivers.find(filter_query).skip(skip).limit(limit)
+            drivers_docs = await cursor.to_list(length=None)
+            
+            # Convert ObjectId to string and clean up the data
+            drivers = []
+            for doc in drivers_docs:
+                if "_id" in doc:
+                    doc["id"] = str(doc["_id"])
+                    del doc["_id"]
+                drivers.append(doc)
+            
+            logger.info(f"Retrieved {len(drivers)} drivers from database")
+            
+            return {
+                "drivers": drivers,
+                "total": total_count,
+                "skip": skip,
+                "limit": limit,
+                "has_more": skip + limit < total_count
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to get all drivers: {e}")
+            raise
+
     async def _get_all_active_drivers(self) -> List[str]:
         """Get all active driver IDs"""
         try:

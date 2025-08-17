@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Car, Hash, CreditCard } from 'lucide-react';
+import { X, Car, Hash } from 'lucide-react';
 import { createVehicle } from '../../backend/API';
 import ColorDropdown from './ColorDropdown';
 import CustomDropdown from './CustomDropdown';
@@ -13,7 +13,7 @@ const initialForm = {
   color: '',
   fuel_type: 'petrol',
   mileage: 0,
-  status: 'available',
+  status: 'available', // Set as default, not selectable
   customMake: '',
   customModel: '',
   customColor: '',
@@ -327,7 +327,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
   };
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-card w-full max-w-2xl rounded-lg shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 w-full max-w-5xl rounded-lg shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Add New Vehicle</h2>
@@ -353,8 +353,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
                 <Car size={20} />
                 Vehicle Information
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {' '}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Make <span className="text-destructive">*</span>
@@ -392,7 +391,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
                       />
                     </>
                   )}
-                </div>{' '}
+                </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Model <span className="text-destructive">*</span>
@@ -430,7 +429,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
                       />
                     </>
                   )}
-                </div>{' '}
+                </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Year <span className="text-destructive">*</span>
@@ -448,7 +447,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
                     placeholder="Select Year"
                     maxVisibleOptions={5}
                   />
-                </div>{' '}
+                </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Color</label>
                   {validationErrors.color && (
@@ -488,8 +487,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
                 <Hash size={20} />
                 Technical Information
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {' '}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     VIN <span className="text-destructive">*</span>
@@ -533,7 +531,7 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
                   <p className="text-xs text-muted-foreground mt-1">
                     South African license plate format
                   </p>
-                </div>{' '}
+                </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Fuel Type <span className="text-destructive">*</span>
@@ -563,33 +561,6 @@ const AddVehicleModal = ({ closeModal, vehicles, setVehicles }) => {
                     className="w-full px-3 py-2 border border-input rounded-md bg-background"
                     min="0"
                     required
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Status Information */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <CreditCard size={20} />
-                Status Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {' '}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Status <span className="text-destructive">*</span>
-                  </label>
-                  <CustomDropdown
-                    value={form.status}
-                    onChange={value => handleChange({ target: { name: 'status', value } })}
-                    options={[
-                      { value: 'active', label: 'Active' },
-                      { value: 'maintenance', label: 'Maintenance' },
-                      { value: 'inactive', label: 'Inactive' },
-                    ]}
-                    placeholder="Select Status"
-                    maxVisibleOptions={5}
                   />
                 </div>
               </div>

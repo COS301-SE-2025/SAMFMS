@@ -1,31 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
-import {
-  getPlugins,
-  getAllPlugins,
-  startPlugin,
-  stopPlugin,
-  updatePluginRoles,
-  getPluginStatus,
-  testCoreService,
-  syncPluginStatus,
-  removeSblock,
-  addSblock,
-} from '../backend/api/plugins';
+import { testCoreService } from '../backend/api/plugins';
 import { useAuth, ROLES } from '../components/auth/RBACUtils';
-import PluginCard from '../components/plugins/PluginCard';
 import PluginTable from '../components/PluginTable';
+import FadeIn from '../components/ui/FadeIn';
 
 const Plugins = () => {
   const { hasRole } = useAuth();
-  const [plugins, setPlugins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [actionLoading, setActionLoading] = useState({});
   const [refreshing, setRefreshing] = useState(false);
 
   // Check if user has admin access
   const isAdmin = hasRole(ROLES.ADMIN);
+
   // Load plugins on component mount
   useEffect(() => {
     const initializePlugins = async () => {
@@ -39,14 +27,8 @@ const Plugins = () => {
         if (!healthCheck.success) {
           throw new Error(`Core service is not accessible: ${healthCheck.error}`);
         }
-        console.log('Core service is accessible, loading plugins...');
-
-        // Load plugins based on user role
-        const pluginsData = isAdmin ? await getAllPlugins() : await getPlugins();
-        // console.log(pluginsData);
-        setPlugins(pluginsData);
+        console.log('Core service is accessible');
       } catch (err) {
-       // setError('Failed to load plugins: ' + err.message);
         console.error('Error loading plugins:', err);
       } finally {
         setLoading(false);
@@ -61,115 +43,16 @@ const Plugins = () => {
       setRefreshing(true);
       setError('');
 
-      const pluginsData = isAdmin ? await getAllPlugins() : await getPlugins();
-      setPlugins(pluginsData);
+      // Test connectivity
+      const healthCheck = await testCoreService();
+      if (!healthCheck.success) {
+        throw new Error(`Core service is not accessible: ${healthCheck.error}`);
+      }
     } catch (err) {
-   //   setError('Failed to refresh plugins: ' + err.message);
+      setError('Failed to refresh plugins: ' + err.message);
       console.error('Error refreshing plugins:', err);
     } finally {
       setRefreshing(false);
-    }
-  };
-
-  const syncPluginsStatus = async () => {
-    if (!isAdmin) {
-    //  setError('Only administrators can sync plugin status');
-      return;
-    }
-
-    try {
-      setRefreshing(true);
-      setError('');
-
-      // Sync status with containers
-      await syncPluginStatus();
-
-      // Refresh plugins to get updated status
-      const pluginsData = await getAllPlugins();
-      setPlugins(pluginsData);
-    } catch (err) {
-    // setError('Failed to sync plugin status: ' + err.message);
-      console.error('Error syncing plugin status:', err);
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  // Handler for changing access for a plugin
-  const handleAccessToggle = async (pluginId, role) => {
-    try {
-      setActionLoading(prev => ({ ...prev, [pluginId]: true }));
-
-      const plugin = plugins.find(p => p.plugin_id === pluginId);
-      if (!plugin) return;
-
-      const newRoles = plugin.allowed_roles.includes(role)
-        ? plugin.allowed_roles.filter(r => r !== role)
-        : [...plugin.allowed_roles, role];
-
-      await updatePluginRoles(pluginId, newRoles);
-
-      // Update local state
-      setPlugins(prev =>
-        prev.map(p => (p.plugin_id === pluginId ? { ...p, allowed_roles: newRoles } : p))
-      );
-    } catch (err) {
-    //  setError('Failed to update plugin access: ' + err.message);
-      console.error('Error updating plugin access:', err);
-    } finally {
-      setActionLoading(prev => ({ ...prev, [pluginId]: false }));
-    }
-  };
-  // Handler for toggling enabled/disabled
-  const handleEnabledToggle = async pluginId => {
-    if (!isAdmin) {
-    //  setError('Only administrators can start/stop plugins');
-      return;
-    }
-
-    try {
-      setActionLoading(prev => ({ ...prev, [pluginId]: true }));
-
-      const plugin = plugins.find(p => p.plugin_id === pluginId);
-      if (!plugin) return;
-
-      let result;
-      if (plugin.status === 'ACTIVE') {
-        removeSblock(pluginId.label);
-        result = await stopPlugin(pluginId);
-      } else {
-        addSblock(pluginId.label);
-        result = await startPlugin(pluginId);
-      }
-
-      // Update local state with the result
-      setPlugins(prev =>
-        prev.map(p => (p.plugin_id === pluginId ? { ...p, status: result.status } : p))
-      );
-
-      // Refresh plugin status after a short delay
-      setTimeout(() => refreshPluginStatus(pluginId), 1000);
-    } catch (err) {
-    //  setError('Failed to toggle plugin: ' + err.message);
-      console.error('Error toggling plugin:', err);
-    } finally {
-      setActionLoading(prev => ({ ...prev, [pluginId]: false }));
-    }
-  };
-
-  // Refresh individual plugin status
-  const refreshPluginStatus = async pluginId => {
-    try {
-      const status = await getPluginStatus(pluginId);
-      setPlugins(prev =>
-        prev.map(p =>
-          p.plugin_id === pluginId
-            ? { ...p, status: status.status, container_status: status.container_status }
-            : p
-        )
-      );
-    } catch (err) {
-      console.error('Error refreshing plugin status:', err);
     }
   };
 
@@ -187,56 +70,62 @@ const Plugins = () => {
   }
 
   return (
-    <div className="relative container mx-auto py-8">
+    <div className="relative min-h-screen bg-gradient-to-br from-background to-muted/20">
       {/* Background pattern */}
       <div
-        className="absolute inset-0 z-0 opacity-10 pointer-events-none"
+        className="absolute inset-0 z-0 opacity-5 pointer-events-none"
         style={{
           backgroundImage: 'url("/logo/logo_icon_dark.svg")',
-          backgroundSize: '200px',
+          backgroundSize: '300px',
           backgroundRepeat: 'repeat',
           filter: 'blur(1px)',
         }}
         aria-hidden="true"
       />
+
       {/* Content */}
-      <div className="relative z-10">
-        <header className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-4xl font-bold">Plugins</h1>
-            <p className="text-muted-foreground">Manage system plugins and extensions</p>
-          </div>{' '}
-          <div className="flex space-x-2">
-            <Button onClick={refreshPlugins} variant="outline" disabled={refreshing}>
-              {refreshing ? 'Refreshing...' : 'Refresh'}
-            </Button>
-            <Button onClick={syncPluginsStatus} variant="outline" disabled={refreshing}>
-              {refreshing ? 'Syncing...' : 'Sync Status'}
-            </Button>
+      <FadeIn delay={0.1} className="relative z-10 container mx-auto py-8">
+        <FadeIn delay={0.2}>
+          <div className="flex items-center justify-between p-4 border-b border-border">
+            <div>
+              <h1 className="text-2xl font-bold">Plugin Management</h1>
+              <p className="text-muted-foreground">Manage system plugins and extensions</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={refreshPlugins}
+                variant="outline"
+                disabled={refreshing}
+                title="Refresh plugin status and connectivity"
+              >
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </Button>
+            </div>
           </div>
-        </header>
+        </FadeIn>
 
-
-        <PluginTable />
+        {/* Plugin Health Overview */}
+        <FadeIn delay={0.3}>
+          <div className="mb-8">
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 backdrop-blur-sm rounded-xl p-6 border border-border/50 shadow-lg">
+              <PluginTable />
+            </div>
+          </div>
+        </FadeIn>
 
         {error && (
-          <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
-            {error}
-          </div>
+          <FadeIn delay={0.4}>
+            <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive backdrop-blur-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-destructive rounded-full flex-shrink-0"></div>
+                <span className="font-medium">Error:</span>
+                {error}
+              </div>
+            </div>
+          </FadeIn>
         )}
-
-        <div className="grid grid-cols-1 gap-6">
-          {plugins.map(plugin => (
-            <PluginCard
-              key={plugin.plugin_id}
-              plugin={plugin}
-              onAccessToggle={handleAccessToggle}
-              onEnabledToggle={handleEnabledToggle}
-              isLoading={actionLoading[plugin.plugin_id]}
-            />
-          ))}
-        </div>
-      </div>
+      </FadeIn>
     </div>
   );
 };

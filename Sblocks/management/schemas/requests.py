@@ -203,12 +203,13 @@ class DriverCreateRequest(BaseModel):
     first_name: str
     last_name: str
     email: str
-    phone: str
-    license_number: str
-    license_class: List[LicenseClass]
-    license_expiry: datetime
+    security_id: str
+    phone: Optional[str] = None
+    license_number: Optional[str] = None
+    license_class: Optional[List[str]] = None  
+    license_expiry: Optional[datetime] = None
     department: Optional[str] = None
-    hire_date: datetime
+    hire_date: Optional[datetime] = None
     emergency_contact: Optional[Dict] = None
     address: Optional[Dict] = None
 
@@ -218,14 +219,6 @@ class DriverCreateRequest(BaseModel):
         import re
         if not re.match(r'^(\+27|0)[6-8][0-9]{8}$', v):
             raise ValueError('Invalid South African phone number')
-        return v
-
-    @validator('license_number')
-    def validate_license(cls, v):
-        # Basic SA license number validation
-        import re
-        if not re.match(r'^[0-9]{8}[0-9]{2}$', v):
-            raise ValueError('Invalid South African license number format')
         return v
 
 
@@ -280,14 +273,14 @@ class DriverResponse(BaseModel):
     first_name: str
     last_name: str
     email: str
-    phone: str
-    license_number: str
-    license_class: List[LicenseClass]
-    license_expiry: datetime
-    status: DriverStatus
+    phone: Optional[str] = None
+    license_number: Optional[str] = None
+    license_class: Optional[List[str]] = None  
+    license_expiry: Optional[datetime] = None
     department: Optional[str] = None
-    current_vehicle_id: Optional[str] = None
-    hire_date: datetime
+    hire_date: Optional[datetime] = None
+    emergency_contact: Optional[Dict] = None
+    address: Optional[Dict] = None
 
 
 class AnalyticsResponse(BaseModel):
@@ -307,6 +300,80 @@ class PaginatedResponse(BaseModel):
     total_pages: int
 
 
+# Fuel Record Request Schemas
+class FuelRecordCreateRequest(BaseModel):
+    """Request to create new fuel record"""
+    vehicle_id: str = Field(..., description="Vehicle ID that received fuel")
+    driver_id: str = Field(..., description="Driver ID who added fuel")
+    liters: float = Field(..., description="Amount of fuel in liters", gt=0)
+    cost: float = Field(..., description="Cost of fuel purchase", gt=0)
+    fuel_type: Optional[str] = Field("petrol", description="Type of fuel (petrol, diesel)")
+    station_name: Optional[str] = Field(None, description="Name of fuel station")
+    location: Optional[str] = Field(None, description="Location where fuel was purchased")
+    receipt_number: Optional[str] = Field(None, description="Receipt or transaction number")
+    notes: Optional[str] = Field(None, description="Additional notes")
+
+class FuelRecordUpdateRequest(BaseModel):
+    """Request to update fuel record"""
+    liters: Optional[float] = Field(None, description="Amount of fuel in liters", gt=0)
+    cost: Optional[float] = Field(None, description="Cost of fuel purchase", gt=0)
+    fuel_type: Optional[str] = Field(None, description="Type of fuel (petrol, diesel)")
+    station_name: Optional[str] = Field(None, description="Name of fuel station")
+    location: Optional[str] = Field(None, description="Location where fuel was purchased")
+    receipt_number: Optional[str] = Field(None, description="Receipt or transaction number")
+    notes: Optional[str] = Field(None, description="Additional notes")
+
+# Vehicle Mileage Update Request
+class MileageUpdateRequest(BaseModel):
+    """Request to update vehicle mileage"""
+    vehicle_id: str = Field(..., description="Vehicle ID to update mileage for")
+    driver_id: str = Field(..., description="Driver ID updating the mileage")
+    new_mileage: int = Field(..., description="New mileage reading", ge=0)
+    previous_mileage: Optional[int] = Field(None, description="Previous mileage for validation")
+    reading_date: Optional[datetime] = Field(default_factory=datetime.utcnow, description="Date of mileage reading")
+    notes: Optional[str] = Field(None, description="Additional notes about the reading")
+
+# Vehicle Assignment Request Schemas
+class VehicleAssignmentCreateRequest(BaseModel):
+    """Request to assign vehicle to driver"""
+    vehicle_id: str = Field(..., description="Vehicle ID to assign")
+    driver_id: str = Field(..., description="Driver ID to assign vehicle to")
+    assignment_type: AssignmentType = Field(AssignmentType.LONG_TERM, description="Type of assignment")
+    start_date: Optional[datetime] = Field(default_factory=datetime.utcnow, description="Assignment start date")
+    end_date: Optional[datetime] = Field(None, description="Assignment end date")
+    notes: Optional[str] = Field(None, description="Assignment notes")
+
+class VehicleAssignmentUpdateRequest(BaseModel):
+    """Request to update vehicle assignment"""
+    status: Optional[AssignmentStatus] = Field(None, description="Assignment status")
+    end_date: Optional[datetime] = Field(None, description="Assignment end date")
+    notes: Optional[str] = Field(None, description="Updated assignment notes")
+
+# Notification Request Schemas
+class NotificationCreateRequest(BaseModel):
+    """Request to create notification"""
+    recipient_id: str = Field(..., description="User ID who will receive notification")
+    recipient_type: str = Field(..., description="Type of recipient (driver, manager, admin)")
+    title: str = Field(..., description="Notification title")
+    message: str = Field(..., description="Notification message")
+    notification_type: str = Field(..., description="Type of notification (fuel, assignment, maintenance, etc.)")
+    priority: Optional[str] = Field("normal", description="Notification priority (low, normal, high, urgent)")
+    related_entity_id: Optional[str] = Field(None, description="Related entity ID (vehicle, driver, etc.)")
+    related_entity_type: Optional[str] = Field(None, description="Related entity type (vehicle, driver, etc.)")
+    action_required: Optional[bool] = Field(False, description="Whether action is required from recipient")
+    expires_at: Optional[datetime] = Field(None, description="When notification expires")
+
+class NotificationUpdateRequest(BaseModel):
+    """Request to update notification"""
+    is_read: Optional[bool] = Field(None, description="Mark notification as read/unread")
+    is_archived: Optional[bool] = Field(None, description="Archive/unarchive notification")
+
+
+class DailyDriverCount(BaseModel):
+    """Request to show daily driver count"""
+    date: datetime
+    
+
 # Error Schemas
 class ErrorResponse(BaseModel):
     """Standard error response"""
@@ -315,3 +382,4 @@ class ErrorResponse(BaseModel):
     service: str = "management"
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     trace_id: Optional[str] = None
+

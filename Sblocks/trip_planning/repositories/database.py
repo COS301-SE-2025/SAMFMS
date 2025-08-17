@@ -351,7 +351,7 @@ class DatabaseManagerManagement():
             "MONGODB_URL",
             "mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017"
         )
-        self.database_name = os.getenv("DATABASE_MANAGEMENT","samfms_gpssamfms_management")
+        self.database_name = os.getenv("DATABASE_MANAGEMENT","samfms_management")
     
     async def connect(self):
         """Establish database connection with optimal settings and error recovery"""
@@ -416,6 +416,22 @@ class DatabaseManagerManagement():
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.drivers
+    
+    @property
+    def vehicles(self):
+        """Get vehicles collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.vehicles
+    
+    @property
+    def vehicle_assignments(self):
+        """Get vehicle_assignments collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.vehicle_assignments
+
+#class DatabaseManagerSecurity
 
 # Global database manager instance
 db_manager = DatabaseManager()

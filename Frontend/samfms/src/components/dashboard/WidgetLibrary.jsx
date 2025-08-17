@@ -23,8 +23,9 @@ export const WidgetLibrary = ({ isOpen, onClose }) => {
     const newWidget = {
       id: generateWidgetId(),
       type,
-      title: metadata.title,
-      config: {},
+      config: {
+        title: metadata.title,
+      },
       size: metadata.defaultSize,
     };
 

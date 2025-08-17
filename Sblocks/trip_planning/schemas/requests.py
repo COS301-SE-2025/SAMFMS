@@ -7,7 +7,7 @@ from datetime import datetime
 
 from .entities import (
     TripStatus, TripPriority, ConstraintType, NotificationType,
-    LocationPoint, Address, Waypoint, TripConstraint
+    LocationPoint, Address, Waypoint, TripConstraint, RouteInfo
 )
 
 
@@ -28,6 +28,7 @@ class CreateTripRequest(BaseModel):
     origin: Waypoint = Field(..., description="Starting point")
     destination: Waypoint = Field(..., description="End point")
     waypoints: List[Waypoint] = Field(default_factory=list, description="Intermediate stops")
+    route_info: Optional[RouteInfo] = Field(None, description="Route information including distance, duration, and coordinates")
     
     # Trip details
     priority: TripPriority = Field(..., description="Trip priority")
@@ -70,14 +71,24 @@ class UpdateTripRequest(BaseModel):
     vehicle_id: Optional[str] = None
     actual_start_time: Optional[datetime]= None
     actual_end_time: Optional[datetime] = None
+    route_info: Optional[RouteInfo] = Field(None, description="Route information")
     custom_fields: Optional[Dict[str, Any]] = None
+
+class FinishTripRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    actual_end_time: datetime
+    driver_assignment: str
+    status: str
+
 
 
 class TripFilterRequest(BaseModel):
     """Request to filter trips"""
+    name: Optional[str] = None
     status: Optional[List[TripStatus]] = None
     priority: Optional[List[TripPriority]] = None
-    driver_id: Optional[str] = None
+    driver_assignment: Optional[str] = None
     vehicle_id: Optional[str] = None
     created_by: Optional[str] = None
     

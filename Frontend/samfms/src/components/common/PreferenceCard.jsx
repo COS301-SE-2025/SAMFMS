@@ -3,7 +3,7 @@ import React from 'react';
 const PreferenceCard = ({ title, description, icon, children, className = '', actions }) => {
   return (
     <div
-      className={`bg-card p-6 rounded-lg shadow-sm border border-border hover:shadow-md transition-shadow ${className}`}
+      className={`bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-6 rounded-lg shadow-sm border border-border hover:shadow-md transition-shadow ${className}`}
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">

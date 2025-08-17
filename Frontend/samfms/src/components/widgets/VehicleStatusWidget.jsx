@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { BaseWidget } from '../dashboard/BaseWidget';
-import { getVehicles } from '../../backend/api/vehicles';
-import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
-import { Truck, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
+import React, {useState, useEffect} from 'react';
+import {BaseWidget} from '../dashboard/BaseWidget';
+import {getVehicles} from '../../backend/api/vehicles';
+import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
+import {Truck, CheckCircle, AlertTriangle, Clock} from 'lucide-react';
 
-const VehicleStatusWidget = ({ id, config = {} }) => {
+const VehicleStatusWidget = ({id, config = {}}) => {
   const [vehicleData, setVehicleData] = useState({
     total: 0,
     active: 0,
@@ -20,8 +20,33 @@ const VehicleStatusWidget = ({ id, config = {} }) => {
         setLoading(true);
         setError(null);
 
-        const response = await getVehicles({ limit: 1000 }); // Get all vehicles
-        const vehiclesArray = response.vehicles || response || [];
+        const response = await getVehicles({limit: 1000}); // Get all vehicles
+
+        // Log the response for debugging
+        console.log('Vehicle API response:', response);
+
+        // Ensure we have a proper array to work with
+        let vehiclesArray = [];
+        if (response) {
+          // Handle different response structures
+          if (Array.isArray(response)) {
+            vehiclesArray = response;
+          } else if (response.vehicles && Array.isArray(response.vehicles)) {
+            vehiclesArray = response.vehicles;
+          } else if (response.data && Array.isArray(response.data)) {
+            vehiclesArray = response.data;
+          } else if (response.items && Array.isArray(response.items)) {
+            vehiclesArray = response.items;
+          }
+        }
+
+        console.log('Processed vehicles array:', vehiclesArray, 'Length:', vehiclesArray.length);
+
+        // Ensure we have an array before calling reduce
+        if (!Array.isArray(vehiclesArray)) {
+          console.warn('No valid vehicles array found, using empty array');
+          vehiclesArray = [];
+        }
 
         // Calculate status counts
         const statusCounts = vehiclesArray.reduce(
@@ -47,7 +72,7 @@ const VehicleStatusWidget = ({ id, config = {} }) => {
 
             return acc;
           },
-          { total: 0, active: 0, maintenance: 0, idle: 0 }
+          {total: 0, active: 0, maintenance: 0, idle: 0}
         );
 
         setVehicleData(statusCounts);
@@ -127,13 +152,13 @@ registerWidget(WIDGET_TYPES.VEHICLE_STATUS, VehicleStatusWidget, {
   title: 'Vehicle Status',
   description: 'Overview of vehicle statuses across your fleet',
   category: WIDGET_CATEGORIES.VEHICLES,
-  defaultSize: { w: 3, h: 2 },
-  minSize: { w: 2, h: 2 },
-  maxSize: { w: 4, h: 3 },
+  defaultSize: {w: 3, h: 6},
+  minSize: {w: 3, h: 3},
+  maxSize: {w: 8, h: 8},
   icon: <Truck size={20} />,
   configSchema: {
-    title: { type: 'string', default: 'Vehicle Status Overview' },
-    refreshInterval: { type: 'number', default: 60, min: 30 },
+    title: {type: 'string', default: 'Vehicle Status Overview'},
+    refreshInterval: {type: 'number', default: 60, min: 30},
   },
 });
 

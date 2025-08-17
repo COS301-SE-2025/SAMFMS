@@ -1,7 +1,7 @@
 import React from 'react';
 
 const CostAnalyticsCard = ({stats}) => {
-  if (!stats) return <div>Loading...</div>;
+  if (!stats || !stats.map) return <div>Loading...</div>;
 
   return (
     <div className="bg-card rounded-lg shadow-md p-6 border border-border mt-8">

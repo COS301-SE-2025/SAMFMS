@@ -6,8 +6,8 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from bson import ObjectId
 
-from repositories.database import db_manager
-from schemas.entities import Trip, TripStatus, TripConstraint
+from repositories.database import db_manager, db_manager_gps
+from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation
 from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest
 from events.publisher import event_publisher
 
@@ -19,6 +19,7 @@ class TripService:
     
     def __init__(self):
         self.db = db_manager
+        self.db_gps = db_manager_gps
 
     async def create_trip(
         self, 
@@ -37,6 +38,15 @@ class TripService:
 
             # Create trip entity
             trip_data = request.dict(exclude_unset=True)
+            
+            # If route_info is provided, extract estimated distance and duration
+            if request.route_info:
+                # Convert distance from meters to kilometers for estimated_distance
+                trip_data["estimated_distance"] = request.route_info.distance / 1000
+                # Convert duration from seconds to minutes for estimated_duration
+                trip_data["estimated_duration"] = request.route_info.duration / 60
+                logger.debug(f"[TripService.create_trip] Extracted from route_info: distance={trip_data['estimated_distance']}km, duration={trip_data['estimated_duration']}min")
+            
             trip_data.update({
                 "created_by": created_by,
                 "created_at": datetime.utcnow(),
@@ -81,6 +91,88 @@ class TripService:
             return trips
         except Exception as e:
             logger.error(f"[TripService.get_all_trips] Failed: {e}")
+            raise
+
+    async def get_vehicle_location(self, vehicle_id: str) -> VehicleLocation:
+        try:
+            location = await self.db_gps.db.vehicle_locations.find_one(
+                {"vehicle_id": vehicle_id}
+            )
+
+            if location:
+                location["_id"] = str(location["_id"])
+                return VehicleLocation(**location)
+            return None
+        except Exception as e:
+            logger.error(f"Error getting vehicle location: {e}")
+            raise
+
+    async def get_vehicle_polyline(self, vehicle_id: str) -> Optional[List[List[float]]]:
+        """
+        Get the polyline coordinates for a vehicle's route, starting from current location if available
+        """
+        logger.info(f"[TripService.get_vehicle_polyline] Getting polyline for vehicle {vehicle_id}")
+        
+        try:
+            # Find the active trip for this vehicle
+            trip_doc = await self.db.trips.find_one({
+                "vehicle_id": vehicle_id
+            })
+            
+            if not trip_doc:
+                logger.warning(f"[TripService.get_vehicle_polyline] No active trip found for vehicle {vehicle_id}")
+                return None
+                
+            if not trip_doc.get("route_info") or not trip_doc["route_info"].get("coordinates"):
+                logger.warning(f"[TripService.get_vehicle_polyline] No route coordinates found for vehicle {vehicle_id}")
+                return None
+                
+            original_coordinates = trip_doc["route_info"]["coordinates"]
+            logger.debug(f"[TripService.get_vehicle_polyline] Found {len(original_coordinates)} original coordinates")
+            
+            try:
+                # Try to get current vehicle location
+                logger.debug(f"[TripService.get_vehicle_polyline] Attempting to get current location for vehicle {vehicle_id}")
+                current_location = await self.get_vehicle_location(vehicle_id)
+                
+                if current_location and current_location.latitude and current_location.longitude:
+                    logger.info(f"[TripService.get_vehicle_polyline] Found current location: [{current_location.latitude}, {current_location.longitude}]")
+                    
+                    # Create new polyline starting from current location
+                    current_coords = [current_location.latitude, current_location.longitude]
+                    
+                    # Find the closest point in the original route to minimize route deviation
+                    min_distance = float('inf')
+                    closest_index = 0
+                    
+                    for i, coord in enumerate(original_coordinates):
+                        # Simple Euclidean distance calculation
+                        distance = ((current_coords[0] - coord[0]) ** 2 + (current_coords[1] - coord[1]) ** 2) ** 0.5
+                        if distance < min_distance:
+                            min_distance = distance
+                            closest_index = i
+                    
+                    logger.debug(f"[TripService.get_vehicle_polyline] Closest route point at index {closest_index}, distance: {min_distance}")
+                    
+                    # Create polyline starting from current location, then continuing from the closest point forward
+                    polyline_coordinates = [current_coords]
+                    
+                    # Add remaining coordinates from the closest point onwards
+                    if closest_index < len(original_coordinates):
+                        polyline_coordinates.extend(original_coordinates[closest_index:])
+                        
+                    logger.info(f"[TripService.get_vehicle_polyline] Created modified polyline with {len(polyline_coordinates)} coordinates")
+                    return polyline_coordinates
+                    
+            except Exception as location_error:
+                logger.warning(f"[TripService.get_vehicle_polyline] Failed to get current location for vehicle {vehicle_id}: {location_error}")
+            
+            # Fallback to original route coordinates if current location is unavailable
+            logger.info(f"[TripService.get_vehicle_polyline] Using original route coordinates ({len(original_coordinates)} points)")
+            return original_coordinates
+            
+        except Exception as e:
+            logger.error(f"[TripService.get_vehicle_polyline] Failed to get polyline for vehicle {vehicle_id}: {e}")
             raise
     
     async def cancel_trip(self, trip_id: str, reason: str = "cancelled"):
@@ -217,20 +309,11 @@ class TripService:
             if not trip:
                 return False
             
-            # Check if trip can be deleted (not in progress)
-            if trip.status == TripStatus.IN_PROGRESS:
-                raise ValueError("Cannot delete trip that is in progress")
-            
             # Delete from database
             result = await self.db.trips.delete_one({"_id": ObjectId(trip_id)})
             
             if result.deleted_count == 0:
                 return False
-            
-            # Also delete related data
-            await self.db.trip_constraints.delete_many({"trip_id": trip_id})
-            await self.db.driver_assignments.delete_many({"trip_id": trip_id})
-            await self.db.trip_analytics.delete_many({"trip_id": trip_id})
             
             # Publish event
             await event_publisher.publish_trip_deleted(trip)
@@ -242,6 +325,28 @@ class TripService:
             logger.error(f"Failed to delete trip {trip_id}: {e}")
             raise
     
+
+    async def get_trip_by_name_and_driver(self, filter_request: TripFilterRequest) -> Trip:
+        try:
+            query = {}
+            if filter_request.driver_assignment:
+                query["driver_assignment"] = filter_request.driver_assignment
+            if filter_request.name:
+                query["name"] = filter_request.name
+
+            trip_data = await self.db.trips.find_one(query)
+            if not trip_data:
+                raise ValueError("Trip not found")
+
+            trip_data["_id"] = str(trip_data["_id"])
+
+            return Trip(**trip_data)
+
+        except Exception as e:
+            logger.error(f"Failed to get trip: {e}")
+            raise
+
+
     async def list_trips(self, filter_request: TripFilterRequest) -> tuple[List[Trip], int]:
         """List trips with filtering and pagination"""
         try:
@@ -254,8 +359,11 @@ class TripService:
             if filter_request.priority:
                 query["priority"] = {"$in": filter_request.priority}
             
-            if filter_request.driver_id:
-                query["driver_assignment.driver_id"] = filter_request.driver_id
+            if filter_request.driver_assignment:
+                query["driver_assignment"] = filter_request.driver_assignment
+            
+            if filter_request.name:
+                query["name"] = filter_request.name
             
             if filter_request.vehicle_id:
                 query["vehicle_id"] = filter_request.vehicle_id
@@ -295,7 +403,7 @@ class TripService:
                 trips.append(Trip(**trip_doc))
             
             logger.info(f"Listed {len(trips)} trips (total: {total})")
-            return trips, total
+            return trips
             
         except Exception as e:
             logger.error(f"Failed to list trips: {e}")
@@ -402,6 +510,135 @@ class TripService:
             
         except Exception as e:
             logger.error(f"Failed to calculate analytics for trip {trip.id}: {e}")
+
+    async def get_all_upcoming_trips(self) -> List[Trip]:
+        """Get all upcoming trips regardless of driver"""
+        logger.info("[TripService.get_all_upcoming_trips] Getting all upcoming trips")
+        try:
+            # Current UTC time for filtering
+            now = datetime.utcnow()
+            
+            query = {
+                "scheduled_start_time": {"$gte": now},
+                "actual_start_time": {"$in": [None, ""]}  # not yet started
+            }
+            
+            logger.debug(f"[TripService.get_all_upcoming_trips] Query: {query}")
+            
+            # Sort by scheduled start time ascending
+            cursor = self.db.trips.find(query).sort("scheduled_start_time", 1)
+            trips = []
+            
+            async for trip_doc in cursor:
+                trip_doc["_id"] = str(trip_doc["_id"])
+                trips.append(Trip(**trip_doc))
+            
+            logger.info(f"[TripService.get_all_upcoming_trips] Found {len(trips)} upcoming trips")
+            return trips
+
+        except Exception as e:
+            logger.error(f"[TripService.get_all_upcoming_trips] Error: {e}")
+            raise
+
+
+    async def get_upcoming_trips(self, driver_id: str) -> List[Trip]:
+        """Get upcoming trips for a specific driver"""
+        logger.info(f"[TripService.get_upcoming_trips] Getting upcoming trips for driver: {driver_id}")
+        try:
+            # Get current time for filtering
+            now = datetime.utcnow()
+            
+            query = {
+                "driver_assignment": driver_id,
+                "scheduled_start_time": {"$gte": now},
+                "actual_start_time": {"$in": [None, ""]}  # null or empty string
+            }
+            
+            logger.debug(f"[TripService.get_upcoming_trips] Query: {query}")
+            
+            # Sort by scheduled start time and limit results
+            cursor = self.db.trips.find(query).sort("scheduled_start_time", 1)
+            trips = []
+            
+            async for trip_doc in cursor:
+                trip_doc["_id"] = str(trip_doc["_id"])
+                trips.append(Trip(**trip_doc))
+            
+            logger.info(f"[TripService.get_upcoming_trips] Found {len(trips)} upcoming trips")
+            return trips
+        
+        except Exception as e:
+            logger.error(f"[TripService.get_upcoming_trips] Error: {e}")
+            raise
+
+    async def get_recent_trips(self, driver_id: str, limit: int = 10, days: int = 30) -> List[Trip]:
+        """Get recent completed trips for a specific driver"""
+        logger.info(f"[TripService.get_recent_trips] Getting recent trips for driver: {driver_id}")
+        try:
+            # Calculate date range for recent trips
+            now = datetime.utcnow()
+            start_date = now - timedelta(days=days)
+            
+            # Query for recent completed trips assigned to this driver
+            query = {
+                "driver_assignment": driver_id,
+                "status": TripStatus.COMPLETED.value,
+                "actual_end_time": {
+                    "$gte": start_date,
+                    "$lte": now
+                }
+            }
+            
+            logger.debug(f"[TripService.get_recent_trips] Query: {query}")
+            
+            # Sort by actual end time (most recent first) and limit results
+            cursor = self.db.trip_history.find(query).sort("actual_end_time", -1).limit(limit)
+            trips = []
+            
+            async for trip_doc in cursor:
+                trip_doc["_id"] = str(trip_doc["_id"])
+                trips.append(Trip(**trip_doc))
+            
+            logger.info(f"[TripService.get_recent_trips] Found {len(trips)} recent trips")
+            return trips
+            
+        except Exception as e:
+            logger.error(f"[TripService.get_recent_trips] Error: {e}")
+            raise
+
+    async def get_all_recent_trips(self, limit: int = 10, days: int = 30) -> List[Trip]:
+        """Get recent completed trips for all drivers"""
+        logger.info(f"[TripService.get_all_recent_trips] Getting recent trips for all drivers")
+        try:
+            # Calculate date range for recent trips
+            now = datetime.utcnow()
+            start_date = now - timedelta(days=days)
+            
+            # Query for recent completed trips from all drivers
+            query = {
+                "status": TripStatus.COMPLETED.value,
+                "actual_end_time": {
+                    "$gte": start_date,
+                    "$lte": now
+                }
+            }
+            
+            logger.debug(f"[TripService.get_all_recent_trips] Query: {query}")
+            
+            # Sort by actual end time (most recent first) and limit results
+            cursor = self.db.trip_history.find(query).sort("actual_end_time", -1).limit(limit)
+            trips = []
+            
+            async for trip_doc in cursor:
+                trip_doc["_id"] = str(trip_doc["_id"])
+                trips.append(Trip(**trip_doc))
+            
+            logger.info(f"[TripService.get_all_recent_trips] Found {len(trips)} recent trips")
+            return trips
+            
+        except Exception as e:
+            logger.error(f"[TripService.get_all_recent_trips] Error: {e}")
+            raise
 
 
 # Global instance
