@@ -458,21 +458,22 @@ class ServiceRequestConsumer:
                         message=f"Found {len(trips)} recent trips"
                     ).model_dump()
                 elif "active" in endpoint:
-                    driver_id = endpoint.split('/')[-1] if '/' in endpoint else None
-                    logger.info(f"Driver ID extracted for upcomming trips: {driver_id} ")
-                    if driver_id is None:
+                    if "all" in endpoint:
                         activeTrips = await trip_service.get_active_trips()
                         logger.info(f"[_handle_trips_request] trip_service.get_active_trips() returned {len(activeTrips) if activeTrips else 0} trips")
                         return ResponseBuilder.success(
                             data=[Atrip.model_dump() for Atrip in activeTrips] if activeTrips else None,
                             message="Active Trips retrieved successfully"
                         ).model_dump()
-                    
-                    activeTrip = await trip_service.get_active_trips(driver_id)
-                    return ResponseBuilder.success(
-                        data=activeTrip,
-                        message="Active Trip retrieved successfully"
-                    ).model_dump()
+                    else:
+                        driver_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                        logger.info(f"Driver ID extracted for upcomming trips: {driver_id} ")
+                        
+                        activeTrip = await trip_service.get_active_trips(driver_id)
+                        return ResponseBuilder.success(
+                            data=activeTrip,
+                            message="Active Trip retrieved successfully"
+                        ).model_dump()
                 
                 elif "trips" in endpoint:
                     logger.info(f"[_handle_trips_request] Calling trip_service.get_all_trips()")

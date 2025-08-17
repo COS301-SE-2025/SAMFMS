@@ -339,7 +339,7 @@ const TrackingMapWithSidebar = () => {
     };
 
     loadLocations();
-    const interval = setInterval(loadLocations, 5000); // Refresh every 5 seconds
+    const interval = setInterval(loadLocations, 2000); // Refresh every 5 seconds
     return () => clearInterval(interval);
   }, [followMode, focusLocation]);
 

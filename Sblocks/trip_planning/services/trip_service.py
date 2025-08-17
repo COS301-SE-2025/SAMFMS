@@ -228,14 +228,9 @@ class TripService:
             now = datetime.utcnow()
             
             # Base query for active trips
-            if driver_id:
-                query = {
-                    "actual_start_time": {"$lte": now},
-                }
-            else:
-                query = {
-                    "scheduled_start_time": {"$lte": now},
-                }
+            query = {
+                "actual_start_time": {"$lte": now},
+            }
             # Add driver filter if provided
             if driver_id:
                 query["driver_assignment"] = driver_id

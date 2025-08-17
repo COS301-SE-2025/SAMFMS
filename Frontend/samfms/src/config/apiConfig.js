@@ -164,7 +164,7 @@ export const API_ENDPOINTS = {
     CREATE: '/trips/trips/create',
     UPDATE: id => `/trips/trips/${id}`,
     DELETE: id => `/trips/trips/${id}`,
-    ACTIVE: '/trips/trips/active',
+    ACTIVE: '/trips/trips/active/all',
     DRIVERACTIVE: id => `/trips/trips/active/${id}`,
     HISTORY: '/trips/history',
     FINISHED: id => `/trips/trips/completed/${id}`,
