@@ -818,6 +818,110 @@ class MaintenanceAnalyticsService:
             logger.error(f"Error getting maintenance per vehicle for timeframe: {e}")
             raise
 
+    async def get_cost_by_month_and_type(self, start_date: Optional[str] = None, end_date: Optional[str] = None, vehicle_id: Optional[str] = None) -> Dict[str, Dict[str, float]]:
+        """Get maintenance costs broken down by month and maintenance type"""
+        try:
+            # Parse dates
+            start_dt = None
+            end_dt = None
+            
+            if start_date:
+                start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+            else:
+                start_dt = datetime.utcnow() - timedelta(days=365)  # Default to last year
+                
+            if end_date:
+                end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+            else:
+                end_dt = datetime.utcnow()
+
+            # Build match criteria
+            match_criteria = {
+                "status": "completed",
+                "completed_date": {
+                    "$gte": start_dt,
+                    "$lte": end_dt
+                },
+                "maintenance_type": {"$exists": True, "$ne": None}
+            }
+            
+            if vehicle_id:
+                match_criteria["vehicle_id"] = vehicle_id
+
+            # Aggregation pipeline to get costs by month and maintenance type
+            pipeline = [
+                {"$match": match_criteria},
+                {
+                    "$addFields": {
+                        "cost_value": {
+                            "$cond": {
+                                "if": {"$ne": ["$actual_cost", None]},
+                                "then": "$actual_cost",
+                                "else": {
+                                    "$cond": {
+                                        "if": {"$ne": ["$estimated_cost", None]},
+                                        "then": "$estimated_cost",
+                                        "else": {"$ifNull": ["$cost", 0]}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": {
+                            "year": {"$year": "$completed_date"},
+                            "month": {"$month": "$completed_date"},
+                            "maintenance_type": "$maintenance_type"
+                        },
+                        "total_cost": {"$sum": "$cost_value"},
+                        "count": {"$sum": 1}
+                    }
+                },
+                {
+                    "$project": {
+                        "year_month": {
+                            "$concat": [
+                                {"$toString": "$_id.year"},
+                                "-",
+                                {
+                                    "$cond": {
+                                        "if": {"$lt": ["$_id.month", 10]},
+                                        "then": {"$concat": ["0", {"$toString": "$_id.month"}]},
+                                        "else": {"$toString": "$_id.month"}
+                                    }
+                                }
+                            ]
+                        },
+                        "maintenance_type": "$_id.maintenance_type",
+                        "total_cost": {"$round": ["$total_cost", 2]},
+                        "count": 1
+                    }
+                },
+                {"$sort": {"year_month": 1, "maintenance_type": 1}}
+            ]
+            
+            results = await self.maintenance_repo.aggregate(pipeline)
+            
+            # Transform results into nested dictionary: {month: {maintenance_type: cost}}
+            cost_by_month = {}
+            for result in results:
+                year_month = result["year_month"]
+                maintenance_type = result["maintenance_type"]
+                total_cost = result["total_cost"]
+                
+                if year_month not in cost_by_month:
+                    cost_by_month[year_month] = {}
+                
+                cost_by_month[year_month][maintenance_type] = total_cost
+            
+            return cost_by_month
+            
+        except Exception as e:
+            logger.error(f"Error getting cost by month and type: {e}")
+            raise
+
 
 # Global service instance
 maintenance_analytics_service = MaintenanceAnalyticsService()

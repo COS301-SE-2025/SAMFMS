@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { vehiclesAPI } from '../backend/api/vehicles';
 import MaintenanceRecords from '../components/maintenance/MaintenanceRecords';
 import MaintenanceSchedules from '../components/maintenance/MaintenanceSchedules';
-import LicenseManagement from '../components/maintenance/LicenseManagement';
 import MaintenanceAnalytics from '../components/maintenance/MaintenanceAnalytics';
 import MaintenanceDashboard from '../components/maintenance/MaintenanceDashboard';
 
@@ -47,7 +46,6 @@ const Maintenance = () => {
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'records', label: 'Maintenance Records', icon: '🔧' },
     { id: 'schedules', label: 'Schedules', icon: '📅' },
-    { id: 'licenses', label: 'Licenses & Permits', icon: '📄' },
     { id: 'analytics', label: 'Analytics', icon: '📈' },
   ];
 
@@ -126,8 +124,6 @@ const Maintenance = () => {
           {activeTab === 'records' && <MaintenanceRecords vehicles={vehicles} />}
 
           {activeTab === 'schedules' && <MaintenanceSchedules vehicles={vehicles} />}
-
-          {activeTab === 'licenses' && <LicenseManagement vehicles={vehicles} />}
 
           {activeTab === 'analytics' && <MaintenanceAnalytics vehicles={vehicles} />}
         </div>

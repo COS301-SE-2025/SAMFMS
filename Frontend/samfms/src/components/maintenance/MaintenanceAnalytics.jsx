@@ -1,13 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { BarChart3, TrendingUp, Calendar, Truck, AlertTriangle, Target } from 'lucide-react';
 import { maintenanceAPI } from '../../backend/api/maintenance';
 import Chart from 'react-apexcharts';
-
-// Import new analytics components
-import TimeframeAnalytics from './analytics/TimeframeAnalytics';
-import MaintenanceTypeAnalytics from './analytics/MaintenanceTypeAnalytics';
-import CostOutlierAnalytics from './analytics/CostOutlierAnalytics';
-import VehicleMaintenanceAnalytics from './analytics/VehicleMaintenanceAnalytics';
 
 const MaintenanceAnalytics = ({ vehicles }) => {
   const [analyticsData, setAnalyticsData] = useState(null);
@@ -15,22 +8,12 @@ const MaintenanceAnalytics = ({ vehicles }) => {
   const [costAnalytics, setCostAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
   const [filters, setFilters] = useState({
     vehicleId: '',
     period: 'monthly',
     startDate: '',
     endDate: '',
   });
-
-  const tabs = [
-    { id: 'overview', name: 'Overview', icon: Target },
-    { id: 'timeframe', name: 'Timeframe Analysis', icon: Calendar },
-    { id: 'types', name: 'Maintenance Types', icon: BarChart3 },
-    { id: 'outliers', name: 'Cost Outliers', icon: AlertTriangle },
-    { id: 'vehicles', name: 'Vehicle Analysis', icon: Truck },
-    { id: 'trends', name: 'Trends', icon: TrendingUp },
-  ];
 
   const loadAnalytics = useCallback(async () => {
     try {
@@ -106,10 +89,8 @@ const MaintenanceAnalytics = ({ vehicles }) => {
   }, [filters.vehicleId, filters.period, filters.startDate, filters.endDate]);
 
   useEffect(() => {
-    if (activeTab === 'overview' || activeTab === 'trends') {
-      loadAnalytics();
-    }
-  }, [loadAnalytics, activeTab]);
+    loadAnalytics();
+  }, [loadAnalytics]);
 
   const getVehicleName = vehicleId => {
     const vehicle = vehicles.find(v => v.id === vehicleId);
@@ -299,55 +280,6 @@ const MaintenanceAnalytics = ({ vehicles }) => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Cost Breakdown by Period */}
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">
-              Cost Breakdown by {filters.period.charAt(0).toUpperCase() + filters.period.slice(1)}
-            </h3>
-            {costs?.cost_by_month && Object.keys(costs.cost_by_month).length > 0 ? (
-              <div className="space-y-3">
-                {Object.entries(costs.cost_by_month).map(([month, data], index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 bg-muted rounded-lg"
-                  >
-                    <div>
-                      <p className="font-medium">{month}</p>
-                      <p className="text-sm text-muted-foreground">{data.count || 0} records</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold">{formatCurrency(data.cost || 0)}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Avg: {formatCurrency(data.average || 0)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No monthly breakdown available</p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Total Cost: {formatCurrency(costs?.total_cost || 0)} | Records:{' '}
-                  {costs?.record_count || 0} | Average: {formatCurrency(costs?.average_cost || 0)}
-                </p>
-                {costs?.cost_by_type && (
-                  <div className="mt-4 text-sm">
-                    <p className="font-medium mb-2">Cost by Type:</p>
-                    <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                      {Object.entries(costs.cost_by_type).map(([type, cost]) => (
-                        <div key={type} className="flex justify-between">
-                          <span className="capitalize">{type.replace(/_/g, ' ')}</span>
-                          <span>{formatCurrency(cost)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
           {/* Maintenance Type Distribution Bar Chart */}
           <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
             <h3 className="text-lg font-semibold mb-4">Maintenance Type Distribution</h3>
@@ -523,85 +455,85 @@ const MaintenanceAnalytics = ({ vehicles }) => {
             )}
           </div>
 
-          {/* Maintenance Overview with Circular Chart */}
+          {/* Maintenance Overview with Apex Charts */}
           <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
             <h3 className="text-lg font-semibold mb-4">Maintenance Overview</h3>
 
             <div className="flex flex-col items-center">
-              {/* Circular Progress Chart */}
-              <div className="relative w-48 h-48 mb-4">
-                <svg className="w-48 h-48 transform -rotate-90" viewBox="0 0 200 200">
-                  {/* Background circle */}
-                  <circle
-                    cx="100"
-                    cy="100"
-                    r="80"
-                    stroke="currentColor"
-                    strokeWidth="20"
-                    fill="transparent"
-                    className="text-gray-200 dark:text-gray-700"
-                  />
-
-                  {/* Completed maintenance arc */}
-                  <circle
-                    cx="100"
-                    cy="100"
-                    r="80"
-                    stroke="currentColor"
-                    strokeWidth="20"
-                    fill="transparent"
-                    strokeDasharray={`${2 * Math.PI * 80}`}
-                    strokeDashoffset={`${
-                      2 *
-                      Math.PI *
-                      80 *
-                      (1 - (rawAnalyticsData?.performance_metrics?.completion_rate || 0) / 100)
-                    }`}
-                    className="text-green-500 transition-all duration-1000 ease-in-out"
-                    strokeLinecap="round"
-                  />
-
-                  {/* Overdue maintenance indicator (if any) */}
-                  {rawAnalyticsData?.maintenance_summary?.overdue_count > 0 && (
-                    <circle
-                      cx="100"
-                      cy="100"
-                      r="80"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      fill="transparent"
-                      strokeDasharray="10 5"
-                      className="text-red-500 opacity-70"
-                      strokeLinecap="round"
-                    />
-                  )}
-                </svg>
-
-                {/* Center content - Completion Rate */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                    {rawAnalyticsData?.performance_metrics?.completion_rate || 0}%
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Completion Rate</div>
-                </div>
+              {/* Apex Donut Chart */}
+              <div className="w-64 h-64 mb-4">
+                <Chart
+                  options={{
+                    chart: {
+                      type: 'donut',
+                      height: 256,
+                      width: 256,
+                      toolbar: {
+                        show: false,
+                      },
+                    },
+                    colors: ['#3B82F6', '#EF4444'], // Blue for upcoming, Red for overdue
+                    labels: ['Upcoming', 'Overdue'],
+                    legend: {
+                      show: false, // We'll create custom legend below
+                    },
+                    dataLabels: {
+                      enabled: true,
+                      formatter: function (val) {
+                        return Math.round(val) + '%';
+                      },
+                      style: {
+                        fontSize: '14px',
+                        fontWeight: '600',
+                      },
+                    },
+                    plotOptions: {
+                      pie: {
+                        donut: {
+                          size: '60%',
+                          labels: {
+                            show: true,
+                            total: {
+                              show: true,
+                              label: 'Total Scheduled',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              color: '#6B7280',
+                              formatter: function () {
+                                const total =
+                                  (rawAnalyticsData?.maintenance_summary?.upcoming_count || 0) +
+                                  (rawAnalyticsData?.maintenance_summary?.overdue_count || 0);
+                                return total.toString();
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                    responsive: [
+                      {
+                        breakpoint: 480,
+                        options: {
+                          chart: {
+                            width: 200,
+                            height: 200,
+                          },
+                        },
+                      },
+                    ],
+                  }}
+                  series={[
+                    rawAnalyticsData?.maintenance_summary?.upcoming_count || 0,
+                    rawAnalyticsData?.maintenance_summary?.overdue_count || 0,
+                  ]}
+                  type="donut"
+                  height={256}
+                  width={256}
+                />
               </div>
 
               {/* Legend and Statistics */}
-              <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                  <div className="flex items-center justify-center mb-1">
-                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                    <div className="text-sm text-green-600 dark:text-green-400">Completed</div>
-                  </div>
-                  <div className="text-xl font-bold text-green-800 dark:text-green-200">
-                    {Math.round(
-                      (rawAnalyticsData?.maintenance_summary?.total_active || 0) -
-                        (rawAnalyticsData?.maintenance_summary?.overdue_count || 0) -
-                        (rawAnalyticsData?.maintenance_summary?.upcoming_count || 0)
-                    )}
-                  </div>
-                </div>
-
+              <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
                 <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center justify-center mb-1">
                     <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
@@ -623,79 +555,19 @@ const MaintenanceAnalytics = ({ vehicles }) => {
                 </div>
               </div>
 
-              {/* Total Active Maintenance */}
+              {/* Total Maintenance Scheduled */}
               <div className="mt-4 text-center">
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Total Active Maintenance
+                  Total Maintenance Scheduled
                 </div>
                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {rawAnalyticsData?.maintenance_summary?.total_active || 0}
+                  {(rawAnalyticsData?.maintenance_summary?.upcoming_count || 0) +
+                    (rawAnalyticsData?.maintenance_summary?.overdue_count || 0)}
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    );
-  };
-
-  // Tab component for trends
-  const TrendsTab = ({ vehicles, costAnalytics, loading, error, formatCurrency }) => {
-    // Handle the data structure correctly
-    const costs = costAnalytics || {};
-
-    return (
-      <div className="space-y-6">
-        {/* Monthly Trend Analysis */}
-        {costs?.monthly_trend && costs.monthly_trend.length > 0 ? (
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Monthly Cost Trend</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-              {costs.monthly_trend.map((month, index) => (
-                <div key={index} className="text-center p-4 bg-muted rounded-lg">
-                  <p className="text-sm font-medium text-muted-foreground">{month.month}</p>
-                  <p className="text-xl font-bold">{formatCurrency(month.total_cost)}</p>
-                  <p className="text-xs text-muted-foreground">{month.record_count} records</p>
-                  <div className="mt-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full"
-                      style={{
-                        width: `${Math.max(
-                          5,
-                          (month.total_cost /
-                            Math.max(...costs.monthly_trend.map(m => m.total_cost))) *
-                            100
-                        )}%`,
-                      }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Cost Trends</h3>
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">No monthly trend data available</p>
-              <p className="text-sm text-muted-foreground mt-2">Overall Cost Summary:</p>
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-lg font-bold">{formatCurrency(costs?.total_cost || 0)}</p>
-                  <p className="text-sm text-muted-foreground">Total Cost</p>
-                </div>
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-lg font-bold">{costs?.record_count || 0}</p>
-                  <p className="text-sm text-muted-foreground">Total Records</p>
-                </div>
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-lg font-bold">{formatCurrency(costs?.average_cost || 0)}</p>
-                  <p className="text-sm text-muted-foreground">Average Cost</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   };
@@ -707,71 +579,22 @@ const MaintenanceAnalytics = ({ vehicles }) => {
         <h2 className="text-xl font-semibold">Maintenance Analytics</h2>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="border-b border-border">
-        <nav className="-mb-px flex space-x-8">
-          {tabs.map(tab => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`group inline-flex items-center py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-                }`}
-              >
-                <Icon
-                  className={`-ml-0.5 mr-2 h-5 w-5 ${
-                    activeTab === tab.id
-                      ? 'text-primary'
-                      : 'text-muted-foreground group-hover:text-foreground'
-                  }`}
-                />
-                {tab.name}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Tab Content */}
+      {/* Overview Content */}
       <div className="min-h-96">
-        {activeTab === 'overview' && (
-          <OverviewTab
-            vehicles={vehicles}
-            analyticsData={analyticsData}
-            rawAnalyticsData={rawAnalyticsData}
-            costAnalytics={costAnalytics}
-            loading={loading}
-            error={error}
-            filters={filters}
-            setFilters={setFilters}
-            loadAnalytics={loadAnalytics}
-            getVehicleName={getVehicleName}
-            formatCurrency={formatCurrency}
-            getMaintenanceTypeColor={getMaintenanceTypeColor}
-          />
-        )}
-
-        {activeTab === 'timeframe' && <TimeframeAnalytics vehicles={vehicles} />}
-
-        {activeTab === 'types' && <MaintenanceTypeAnalytics />}
-
-        {activeTab === 'outliers' && <CostOutlierAnalytics vehicles={vehicles} />}
-
-        {activeTab === 'vehicles' && <VehicleMaintenanceAnalytics vehicles={vehicles} />}
-
-        {activeTab === 'trends' && (
-          <TrendsTab
-            vehicles={vehicles}
-            costAnalytics={costAnalytics}
-            loading={loading}
-            error={error}
-            formatCurrency={formatCurrency}
-          />
-        )}
+        <OverviewTab
+          vehicles={vehicles}
+          analyticsData={analyticsData}
+          rawAnalyticsData={rawAnalyticsData}
+          costAnalytics={costAnalytics}
+          loading={loading}
+          error={error}
+          filters={filters}
+          setFilters={setFilters}
+          loadAnalytics={loadAnalytics}
+          getVehicleName={getVehicleName}
+          formatCurrency={formatCurrency}
+          getMaintenanceTypeColor={getMaintenanceTypeColor}
+        />
       </div>
     </div>
   );

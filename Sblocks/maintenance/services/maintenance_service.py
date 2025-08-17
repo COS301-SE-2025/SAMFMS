@@ -147,7 +147,8 @@ class MaintenanceRecordsService:
             raise
             
     async def get_overdue_maintenance(self) -> List[Dict[str, Any]]:
-        """Get overdue maintenance records"""
+        """Get overdue maintenance records (record)"""
+        
         try:
             records = await self.repository.get_overdue_maintenance()
             
@@ -426,7 +427,7 @@ class MaintenanceRecordsService:
                                       limit: int = 100) -> List[Dict[str, Any]]:
         """Alias for get_maintenance_records_by_status"""
         return await self.get_maintenance_records_by_status(status, skip, limit)
-
+    
 
 # Global service instance
 maintenance_records_service = MaintenanceRecordsService()
