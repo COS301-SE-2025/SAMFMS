@@ -318,7 +318,7 @@ export const TripFinishedStatus = async employee_id => {
     console.log(`Distance to destination: ${distance.toFixed(2)} meters`);
     
     // Consider trip finished if within 100 meters of destination
-    const ARRIVAL_THRESHOLD_METERS = 1000;
+    const ARRIVAL_THRESHOLD_METERS = 100;
     const hasArrived = distance <= ARRIVAL_THRESHOLD_METERS;
     
     console.log(`Has arrived at destination: ${hasArrived}`);

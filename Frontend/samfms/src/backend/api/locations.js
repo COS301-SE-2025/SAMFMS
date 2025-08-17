@@ -7,12 +7,13 @@ const LOCATIONS_ENDPOINTS = {
   get: API_ENDPOINTS.LOCATIONS.GET,
   update: API_ENDPOINTS.LOCATIONS.UPDATE,
   delete: API_ENDPOINTS.LOCATIONS.DELETE,
+  vehicleLoc: API_ENDPOINTS.LOCATIONS.VEHICLELOC,
 };
 
 export const listLocations = async () => {
   try {
     const response = httpClient.get(LOCATIONS_ENDPOINTS.list);
-    console.log("Fetched all locations from ", response);
+    //console.log("Fetched all locations from ", response);
     return response;
   } catch (error) {
     console.error('Error fetching locations: ', error)
@@ -28,6 +29,18 @@ export const getLocation = async (locationID) => {
     throw error;
   }
 };
+
+export const getVehicleLocation = async (vehicle_id) => {
+  try {
+    const response = await httpClient.get(LOCATIONS_ENDPOINTS.vehicleLoc(vehicle_id));
+    console.log("Vehicle location resposne: ",response);
+
+    return response.data.data
+  } catch (error) {
+    console.log("Error fetching vehicle location: ", error);
+    throw error;
+  }
+}
 
 export const createLocation = async locationData => {
   try {

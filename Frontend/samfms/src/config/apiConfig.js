@@ -148,6 +148,7 @@ export const API_ENDPOINTS = {
     CREATE: '/gps/locations',
     UPDATE: '/gps/locations/update',
     DELETE: id => `/gps/locations/${id}`,
+    VEHICLELOC: id => `/gps/locations/vehicle/${id}`,
   },
 
   GEOFENCES: {

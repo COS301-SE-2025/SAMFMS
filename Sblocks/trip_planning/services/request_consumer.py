@@ -525,7 +525,7 @@ class ServiceRequestConsumer:
                 elif "completed" in endpoint:
                     from services.trip_service import trip_service
                     trip_id = endpoint.split('/')[-1] if '/' in endpoint else None
-                    trip_by_id = await trip_service.get_trip_by_id(trip_id);
+                    trip_by_id = await trip_service.get_trip_by_id(trip_id)
                     from schemas.requests import FinishTripRequest, TripFilterRequest
                     finish_trip_request = FinishTripRequest(**data)
 
@@ -572,6 +572,9 @@ class ServiceRequestConsumer:
                     # remove vehicle assignment record
                     from services.vehicle_assignments_services import vehicle_assignment_service
                     await vehicle_assignment_service.removeAssignment(vehicle_id, driver_id)
+
+                    # remove vehicle location from gps locations
+                    await vehicle_service.removeLocation(vehicle_id)
                     
                     return ResponseBuilder.success(
                         data=trip.model_dump(),

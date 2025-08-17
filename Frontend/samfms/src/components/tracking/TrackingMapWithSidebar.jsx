@@ -27,7 +27,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { getVehicles } from '../../backend/api/vehicles';
 import { listGeofences, deleteGeofence } from '../../backend/api/geofences';
-import { listLocations } from '../../backend/api/locations';
+import { listLocations, getVehicleLocation } from '../../backend/api/locations';
 import GeofenceManager from './GeofenceManager';
 
 // Fix for marker icons in React-Leaflet
@@ -85,7 +85,7 @@ const getGeofenceOptions = type => {
         fillOpacity: 0.3,
         weight: 2,
       };
-    case 'safe_zone':
+    case 'boundary':
       return {
         color: '#22c55e',
         fillColor: '#22c55e',
@@ -387,18 +387,22 @@ const TrackingMapWithSidebar = () => {
   }, [loadGeofences]);
 
   // Handle item selection and map centering
-  const handleItemSelect = item => {
-    setSelectedItem(item);
-    const location = locations.find(loc => loc.vehicle_id === item.id);
-    console.log("FOund location: ", location)
+  const handleItemSelect = async (item) => {
+  console.log("Item selected", item);
+  setSelectedItem(item);
 
-    const [lng, lat] = location.location.coordinates;
-    if (lat != null && lng != null) {
-      setMapCenter([lat, lng]);
-    } else {
-      console.warn("No location found for item", item);
-    }
-  };
+  try {
+    const vehicleData = await getVehicleLocation(item.id); 
+    console.log("Full response:", vehicleData);
+
+    const { latitude, longitude } = vehicleData;
+    setMapCenter([latitude, longitude]);
+
+  } catch (err) {
+    console.error("Failed to fetch vehicle location:", err);
+  }
+};
+
 
   // Handle live location selection
   const handleLocationSelect = location => {
@@ -792,7 +796,7 @@ const TrackingMapWithSidebar = () => {
                               ? 'bg-blue-500'
                               : geofence.type === 'restricted'
                                 ? 'bg-red-500'
-                                : geofence.type === 'safe_zone'
+                                : geofence.type === 'boundary'
                                   ? 'bg-green-500'
                                   : 'bg-purple-500'
                               }`}
