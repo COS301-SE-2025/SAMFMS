@@ -829,8 +829,8 @@ const TrackingMapWithSidebar = () => {
             <div className="bg-white dark:bg-gray-800 p-2 rounded-lg shadow-lg border border-gray-300 dark:border-gray-600">
               <button
                 className={`p-2 rounded-md w-8 h-8 flex items-center justify-center transition-all duration-200 ${mapType === 'streets'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 onClick={() => setMapType('streets')}
                 title="Street map"
@@ -839,8 +839,8 @@ const TrackingMapWithSidebar = () => {
               </button>
               <button
                 className={`p-2 rounded-md w-8 h-8 flex items-center justify-center mt-1 transition-all duration-200 ${mapType === 'satellite'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 onClick={() => setMapType('satellite')}
                 title="Satellite map"
@@ -849,8 +849,8 @@ const TrackingMapWithSidebar = () => {
               </button>
               <button
                 className={`p-2 rounded-md w-8 h-8 flex items-center justify-center mt-1 transition-all duration-200 ${mapType === 'terrain'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 onClick={() => setMapType('terrain')}
                 title="Terrain map"
@@ -1070,12 +1070,25 @@ const TrackingMapWithSidebar = () => {
 
       {/* Add Geofence Modal */}
       {showAddGeofenceModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-5xl w-full max-h-[90vh] overflow-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ease-out">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-300"
+          onClick={(e) => {
+            // Close modal if clicking on backdrop
+            if (e.target === e.currentTarget) {
+              setShowAddGeofenceModal(false);
+              setEditingGeofence(null);
+            }
+          }}
+        >
+          <div
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-5xl w-full max-h-[90vh] overflow-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ease-out"
+            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+          >
             <GeofenceManager
               showFormOnly={true}
               initialShowForm={true}
               onCancel={() => {
+                console.log('Cancel button clicked'); // Debug log
                 setShowAddGeofenceModal(false);
                 setEditingGeofence(null);
               }}
