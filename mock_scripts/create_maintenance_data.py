@@ -242,12 +242,13 @@ def generate_license_record_data(vehicle_ids: List[str], driver_ids: List[str],
 
 def generate_maintenance_schedule_data(vehicle_ids: List[str], 
                                      count: int = 60) -> List[Dict[str, Any]]:
-    """Generate mock maintenance schedule data"""
+    """Generate mock maintenance schedule data using random vehicle IDs"""
     schedules = []
     
-    logger.info(f"Generating {count} maintenance schedules...")
+    logger.info(f"Generating {count} maintenance schedules from {len(vehicle_ids)} available vehicles...")
     
     for i in range(count):
+        # Randomly select a vehicle ID from the provided list
         vehicle_id = random.choice(vehicle_ids)
         maintenance_type = random.choice(MAINTENANCE_TYPES)
         
@@ -296,7 +297,7 @@ def generate_maintenance_schedule_data(vehicle_ids: List[str],
         
         schedules.append(schedule)
     
-    logger.info(f"Generated {len(schedules)} maintenance schedules")
+    logger.info(f"Generated {len(schedules)} maintenance schedules using random vehicle selection")
     return schedules
 
 
@@ -369,23 +370,47 @@ async def get_existing_entities():
     return vehicle_ids, user_ids, driver_ids
 
 
+def load_vehicle_ids_from_file(file_path: str = "vehicle_id.txt") -> List[str]:
+    """Load vehicle IDs from vehicle_id.txt file"""
+    vehicle_ids = []
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                vehicle_id = line.strip().strip('"')  # Remove quotes and whitespace
+                if vehicle_id:  # Skip empty lines
+                    vehicle_ids.append(vehicle_id)
+        
+        logger.info(f"Loaded {len(vehicle_ids)} vehicle IDs from {file_path}")
+        return vehicle_ids
+        
+    except FileNotFoundError:
+        logger.error(f"Vehicle ID file not found: {file_path}")
+        return []
+    except Exception as e:
+        logger.error(f"Error reading vehicle IDs from file: {e}")
+        return []
+
+
 async def create_mock_maintenance_data(records_count: int = 100, 
                                      licenses_count: int = 80,
                                      schedules_count: int = 60):
-    """Create mock maintenance data via API calls"""
+    """Create mock maintenance data via API calls using random vehicle IDs from file"""
     logger.info("🔧 Starting maintenance data creation process...")
     
-    # Get existing entities
-    vehicle_ids, user_ids, driver_ids = await get_existing_entities()
-    
+    # Load vehicle IDs from file instead of API
+    vehicle_ids = load_vehicle_ids_from_file("vehicle_id.txt")
     if not vehicle_ids:
-        logger.error("No vehicles found! Please create vehicles first using create_vehicles.py")
+        logger.error("No vehicle IDs found in vehicle_id.txt! Please ensure the file exists and contains vehicle IDs")
         return
+    
+    # Get user and driver IDs from API
+    _, user_ids, driver_ids = await get_existing_entities()
     
     if not user_ids:
         logger.warning("No users found! Some maintenance data may be incomplete.")
     
-    # Generate maintenance data
+    # Generate maintenance data using random vehicle selection
     maintenance_records = generate_maintenance_record_data(vehicle_ids, user_ids, records_count)
     license_records = generate_license_record_data(vehicle_ids, driver_ids, licenses_count)
     maintenance_schedules = generate_maintenance_schedule_data(vehicle_ids, schedules_count)
