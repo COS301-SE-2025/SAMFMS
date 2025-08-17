@@ -320,6 +320,14 @@ class ServiceRequestConsumer:
                         message="Upcomming trips retrieved successfully"
                     ).model_dump()
                 if "recent" in endpoint:
+                    driver_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                    logger.info(f"Driver ID extracted for recent trips: {driver_id} ")
+                    if driver_id:
+                        trips = await trip_service.get_recent_trips(driver_id)
+                        return ResponseBuilder.success(
+                            data=trips,
+                            message="All upcomming trips retrieved successfully"
+                        ).model_dump()
                     logger.info(f"[DEBUG] Processing recent endpoint: '{endpoint}'")
                     # Check if it's the generic /recent endpoint (for all recent trips)
                     if endpoint == "recent" or endpoint.endswith("/recent"):
