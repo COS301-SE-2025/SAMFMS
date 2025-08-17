@@ -100,7 +100,7 @@ class MaintenanceAnalyticsService:
                 {
                     "$match": {
                         "status": "completed",
-                        "actual_completion_date": {
+                        "completed_date": {
                             "$gte": start_dt,
                             "$lte": end_dt
                         }
@@ -114,19 +114,19 @@ class MaintenanceAnalyticsService:
             # Group by time period
             if group_by == "month":
                 group_format = {
-                    "year": {"$year": "$actual_completion_date"},
-                    "month": {"$month": "$actual_completion_date"}
+                    "year": {"$year": "$completed_date"},
+                    "month": {"$month": "$completed_date"}
                 }
             elif group_by == "week":
                 group_format = {
-                    "year": {"$year": "$actual_completion_date"},
-                    "week": {"$week": "$actual_completion_date"}
+                    "year": {"$year": "$completed_date"},
+                    "week": {"$week": "$completed_date"}
                 }
             else:  # day
                 group_format = {
-                    "year": {"$year": "$actual_completion_date"},
-                    "month": {"$month": "$actual_completion_date"},
-                    "day": {"$dayOfMonth": "$actual_completion_date"}
+                    "year": {"$year": "$completed_date"},
+                    "month": {"$month": "$completed_date"},
+                    "day": {"$dayOfMonth": "$completed_date"}
                 }
                 
             pipeline.extend([
@@ -150,7 +150,7 @@ class MaintenanceAnalyticsService:
                 {
                     "$match": {
                         "status": "completed",
-                        "actual_completion_date": {
+                        "completed_date": {
                             "$gte": start_dt,
                             "$lte": end_dt
                         }

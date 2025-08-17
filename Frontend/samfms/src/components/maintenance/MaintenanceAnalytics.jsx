@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart3, TrendingUp, Calendar, Truck, AlertTriangle, Target } from 'lucide-react';
 import { maintenanceAPI } from '../../backend/api/maintenance';
+import Chart from 'react-apexcharts';
 
 // Import new analytics components
 import TimeframeAnalytics from './analytics/TimeframeAnalytics';
@@ -347,36 +348,173 @@ const MaintenanceAnalytics = ({ vehicles }) => {
             )}
           </div>
 
-          {/* Maintenance Type Distribution */}
+          {/* Maintenance Type Distribution Bar Chart */}
           <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
             <h3 className="text-lg font-semibold mb-4">Maintenance Type Distribution</h3>
             {analytics?.maintenance_types && analytics.maintenance_types.length > 0 ? (
-              <div className="space-y-3">
-                {analytics.maintenance_types.map((type, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${getMaintenanceTypeColor(
-                          index
-                        )}`}
-                      >
-                        {type.maintenance_type?.replace('_', ' ')}
-                      </span>
-                      <span className="text-sm text-muted-foreground">{type.count} records</span>
+              <div className="space-y-4">
+                {/* ApexCharts Bar Chart */}
+                {(() => {
+                  // Prepare data for ApexCharts
+                  const sortedTypes = analytics.maintenance_types
+                    .sort((a, b) => (b.total_cost || 0) - (a.total_cost || 0))
+                    .slice(0, 10); // Show top 10 types to avoid overcrowding
+
+                  const categories = sortedTypes.map(
+                    type =>
+                      type.maintenance_type
+                        ?.replace(/_/g, ' ')
+                        .replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown'
+                  );
+                  const costs = sortedTypes.map(type => type.total_cost || 0);
+
+                  const chartOptions = {
+                    chart: {
+                      type: 'bar',
+                      height: 400,
+                      toolbar: {
+                        show: true,
+                        tools: {
+                          download: true,
+                          selection: false,
+                          zoom: false,
+                          zoomin: false,
+                          zoomout: false,
+                          pan: false,
+                          reset: false,
+                        },
+                      },
+                      background: 'transparent',
+                    },
+                    plotOptions: {
+                      bar: {
+                        horizontal: true,
+                        distributed: true,
+                        barHeight: '70%',
+                        dataLabels: {
+                          position: 'center',
+                        },
+                      },
+                    },
+                    dataLabels: {
+                      enabled: true,
+                      textAnchor: 'middle',
+                      distributed: false,
+                      offsetX: 0,
+                      offsetY: 0,
+                      style: {
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        colors: ['#fff'],
+                      },
+                      formatter: function (val) {
+                        return formatCurrency(val);
+                      },
+                    },
+                    colors: sortedTypes.map(
+                      (_, index) => `hsl(${(index * 360) / sortedTypes.length}, 70%, 50%)`
+                    ),
+                    xaxis: {
+                      categories: categories,
+                      labels: {
+                        formatter: function (val) {
+                          return formatCurrency(val);
+                        },
+                        style: {
+                          colors: '#64748b',
+                          fontSize: '12px',
+                        },
+                      },
+                    },
+                    yaxis: {
+                      labels: {
+                        style: {
+                          colors: '#64748b',
+                          fontSize: '11px',
+                        },
+                        maxWidth: 120,
+                      },
+                    },
+                    grid: {
+                      show: true,
+                      borderColor: '#e2e8f0',
+                      strokeDashArray: 3,
+                      position: 'back',
+                      xaxis: {
+                        lines: {
+                          show: true,
+                        },
+                      },
+                      yaxis: {
+                        lines: {
+                          show: false,
+                        },
+                      },
+                    },
+                    tooltip: {
+                      enabled: true,
+                      theme: 'dark',
+                      y: {
+                        formatter: function (val) {
+                          return formatCurrency(val);
+                        },
+                      },
+                    },
+                    legend: {
+                      show: false,
+                    },
+                    responsive: [
+                      {
+                        breakpoint: 640,
+                        options: {
+                          chart: {
+                            height: 300,
+                          },
+                          plotOptions: {
+                            bar: {
+                              barHeight: '60%',
+                            },
+                          },
+                          yaxis: {
+                            labels: {
+                              maxWidth: 80,
+                            },
+                          },
+                        },
+                      },
+                    ],
+                  };
+
+                  const series = [
+                    {
+                      name: 'Cost',
+                      data: costs,
+                    },
+                  ];
+
+                  return (
+                    <div>
+                      <Chart options={chartOptions} series={series} type="bar" height={400} />
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium">{formatCurrency(type.total_cost)}</p>
-                      <div className="w-20 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div
-                          className="bg-primary h-2 rounded-full"
-                          style={{
-                            width: `${(type.count / (analytics?.total_records || 1)) * 100}%`,
-                          }}
-                        ></div>
-                      </div>
-                    </div>
+                  );
+                })()}
+
+                {/* Total summary */}
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                      Total Cost Across All Types:
+                    </span>
+                    <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                      {formatCurrency(
+                        analytics.maintenance_types.reduce(
+                          (sum, type) => sum + (type.total_cost || 0),
+                          0
+                        )
+                      )}
+                    </span>
                   </div>
-                ))}
+                </div>
               </div>
             ) : (
               <p className="text-muted-foreground text-center py-8">
@@ -385,45 +523,116 @@ const MaintenanceAnalytics = ({ vehicles }) => {
             )}
           </div>
 
-          {/* Recent High-Cost Maintenance */}
+          {/* Maintenance Overview with Circular Chart */}
           <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">
             <h3 className="text-lg font-semibold mb-4">Maintenance Overview</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="text-sm text-blue-600 dark:text-blue-400">Upcoming Maintenance</div>
-                <div className="text-2xl font-bold text-blue-800 dark:text-blue-200">
-                  {rawAnalyticsData?.maintenance_summary?.upcoming_count || 0}
+
+            <div className="flex flex-col items-center">
+              {/* Circular Progress Chart */}
+              <div className="relative w-48 h-48 mb-4">
+                <svg className="w-48 h-48 transform -rotate-90" viewBox="0 0 200 200">
+                  {/* Background circle */}
+                  <circle
+                    cx="100"
+                    cy="100"
+                    r="80"
+                    stroke="currentColor"
+                    strokeWidth="20"
+                    fill="transparent"
+                    className="text-gray-200 dark:text-gray-700"
+                  />
+
+                  {/* Completed maintenance arc */}
+                  <circle
+                    cx="100"
+                    cy="100"
+                    r="80"
+                    stroke="currentColor"
+                    strokeWidth="20"
+                    fill="transparent"
+                    strokeDasharray={`${2 * Math.PI * 80}`}
+                    strokeDashoffset={`${
+                      2 *
+                      Math.PI *
+                      80 *
+                      (1 - (rawAnalyticsData?.performance_metrics?.completion_rate || 0) / 100)
+                    }`}
+                    className="text-green-500 transition-all duration-1000 ease-in-out"
+                    strokeLinecap="round"
+                  />
+
+                  {/* Overdue maintenance indicator (if any) */}
+                  {rawAnalyticsData?.maintenance_summary?.overdue_count > 0 && (
+                    <circle
+                      cx="100"
+                      cy="100"
+                      r="80"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      fill="transparent"
+                      strokeDasharray="10 5"
+                      className="text-red-500 opacity-70"
+                      strokeLinecap="round"
+                    />
+                  )}
+                </svg>
+
+                {/* Center content - Completion Rate */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    {rawAnalyticsData?.performance_metrics?.completion_rate || 0}%
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Completion Rate</div>
                 </div>
-                <div className="text-xs text-blue-500 dark:text-blue-400">scheduled items</div>
               </div>
 
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                <div className="text-sm text-red-600 dark:text-red-400">Overdue Maintenance</div>
-                <div className="text-2xl font-bold text-red-800 dark:text-red-200">
-                  {rawAnalyticsData?.maintenance_summary?.overdue_count || 0}
+              {/* Legend and Statistics */}
+              <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="flex items-center justify-center mb-1">
+                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                    <div className="text-sm text-green-600 dark:text-green-400">Completed</div>
+                  </div>
+                  <div className="text-xl font-bold text-green-800 dark:text-green-200">
+                    {Math.round(
+                      (rawAnalyticsData?.maintenance_summary?.total_active || 0) -
+                        (rawAnalyticsData?.maintenance_summary?.overdue_count || 0) -
+                        (rawAnalyticsData?.maintenance_summary?.upcoming_count || 0)
+                    )}
+                  </div>
                 </div>
-                <div className="text-xs text-red-500 dark:text-red-400">past due</div>
+
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center justify-center mb-1">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                    <div className="text-sm text-blue-600 dark:text-blue-400">Upcoming</div>
+                  </div>
+                  <div className="text-xl font-bold text-blue-800 dark:text-blue-200">
+                    {rawAnalyticsData?.maintenance_summary?.upcoming_count || 0}
+                  </div>
+                </div>
+
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <div className="flex items-center justify-center mb-1">
+                    <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                    <div className="text-sm text-red-600 dark:text-red-400">Overdue</div>
+                  </div>
+                  <div className="text-xl font-bold text-red-800 dark:text-red-200">
+                    {rawAnalyticsData?.maintenance_summary?.overdue_count || 0}
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Active Maintenance */}
+              <div className="mt-4 text-center">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Total Active Maintenance
+                </div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {rawAnalyticsData?.maintenance_summary?.total_active || 0}
+                </div>
               </div>
             </div>
-
-            {rawAnalyticsData?.performance_metrics && (
-              <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                <div className="text-sm text-green-600 dark:text-green-400 mb-1">
-                  Completion Rate
-                </div>
-                <div className="flex items-center">
-                  <div className="text-2xl font-bold text-green-800 dark:text-green-200 mr-2">
-                    {rawAnalyticsData.performance_metrics.completion_rate}%
-                  </div>
-                  <div className="flex-1 bg-green-200 dark:bg-green-700 rounded-full h-2">
-                    <div
-                      className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${rawAnalyticsData.performance_metrics.completion_rate}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

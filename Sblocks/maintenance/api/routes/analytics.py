@@ -141,8 +141,47 @@ async def get_cost_analytics(
             group_by=group_by
         )
         
+        # Get maintenance records by type for cost_by_type
+        maintenance_by_type = await maintenance_analytics_service.get_maintenance_records_by_type(
+            start_date=start_date_str,
+            end_date=end_date_str
+        )
+        
+        # Transform time series data to cost_by_month format
+        cost_by_month = {}
+        if cost_analytics.get("time_series"):
+            for item in cost_analytics["time_series"]:
+                if group_by == "month" and item.get("_id"):
+                    year = item["_id"].get("year")
+                    month = item["_id"].get("month")
+                    if year and month:
+                        month_key = f"{year}-{month:02d}"
+                        cost_by_month[month_key] = item.get("total_cost", 0)
+        
+        # Transform maintenance_by_type to cost_by_type format
+        cost_by_type = {}
+        if maintenance_by_type:
+            for item in maintenance_by_type:
+                maintenance_type = item.get("maintenance_type") or item.get("_id")
+                total_cost = item.get("total_cost", 0)
+                if maintenance_type:
+                    cost_by_type[maintenance_type] = total_cost
+        
+        # Format response to match frontend expectations
+        response_data = {
+            "cost_analytics": {
+                "total_cost": cost_analytics.get("summary", {}).get("total_cost", 0),
+                "labor_cost": cost_analytics.get("summary", {}).get("total_labor_cost", 0),
+                "parts_cost": cost_analytics.get("summary", {}).get("total_parts_cost", 0),
+                "record_count": cost_analytics.get("summary", {}).get("total_maintenance_count", 0),
+                "average_cost": cost_analytics.get("summary", {}).get("average_cost", 0),
+                "cost_by_type": cost_by_type,
+                "cost_by_month": cost_by_month
+            }
+        }
+        
         return ResponseBuilder.success(
-            data=cost_analytics,
+            data=response_data,
             message="Cost analytics retrieved successfully",
             request_id=timer.request_id,
             execution_time=timer.elapsed,
