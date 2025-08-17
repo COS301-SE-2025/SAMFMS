@@ -163,7 +163,8 @@ class DriverService:
 
 
             from .drivers_service import DriversService
-            await DriversService.add_driver(DriversService.__init__)
+            drivers_service = DriversService()
+            await drivers_service.add_driver()
             logger.info(f"Driver analytics addition")
 
             return driver
