@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Clock, User, Car, Navigation, Square, Phone, MessageCircle } from 'lucide-react';
-import { getDriverActiveTrips, updateTrip } from '../../backend/api/trips';
+import { getDriverActiveTrips, updateTrip, finishTrip } from '../../backend/api/trips';
 import { getCurrentUser } from '../../backend/api/auth';
 import { getDriverEMPID, TripFinishedStatus } from '../../backend/api/drivers';
 
@@ -175,7 +175,7 @@ const ActiveTrip = ({ onTripEnded }) => {
       const tripId = activeTrip.id || activeTrip._id;
       console.log("Ending trip id: ", tripId);
       
-      const response = await updateTrip(tripId, data);
+      const response = await finishTrip(tripId, data);
       console.log("Response for ending trip: ", response);
       
       // Stop monitoring

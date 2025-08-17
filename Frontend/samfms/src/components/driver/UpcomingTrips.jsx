@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Clock, User, Car, ChevronRight, ChevronDown, ChevronUp, Play, Square } from 'lucide-react';
-import { getUpcomingTrips, updateTrip, getDriverActiveTrips } from '../../backend/api/trips';
+import { getUpcomingTrips, updateTrip, finishTrip, getDriverActiveTrips } from '../../backend/api/trips';
 import { getCurrentUser } from '../../backend/api/auth';
 import { getDriverEMPID, TripFinishedStatus } from '../../backend/api/drivers';
 
@@ -52,7 +52,7 @@ const UpcomingTrips = ({ onTripStarted }) => {
 
     const interval = setInterval(async () => {
       await checkTripFinished(employeeId, tripId);
-    }, 30000); // Check every 30 seconds
+    }, 5000); // Check every 30 seconds
 
     setStatusCheckIntervals(prev => new Map(prev.set(tripId, interval)));
     
@@ -271,8 +271,8 @@ const UpcomingTrips = ({ onTripStarted }) => {
         "status": "completed"
       }
       console.log("Ending trip id: ", tripId);
-      const response = await updateTrip(tripId, data);
-      console.log("Response for ending trip: ", response);
+      const response = await finishTrip(tripId, data);
+      console.log("Response for finishing trip: ", response);
       
       // Stop monitoring this trip's finish status
       stopTripStatusMonitoring(tripId);

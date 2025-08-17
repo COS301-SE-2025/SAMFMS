@@ -449,14 +449,6 @@ class ServiceRequestConsumer:
                         },
                         message=f"Found {len(trips)} recent trips"
                     ).model_dump()
-                elif "trips" in endpoint:
-                    logger.info(f"[_handle_trips_request] Calling trip_service.get_all_trips()")
-                    trips = await trip_service.get_all_trips()
-                    logger.info(f"[_handle_trips_request] trip_service.get_all_trips() returned {len(trips) if trips else 0} trips")
-                    return ResponseBuilder.success(
-                        data=[trip.model_dump() for trip in trips] if trips else None,
-                        message="Trips retrieved successfully"
-                    ).model_dump()
                 elif "active" in endpoint:
                     driver_id = endpoint.split('/')[-1] if '/' in endpoint else None
                     logger.info(f"Driver ID extracted for upcomming trips: {driver_id} ")
@@ -472,6 +464,15 @@ class ServiceRequestConsumer:
                     return ResponseBuilder.success(
                         data=activeTrip,
                         message="Active Trip retrieved successfully"
+                    ).model_dump()
+                
+                elif "trips" in endpoint:
+                    logger.info(f"[_handle_trips_request] Calling trip_service.get_all_trips()")
+                    trips = await trip_service.get_all_trips()
+                    logger.info(f"[_handle_trips_request] trip_service.get_all_trips() returned {len(trips) if trips else 0} trips")
+                    return ResponseBuilder.success(
+                        data=[trip.model_dump() for trip in trips] if trips else None,
+                        message="Trips retrieved successfully"
                     ).model_dump()
 
                 else:
@@ -514,13 +515,16 @@ class ServiceRequestConsumer:
                         message="Trip created successfully"
                     ).model_dump()
                 elif "completed" in endpoint:
+                    from services.trip_service import trip_service
+                    trip_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                    trip_by_id = await trip_service.get_trip_by_id(trip_id);
                     from schemas.requests import FinishTripRequest, TripFilterRequest
                     finish_trip_request = FinishTripRequest(**data)
 
                     # get the full trip from trips collection
-                    from services.trip_service import trip_service
-                    name = finish_trip_request.name
-                    driver_assignment = finish_trip_request.driver_assignment
+                    
+                    name = trip_by_id.name
+                    driver_assignment = trip_by_id.driver_assignment
                     
 
                     filter = TripFilterRequest(**{
@@ -548,12 +552,18 @@ class ServiceRequestConsumer:
                     # driver part
                     from services.driver_service import driver_service
                     driver_id = trip.driver_assignment
+                    logger.info(f"Driver id activated: {driver_id}")
                     await driver_service.activateDriver(driver_id)
                     
                     # vehicle part
                     from services.vehicle_service import vehicle_service
                     vehicle_id = trip.vehicle_id
+                    logger.info(f"Vehicle id activated: {vehicle_id}")
                     await vehicle_service.activeVehicle(vehicle_id) 
+
+                    # remove vehicle assignment record
+                    from services.vehicle_assignments_services import vehicle_assignment_service
+                    await vehicle_assignment_service.removeAssignment(vehicle_id, driver_id)
                     
                     return ResponseBuilder.success(
                         data=trip.model_dump(),

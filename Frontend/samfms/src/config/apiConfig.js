@@ -166,7 +166,7 @@ export const API_ENDPOINTS = {
     ACTIVE: '/trips/trips/active',
     DRIVERACTIVE: id => `/trips/trips/active/${id}`,
     HISTORY: '/trips/history',
-    FINISHED: 'trips/trips/completed',
+    FINISHED: id => `/trips/trips/completed/${id}`,
     UPCOMMINGTRIPSALL: '/trips/trips/upcomming',
     UPCOMMINGTRIPS: id => `/trips/trips/upcomming/${id}`,
     RECENTTRIPS: id => `/trips/trips/recent/${id}`,

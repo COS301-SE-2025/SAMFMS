@@ -43,7 +43,7 @@ class VehicleService:
       if not vehicle:
         raise ValueError("Vehicle not found")
 
-      await self.db_management.drivers.update_one(
+      await self.db_management.vehicles.update_one(
           {"_id": ObjectId(vehicle_id)},
           {"$set": {"status": "available", "updated_at": datetime.utcnow()}}
       )

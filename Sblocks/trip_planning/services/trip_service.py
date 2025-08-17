@@ -230,18 +230,17 @@ class TripService:
             # Base query for active trips
             if driver_id:
                 query = {
-                    "scheduled_start_time": {"$lte": now},
+                    "actual_start_time": {"$lte": now},
                 }
             else:
                 query = {
-                    "actual_start_time": {"$lte": now},
+                    "scheduled_start_time": {"$lte": now},
                 }
-            
             # Add driver filter if provided
             if driver_id:
-                query["driver_id"] = driver_id
+                query["driver_assignment"] = driver_id
             
-            logger.debug(f"[TripService.get_active_trips] Query: {query}")
+            logger.info(f"[TripService.get_active_trips] Query: {query}")
             
             cursor = self.db.trips.find(query)
             trips = []

@@ -176,7 +176,7 @@ class LocationService:
             except Exception as e:
                 logger.warning(f"Failed to publish location update event: {e}")
             
-            logger.info(f"Updated location for vehicle {vehicle_id}")
+            #logger.info(f"Updated location for vehicle {vehicle_id}")
             return VehicleLocation(**location_data)
             
         except Exception as e:

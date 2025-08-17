@@ -61,14 +61,15 @@ export const updateTrip = async (tripID, tripData) => {
   }
 };
 
-export const finishTrip = async tripData => {
+export const finishTrip = async (tripID ,tripData) => {
   try {
-    if (!tripData) {
+    if (!tripData || !tripID) {
       throw new Error('Trip Data is required');
     }
 
     console.log(`Finishing trip. Payload:`, tripData);
-    return await httpClient.post(TRIPS_ENDPOINTS.finish(), tripData);
+    const response = await httpClient.post(TRIPS_ENDPOINTS.finish(tripID), tripData);
+    return response;
   } catch (error) {
     console.error(`Error finishing trip:`, error);
     throw error;

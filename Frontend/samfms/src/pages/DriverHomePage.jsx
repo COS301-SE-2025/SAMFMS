@@ -21,7 +21,8 @@ const DriverHomePage = () => {
   const getEmployeeID = async (security_id) => {
     try {
       const response = await getDriverEMPID(security_id);
-      const employee_id = response.data;
+      console.log("Response for employee id: ", response);
+      const employee_id = response.data.data;
       return employee_id;
     } catch (error) {
       console.error("Error fetching employee ID:", error);
@@ -41,14 +42,14 @@ const DriverHomePage = () => {
       }
 
       const employeeID = await getEmployeeID(driverId);
-      if (!employeeID?.data) {
+      if (!employeeID) {
         console.log('No employee ID found');
         return;
       }
 
-      console.log("Checking for active trips for EMP ID: ", employeeID.data);
+      console.log("Checking for active trips for EMP ID: ", employeeID);
       
-      const response = await getDriverActiveTrips(employeeID.data);
+      const response = await getDriverActiveTrips(employeeID);
       console.log("Active trip check response: ", response);
       
       if (response && response.length > 0) {
