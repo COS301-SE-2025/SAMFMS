@@ -16,7 +16,7 @@ DELAY_BETWEEN_REQUESTS = 60 / REQUESTS_PER_MINUTE  # 0.5 seconds between request
 
 # Authentication credentials
 LOGIN_EMAIL = os.getenv("SAMFMS_LOGIN_EMAIL", "mvanheerdentuks@gmail.com")
-LOGIN_PASSWORD = os.getenv("SAMFMS_LOGIN_PASSWORD", "Password2@")  # Will prompt if not set
+LOGIN_PASSWORD = os.getenv("SAMFMS_LOGIN_PASSWORD", "Password2@")  # Updated to match driver passwords
 
 # Default headers for requests (token will be added after login)
 DEFAULT_HEADERS = {
@@ -92,8 +92,23 @@ def generate_license_plate():
     return random.choice(formats)
 
 def generate_phone_number():
-    """Generate a realistic phone number"""
-    return f"+1-{random.randint(200, 999)}-{random.randint(200, 999)}-{random.randint(1000, 9999)}"
+    """Generate a valid South African phone number matching Management service validation"""
+    # Pattern: ^(\+27|0)[6-8][0-9]{8}$
+    # Must start with +27 or 0, followed by 6/7/8, then exactly 8 digits
+    
+    # Choose format: international (+27) or local (0)
+    if random.choice([True, False]):
+        # International format: +27 + [6-8] + 8 digits
+        prefix = "+27"
+        second_digit = random.choice([6, 7, 8])
+        remaining_digits = ''.join([str(random.randint(0, 9)) for _ in range(8)])
+        return f"{prefix}{second_digit}{remaining_digits}"
+    else:
+        # Local format: 0 + [6-8] + 8 digits  
+        prefix = "0"
+        second_digit = random.choice([6, 7, 8])
+        remaining_digits = ''.join([str(random.randint(0, 9)) for _ in range(8)])
+        return f"{prefix}{second_digit}{remaining_digits}"
 
 def random_date_in_range(start_days_ago, end_days_ago=0):
     """Generate a random date within a range"""

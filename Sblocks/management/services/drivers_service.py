@@ -4,6 +4,7 @@ Driver management service
 import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import aiohttp
 
 from repositories.repositories import DriverCountRepository
 from events.publisher import event_publisher
@@ -17,12 +18,12 @@ class DriversService:
     """Service for total drivers management"""
     
     def __init__(self):
-        self.drivers_repo = DriverCountRepository
+        self.drivers_repo = DriverCountRepository()
     
     async def get_daily_driver_counts(self, start_date: Optional[datetime] = None) -> Optional[Dict[str, Any]]:
         """Get all daily driver counts from a certain date"""
         try:
-            DriverCountRepository.get_daily_driver_counts(start_date)
+            await DriverCountRepository.get_daily_driver_counts(start_date)
             
             
             logger.info(f"Driver daily driver counts requested")
@@ -30,6 +31,26 @@ class DriversService:
         except Exception as e:
             logger.error(f"Error showing driver counts: {e}")
             raise
+
+    async def add_driver(self):
+        """Create a user account for the driver in the daily driver counts collection"""
+        try:
+            await self.drivers_repo.add_driver()
+            logger.info(f"Driver added successfully")
+        except Exception as e:
+            logger.error(f"Error adding driver: {e}")
+            raise
+
+    async def remove_driver(self):
+        """Create a user account for the driver in the daily driver counts collection"""
+        try:
+            await self.drivers_repo.remove_driver()
+            logger.info(f"Driver removed successfully")
+        except Exception as e:
+            logger.error(f"Error adding driver: {e}")
+            raise
+            
+
 
     async def handle_request(self, method: str, user_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Handle driver counts requests from request consumer"""

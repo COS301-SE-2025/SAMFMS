@@ -84,7 +84,10 @@ export const WidgetLibrary = ({ isOpen, onClose }) => {
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    {metadata.icon}
+                    {React.createElement(metadata.icon, {
+                      size: 20,
+                      className: 'text-muted-foreground',
+                    })}
                     <h3 className="font-medium">{metadata.title}</h3>
                   </div>
                   <button

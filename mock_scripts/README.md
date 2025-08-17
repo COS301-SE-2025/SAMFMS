@@ -7,10 +7,42 @@ This directory contains scripts to generate realistic mock data for the SAMFMS (
 The mock data scripts create:
 
 - **Vehicles**: Cars, trucks, vans, buses with realistic specifications
-- **Users**: Drivers and fleet managers with proper roles and permissions
+- **Users & Drivers**:
+  - **Frontend-Compatible Drivers**: Using exact same endpoint and structure as AddDriverModal.jsx
+  - **Fleet Managers**: Comprehensive management user profiles
 - **Maintenance Records**: Historical and scheduled maintenance activities
 - **License Records**: Vehicle registrations, driver licenses, certifications
 - **Maintenance Schedules**: Recurring maintenance plans
+
+## 🎯 Driver Creation Methods
+
+### Frontend-Compatible Driver Creation (Recommended)
+
+Creates drivers using the exact same endpoint (`/management/drivers`) and data structure as the frontend AddDriverModal.jsx form:
+
+```bash
+# Windows
+run_frontend_drivers.bat --count 30
+
+# Linux/Mac
+python create_drivers_frontend.py --count 30
+```
+
+**Features:**
+
+- ✅ Uses Management service endpoint (same as frontend)
+- ✅ Exact field names and structure as AddDriverModal.jsx
+- ✅ Consistent property naming (fixes vehicle visibility issues)
+- ✅ Standard password: `Password1!` for all drivers
+- ✅ Compatible with ActiveTripsMap filtering
+
+### Legacy Driver Creation
+
+Creates drivers via Core service with comprehensive profiles (for testing/development):
+
+```bash
+python create_users.py --drivers 30 --managers 10
+```
 
 ## 🚀 Quick Start
 
