@@ -22,6 +22,8 @@ const TRIPS_ENDPOINTS = {
     COMPLETIONRATEDRIVERS: API_ENDPOINTS.TRIPS.ANALYTICS.COMPLETIONRATEDRIVERS,
     AVGTRIPSPERDAYDRIVERS: API_ENDPOINTS.TRIPS.ANALYTICS.AVGTRIPSPERDAYDRIVERS,
 
+    VehicleStats: API_ENDPOINTS.TRIPS.ANALYTICS.VehicleSTATS,
+    TotalDistance: API_ENDPOINTS.TRIPS.ANALYTICS.TOTALDISTANCE,
     TOTALTRIPSVEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.TOTALTRIPSVEHICLES,
     COMPLETIONRATEVEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.COMPLETIONRATEVEHICLES,
     AVGTRIPSPERDAYVEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.AVGTRIPSPERDAYVEHICLES,
@@ -204,27 +206,23 @@ export const getVehicleAnalytics = async (timeframe = 'week') => {
     console.log(`[VehicleAnalytics] Fetching data for timeframe: ${timeframe}`);
 
     // Fetch all metrics in parallel using query parameters
-    const [totalTripsResponse, completionRateResponse, avgTripsResponse] = await Promise.all([
-      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.TOTALTRIPSVEHICLES}`, {
+    const [totalDistanceResponse, vehiclestatsResponse] = await Promise.all([
+      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.TotalDistance}`, {
         params: { timeframe },
       }),
-      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.COMPLETIONRATEVEHICLES}`, {
-        params: { timeframe },
-      }),
-      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.AVGTRIPSPERDAYVEHICLES}`, {
+      httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.VehicleStats}`, {
         params: { timeframe },
       }),
     ]);
 
+    console.log("Total Distance response: ", totalDistanceResponse);
+    console.log("Vehicle Stats response: ", vehiclestatsResponse);
+
     // Combine and transform the data
     const transformedData = {
-      vehicles: (totalTripsResponse.data?.vehicles || []).map(vehicle => ({
-        vehicleName: vehicle.vehicle_name || vehicle.name || 'Unknown',
-        totalTrips: Number(vehicle.total_trips || 0),
-        totalDistance: Number(vehicle.total_distance || 0),
-      })),
+      vehicles: vehiclestatsResponse.data.data.total,
       timeframeSummary: {
-        totalDistance: Number(totalTripsResponse.data?.total_distance || 0),
+        totalDistance: Number(totalDistanceResponse.data.data.total || 0),
       },
     };
 

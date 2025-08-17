@@ -745,7 +745,49 @@ class ServiceRequestConsumer:
     
     async def _handle_vehicle_analytics_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle vehicle analytics requests"""
-        
+        try:
+            from schemas.responses import ResponseBuilder
+            from services.vehicle_analytics_service import vehicle_analytics_service
+
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            logger.info(f"[VehicleAnalytics] Processing endpoint: {endpoint}")
+
+            timeframe = data.get("timeframe", "week")  # Default to week
+                
+            # Extract metric from endpoint path
+            # Format: analytics/vehicles/[metric]
+            path_parts = endpoint.split('/')
+            metric = path_parts[-1] if len(path_parts) >= 3 else None
+
+            logger.info(f"[VehicleAnalytics] Using timeframe: {timeframe}, metric: {metric}")
+
+            if metric == "stats":
+                logger.info("Entered driver stats")
+                result = await vehicle_analytics_service.get_vehicle_trip_stats(timeframe)
+                logger.info(f"[VehicleAnalytics] response for vehicle stats; {result}")
+                return ResponseBuilder.success(
+                    data={"total": result},
+                    message="Trips stats retrieved successfully"
+                ).model_dump()
+            elif metric == "totaldistance":
+                logger.info("Entered totaldistance")
+                result = await vehicle_analytics_service.get_total_distance_all_vehicles(timeframe)
+                logger.info(f"[VehicleAnalytics] response for vehicle distance; {result}")
+                return ResponseBuilder.success(
+                    data={"total": result},
+                    message="Trips distance retrieved successfully"
+                ).model_dump()
+            else:
+                raise ValueError(f"Unknown analytics metric: {metric}")
+
+
+        except Exception as e:
+            logger.error(f"[VehicleAnalytics] Error processing request: {e}")
+            return ResponseBuilder.error(
+                error="VehicleAnalyticsRequestError",
+                message=f"Failed to process analytics request: {str(e)}"
+            ).model_dump()
 
     async def _handle_analytics_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle analytics requests"""

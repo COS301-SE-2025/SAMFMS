@@ -185,6 +185,7 @@ export const API_ENDPOINTS = {
       AVGTRIPSPERDAYDRIVERS: '/trips/analytics/drivers/averagedaytrips',
 
       // Vehicle analytics with timeframe
+      VehicleSTATS: '/trips/analytics/vehicles/stats',
       TOTALTRIPSVEHICLES: '/trips/analytics/vehicles/totaltrips',
       COMPLETIONRATEVEHICLES: '/trips/analytics/vehicles/completionrate',
       AVGTRIPSPERDAYVEHICLES: '/trips/analytics/vehicles/averagedaytrips',
