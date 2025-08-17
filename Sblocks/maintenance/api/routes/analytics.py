@@ -19,6 +19,67 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analytics", tags=["maintenance_analytics"])
 
 
+@router.get("/overview")
+async def get_analytics_overview(
+    vehicle_id: Optional[str] = Query(None, description="Filter by vehicle ID"),
+    start_date: Optional[datetime] = Query(None, description="Start date for analysis"),
+    end_date: Optional[datetime] = Query(None, description="End date for analysis"),
+    user: dict = Depends(get_authenticated_user),
+    _: None = Depends(require_permissions(["maintenance.analytics.read"])),
+    timer: object = Depends(get_request_timer)
+):
+    """Get unified analytics overview combining dashboard and cost data"""
+    try:
+        # Get dashboard data
+        dashboard_data = await maintenance_analytics_service.get_maintenance_dashboard()
+        
+        # Get cost analytics with default parameters
+        start_date_str = start_date.isoformat() if start_date else None
+        end_date_str = end_date.isoformat() if end_date else None
+        
+        cost_analytics = await maintenance_analytics_service.get_cost_analytics(
+            vehicle_id=vehicle_id,
+            start_date=start_date_str,
+            end_date=end_date_str,
+            group_by="month"
+        )
+        
+        # Combine and structure the data for frontend consumption
+        overview_data = {
+            "analytics": {
+                "cost_analysis": {
+                    "total_cost": cost_analytics.get("summary", {}).get("total_cost", 0),
+                    "average_cost": cost_analytics.get("summary", {}).get("average_cost", 0),
+                    "maintenance_count": cost_analytics.get("summary", {}).get("total_maintenance_count", 0)
+                }
+            },
+            "cost_analytics": {
+                "periods": [],
+                "cost_by_type": {},
+                "vehicles": [],
+                "total_cost": cost_analytics.get("summary", {}).get("total_cost", 0),
+                "average_cost": cost_analytics.get("summary", {}).get("average_cost", 0),
+                "record_count": cost_analytics.get("summary", {}).get("total_maintenance_count", 0)
+            }
+        }
+        
+        return ResponseBuilder.success(
+            data=overview_data,
+            message="Analytics overview retrieved successfully",
+            request_id=timer.request_id,
+            execution_time=timer.elapsed
+        )
+        
+    except Exception as e:
+        logger.error(f"Error retrieving analytics overview: {e}")
+        return ResponseBuilder.error(
+            message="Internal server error",
+            status_code=500,
+            request_id=timer.request_id,
+            execution_time=timer.elapsed
+        )
+
+
 @router.get("/dashboard")
 async def get_maintenance_dashboard(
     user: dict = Depends(get_authenticated_user),
@@ -51,7 +112,8 @@ async def get_cost_analytics(
     vehicle_id: Optional[str] = Query(None, description="Filter by vehicle ID"),
     start_date: Optional[datetime] = Query(None, description="Start date for analysis"),
     end_date: Optional[datetime] = Query(None, description="End date for analysis"),
-    group_by: str = Query("month", regex="^(day|week|month)$", description="Time grouping"),
+    group_by: Optional[str] = Query(None, regex="^(day|week|month)$", description="Time grouping"),
+    period: Optional[str] = Query(None, description="Period (for frontend compatibility: monthly, quarterly, yearly)"),
     user: dict = Depends(get_authenticated_user),
     _: None = Depends(require_permissions(["maintenance.analytics.read"])),
     timer: object = Depends(get_request_timer)
@@ -60,6 +122,17 @@ async def get_cost_analytics(
     try:
         start_date_str = start_date.isoformat() if start_date else None
         end_date_str = end_date.isoformat() if end_date else None
+        
+        # Handle frontend period parameter and convert to group_by
+        if period and not group_by:
+            if period in ["monthly", "quarterly"]:
+                group_by = "month"
+            elif period == "yearly":
+                group_by = "month"  # We'll group by month and let frontend aggregate yearly
+            else:
+                group_by = "month"  # default
+        elif not group_by:
+            group_by = "month"  # default
         
         cost_analytics = await maintenance_analytics_service.get_cost_analytics(
             vehicle_id=vehicle_id,
@@ -78,7 +151,8 @@ async def get_cost_analytics(
                     "vehicle_id": vehicle_id,
                     "start_date": start_date_str,
                     "end_date": end_date_str,
-                    "group_by": group_by
+                    "group_by": group_by,
+                    "period": period
                 }
             }
         )
@@ -289,6 +363,237 @@ async def get_maintenance_kpis(
         
     except Exception as e:
         logger.error(f"Error retrieving maintenance KPIs: {e}")
+        return ResponseBuilder.error(
+            message="Internal server error",
+            status_code=500,
+            request_id=timer.request_id,
+            execution_time=timer.elapsed
+        )
+
+
+@router.get("/timeframe/total-cost")
+async def get_total_cost_timeframe(
+    start_date: datetime = Query(..., description="Start date for cost calculation"),
+    end_date: datetime = Query(..., description="End date for cost calculation"),
+    user: dict = Depends(get_authenticated_user),
+    _: None = Depends(require_permissions(["maintenance.analytics.read"])),
+    timer: object = Depends(get_request_timer)
+):
+    """Get total maintenance cost within a specific timeframe"""
+    try:
+        total_cost = await maintenance_analytics_service.get_total_cost_timeframe(
+            start_date=start_date.isoformat(),
+            end_date=end_date.isoformat()
+        )
+        
+        return ResponseBuilder.success(
+            data={
+                "total_cost": total_cost,
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+                "period_days": (end_date - start_date).days
+            },
+            message=f"Total cost for period {start_date.date()} to {end_date.date()} retrieved successfully",
+            request_id=timer.request_id,
+            execution_time=timer.elapsed
+        )
+        
+    except Exception as e:
+        logger.error(f"Error retrieving total cost for timeframe: {e}")
+        return ResponseBuilder.error(
+            message="Internal server error",
+            status_code=500,
+            request_id=timer.request_id,
+            execution_time=timer.elapsed
+        )
+
+
+@router.get("/timeframe/records-count")
+async def get_records_count_timeframe(
+    start_date: datetime = Query(..., description="Start date for record count"),
+    end_date: datetime = Query(..., description="End date for record count"),
+    user: dict = Depends(get_authenticated_user),
+    _: None = Depends(require_permissions(["maintenance.analytics.read"])),
+    timer: object = Depends(get_request_timer)
+):
+    """Get number of maintenance records within a specific timeframe"""
+    try:
+        records_count = await maintenance_analytics_service.get_records_count_timeframe(
+            start_date=start_date.isoformat(),
+            end_date=end_date.isoformat()
+        )
+        
+        return ResponseBuilder.success(
+            data={
+                "records_count": records_count,
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+                "period_days": (end_date - start_date).days
+            },
+            message=f"Records count for period {start_date.date()} to {end_date.date()} retrieved successfully",
+            request_id=timer.request_id,
+            execution_time=timer.elapsed
+        )
+        
+    except Exception as e:
+        logger.error(f"Error retrieving records count for timeframe: {e}")
+        return ResponseBuilder.error(
+            message="Internal server error",
+            status_code=500,
+            request_id=timer.request_id,
+            execution_time=timer.elapsed
+        )
+
+
+@router.get("/timeframe/vehicles-serviced")
+async def get_vehicles_serviced_timeframe(
+    start_date: datetime = Query(..., description="Start date for vehicle count"),
+    end_date: datetime = Query(..., description="End date for vehicle count"),
+    user: dict = Depends(get_authenticated_user),
+    _: None = Depends(require_permissions(["maintenance.analytics.read"])),
+    timer: object = Depends(get_request_timer)
+):
+    """Get number of unique vehicles serviced within a specific timeframe"""
+    try:
+        vehicles_count = await maintenance_analytics_service.get_vehicles_serviced_timeframe(
+            start_date=start_date.isoformat(),
+            end_date=end_date.isoformat()
+        )
+        
+        return ResponseBuilder.success(
+            data={
+                "vehicles_serviced": vehicles_count,
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+                "period_days": (end_date - start_date).days
+            },
+            message=f"Unique vehicles serviced for period {start_date.date()} to {end_date.date()} retrieved successfully",
+            request_id=timer.request_id,
+            execution_time=timer.elapsed
+        )
+        
+    except Exception as e:
+        logger.error(f"Error retrieving vehicles serviced count for timeframe: {e}")
+        return ResponseBuilder.error(
+            message="Internal server error",
+            status_code=500,
+            request_id=timer.request_id,
+            execution_time=timer.elapsed
+        )
+
+
+@router.get("/maintenance-by-type")
+async def get_maintenance_records_by_type(
+    start_date: Optional[datetime] = Query(None, description="Start date filter (optional)"),
+    end_date: Optional[datetime] = Query(None, description="End date filter (optional)"),
+    user: dict = Depends(get_authenticated_user),
+    _: None = Depends(require_permissions(["maintenance.analytics.read"])),
+    timer: object = Depends(get_request_timer)
+):
+    """Get maintenance records grouped by maintenance type"""
+    try:
+        start_date_str = start_date.isoformat() if start_date else None
+        end_date_str = end_date.isoformat() if end_date else None
+        
+        records_by_type = await maintenance_analytics_service.get_maintenance_records_by_type(
+            start_date=start_date_str,
+            end_date=end_date_str
+        )
+        
+        return ResponseBuilder.success(
+            data={
+                "records_by_type": records_by_type,
+                "start_date": start_date_str,
+                "end_date": end_date_str,
+                "total_types": len(records_by_type)
+            },
+            message="Maintenance records by type retrieved successfully",
+            request_id=timer.request_id,
+            execution_time=timer.elapsed
+        )
+        
+    except Exception as e:
+        logger.error(f"Error retrieving maintenance records by type: {e}")
+        return ResponseBuilder.error(
+            message="Internal server error",
+            status_code=500,
+            request_id=timer.request_id,
+            execution_time=timer.elapsed
+        )
+
+
+@router.get("/cost-outliers")
+async def get_maintenance_cost_outliers(
+    start_date: Optional[datetime] = Query(None, description="Start date filter (optional)"),
+    end_date: Optional[datetime] = Query(None, description="End date filter (optional)"),
+    threshold_multiplier: float = Query(2.0, ge=1.0, le=5.0, description="Outlier threshold multiplier (default: 2.0)"),
+    user: dict = Depends(get_authenticated_user),
+    _: None = Depends(require_permissions(["maintenance.analytics.read"])),
+    timer: object = Depends(get_request_timer)
+):
+    """Get maintenance records with outlier costs (significantly above average)"""
+    try:
+        start_date_str = start_date.isoformat() if start_date else None
+        end_date_str = end_date.isoformat() if end_date else None
+        
+        cost_outliers = await maintenance_analytics_service.get_maintenance_cost_outliers(
+            start_date=start_date_str,
+            end_date=end_date_str,
+            threshold_multiplier=threshold_multiplier
+        )
+        
+        return ResponseBuilder.success(
+            data=cost_outliers,
+            message=f"Maintenance cost outliers (threshold: {threshold_multiplier}x average) retrieved successfully",
+            request_id=timer.request_id,
+            execution_time=timer.elapsed,
+            metadata={
+                "threshold_multiplier": threshold_multiplier,
+                "start_date": start_date_str,
+                "end_date": end_date_str
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error retrieving maintenance cost outliers: {e}")
+        return ResponseBuilder.error(
+            message="Internal server error",
+            status_code=500,
+            request_id=timer.request_id,
+            execution_time=timer.elapsed
+        )
+
+
+@router.get("/timeframe/maintenance-per-vehicle")
+async def get_maintenance_per_vehicle_timeframe(
+    start_date: datetime = Query(..., description="Start date for maintenance count"),
+    end_date: datetime = Query(..., description="End date for maintenance count"),
+    user: dict = Depends(get_authenticated_user),
+    _: None = Depends(require_permissions(["maintenance.analytics.read"])),
+    timer: object = Depends(get_request_timer)
+):
+    """Get number of maintenance records per vehicle within a specific timeframe"""
+    try:
+        maintenance_per_vehicle = await maintenance_analytics_service.get_maintenance_per_vehicle_timeframe(
+            start_date=start_date.isoformat(),
+            end_date=end_date.isoformat()
+        )
+        
+        return ResponseBuilder.success(
+            data={
+                "maintenance_per_vehicle": maintenance_per_vehicle,
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+                "period_days": (end_date - start_date).days,
+                "total_vehicles": len(maintenance_per_vehicle)
+            },
+            message=f"Maintenance count per vehicle for period {start_date.date()} to {end_date.date()} retrieved successfully",
+            request_id=timer.request_id,
+            execution_time=timer.elapsed
+        )
+        
+    except Exception as e:
+        logger.error(f"Error retrieving maintenance per vehicle for timeframe: {e}")
         return ResponseBuilder.error(
             message="Internal server error",
             status_code=500,

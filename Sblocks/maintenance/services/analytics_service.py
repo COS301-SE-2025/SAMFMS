@@ -396,6 +396,428 @@ class MaintenanceAnalyticsService:
         except:
             return 0
 
+    async def get_total_cost_timeframe(self, start_date: str, end_date: str) -> float:
+        """Get total maintenance cost within a specific timeframe"""
+        try:
+            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            
+            pipeline = [
+                {
+                    "$match": {
+                        "created_at": {
+                            "$gte": start_dt,
+                            "$lte": end_dt
+                        },
+                        "$or": [
+                            {"actual_cost": {"$exists": True, "$ne": None}},
+                            {"estimated_cost": {"$exists": True, "$ne": None}},
+                            {"cost": {"$exists": True, "$ne": None}}
+                        ]
+                    }
+                },
+                {
+                    "$addFields": {
+                        "cost_value": {
+                            "$cond": {
+                                "if": {"$ne": ["$actual_cost", None]},
+                                "then": "$actual_cost",
+                                "else": {
+                                    "$cond": {
+                                        "if": {"$ne": ["$estimated_cost", None]},
+                                        "then": "$estimated_cost",
+                                        "else": {"$ifNull": ["$cost", 0]}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": None,
+                        "total_cost": {"$sum": "$cost_value"}
+                    }
+                }
+            ]
+            
+            result = await self.maintenance_repo.aggregate(pipeline)
+            return float(result[0]["total_cost"]) if result else 0.0
+            
+        except Exception as e:
+            logger.error(f"Error calculating total cost for timeframe: {e}")
+            raise
+
+    async def get_records_count_timeframe(self, start_date: str, end_date: str) -> int:
+        """Get number of maintenance records within a specific timeframe"""
+        try:
+            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            
+            count = await self.maintenance_repo.count({
+                "created_at": {
+                    "$gte": start_dt,
+                    "$lte": end_dt
+                }
+            })
+            
+            return count
+            
+        except Exception as e:
+            logger.error(f"Error counting records for timeframe: {e}")
+            raise
+
+    async def get_vehicles_serviced_timeframe(self, start_date: str, end_date: str) -> int:
+        """Get number of unique vehicles serviced within a specific timeframe"""
+        try:
+            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            
+            pipeline = [
+                {
+                    "$match": {
+                        "created_at": {
+                            "$gte": start_dt,
+                            "$lte": end_dt
+                        },
+                        "vehicle_id": {"$exists": True, "$ne": None}
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": "$vehicle_id"
+                    }
+                },
+                {
+                    "$count": "unique_vehicles"
+                }
+            ]
+            
+            result = await self.maintenance_repo.aggregate(pipeline)
+            return result[0]["unique_vehicles"] if result else 0
+            
+        except Exception as e:
+            logger.error(f"Error counting unique vehicles serviced for timeframe: {e}")
+            raise
+
+    async def get_maintenance_records_by_type(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get maintenance records grouped by maintenance type"""
+        try:
+            match_criteria = {"maintenance_type": {"$exists": True, "$ne": None}}
+            
+            if start_date and end_date:
+                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                match_criteria["created_at"] = {"$gte": start_dt, "$lte": end_dt}
+            
+            pipeline = [
+                {"$match": match_criteria},
+                {
+                    "$group": {
+                        "_id": "$maintenance_type",
+                        "count": {"$sum": 1},
+                        "total_cost": {
+                            "$sum": {
+                                "$cond": {
+                                    "if": {"$ne": ["$actual_cost", None]},
+                                    "then": "$actual_cost",
+                                    "else": {
+                                        "$cond": {
+                                            "if": {"$ne": ["$estimated_cost", None]},
+                                            "then": "$estimated_cost",
+                                            "else": {"$ifNull": ["$cost", 0]}
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "average_cost": {
+                            "$avg": {
+                                "$cond": {
+                                    "if": {"$ne": ["$actual_cost", None]},
+                                    "then": "$actual_cost",
+                                    "else": {
+                                        "$cond": {
+                                            "if": {"$ne": ["$estimated_cost", None]},
+                                            "then": "$estimated_cost",
+                                            "else": {"$ifNull": ["$cost", 0]}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "$sort": {"count": -1}
+                },
+                {
+                    "$project": {
+                        "maintenance_type": "$_id",
+                        "count": 1,
+                        "total_cost": {"$round": ["$total_cost", 2]},
+                        "average_cost": {"$round": ["$average_cost", 2]},
+                        "_id": 0
+                    }
+                }
+            ]
+            
+            result = await self.maintenance_repo.aggregate(pipeline)
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error getting maintenance records by type: {e}")
+            raise
+
+    async def get_maintenance_cost_outliers(self, start_date: Optional[str] = None, end_date: Optional[str] = None, threshold_multiplier: float = 2.0) -> Dict[str, Any]:
+        """Get maintenance records with outlier costs (significantly above average)"""
+        try:
+            match_criteria = {
+                "$or": [
+                    {"actual_cost": {"$exists": True, "$ne": None, "$gt": 0}},
+                    {"estimated_cost": {"$exists": True, "$ne": None, "$gt": 0}},
+                    {"cost": {"$exists": True, "$ne": None, "$gt": 0}}
+                ]
+            }
+            
+            if start_date and end_date:
+                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                match_criteria["created_at"] = {"$gte": start_dt, "$lte": end_dt}
+            
+            # First, get the average cost
+            avg_pipeline = [
+                {"$match": match_criteria},
+                {
+                    "$addFields": {
+                        "cost_value": {
+                            "$cond": {
+                                "if": {"$ne": ["$actual_cost", None]},
+                                "then": "$actual_cost",
+                                "else": {
+                                    "$cond": {
+                                        "if": {"$ne": ["$estimated_cost", None]},
+                                        "then": "$estimated_cost",
+                                        "else": {"$ifNull": ["$cost", 0]}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": None,
+                        "average_cost": {"$avg": "$cost_value"},
+                        "total_records": {"$sum": 1}
+                    }
+                }
+            ]
+            
+            avg_result = await self.maintenance_repo.aggregate(avg_pipeline)
+            if not avg_result:
+                return {"outliers": [], "statistics": {"average_cost": 0, "threshold": 0, "total_records": 0}}
+            
+            average_cost = avg_result[0]["average_cost"]
+            total_records = avg_result[0]["total_records"]
+            threshold = average_cost * threshold_multiplier
+            
+            # Now get the outliers
+            outlier_pipeline = [
+                {"$match": match_criteria},
+                {
+                    "$addFields": {
+                        "cost_value": {
+                            "$cond": {
+                                "if": {"$ne": ["$actual_cost", None]},
+                                "then": "$actual_cost",
+                                "else": {
+                                    "$cond": {
+                                        "if": {"$ne": ["$estimated_cost", None]},
+                                        "then": "$estimated_cost",
+                                        "else": {"$ifNull": ["$cost", 0]}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "$match": {
+                        "cost_value": {"$gte": threshold}
+                    }
+                },
+                {
+                    "$project": {
+                        "id": {"$toString": "$_id"},
+                        "vehicle_id": 1,
+                        "maintenance_type": 1,
+                        "title": 1,
+                        "cost": "$cost_value",
+                        "created_at": 1,
+                        "cost_multiplier": {
+                            "$round": [{"$divide": ["$cost_value", average_cost]}, 2]
+                        }
+                    }
+                },
+                {
+                    "$sort": {"cost": -1}
+                }
+            ]
+            
+            outliers = await self.maintenance_repo.aggregate(outlier_pipeline)
+            
+            return {
+                "outliers": outliers,
+                "statistics": {
+                    "average_cost": round(average_cost, 2),
+                    "threshold": round(threshold, 2),
+                    "threshold_multiplier": threshold_multiplier,
+                    "total_records": total_records,
+                    "outlier_count": len(outliers)
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting maintenance cost outliers: {e}")
+            raise
+
+    async def get_maintenance_per_vehicle_timeframe(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
+        """Get number of maintenance records per vehicle within a specific timeframe"""
+        try:
+            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            
+            pipeline = [
+                {
+                    "$match": {
+                        "created_at": {
+                            "$gte": start_dt,
+                            "$lte": end_dt
+                        },
+                        "vehicle_id": {"$exists": True, "$ne": None}
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": "$vehicle_id",
+                        "maintenance_count": {"$sum": 1},
+                        "total_cost": {
+                            "$sum": {
+                                "$cond": {
+                                    "if": {"$ne": ["$actual_cost", None]},
+                                    "then": "$actual_cost",
+                                    "else": {
+                                        "$cond": {
+                                            "if": {"$ne": ["$estimated_cost", None]},
+                                            "then": "$estimated_cost",
+                                            "else": {"$ifNull": ["$cost", 0]}
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "maintenance_types": {
+                            "$addToSet": "$maintenance_type"
+                        },
+                        "latest_maintenance": {"$max": "$created_at"},
+                        "earliest_maintenance": {"$min": "$created_at"}
+                    }
+                },
+                {
+                    "$sort": {"maintenance_count": -1}
+                },
+                {
+                    "$project": {
+                        "vehicle_id": "$_id",
+                        "maintenance_count": 1,
+                        "total_cost": {"$round": ["$total_cost", 2]},
+                        "average_cost": {"$round": [{"$divide": ["$total_cost", "$maintenance_count"]}, 2]},
+                        "maintenance_types": 1,
+                        "types_count": {"$size": "$maintenance_types"},
+                        "latest_maintenance": 1,
+                        "earliest_maintenance": 1,
+                        "_id": 0
+                    }
+                }
+            ]
+            
+            result = await self.maintenance_repo.aggregate(pipeline)
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error getting maintenance per vehicle for timeframe: {e}")
+            raise
+    
+    async def get_maintenance_per_vehicle_timeframe(self, 
+                                                    start_date: str, 
+                                                    end_date: str) -> List[Dict[str, Any]]:
+        """Get maintenance records per vehicle within a specific timeframe"""
+        try:
+            # Parse dates
+            start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+            end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+            
+            pipeline = [
+                {
+                    "$match": {
+                        "created_at": {
+                            "$gte": start_dt,
+                            "$lte": end_dt
+                        }
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": "$vehicle_id",
+                        "maintenance_count": {"$sum": 1},
+                        "total_cost": {
+                            "$sum": {
+                                "$cond": {
+                                    "if": {"$ne": ["$actual_cost", None]},
+                                    "then": "$actual_cost",
+                                    "else": {
+                                        "$cond": {
+                                            "if": {"$ne": ["$estimated_cost", None]},
+                                            "then": "$estimated_cost",
+                                            "else": {"$ifNull": ["$cost", 0]}
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "maintenance_types": {
+                            "$addToSet": "$maintenance_type"
+                        },
+                        "latest_maintenance": {"$max": "$created_at"},
+                        "earliest_maintenance": {"$min": "$created_at"}
+                    }
+                },
+                {
+                    "$sort": {"maintenance_count": -1}
+                },
+                {
+                    "$project": {
+                        "vehicle_id": "$_id",
+                        "maintenance_count": 1,
+                        "total_cost": {"$round": ["$total_cost", 2]},
+                        "average_cost": {"$round": [{"$divide": ["$total_cost", "$maintenance_count"]}, 2]},
+                        "maintenance_types": 1,
+                        "types_count": {"$size": "$maintenance_types"},
+                        "latest_maintenance": 1,
+                        "earliest_maintenance": 1,
+                        "_id": 0
+                    }
+                }
+            ]
+            
+            result = await self.maintenance_repo.aggregate(pipeline)
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error getting maintenance per vehicle for timeframe: {e}")
+            raise
+
 
 # Global service instance
 maintenance_analytics_service = MaintenanceAnalyticsService()

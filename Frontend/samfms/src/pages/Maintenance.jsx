@@ -21,12 +21,19 @@ const Maintenance = () => {
       setLoading(true);
       // Load vehicles for dropdowns
       const vehiclesResponse = await vehiclesAPI.getVehicles();
+
+      console.log('Vehicles API Response:', vehiclesResponse);
+
       // Handle nested response structure similar to Vehicles.jsx
       const vehiclesData =
         vehiclesResponse.data?.data?.vehicles ||
         vehiclesResponse.vehicles ||
         vehiclesResponse.data?.vehicles ||
         [];
+
+      console.log('Processed vehicles data:', vehiclesData);
+      console.log('First vehicle structure:', vehiclesData[0]);
+
       setVehicles(vehiclesData);
     } catch (err) {
       console.error('Error loading initial data:', err);
