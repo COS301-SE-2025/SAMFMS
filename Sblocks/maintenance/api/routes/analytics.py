@@ -44,22 +44,33 @@ async def get_analytics_overview(
             group_by="month"
         )
         
+        # Debug logging
+        logger.info(f"Cost analytics result: {cost_analytics}")
+        
         # Combine and structure the data for frontend consumption
         overview_data = {
             "analytics": {
+                "maintenance_summary": {
+                    "overdue_count": dashboard_data.get("overview", {}).get("overdue_maintenance", 0),
+                    "upcoming_count": dashboard_data.get("overview", {}).get("upcoming_maintenance", 0),
+                    "total_active": dashboard_data.get("overview", {}).get("total_vehicles", 0)
+                },
                 "cost_analysis": {
                     "total_cost": cost_analytics.get("summary", {}).get("total_cost", 0),
+                    "total_labor_cost": cost_analytics.get("summary", {}).get("total_labor_cost", 0),
+                    "total_parts_cost": cost_analytics.get("summary", {}).get("total_parts_cost", 0),
                     "average_cost": cost_analytics.get("summary", {}).get("average_cost", 0),
-                    "maintenance_count": cost_analytics.get("summary", {}).get("total_maintenance_count", 0)
+                    "maintenance_count": cost_analytics.get("summary", {}).get("total_maintenance_count", 0),
+                    "_id": None,
+                    "id": "None"
+                },
+                "performance_metrics": {
+                    "completion_rate": 100.0  # Default completion rate
+                },
+                "trends": {
+                    "maintenance_frequency": "normal",
+                    "cost_efficiency": "good"
                 }
-            },
-            "cost_analytics": {
-                "periods": [],
-                "cost_by_type": {},
-                "vehicles": [],
-                "total_cost": cost_analytics.get("summary", {}).get("total_cost", 0),
-                "average_cost": cost_analytics.get("summary", {}).get("average_cost", 0),
-                "record_count": cost_analytics.get("summary", {}).get("total_maintenance_count", 0)
             }
         }
         
@@ -420,10 +431,14 @@ async def get_total_cost_timeframe(
 ):
     """Get total maintenance cost within a specific timeframe"""
     try:
+        logger.info(f"🎯 TIMEFRAME TOTAL COST endpoint called with dates: {start_date} to {end_date}")
+        
         total_cost = await maintenance_analytics_service.get_total_cost_timeframe(
             start_date=start_date.isoformat(),
             end_date=end_date.isoformat()
         )
+        
+        logger.info(f"🎯 Total cost result: {total_cost}")
         
         return ResponseBuilder.success(
             data={
@@ -494,10 +509,14 @@ async def get_vehicles_serviced_timeframe(
 ):
     """Get number of unique vehicles serviced within a specific timeframe"""
     try:
+        logger.info(f"🚗 TIMEFRAME VEHICLES SERVICED endpoint called with dates: {start_date} to {end_date}")
+        
         vehicles_count = await maintenance_analytics_service.get_vehicles_serviced_timeframe(
             start_date=start_date.isoformat(),
             end_date=end_date.isoformat()
         )
+        
+        logger.info(f"🚗 Vehicles serviced result: {vehicles_count}")
         
         return ResponseBuilder.success(
             data={
