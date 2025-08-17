@@ -329,6 +329,10 @@ class DriverService:
             else:
                 logger.error(f"Failed to delete driver: {driver_id}")
             
+            from .drivers_service import DriversService
+            drivers_service = DriversService()
+            await drivers_service.remove_driver()
+            logger.info(f"Driver analytics removal logged")
             return success
         except Exception as e:
             logger.error(f"Error deleting driver {driver_id}: {e}")
