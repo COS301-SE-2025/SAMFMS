@@ -846,11 +846,6 @@ const Trips = () => {
                   <RecentTripsTable recentTrips={recentTrips} />
                 )}
               </div>
-
-              {/* Keep the existing TripsHistory component as well */}
-              <div className="animate-fade-in animate-delay-300">
-                <TripsHistory trips={recentTrips} />
-              </div>
             </div>
           )}
 
