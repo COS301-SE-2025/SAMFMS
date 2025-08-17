@@ -35,77 +35,48 @@ LAST_NAMES = [
 
 
 def generate_driver_data(count: int = 30) -> List[Dict[str, Any]]:
-    """Generate mock driver data"""
+    """Generate mock driver data using the same structure as frontend"""
     drivers = []
     
     logger.info(f"Generating {count} mock drivers...")
     
+    # Frontend license types from AddDriverModal.jsx
+    license_types = [
+        'A', 'A1', 'B', 'C', 'C1', 'EB', 'EC', 'EC1'
+    ]
+    
+    # Frontend departments from AddDriverModal.jsx
+    departments = [
+        'Operations', 'Logistics', 'Maintenance', 'Administration', 'Security'
+    ]
+    
     for i in range(count):
         first_name = random.choice(FIRST_NAMES)
         last_name = random.choice(LAST_NAMES)
+        full_name = f"{first_name} {last_name}"
         
-        # Generate realistic age (21-65 for drivers)
-        age = random.randint(21, 65)
-        birth_date = datetime.now() - timedelta(days=age * 365 + random.randint(0, 365))
+        # Generate realistic dates
+        joining_date = datetime.now() - timedelta(days=random.randint(30, 1095))
+        license_expiry = datetime.now() + timedelta(days=random.randint(30, 1095))
         
-        # Generate hire date (1-10 years ago)
-        hire_date = datetime.now() - timedelta(days=random.randint(365, 3650))
+        # Generate security_id required by Management service
+        import uuid
+        security_id = str(uuid.uuid4())
         
-        # Generate location
-        city_index = random.randint(0, len(CITIES) - 1)
-        city = CITIES[city_index]
-        state = STATES[city_index]
-        
+        # Create driver data matching frontend structure exactly
         driver = {
-            "username": f"{first_name.lower()}.{last_name.lower()}.{random.randint(100, 999)}",
+            # Frontend form fields only - matching AddDriverModal.jsx exactly
+            "full_name": full_name,
             "email": generate_email(first_name, last_name),
-            "password": "Password1!",  # Standard password for all mock users
-            "first_name": first_name,
-            "last_name": last_name,
-            "full_name": f"{first_name} {last_name}",
-            "role": "driver",
-            "phone": generate_phone_number(),
-            "date_of_birth": birth_date.date().isoformat(),
-            "hire_date": hire_date.date().isoformat(),
-            "status": random.choice(["active", "active", "active", "inactive"]),
-            "address": {
-                "street": f"{random.randint(100, 9999)} {random.choice(['Main', 'Oak', 'Pine', 'Elm', 'Cedar', 'Maple'])} {random.choice(['St', 'Ave', 'Blvd', 'Dr', 'Rd'])}",
-                "city": city,
-                "state": state,
-                "zip_code": f"{random.randint(10000, 99999)}",
-                "country": "USA"
-            },
-            "emergency_contact": {
-                "name": f"{random.choice(FIRST_NAMES)} {random.choice(LAST_NAMES)}",
-                "relationship": random.choice(["spouse", "parent", "sibling", "friend"]),
-                "phone": generate_phone_number()
-            },
-            "driver_info": {
-                "license_number": f"DL{random.randint(100000000, 999999999)}",
-                "license_class": random.choice(DRIVER_LICENSES),
-                "license_expiry": (datetime.now() + timedelta(days=random.randint(30, 1095))).date().isoformat(),
-                "years_experience": min(age - 16, random.randint(2, 30)),
-                "clean_record": random.choice([True, True, True, False]),  # 75% clean records
-                "certifications": random.sample([
-                    "defensive_driving", "hazmat", "passenger_transport", 
-                    "commercial_vehicle", "safety_training", "first_aid"
-                ], k=random.randint(1, 3))
-            },
-            "employment": {
-                "employee_id": f"EMP{random.randint(10000, 99999)}",
-                "department": random.choice(["transportation", "delivery", "logistics", "field_services"]),
-                "shift": random.choice(["day", "night", "rotating"]),
-                "salary": random.randint(35000, 75000),
-                "benefits_eligible": True
-            },
-            "preferences": {
-                "preferred_vehicle_types": random.sample(["sedan", "suv", "truck", "van"], k=random.randint(1, 2)),
-                "max_shift_hours": random.choice([8, 10, 12]),
-                "weekend_availability": random.choice([True, False]),
-                "travel_radius": random.randint(25, 100)  # miles
-            },
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat()
+            "phoneNo": generate_phone_number(),
+            "emergency_contact": generate_phone_number(),
+            "license_number": f"SA{random.randint(1000000000000, 9999999999999)}",  # SA format
+            "license_type": random.choice(license_types),
+            "license_expiry": license_expiry.date().isoformat(),
+            "department": random.choice(departments),
+            "joining_date": joining_date.date().isoformat(),
+            # Required by Management service backend
+            "security_id": security_id,
         }
         
         drivers.append(driver)
@@ -202,24 +173,102 @@ def generate_fleet_manager_data(count: int = 10) -> List[Dict[str, Any]]:
 
 
 async def create_mock_users(drivers_count: int = 30, managers_count: int = 10):
-    """Create mock users via Core service"""
+    """Create mock users and drivers via appropriate service endpoints with proper security_id linking"""
     logger.info("👥 Starting user creation process...")
     
     # Generate user data
     driver_data = generate_driver_data(drivers_count)
     manager_data = generate_fleet_manager_data(managers_count)
     
-    all_users = driver_data + manager_data
-    
-    # Create users via Core service
+    # Create users via appropriate endpoints
     async with CoreServiceClient() as core_client:
-        logger.info("Creating users via Core service...")
         
-        results = await batch_create_with_delay(
-            core_client.create_user,
-            all_users,
-            batch_size=3  # 3 users per batch to be gentle
-        )
+        # Create drivers using two-step process: Core auth first, then Management service
+        if drivers_count > 0:
+            logger.info(f"Creating {len(driver_data)} drivers via two-step process...")
+            
+            # Step 1: Create users in Core service for authentication
+            logger.info("Step 1: Creating driver users in Core service...")
+            core_user_data = []
+            for driver in driver_data:
+                # Parse full_name into first_name and last_name
+                name_parts = driver['full_name'].split(' ', 1)
+                first_name = name_parts[0]
+                last_name = name_parts[1] if len(name_parts) > 1 else ""
+                
+                user_data = {
+                    "username": f"{first_name.lower()}.{last_name.lower()}.{random.randint(100, 999)}",
+                    "email": driver['email'],
+                    "password": "Password1!",
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "full_name": driver['full_name'],
+                    "role": "driver",
+                    "phone": driver['phoneNo'],
+                    "status": "active"
+                }
+                core_user_data.append(user_data)
+            
+            # Create users in Core service
+            user_results = await batch_create_with_delay(
+                core_client.create_user,
+                core_user_data,
+                batch_size=3
+            )
+            
+            # Step 2: Create Management service driver records with security_id
+            logger.info("Step 2: Creating driver records in Management service...")
+            management_driver_data = []
+            successful_driver_users = []
+            
+            for i, (user_result, driver_frontend) in enumerate(zip(user_results, driver_data)):
+                if user_result.get("error"):
+                    continue
+                
+                # Extract user ID from Core service response
+                user_id = None
+                if "data" in user_result and "id" in user_result["data"]:
+                    user_id = user_result["data"]["id"]
+                elif "id" in user_result:
+                    user_id = user_result["id"]
+                elif "user" in user_result and "id" in user_result["user"]:
+                    user_id = user_result["user"]["id"]
+                
+                if user_id:
+                    driver_record = {
+                        **driver_frontend,
+                        "security_id": user_id
+                    }
+                    management_driver_data.append(driver_record)
+                    successful_driver_users.append(user_result)
+            
+            # Create drivers in Management service
+            if management_driver_data:
+                driver_results = await batch_create_with_delay(
+                    core_client.create_driver,
+                    management_driver_data,
+                    batch_size=3
+                )
+            else:
+                driver_results = []
+        else:
+            driver_results = []
+            successful_driver_users = []
+        
+        # Create fleet managers using Core service (they use different structure)
+        if managers_count > 0:
+            logger.info(f"Creating {len(manager_data)} fleet managers via Core service...")
+            manager_results = await batch_create_with_delay(
+                core_client.create_user,  # Managers still use Core service
+                manager_data,
+                batch_size=3
+            )
+        else:
+            manager_results = []
+        
+        # Combine results for logging
+        all_results = driver_results + manager_results
+        all_user_data = management_driver_data + manager_data if drivers_count > 0 else manager_data
         
         # Log results
         successful_users = []
@@ -227,18 +276,38 @@ async def create_mock_users(drivers_count: int = 30, managers_count: int = 10):
         successful_drivers = 0
         successful_managers = 0
         
-        for i, result in enumerate(results):
-            user_name = f"{all_users[i]['first_name']} {all_users[i]['last_name']} ({all_users[i]['role']})"
+        for i, result in enumerate(all_results):
+            if i < len(driver_results):
+                user_name = f"{management_driver_data[i]['full_name']} (driver)" if i < len(management_driver_data) else "Unknown driver"
+                user_type = "driver"
+            else:
+                manager_index = i - len(driver_results)
+                user_name = f"{manager_data[manager_index]['first_name']} {manager_data[manager_index]['last_name']} (fleet_manager)" if manager_index < len(manager_data) else "Unknown manager"
+                user_type = "fleet_manager"
+            
             log_creation_result("user", result, user_name)
             
             if not result.get("error"):
                 successful_users.append(result)
-                if all_users[i]['role'] == 'driver':
+                if user_type == 'driver':
                     successful_drivers += 1
                 else:
                     successful_managers += 1
             else:
                 failed_users.append(result)
+        
+        logger.info(f"\n📊 User Creation Summary:")
+        logger.info(f"👤 Core users created: {len(successful_driver_users) + successful_managers}")
+        logger.info(f"✅ Successfully created: {len(successful_users)} total records")
+        logger.info(f"   - Drivers: {successful_drivers}")
+        logger.info(f"   - Fleet Managers: {successful_managers}")
+        logger.info(f"❌ Failed to create: {len(failed_users)} records")
+        logger.info(f"🔐 All users use password: Password1!")
+        
+        if failed_users:
+            logger.warning("Failed users - please check service logs")
+            
+        return successful_users
         
         logger.info(f"\n📊 User Creation Summary:")
         logger.info(f"✅ Successfully created: {len(successful_users)} users")

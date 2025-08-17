@@ -197,7 +197,42 @@ class APIClient:
                 response_text = await response.text()
                 
                 if response.status == 401:
-                    logger.error(f"Authentication failed for {url}. Check credentials.")
+                    logger.warning(f"Authentication failed for {url}. Attempting to re-authenticate...")
+                    
+                    # Try to refresh authentication
+                    global _core_auth, _maintenance_auth
+                    if self.base_url == CORE_BASE_URL and _core_auth:
+                        success = await _core_auth.login()
+                        if success:
+                            # Update headers and retry
+                            self.headers.update(_core_auth.get_auth_headers())
+                            logger.info("Re-authentication successful, retrying request...")
+                            
+                            # Retry the request with new token
+                            async with self.session.request(
+                                method=method,
+                                url=url,
+                                json=data,
+                                params=params
+                            ) as retry_response:
+                                retry_text = await retry_response.text()
+                                
+                                if retry_response.status >= 400:
+                                    logger.error(f"HTTP {retry_response.status} error after re-auth for {url}: {retry_text}")
+                                    return {
+                                        "error": True,
+                                        "status_code": retry_response.status,
+                                        "message": retry_text
+                                    }
+                                
+                                try:
+                                    result = json.loads(retry_text)
+                                    logger.info(f"✅ {method} {url} - Success (after re-auth)")
+                                    return result
+                                except json.JSONDecodeError:
+                                    return {"success": True, "data": retry_text}
+                    
+                    # If re-auth failed or not applicable, return error
                     return {
                         "error": True,
                         "status_code": response.status,
@@ -260,6 +295,10 @@ class CoreServiceClient:
     async def create_user(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new user"""
         return await self.client.post("/auth/create-user", user_data)
+    
+    async def create_driver(self, driver_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new driver using Management service endpoint (same as frontend)"""
+        return await self.client.post("/management/drivers", driver_data)
         
     async def get_users(self, params: Dict[str, Any] = None) -> Dict[str, Any]:
         """Get list of users"""
@@ -342,10 +381,10 @@ async def batch_create_with_delay(client_method, data_list: List[Dict[str, Any]]
             
         results.extend(batch_results)
         
-        # Extra delay between batches
+        # Extra delay between batches to avoid token expiration
         if i + batch_size < len(data_list):
             logger.info(f"Batch complete. Waiting before next batch...")
-            await asyncio.sleep(DELAY_BETWEEN_REQUESTS * 2)
+            await asyncio.sleep(2.0)  # 2 second delay between batches
             
     return results
 
@@ -355,21 +394,37 @@ def extract_id_from_response(response: Dict[str, Any]) -> Optional[str]:
     if response.get("error"):
         return None
         
-    # Try different response formats
+    # Check for user_id at root level (Core service format)
+    if "user_id" in response:
+        return str(response["user_id"])
+    
+    # Check for id at root level
+    if "id" in response:
+        return str(response["id"])
+    
+    # Try different response formats in data object
     data = response.get("data", {})
     
-    # Direct ID field
+    # Direct ID field in data
     if "id" in data:
-        return data["id"]
+        return str(data["id"])
+        
+    # user_id in data
+    if "user_id" in data:
+        return str(data["user_id"])
         
     # Nested in object
     for key in ["user", "vehicle", "organization", "maintenance_record", "license", "schedule"]:
         if key in data and "id" in data[key]:
-            return data[key]["id"]
+            return str(data[key]["id"])
+        if key in response and "id" in response[key]:
+            return str(response[key]["id"])
             
     # MongoDB _id field
     if "_id" in data:
         return str(data["_id"])
+    if "_id" in response:
+        return str(response["_id"])
         
     return None
 

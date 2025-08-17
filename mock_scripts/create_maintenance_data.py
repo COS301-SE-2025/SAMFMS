@@ -20,97 +20,134 @@ from api_utils import (
 )
 
 
+def generate_maintenance_record_data_for_all_vehicles(vehicle_ids: List[str], user_ids: List[str], 
+                                                    min_records_per_vehicle: int = 1,
+                                                    max_records_per_vehicle: int = 3) -> List[Dict[str, Any]]:
+    """Generate maintenance records ensuring each vehicle gets at least min_records_per_vehicle records"""
+    records = []
+    
+    logger.info(f"Generating maintenance records for {len(vehicle_ids)} vehicles...")
+    logger.info(f"Each vehicle will get {min_records_per_vehicle}-{max_records_per_vehicle} maintenance records")
+    
+    for vehicle_id in vehicle_ids:
+        # Determine how many records this vehicle should get
+        num_records = random.randint(min_records_per_vehicle, max_records_per_vehicle)
+        
+        for j in range(num_records):
+            record = generate_single_maintenance_record(vehicle_id, user_ids)
+            records.append(record)
+    
+    logger.info(f"Generated {len(records)} maintenance records total")
+    return records
+
+
+def generate_single_maintenance_record(vehicle_id: str, user_ids: List[str]) -> Dict[str, Any]:
+    """Generate a single maintenance record for a specific vehicle"""
+    assigned_to = random.choice(user_ids) if user_ids else "system"
+    maintenance_type = random.choice(MAINTENANCE_TYPES)
+    
+    # Determine if this is past, current, or future maintenance
+    maintenance_timing = random.choices(
+        ["past", "current", "future"],
+        weights=[60, 20, 20]  # 60% past, 20% current, 20% future
+    )[0]
+    
+    if maintenance_timing == "past":
+        scheduled_date = random_date_in_range(365, 30)  # 30 days to 1 year ago
+        completed_date = scheduled_date + timedelta(days=random.randint(0, 7))
+        status = random.choice(["completed", "completed", "overdue"])
+    elif maintenance_timing == "current":
+        scheduled_date = random_date_in_range(30, 0)  # Last 30 days
+        # Always provide completed_date, even for current/in-progress items
+        completed_date = scheduled_date + timedelta(days=random.randint(0, 5))
+        status = random.choice(["scheduled", "in_progress", "overdue"])
+    else:  # future
+        scheduled_date = future_date_in_range(1, 180)  # Next 6 months
+        # Even for future items, simulate as if they have a projected completion
+        completed_date = scheduled_date + timedelta(days=random.randint(0, 3))
+        status = "scheduled"
+    
+    # Generate cost based on maintenance type
+    cost_ranges = {
+        "oil_change": (50, 150),
+        "tire_rotation": (30, 80),
+        "brake_inspection": (100, 300),
+        "transmission_service": (200, 800),
+        "air_filter_replacement": (20, 60),
+        "battery_check": (50, 200),
+        "coolant_flush": (100, 250),
+        "tune_up": (200, 500),
+        "alignment": (80, 200),
+        "inspection": (50, 150),
+        "engine_diagnostic": (150, 400),
+        "suspension_check": (100, 600)
+    }
+    
+    min_cost, max_cost = cost_ranges.get(maintenance_type, (100, 500))
+    estimated_cost = random.randint(min_cost, max_cost)
+    # Always provide actual_cost - for completed items use slight variation, 
+    # for others use estimated cost as baseline
+    if status == "completed":
+        actual_cost = estimated_cost + random.randint(-50, 100)
+    else:
+        # For non-completed items, use estimated cost with small variation
+        actual_cost = estimated_cost + random.randint(-20, 50)
+    
+    record = {
+        "vehicle_id": vehicle_id,
+        "maintenance_type": maintenance_type,
+        "title": maintenance_type.replace("_", " ").title(),
+        "description": f"Routine {maintenance_type.replace('_', ' ')} maintenance for vehicle",
+        "scheduled_date": scheduled_date.isoformat(),
+        "completed_date": completed_date.isoformat() if completed_date else None,
+        "status": status,
+        "priority": random.choice(["low", "medium", "high"]),
+        "estimated_cost": estimated_cost,
+        "actual_cost": actual_cost,
+        "mileage_at_service": random.randint(10000, 150000),
+        "next_service_mileage": random.randint(15000, 160000),
+        "assigned_to": assigned_to,
+        "vendor": {
+            "name": random.choice([
+                "QuickLube Plus", "AutoCare Express", "Fleet Maintenance Co",
+                "ProService Motors", "Reliable Auto", "TechCare Automotive"
+            ]),
+            "contact": f"+1-{random.randint(200, 999)}-{random.randint(200, 999)}-{random.randint(1000, 9999)}",
+            "address": f"{random.randint(100, 9999)} Service Dr, Auto City, AC {random.randint(10000, 99999)}"
+        },
+        "parts_used": [
+            {
+                "part_name": random.choice(["Oil Filter", "Air Filter", "Brake Pads", "Spark Plugs", "Belts"]),
+                "part_number": f"P{random.randint(100000, 999999)}",
+                "quantity": random.randint(1, 4),
+                "cost": random.randint(10, 200)
+            }
+        ] if status in ["completed", "in_progress"] else [],
+        "labor_hours": random.uniform(0.5, 8.0),  # Always provide labor hours
+        "notes": f"Maintenance {'performed' if status == 'completed' else 'scheduled'} for {maintenance_type}. Vehicle in good condition.",
+        "attachments": [],
+        "warranty_period": random.randint(30, 365),  # Always provide warranty period
+        "created_at": datetime.now().isoformat(),
+        "updated_at": datetime.now().isoformat()
+    }
+    
+    return record
+
+
 def generate_maintenance_record_data(vehicle_ids: List[str], user_ids: List[str], 
                                    count: int = 100) -> List[Dict[str, Any]]:
-    """Generate mock maintenance record data"""
+    """Generate mock maintenance record data (original function for backwards compatibility)"""
     records = []
     
     logger.info(f"Generating {count} maintenance records for {len(vehicle_ids)} vehicles...")
     
     for i in range(count):
         vehicle_id = random.choice(vehicle_ids)
-        assigned_to = random.choice(user_ids) if user_ids else "system"
-        maintenance_type = random.choice(MAINTENANCE_TYPES)
+        record = generate_single_maintenance_record(vehicle_id, user_ids)
+        records.append(record)
         
         # Determine if this is past, current, or future maintenance
-        maintenance_timing = random.choices(
-            ["past", "current", "future"],
-            weights=[60, 20, 20]  # 60% past, 20% current, 20% future
-        )[0]
         
-        if maintenance_timing == "past":
-            scheduled_date = random_date_in_range(365, 30)  # 30 days to 1 year ago
-            completed_date = scheduled_date + timedelta(days=random.randint(0, 7))
-            status = random.choice(["completed", "completed", "overdue"])
-        elif maintenance_timing == "current":
-            scheduled_date = random_date_in_range(30, 0)  # Last 30 days
-            completed_date = None
-            status = random.choice(["scheduled", "in_progress", "overdue"])
-        else:  # future
-            scheduled_date = future_date_in_range(1, 180)  # Next 6 months
-            completed_date = None
-            status = "scheduled"
-        
-        # Generate cost based on maintenance type
-        cost_ranges = {
-            "oil_change": (50, 150),
-            "tire_rotation": (30, 80),
-            "brake_inspection": (100, 300),
-            "transmission_service": (200, 800),
-            "air_filter_replacement": (20, 60),
-            "battery_check": (50, 200),
-            "coolant_flush": (100, 250),
-            "tune_up": (200, 500),
-            "alignment": (80, 200),
-            "inspection": (50, 150),
-            "engine_diagnostic": (150, 400),
-            "suspension_check": (100, 600)
-        }
-        
-        min_cost, max_cost = cost_ranges.get(maintenance_type, (100, 500))
-        estimated_cost = random.randint(min_cost, max_cost)
-        actual_cost = estimated_cost + random.randint(-50, 100) if status == "completed" else None
-        
-        record = {
-            "vehicle_id": vehicle_id,
-            "maintenance_type": maintenance_type,
-            "title": maintenance_type.replace("_", " ").title(),
-            "description": f"Routine {maintenance_type.replace('_', ' ')} maintenance for vehicle",
-            "scheduled_date": scheduled_date.isoformat(),
-            "completed_date": completed_date.isoformat() if completed_date else None,
-            "status": status,
-            "priority": random.choice(["low", "medium", "high"]),
-            "estimated_cost": estimated_cost,
-            "actual_cost": actual_cost,
-            "mileage_at_service": random.randint(10000, 150000),
-            "next_service_mileage": random.randint(15000, 160000),
-            "assigned_to": assigned_to,
-            "vendor": {
-                "name": random.choice([
-                    "QuickLube Plus", "AutoCare Express", "Fleet Maintenance Co",
-                    "ProService Motors", "Reliable Auto", "TechCare Automotive"
-                ]),
-                "contact": f"+1-{random.randint(200, 999)}-{random.randint(200, 999)}-{random.randint(1000, 9999)}",
-                "address": f"{random.randint(100, 9999)} Service Dr, Auto City, AC {random.randint(10000, 99999)}"
-            },
-            "parts_used": [
-                {
-                    "part_name": random.choice(["Oil Filter", "Air Filter", "Brake Pads", "Spark Plugs", "Belts"]),
-                    "part_number": f"P{random.randint(100000, 999999)}",
-                    "quantity": random.randint(1, 4),
-                    "cost": random.randint(10, 200)
-                }
-            ] if status == "completed" else [],
-            "labor_hours": random.uniform(0.5, 8.0) if status == "completed" else None,
-            "notes": f"Maintenance performed for {maintenance_type}. Vehicle in good condition." if status == "completed" else "",
-            "attachments": [],
-            "warranty_period": random.randint(30, 365) if status == "completed" else None,
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat()
-        }
-        
-        records.append(record)
-    
     logger.info(f"Generated {len(records)} maintenance records")
     return records
 
