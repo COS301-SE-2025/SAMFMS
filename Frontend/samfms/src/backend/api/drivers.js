@@ -14,7 +14,11 @@ const DRIVER_ENDPOINTS = {
   delete: API_ENDPOINTS.DRIVERS.DELETE,
   assign: API_ENDPOINTS.DRIVERS.ASSIGN,
   empid: API_ENDPOINTS.DRIVERS.EMPID,
+  driverASS: API_ENDPOINTS.ASSIGNMENTS.GETDRIVERASSIGNMENT,
+  vehicLoct: API_ENDPOINTS.LOCATIONS.GET,
+  vehicEndLoc: API_ENDPOINTS.TRIPS.VEHICLETRIP,
   TRIP_PLANNING_LIST: API_ENDPOINTS.DRIVERS.TRIP_PLANNING_LIST,
+  finishtrip: API_ENDPOINTS.TRIPS.FINISHTRIP
 };
 
 /**
@@ -281,3 +285,81 @@ export const getDriverEMPID = async security_id => {
     throw error;
   }
 };
+
+export const TripFinishedStatus = async employee_id => {
+  try {
+    const response = await httpClient.get(DRIVER_ENDPOINTS.driverASS(employee_id));
+    console.log("Response for current driver-vehicle-ass: ", response);
+    
+    const vehicle_id = response.data.data[0].vehicle_id;
+    console.log("Vehicle id: ", vehicle_id);
+    
+    const current_location_response = await httpClient.get(DRIVER_ENDPOINTS.vehicLoct(vehicle_id));
+    console.log("current location response: ", current_location_response);
+    
+    const end_location_response = await httpClient.get(DRIVER_ENDPOINTS.vehicEndLoc(vehicle_id));
+    console.log("End location response: ", end_location_response);
+    
+    // Extract coordinates (note: coordinates are [longitude, latitude] in GeoJSON format)
+    const current_location = current_location_response.data.data.location.coordinates;
+    const end_location = end_location_response.data.data[0].destination.location.coordinates;
+    
+    console.log("Current location: ", current_location); // [27.985173301345533, -26.09811415363004]
+    console.log("End location: ", end_location); // [27.9444444, -26.1336111]
+    
+    // Calculate distance between two points using Haversine formula
+    const distance = calculateDistance(
+      current_location[1], // latitude
+      current_location[0], // longitude
+      end_location[1],     // latitude
+      end_location[0]      // longitude
+    );
+    
+    console.log(`Distance to destination: ${distance.toFixed(2)} meters`);
+    
+    // Consider trip finished if within 100 meters of destination
+    const ARRIVAL_THRESHOLD_METERS = 100;
+    const hasArrived = distance <= ARRIVAL_THRESHOLD_METERS;
+    
+    console.log(`Has arrived at destination: ${hasArrived}`);
+    return hasArrived;
+    
+  } catch (error) {
+    console.error('Error fetching driver trip status:', error);
+    throw error;
+  }
+};
+
+/**
+ * Calculate the distance between two points on Earth using the Haversine formula
+ * @param {number} lat1 - Latitude of the first point
+ * @param {number} lon1 - Longitude of the first point
+ * @param {number} lat2 - Latitude of the second point
+ * @param {number} lon2 - Longitude of the second point
+ * @returns {number} Distance in meters
+ */
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371000; // Earth's radius in meters
+  
+  const φ1 = lat1 * Math.PI / 180; // φ, λ in radians
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  const distance = R * c; // Distance in meters
+  return distance;
+}
+
+// Alternative: Simpler but less accurate distance calculation for small distances
+function calculateDistanceSimple(lat1, lon1, lat2, lon2) {
+  const R = 6371000; // Earth's radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = dLat * dLat + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * dLon * dLon;
+  return R * Math.sqrt(a);
+}

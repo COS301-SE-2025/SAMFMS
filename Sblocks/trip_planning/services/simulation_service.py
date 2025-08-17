@@ -185,7 +185,7 @@ class VehicleSimulator:
              #   }
             #})
             
-            logger.info(f"Updated location for vehicle {self.vehicle_id}: {lat:.6f}, {lon:.6f}")
+            #logger.info(f"Updated location for vehicle {self.vehicle_id}: {lat:.6f}, {lon:.6f}")
             
         except Exception as e:
             logger.error(f"Failed to update vehicle location: {e}")
@@ -360,7 +360,7 @@ class SimulationService:
             return
         
         if trip_id in self.active_simulators:
-            logger.info(f"Trip {trip_id} already being simulated")
+            #logger.info(f"Trip {trip_id} already being simulated")
             return
         
         # Get start coordinates from origin
