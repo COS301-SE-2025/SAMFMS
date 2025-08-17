@@ -20,13 +20,14 @@ class DriverCountRepository(BaseRepository):
     async def get_daily_driver_counts(self, start_date: Optional[datetime] = None) -> Optional[Dict[str, Any]]:
         """Get all daily driver counts from a certain date"""
         if start_date is not None:
-            return await self.find_many({"date": {"$gt": start_date}})
+            return await self.collection.find_many({"date": {"$gt": start_date}})
         else:
-            return await self.find_many({})
+            return await self.collection.find_many({})
+        
         
     async def add_driver(self):
         """Add a new driver record with incremented count"""
-        max_record = await self.find_one(sort=[("number_of_drivers", -1)])
+        max_record = await self.collection.find_one(sort=[("number_of_drivers", -1)])
         max_count = max_record["number_of_drivers"] if max_record else 0
 
         new_count = max_count + 1
@@ -36,7 +37,7 @@ class DriverCountRepository(BaseRepository):
             "date": datetime.utcnow()
         }
 
-        await self.insert_one(new_record)
+        await self.collection.insert_one(new_record)
 
     async def remove_driver(self):
         """Remove a driver record with decremented count"""
@@ -50,7 +51,7 @@ class DriverCountRepository(BaseRepository):
             "date": datetime.utcnow()
         }
 
-        await self.insert_one(new_record)
+        await self.collection.insert_one(new_record)
         
             
         
