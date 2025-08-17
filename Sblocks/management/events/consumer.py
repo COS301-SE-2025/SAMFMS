@@ -158,6 +158,7 @@ class EventConsumer:
         await queue.bind(vehicles_exchange, "vehicle.updated")
         await queue.bind(vehicles_exchange, "vehicle.deleted")
         await queue.bind(vehicles_exchange, "vehicle.status_changed")
+        await queue.bind()
         
         # Bind to user events from Security service
         security_exchange = await self.channel.declare_exchange(
@@ -614,6 +615,8 @@ class ManagementEventHandlers:
             # If user has driver role, we might need to create driver record
             user_role = data.get("role")
             if user_role == "driver":
+                from ..repositories.repositories import DriverCountRepository
+                DriverCountRepository.add_driver()
                 logger.info(f"New driver user created: {user_id}")
                 
                 # TODO: Consider auto-creating driver record based on user data

@@ -142,6 +142,9 @@ class DriverService:
             driver_id = await self.driver_repo.create(driver_data)
             
             logger.info(f"Created driver: {driver_id}")
+            
+
+
                         
             # Create user account in security service
             user_created = await self._create_user_account(driver_data)
@@ -157,6 +160,12 @@ class DriverService:
                 driver['id'] = str(driver.pop('_id'))
                     
             logger.info(f"Created driver: {driver_id}")
+
+
+            from .drivers_service import DriversService
+            await DriversService.add_driver(DriversService.__init__)
+            logger.info(f"Driver analytics addition")
+
             return driver
                     
         except ValueError as e:
