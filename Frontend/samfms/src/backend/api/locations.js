@@ -32,6 +32,7 @@ export const getLocation = async (locationID) => {
 
 export const getVehicleLocation = async (vehicle_id) => {
   try {
+    console.log("Received id: ", vehicle_id)
     const response = await httpClient.get(LOCATIONS_ENDPOINTS.vehicleLoc(vehicle_id));
     console.log("Vehicle location resposne: ",response);
 

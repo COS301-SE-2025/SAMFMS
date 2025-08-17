@@ -388,20 +388,21 @@ const TrackingMapWithSidebar = () => {
 
   // Handle item selection and map centering
   const handleItemSelect = async (item) => {
-  console.log("Item selected", item);
-  setSelectedItem(item);
+    console.log("Item selected", item);
+    console.log("Item id: ", item.id)
+    setSelectedItem(item);
 
-  try {
-    const vehicleData = await getVehicleLocation(item.id); 
-    console.log("Full response:", vehicleData);
+    try {
+      const vehicleData = await getVehicleLocation(item.id); 
+      console.log("Full response:", vehicleData);
 
-    const { latitude, longitude } = vehicleData;
-    setMapCenter([latitude, longitude]);
+      const { latitude, longitude } = vehicleData;
+      setMapCenter([latitude, longitude]);
 
-  } catch (err) {
-    console.error("Failed to fetch vehicle location:", err);
-  }
-};
+    } catch (err) {
+      console.error("Failed to fetch vehicle location:", err);
+    }
+  };
 
 
   // Handle live location selection

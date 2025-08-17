@@ -248,7 +248,7 @@ class ServiceRequestConsumer:
             # Add endpoint to user_context for handlers to use
             user_context["endpoint"] = endpoint
             
-            logger.debug(f"Routing {method} request to endpoint: {endpoint}")
+            logger.info(f"Routing {method} request to endpoint: {endpoint}")
             
             # Route to appropriate handler based on endpoint pattern
             if endpoint == "health" or endpoint == "":
@@ -292,12 +292,33 @@ class ServiceRequestConsumer:
             # Extract data and endpoint from user_context
             data = user_context.get("data", {})
             endpoint = user_context.get("endpoint", "")
+            logger.info(f"Endpoint from user context {endpoint}")
             
             # Handle HTTP methods and route to appropriate logic
             if method == "GET":
                 # Parse endpoint for specific location operations
-                if "locations" in endpoint:
+                if "vehicle" in endpoint:
+                    # locations/vehicle/{vehicle_id} pattern
+                    vehicle_id = endpoint.split('/')[-1]
+                    location = await location_service.get_vehicle_location(vehicle_id)
+                    logger.info(f"Location retrieved for {vehicle_id}: {location}")
+                    if location is None:
+                        return ResponseBuilder.success(
+                            data={
+                                "vehicle_id": vehicle_id,
+                                "latitude": PRETORIA_COORDINATES[1],
+                                "longitude": PRETORIA_COORDINATES[0]
+                            },
+                            message="Vehicle location retrieved successfully"
+                        ).model_dump()
+                    
+                    return ResponseBuilder.success(
+                        data=location.model_dump() if location else None,
+                        message="Vehicle location retrieved successfully"
+                    ).model_dump()
+                elif "locations" in endpoint:
                     vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                    logger.info(f"vehicle_id: {vehicle_id}")
                     if vehicle_id is None:
                         # Get current locations and all vehicles
                         locations = await location_service.get_all_vehicle_locations()
@@ -350,17 +371,7 @@ class ServiceRequestConsumer:
                         data=location,
                         message="Vehicle location retrieved successfully"
                     ).model_dump()
-                
-                elif "vehicle" in endpoint and endpoint.count('/') > 0:
-                    # locations/vehicle/{vehicle_id} pattern
-                    vehicle_id = endpoint.split('/')[-1]
-                    location = await location_service.get_vehicle_location(vehicle_id)
-                    
-                    return ResponseBuilder.success(
-                        data=location.model_dump() if location else None,
-                        message="Vehicle location retrieved successfully"
-                    ).model_dump()
-                    
+                     
                 elif "history" in endpoint:
                     # locations/history with query params
                     vehicle_id = data.get("vehicle_id")
