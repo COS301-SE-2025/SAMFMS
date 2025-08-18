@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Search, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { addGeofence, deleteGeofence, updateGeofence } from '../../backend/api/geofences';
 
 // Fix for default markers in react-leaflet
@@ -53,8 +53,6 @@ const GeofenceManager = ({
     geofence => geofence && typeof geofence === 'object'
   );
   const [geofences, setGeofences] = useState(safeCurrentGeofences);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('');
   const [showAddForm, setShowAddForm] = useState(initialShowForm);
   const [editingGeofence, setEditingGeofence] = useState(editingGeofenceProp || null);
   const [addressSearch, setAddressSearch] = useState('');
@@ -96,21 +94,6 @@ const GeofenceManager = ({
     );
     setGeofences(safeCurrentGeofences);
   }, [currentGeofences]);
-
-  // Filter geofences based on search and type filter
-  const filteredGeofences = geofences.filter(geofence => {
-    if (!geofence || typeof geofence !== 'object') return false;
-
-    const geofenceName = geofence.name || '';
-    const geofenceType = geofence.type || '';
-    const searchTermSafe = (searchTerm || '').toLowerCase();
-
-    const matchesSearch =
-      searchTermSafe === '' || geofenceName.toLowerCase().includes(searchTermSafe);
-    const matchesType = filterType === '' || geofenceType === filterType;
-
-    return matchesSearch && matchesType;
-  });
 
   // Effect to notify parent component when geofences change
   useEffect(() => {
@@ -360,38 +343,8 @@ const GeofenceManager = ({
     }
   };
 
-  // Handle deleting a geofence
-  const handleDeleteGeofence = async id => {
-    if (window.confirm('Are you sure you want to delete this geofence?')) {
-      try {
-        await deleteGeofence(id);
-        console.log(`Geofence ${id} deleted successfully`);
-
-        // Call onSuccess if provided to trigger parent refresh
-        if (onSuccess) {
-          await onSuccess();
-        }
-      } catch (error) {
-        console.error('Error deleting geofence:', error);
-        alert(`Failed to delete geofence: ${error.message || error}`);
-      }
-    }
-  };
-
-  // Edit geofence
-  const startEditGeofence = geofence => {
-    setEditingGeofence(geofence);
-    setNewGeofence({
-      name: geofence.name,
-      description: geofence.description,
-      type: geofence.type,
-      geometryType: geofence.geometryType || 'circle',
-      coordinates: geofence.coordinates,
-      radius: geofence.radius,
-      status: geofence.status,
-    });
-    setShowAddForm(true);
-  };
+  
+  // Handle form submission for adding/editing geofences
 
   // Reset the form
   const resetForm = () => {

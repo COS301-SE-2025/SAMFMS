@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus } from 'lucide-react';
-import ActiveTripsPanel from '../components/trips/ActiveTripsPanel';
 import TripsAnalytics from '../components/trips/TripsAnalytics';
-import TripsHistory from '../components/trips/TripsHistory';
 import TripSchedulingModal from '../components/trips/TripSchedulingModal';
 import Notification from '../components/common/Notification';
 import OverviewStatsCards from '../components/trips/OverviewStatsCards';
@@ -16,13 +14,12 @@ import {
   getActiveTrips,
   getDriverAnalytics,
   getVehicleAnalytics,
-  listTrips,
   getAllRecentTrips,
   getTripHistoryStats,
   getAllUpcommingTrip,
 } from '../backend/api/trips';
 import { getVehicles } from '../backend/api/vehicles';
-import { getAllDrivers, getTripPlanningDrivers } from '../backend/api/drivers';
+import { getTripPlanningDrivers } from '../backend/api/drivers';
 
 const Trips = () => {
   // Existing state
@@ -387,7 +384,7 @@ const Trips = () => {
         }
 
         // Filter to count only drivers with "available" status for the stats card
-        const availableDriversCount = driversData.filter(driver => {
+        const availableDriversFiltered = driversData.filter(driver => {
           if (!driver) return false;
           const status = (driver.status || '').toLowerCase();
           return (
@@ -396,8 +393,9 @@ const Trips = () => {
         });
 
         console.log('All drivers from API: ', driversData);
-        console.log('Available drivers after filtering: ', availableDrivers);
-        setDrivers(availableDrivers);
+        console.log('Available drivers after filtering: ', availableDriversFiltered);
+        setDrivers(driversData);
+        setAvailableDriversCount(availableDriversFiltered.length);
       } catch (error) {
         console.error('Error loading drivers from trip planning service:', error);
         setDrivers([]);

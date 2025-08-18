@@ -90,7 +90,6 @@ const RecentTrips = () => {
       date: trip.actual_end_time
         ? new Date(trip.actual_end_time).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0],
-      passenger: trip.passenger_name || 'Unknown Passenger',
       vehicle: {
         model: trip.vehicle_model || 'Unknown Vehicle',
         registration: trip.vehicle_registration || 'Unknown',
@@ -239,12 +238,6 @@ const RecentTrips = () => {
                       <Clock className="h-4 w-4 min-w-4 text-muted-foreground" />
                       <span className="text-muted-foreground truncate">
                         {formattedTrip.startTime} - {formattedTrip.endTime}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4 min-w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground truncate">
-                        {formattedTrip.passenger}
                       </span>
                     </div>
                     <div className="flex items-center space-x-2">

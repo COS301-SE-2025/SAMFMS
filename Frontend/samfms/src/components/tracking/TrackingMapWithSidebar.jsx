@@ -38,21 +38,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
 });
 
-// Custom vehicle icon
-const createVehicleIcon = status => {
-  const color = status === 'active' ? '#22c55e' : status === 'inactive' ? '#ef4444' : '#f59e0b';
-  return L.divIcon({
-    html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center;">
-             <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
-               <path d="M5 11l4-4v3h5.28c.35 0 .72.22.72.72v4.56c0 .5-.37.72-.72.72H9v3l-4-4z"/>
-             </svg>
-           </div>`,
-    className: 'custom-vehicle-marker',
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
-  });
-};
-
 // Custom geofence icon
 const createGeofenceIcon = type => {
   const color = type === 'depot' ? '#3b82f6' : type === 'restricted' ? '#ef4444' : '#8b5cf6';

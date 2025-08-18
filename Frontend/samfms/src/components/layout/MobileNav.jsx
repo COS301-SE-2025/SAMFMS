@@ -20,7 +20,6 @@ import {Button} from '../ui/button';
 import {cn} from '../../lib/utils';
 import {createPortal} from 'react-dom';
 import {useAuth, PERMISSIONS, ROLES} from '../auth/RBACUtils';
-import SearchBar from './SearchBar';
 import {logout} from '../../backend/API.js';
 
 const MobileNav = () => {

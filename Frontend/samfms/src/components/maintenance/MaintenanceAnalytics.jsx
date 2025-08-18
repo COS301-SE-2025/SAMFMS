@@ -154,7 +154,6 @@ const MaintenanceAnalytics = ({ vehicles }) => {
   }) => {
     // Handle the data structure correctly
     const analytics = analyticsData || {};
-    const costs = costAnalytics || {};
 
     return (
       <div className="space-y-6">
