@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form, D
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, Field
 from typing import Dict, List, Optional
+from rabbitmq.producer import publish_message
 import logging
 import requests
 import os
@@ -880,6 +881,7 @@ async def complete_registration(request: Request):
 async def create_user_manually(user_data: CreateUserRequest, request: Request):
     """Admin can manually create a user without invitation flow"""
     # Log the incoming request data
+    logger = logging.getLogger(__name__)
     logger.info(f"Received user creation request. User data model: {user_data}")
     try:
         # Get the token from the request
@@ -913,6 +915,31 @@ async def create_user_manually(user_data: CreateUserRequest, request: Request):
         )
         
         if response.status_code == 200:
+            if user_data.role == "driver":
+                import aio_pika
+                from .service_routing import SERVICE_BLOCKS
+
+                logger = logging.getLogger(__name__)
+                management_config = SERVICE_BLOCKS["management"]
+                new_user_id = response.json()["user_id"]
+
+                message = {
+                    "email": user_data.email,
+                    "user_id": new_user_id
+                }
+                
+                try:
+                    # Publish the message to the management service
+                    await publish_message(
+                        exchange_name=management_config["exchange"],
+                        exchange_type=aio_pika.ExchangeType.DIRECT,
+                        message=message,
+                        routing_key=management_config["user.created"]
+                    )
+                    logger.info(f"Notification sent to management service for driver addition")
+                except Exception as e:
+                    logger.error(f"Failed to send notification to management service: {str(e)}")
+
             return response.json()
         else:
             try:

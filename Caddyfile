@@ -1,0 +1,82 @@
+# Caddyfile for SAMFMS with automatic HTTPS
+# Proxying frontend AND API to avoid mixed content issues
+
+{
+    # Global options - replace with your actual email
+    email admin@capstone-samfms.dns.net.za
+    # Uncomment the next line for staging/testing
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+# Replace with your actual domain
+capstone-samfms.dns.net.za {
+    # API endpoints - handle API requests first (more specific routes first)
+    handle_path /api/* {
+        reverse_proxy core:21004 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+        }
+    }
+    
+    # Health endpoints
+    handle_path /health/* {
+        reverse_proxy core:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+        }
+    }
+    
+    # Auth endpoints
+    handle_path /auth/* {
+        reverse_proxy core:21004 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+        }
+    }
+    
+    # WebSocket endpoints
+    handle_path /ws/* {
+        reverse_proxy core:21004 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up Connection {>Connection}
+            header_up Upgrade {>Upgrade}
+        }
+    }
+    
+    # Frontend (React app) - default route for everything else
+    handle {
+        reverse_proxy frontend:3000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+        }
+    }
+    
+    # Security headers
+    header {
+        # Enable HSTS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        # Prevent MIME type sniffing
+        X-Content-Type-Options "nosniff"
+        # Prevent clickjacking
+        X-Frame-Options "SAMEORIGIN"
+        # Enable XSS protection
+        X-XSS-Protection "1; mode=block"
+        # Referrer policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+    
+    # Logging
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 100mb
+            roll_keep 5
+        }
+        format json
+    }
+}
+
+# HTTP redirect to HTTPS
+http://capstone-samfms.dns.net.za {
+    redir https://capstone-samfms.dns.net.za{uri} permanent
+}

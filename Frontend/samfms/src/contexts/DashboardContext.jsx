@@ -1,5 +1,12 @@
-import React, {createContext, useContext, useReducer, useEffect} from 'react';
-import {generateWidgetId, WIDGET_TYPES, getWidget} from '../utils/widgetRegistry';
+import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { generateWidgetId, WIDGET_TYPES, getWidget } from '../utils/widgetRegistry';
+import {
+  saveDashboardLayout,
+  loadDashboardLayout,
+  deleteDashboardLayout,
+  migrateDashboardTocookies,
+  areCookiesEnabled,
+} from '../utils/cookieUtils';
 
 const DashboardContext = createContext();
 
@@ -10,36 +17,37 @@ const getDefaultDashboard = () => {
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.VEHICLE_STATUS,
-      config: {title: 'Fleet Status'},
+      config: { title: 'Fleet Status' },
     },
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.PLUGIN_HEALTH,
-      config: {title: 'System Health'},
+      config: { title: 'System Health' },
     },
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.MAINTENANCE_RECORDS,
-      config: {title: 'Recent Maintenance'},
+      config: { title: 'Recent Maintenance' },
     },
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.MAINTENANCE_ALERTS,
-      config: {title: 'Maintenance Alerts'},
+      config: { title: 'Maintenance Alerts' },
     },
 
     // Second row - 2 larger widgets (Maintenance Overview, Cost Analytics)
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.MAINTENANCE_SUMMARY,
-      config: {title: 'Maintenance Overview'},
+      config: { title: 'Maintenance Overview' },
     },
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.MAINTENANCE_COST_ANALYTICS,
-      config: {title: 'Cost Analytics'},
+      config: { title: 'Cost Analytics' },
     },
-  ]; return {widgets, layout: getDefaultLayout(widgets)};
+  ];
+  return { widgets, layout: getDefaultLayout(widgets) };
 };
 
 // Scale a 12-column width to the canvas 40-column grid
@@ -70,7 +78,7 @@ const getDefaultLayout = widgets => {
       rowHeight = 0;
     }
 
-    layout.push({i: widget.id, x: cursorX, y: cursorY, w, h});
+    layout.push({ i: widget.id, x: cursorX, y: cursorY, w, h });
     cursorX += w;
     rowHeight = Math.max(rowHeight, h);
   });
@@ -89,7 +97,7 @@ const dashboardReducer = (state, action) => {
       const meta = getWidget(widget.type)?.metadata;
       const w = scaleWidthTo40(meta?.defaultSize?.w ?? 4);
       const h = Math.max(1, Math.min(8, Number(meta?.defaultSize?.h ?? 4)));
-      const newLayoutItem = {i: widget.id, x: 0, y: newY, w, h};
+      const newLayoutItem = { i: widget.id, x: 0, y: newY, w, h };
 
       return {
         ...state,
@@ -122,7 +130,7 @@ const dashboardReducer = (state, action) => {
       console.log('🔧 SET_EDIT_MODE action:', {
         from: state.isEditing,
         to: action.payload,
-        stack: new Error().stack
+        stack: new Error().stack,
       });
       return {
         ...state,
@@ -134,7 +142,7 @@ const dashboardReducer = (state, action) => {
         ...state,
         widgets: state.widgets.map(widget =>
           widget.id === action.payload.id
-            ? {...widget, config: {...widget.config, ...action.payload.config}}
+            ? { ...widget, config: { ...widget.config, ...action.payload.config } }
             : widget
         ),
       };
@@ -143,7 +151,7 @@ const dashboardReducer = (state, action) => {
       console.log('📥 LOAD_DASHBOARD action:', {
         from: state.isEditing,
         to: action.payload.isEditing || false,
-        stack: new Error().stack
+        stack: new Error().stack,
       });
       return {
         ...state,
@@ -168,7 +176,7 @@ const dashboardReducer = (state, action) => {
 //   }));
 // };
 
-export const DashboardProvider = ({children, dashboardId = 'default'}) => {
+export const DashboardProvider = ({ children, dashboardId = 'default' }) => {
   const defaultDashboard = getDefaultDashboard();
   const [state, dispatch] = useReducer(dashboardReducer, {
     widgets: defaultDashboard.widgets,
@@ -176,33 +184,43 @@ export const DashboardProvider = ({children, dashboardId = 'default'}) => {
     isEditing: false,
   });
 
-  // Load dashboard from localStorage on mount
+  // Load dashboard from cookies on mount
   useEffect(() => {
     const loadSavedDashboard = () => {
       try {
-        const savedDashboard = localStorage.getItem(`dashboard_${dashboardId}`);
-        if (savedDashboard) {
-          const data = JSON.parse(savedDashboard);
+        // Check if cookies are enabled
+        if (!areCookiesEnabled()) {
+          console.warn('Cookies are disabled, dashboard layout will not persist');
+          return;
+        }
 
+        // Try to migrate from old localStorage format
+        migrateDashboardTocookies(dashboardId);
+
+        // Load dashboard from cookies
+        const savedData = loadDashboardLayout(dashboardId);
+
+        if (savedData) {
           // Validate saved data structure
-          if (data && Array.isArray(data.widgets) && Array.isArray(data.layout)) {
-            // FORCE REGENERATE LAYOUT with new default sizes - temporary fix
-            // Comment out this line to use saved layouts again
-            console.log('🔄 Force regenerating layout with new default sizes');
-            const newLayout = getDefaultLayout(data.widgets);
+          if (savedData && Array.isArray(savedData.widgets) && Array.isArray(savedData.layout)) {
+            console.log('🍪 Loading dashboard from cookies:', dashboardId);
 
             dispatch({
               type: 'LOAD_DASHBOARD',
               payload: {
-                widgets: data.widgets,
-                layout: newLayout, // Always use new layout
-                isEditing: data.isEditing || false,
+                widgets: savedData.widgets,
+                layout: savedData.layout,
+                isEditing: savedData.isEditing || false,
               },
             });
+          } else {
+            console.warn('Invalid dashboard data structure in cookies');
           }
+        } else {
+          console.log('No saved dashboard found in cookies, using default');
         }
       } catch (error) {
-        console.error('Failed to load saved dashboard:', error);
+        console.error('Failed to load saved dashboard from cookies:', error);
         // If loading fails, keep the default dashboard
       }
     };
@@ -210,10 +228,24 @@ export const DashboardProvider = ({children, dashboardId = 'default'}) => {
     loadSavedDashboard();
   }, [dashboardId]);
 
-  // Enhanced auto-save functionality with debouncing
+  // Enhanced auto-save functionality with cookies and debouncing
   useEffect(() => {
     const saveDashboard = () => {
       try {
+        // Check if cookies are enabled
+        if (!areCookiesEnabled()) {
+          console.warn('Cookies disabled, falling back to localStorage for dashboard persistence');
+          // Fallback to localStorage
+          const dashboardData = {
+            widgets: state.widgets,
+            layout: state.layout,
+            isEditing: state.isEditing,
+            lastSaved: new Date().toISOString(),
+          };
+          localStorage.setItem(`dashboard_${dashboardId}`, JSON.stringify(dashboardData));
+          return;
+        }
+
         const dashboardData = {
           widgets: state.widgets,
           layout: state.layout,
@@ -221,48 +253,19 @@ export const DashboardProvider = ({children, dashboardId = 'default'}) => {
           lastSaved: new Date().toISOString(),
         };
 
-        localStorage.setItem(`dashboard_${dashboardId}`, JSON.stringify(dashboardData));
+        const success = saveDashboardLayout(dashboardId, dashboardData);
 
-        // Also save a backup with timestamp
-        const backupKey = `dashboard_${dashboardId}_backup_${Date.now()}`;
-        localStorage.setItem(backupKey, JSON.stringify(dashboardData));
-
-        // Clean up old backups (keep only the last 3)
-        const backupKeys = Object.keys(localStorage)
-          .filter(key => key.startsWith(`dashboard_${dashboardId}_backup_`))
-          .sort()
-          .reverse();
-
-        if (backupKeys.length > 3) {
-          backupKeys.slice(3).forEach(key => localStorage.removeItem(key));
+        if (success) {
+          console.log('🍪 Dashboard saved to cookies:', dashboardId);
+        } else {
+          console.error('Failed to save dashboard to cookies');
         }
       } catch (error) {
         console.error('Failed to save dashboard:', error);
-        // Handle localStorage quota exceeded
-        if (error.name === 'QuotaExceededError') {
-          console.warn('localStorage quota exceeded, clearing old backups');
-          const backupKeys = Object.keys(localStorage).filter(key =>
-            key.startsWith(`dashboard_${dashboardId}_backup_`)
-          );
-          backupKeys.forEach(key => localStorage.removeItem(key));
-
-          // Try saving again without backups
-          try {
-            const dashboardData = {
-              widgets: state.widgets,
-              layout: state.layout,
-              isEditing: state.isEditing,
-              lastSaved: new Date().toISOString(),
-            };
-            localStorage.setItem(`dashboard_${dashboardId}`, JSON.stringify(dashboardData));
-          } catch (retryError) {
-            console.error('Failed to save dashboard even after cleanup:', retryError);
-          }
-        }
       }
     };
 
-    // Debounce saves to avoid excessive localStorage writes
+    // Debounce saves to avoid excessive cookie writes
     const timeoutId = setTimeout(saveDashboard, 500);
     return () => clearTimeout(timeoutId);
   }, [state.widgets, state.layout, state.isEditing, dashboardId]);
@@ -276,8 +279,8 @@ export const DashboardProvider = ({children, dashboardId = 'default'}) => {
         isEditing: state.isEditing,
         lastSaved: new Date().toISOString(),
       };
-      localStorage.setItem(`dashboard_${dashboardId}`, JSON.stringify(dashboardData));
-      return true;
+
+      return saveDashboardLayout(dashboardId, dashboardData);
     } catch (error) {
       console.error('Manual save failed:', error);
       return false;
@@ -286,7 +289,7 @@ export const DashboardProvider = ({children, dashboardId = 'default'}) => {
 
   const resetDashboard = () => {
     try {
-      localStorage.removeItem(`dashboard_${dashboardId}`);
+      deleteDashboardLayout(dashboardId);
       const defaultDashboard = getDefaultDashboard();
       dispatch({
         type: 'LOAD_DASHBOARD',

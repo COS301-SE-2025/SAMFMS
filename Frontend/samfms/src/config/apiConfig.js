@@ -233,7 +233,19 @@ export const API_ENDPOINTS = {
     ANALYTICS: {
       DASHBOARD: '/maintenance/analytics/dashboard',
       COSTS: '/maintenance/analytics/costs',
-      OVERVIEW: '/maintenance/analytics',
+      OVERVIEW: '/maintenance/analytics/overview',
+      // New analytics endpoints
+      TIMEFRAME_TOTAL_COST: '/maintenance/analytics/timeframe/total-cost',
+      TIMEFRAME_RECORDS_COUNT: '/maintenance/analytics/timeframe/records-count',
+      TIMEFRAME_VEHICLES_SERVICED: '/maintenance/analytics/timeframe/vehicles-serviced',
+      MAINTENANCE_BY_TYPE: '/maintenance/analytics/maintenance-by-type',
+      COST_OUTLIERS: '/maintenance/analytics/cost-outliers',
+      TIMEFRAME_MAINTENANCE_PER_VEHICLE: '/maintenance/analytics/timeframe/maintenance-per-vehicle',
+      TRENDS: '/maintenance/analytics/trends',
+      VENDORS: '/maintenance/analytics/vendors',
+      LICENSES: '/maintenance/analytics/licenses',
+      KPI: '/maintenance/analytics/metrics/kpi',
+      VEHICLE_SUMMARY: vehicleId => `/maintenance/analytics/summary/vehicle/${vehicleId}`,
     },
     NOTIFICATIONS: {
       LIST: '/maintenance/notifications',

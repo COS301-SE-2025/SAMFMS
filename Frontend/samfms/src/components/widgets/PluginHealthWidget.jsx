@@ -1,10 +1,10 @@
-import React, {useState, useEffect} from 'react';
-import {BaseWidget} from '../dashboard/BaseWidget';
-import {getPluginsWithStatus} from '../../backend/api/plugins';
-import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
-import {Activity, CheckCircle, XCircle, AlertTriangle} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BaseWidget } from '../dashboard/BaseWidget';
+import { getPluginsWithStatus } from '../../backend/api/plugins';
+import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
+import { Activity, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 
-const PluginHealthWidget = ({id, config = {}}) => {
+const PluginHealthWidget = ({ id, config = {} }) => {
   const [pluginData, setPluginData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,7 +24,7 @@ const PluginHealthWidget = ({id, config = {}}) => {
         } else if (data && typeof data === 'object' && data.sblocks) {
           items = Object.entries(data.sblocks).map(([plugin, value]) => {
             const status = value?.data?.status ?? value?.status ?? 'unknown';
-            return {plugin, status};
+            return { plugin, status };
           });
         }
 
@@ -57,17 +57,6 @@ const PluginHealthWidget = ({id, config = {}}) => {
     return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
   };
 
-  const getStatusColor = status => {
-    const statusLower = status?.toLowerCase();
-    if (statusLower === 'healthy' || statusLower === 'success' || statusLower === 'ok') {
-      return 'text-green-600 dark:text-green-400';
-    }
-    if (statusLower === 'unhealthy' || statusLower === 'error' || statusLower === 'down') {
-      return 'text-red-600 dark:text-red-400';
-    }
-    return 'text-yellow-600 dark:text-yellow-400';
-  };
-
   return (
     <BaseWidget
       id={id}
@@ -83,7 +72,7 @@ const PluginHealthWidget = ({id, config = {}}) => {
             <p className="text-xs text-muted-foreground">No plugin data available</p>
           </div>
         ) : (
-          pluginData.map(({plugin, status}) => (
+          pluginData.map(({ plugin, status }) => (
             <div
               key={plugin}
               className="flex items-center justify-between p-1.5 bg-muted/30 rounded-md hover:bg-muted/50 transition-colors duration-150 min-h-0"
@@ -97,12 +86,13 @@ const PluginHealthWidget = ({id, config = {}}) => {
               </div>
               <div className="text-right flex-shrink-0 ml-1">
                 <span
-                  className={`text-xs font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap ${status?.toLowerCase() === 'healthy'
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                    : status?.toLowerCase() === 'unhealthy' || status?.toLowerCase() === 'error'
+                  className={`text-xs font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap ${
+                    status?.toLowerCase() === 'healthy'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                      : status?.toLowerCase() === 'unhealthy' || status?.toLowerCase() === 'error'
                       ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                       : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                    }`}
+                  }`}
                 >
                   {status}
                 </span>
@@ -120,13 +110,13 @@ registerWidget(WIDGET_TYPES.PLUGIN_HEALTH, PluginHealthWidget, {
   title: 'Plugin Health',
   description: 'Monitor the health status of all system plugins',
   category: WIDGET_CATEGORIES.PLUGINS,
-  defaultSize: {w: 3, h: 6},
-  minSize: {w: 3, h: 3},
-  maxSize: {w: 8, h: 8},
-  icon: <Activity size={20} />,
+  defaultSize: { w: 3, h: 6 },
+  minSize: { w: 3, h: 3 },
+  maxSize: { w: 8, h: 8 },
+  icon: Activity,
   configSchema: {
-    title: {type: 'string', default: 'Plugin Health'},
-    refreshInterval: {type: 'number', default: 30, min: 10},
+    title: { type: 'string', default: 'Plugin Health' },
+    refreshInterval: { type: 'number', default: 30, min: 10 },
   },
 });
 

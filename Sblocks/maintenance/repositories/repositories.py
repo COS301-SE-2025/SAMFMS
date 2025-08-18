@@ -101,7 +101,7 @@ class MaintenanceRecordsRepository(BaseRepository):
                 date_query["$gte"] = start_date
             if end_date:
                 date_query["$lte"] = end_date
-            match_query["actual_completion_date"] = date_query
+            match_query["completed_date"] = date_query
             
         pipeline.append({"$match": match_query})
         
