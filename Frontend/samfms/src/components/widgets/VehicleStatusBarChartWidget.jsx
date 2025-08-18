@@ -7,32 +7,37 @@ import {BarChart} from 'lucide-react';
 // Simple bar chart using SVG (replace with chart library if available)
 const BarChartSVG = ({data, labels, colors}) => {
     const max = Math.max(...data, 1);
+    const barSpacing = 90;
+    // Remove heading from SVG, keep only chart elements
     return (
-        <svg width="100%" height="80" viewBox="0 0 180 80">
+        <svg width="100%" height="150" viewBox={`0 0 ${barSpacing * data.length} 150`} className="w-full h-40">
             {data.map((value, i) => {
                 const barHeight = (value / max) * 60;
+                const xBase = 35 + i * barSpacing;
                 return (
                     <g key={i}>
+                        {/* Headings with extra vertical space */}
+                        <text
+                            x={xBase}
+                            y={130}
+                            textAnchor="middle"
+                            fontSize="14"
+                            fill="#fff"
+                            fontWeight="bold"
+                        >
+                            {labels[i]}
+                        </text>
                         <rect
-                            x={20 + i * 50}
-                            y={70 - barHeight}
+                            x={xBase - 15}
+                            y={115 - barHeight}
                             width={30}
                             height={barHeight}
                             fill={colors[i]}
                             rx={5}
                         />
                         <text
-                            x={35 + i * 50}
-                            y={75}
-                            textAnchor="middle"
-                            fontSize="12"
-                            fill="#555"
-                        >
-                            {labels[i]}
-                        </text>
-                        <text
-                            x={35 + i * 50}
-                            y={65 - barHeight}
+                            x={xBase}
+                            y={110 - barHeight}
                             textAnchor="middle"
                             fontSize="14"
                             fontWeight="bold"
@@ -48,7 +53,7 @@ const BarChartSVG = ({data, labels, colors}) => {
 };
 
 const VehicleStatusBarChartWidget = ({id, config = {}}) => {
-    const [counts, setCounts] = useState({active: 0, inactive: 0, maintenance: 0});
+    const [counts, setCounts] = useState({available: 0, unavailable: 0});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -58,23 +63,16 @@ const VehicleStatusBarChartWidget = ({id, config = {}}) => {
                 setLoading(true);
                 setError(null);
                 const response = await getVehicles({limit: 1000});
+                console.log('Raw vehicle response:', response);
                 let vehiclesArray = [];
-                if (response) {
-                    if (Array.isArray(response)) {
-                        vehiclesArray = response;
-                    } else if (response.vehicles && Array.isArray(response.vehicles)) {
-                        vehiclesArray = response.vehicles;
-                    } else if (response.data && Array.isArray(response.data)) {
-                        vehiclesArray = response.data;
-                    } else if (response.items && Array.isArray(response.items)) {
-                        vehiclesArray = response.items;
-                    }
+                if (response && response.data && response.data.data && Array.isArray(response.data.data.vehicles)) {
+                    vehiclesArray = response.data.data.vehicles;
                 }
+                console.log('Vehicles array:', vehiclesArray);
                 if (!Array.isArray(vehiclesArray)) vehiclesArray = [];
-                const active = vehiclesArray.filter(v => (v.status || '').toLowerCase() === 'active').length;
-                const inactive = vehiclesArray.filter(v => (v.status || '').toLowerCase() === 'inactive').length;
-                const maintenance = vehiclesArray.filter(v => (v.status || '').toLowerCase() === 'maintenance').length;
-                setCounts({active, inactive, maintenance});
+                const available = vehiclesArray.filter(v => (v.status || '').toLowerCase() === 'available').length;
+                const unavailable = vehiclesArray.filter(v => (v.status || '').toLowerCase() === 'unavailable').length;
+                setCounts({available, unavailable});
             } catch (err) {
                 console.error('Failed to fetch vehicle status:', err);
                 setError('Failed to load vehicle data');
@@ -96,17 +94,23 @@ const VehicleStatusBarChartWidget = ({id, config = {}}) => {
             error={error}
             className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900"
         >
-            <div className="flex items-center justify-between h-full">
-                <div className="flex-1 flex flex-col justify-center">
-                    <BarChartSVG
-                        data={[counts.active, counts.inactive, counts.maintenance]}
-                        labels={["Active", "Inactive", "Maintenance"]}
-                        colors={["#4ade80", "#fca5a5", "#fbbf24"]}
-                    />
+            <div className="flex flex-col items-center justify-center h-full w-full">
+                {/* Heading with Tailwind for padding and styling */}
+                <div className="pt-12 pb-2">
+                    <span className="text-white font-bold text-2xl">Vehicle Status</span>
                 </div>
-                <div className="flex-shrink-0">
-                    <div className="w-12 h-12 bg-indigo-200 dark:bg-indigo-800 rounded-full flex items-center justify-center">
-                        <BarChart className="h-6 w-6 text-indigo-600 dark:text-indigo-300" />
+                <div className="flex items-center justify-between w-full">
+                    <div className="flex-1 flex flex-col justify-center">
+                        <BarChartSVG
+                            data={[counts.available, counts.unavailable]}
+                            labels={["Available", "Unavailable"]}
+                            colors={["#4ade80", "#fca5a5"]}
+                        />
+                    </div>
+                    <div className="flex-shrink-0">
+                        <div className="w-12 h-12 bg-indigo-200 dark:bg-indigo-800 rounded-full flex items-center justify-center">
+                            <BarChart className="h-6 w-6 text-indigo-600 dark:text-indigo-300" />
+                        </div>
                     </div>
                 </div>
             </div>
