@@ -725,6 +725,7 @@ export const listUsers = async () => {
 
   // Cache the result
   const data = await response.json();
+  console.log("Data: ", data)
   usersCache = data;
   usersCacheTimestamp = now;
 

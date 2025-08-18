@@ -36,6 +36,7 @@ async def create_indexes():
     try:
         await security_users_collection.create_index("email", unique=True)
         await security_users_collection.create_index("user_id", unique=True)
+        #await security_users_collection.create_index("phone", unique=True)
         await sessions_collection.create_index("user_id")
         
         await audit_logs_collection.create_index("user_id")

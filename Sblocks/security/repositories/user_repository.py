@@ -15,7 +15,7 @@ class UserRepository:
         """Create a new user and return user_id"""
         try:
             result = await security_users_collection.insert_one(user_data)
-            logger.info(f"Created user with ID: {user_data['user_id']}")
+            logger.info(f"Created user: {result}")
             return user_data['user_id']
         except Exception as e:
             logger.error(f"Failed to create user: {e}")
