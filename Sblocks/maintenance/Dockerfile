@@ -4,6 +4,7 @@
 FROM python:3.9-slim
 
 # Set working directory
+ENV PYTHONPATH=/app
 WORKDIR /app
 
 # Install system dependencies
