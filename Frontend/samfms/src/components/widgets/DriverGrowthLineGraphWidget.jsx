@@ -53,29 +53,25 @@ const DriverGrowthLineGraphWidget = ({id, config = {}}) => {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const lastCountRef = React.useRef(null);
 
     useEffect(() => {
         const fetchDriverCount = async () => {
             try {
                 setLoading(true);
                 setError(null);
-                const today = new Date();
-                const dateStr = today.toISOString().split('T')[0];
-                // Send today's date in request body
-                const response = await getNumberOfDrivers({date: dateStr});
-                // Extract count from response.data
-                const count = response?.data?.count ?? 0;
-                console.log('Current driver count:', count);
-                if (lastCountRef.current === null) {
-                    // First load, initialize history
-                    setHistory([{x: today.getTime(), y: count, date: dateStr}]);
-                    lastCountRef.current = count;
-                } else if (count > lastCountRef.current) {
-                    // Count increased, add new point
-                    setHistory(prev => [...prev, {x: today.getTime(), y: count, date: dateStr}]);
-                    lastCountRef.current = count;
-                }
+                // Fetch all driver count history (no date filter)
+                const response = await getNumberOfDrivers({});
+                // response.data is expected to be an array of objects with _id, number_of_drivers, date
+                const driverHistory = Array.isArray(response?.data)
+                    ? response.data
+                    : [];
+                // Map to points for the graph
+                const points = driverHistory.map(item => ({
+                    x: new Date(item.date).getTime(),
+                    y: item.number_of_drivers,
+                    date: item.date,
+                }));
+                setHistory(points);
             } catch (err) {
                 console.error('Failed to fetch driver count:', err);
                 setError('Failed to load driver growth data');

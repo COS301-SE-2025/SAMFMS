@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Button } from '../ui/button';
-import { useAuth, ROLES } from '../auth/RBACUtils';
+import React, {useState} from 'react';
+import {Button} from '../ui/button';
+import {useAuth, ROLES} from '../auth/RBACUtils';
 
 const ManualCreateUserModal = ({
   isOpen,
@@ -9,7 +9,7 @@ const ManualCreateUserModal = ({
   loading,
   preselectedRole = 'driver',
 }) => {
-  const { hasRole } = useAuth();
+  const {hasRole} = useAuth();
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -82,7 +82,7 @@ const ManualCreateUserModal = ({
   };
 
   const handleChange = e => {
-    const { name, value } = e.target;
+    const {name, value} = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value,

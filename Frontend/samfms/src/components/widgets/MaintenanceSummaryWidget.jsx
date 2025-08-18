@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { BaseWidget } from '../dashboard/BaseWidget';
-import { maintenanceAPI } from '../../backend/api/maintenance';
-import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
-import { Dock, AlertTriangle, Calendar, DollarSign } from 'lucide-react';
+import React, {useState, useEffect} from 'react';
+import {BaseWidget} from '../dashboard/BaseWidget';
+import {maintenanceAPI} from '../../backend/api/maintenance';
+import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
+import {Dock, AlertTriangle, Calendar, DollarSign} from 'lucide-react';
 
-const MaintenanceSummaryWidget = ({ id, config = {} }) => {
+const MaintenanceSummaryWidget = ({id, config = {}}) => {
   const [data, setData] = useState({
     total_records: 0,
     overdue_count: 0,
@@ -91,18 +91,19 @@ const MaintenanceSummaryWidget = ({ id, config = {} }) => {
       loading={loading}
       error={error}
     >
-      <div className="grid grid-cols-4 sm:grid-cols-4 gap-3 h-full">
-        {summaryCards.map((card, index) => (
-          <div key={index} className="flex items-center space-x-2 min-h-0">
-            <div className={`p-2 rounded-lg ${card.color} flex-shrink-0`}>
-              {card.icon}
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground truncate">{card.title}</p>
-                <p className={`text-lg font-bold ${card.textColor} truncate`}>{card.value}</p>
-              </div>
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="grid grid-cols-2 grid-rows-2 gap-4 w-full h-full p-4">
+          {summaryCards.map((card, index) => (
+            <div
+              key={index}
+              className={`flex flex-col items-center justify-center bg-white dark:bg-gray-900 rounded-lg shadow ${card.color} w-full h-full p-2 overflow-hidden`}
+              style={{minWidth: 0, minHeight: 0}}
+            >
+              <p className="text-xs font-medium text-muted-foreground mb-0.5 text-center whitespace-normal truncate w-full">{card.title}</p>
+              <p className={`text-base font-bold ${card.textColor} text-center break-words truncate w-full`}>{card.value}</p>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </BaseWidget>
   );
@@ -113,13 +114,13 @@ registerWidget(WIDGET_TYPES.MAINTENANCE_SUMMARY, MaintenanceSummaryWidget, {
   title: 'Maintenance Summary',
   description: 'Overview of maintenance records, overdue items, and costs',
   category: WIDGET_CATEGORIES.MAINTENANCE,
-  defaultSize: { w: 3, h: 6 },
-  minSize: { w: 3, h: 4 },
-  maxSize: { w: 8, h: 8 },
+  defaultSize: {w: 3, h: 6},
+  minSize: {w: 3, h: 4},
+  maxSize: {w: 8, h: 8},
   icon: Dock,
   configSchema: {
-    title: { type: 'string', default: 'Maintenance Summary' },
-    refreshInterval: { type: 'number', default: 30, min: 5 },
+    title: {type: 'string', default: 'Maintenance Summary'},
+    refreshInterval: {type: 'number', default: 30, min: 5},
   },
 });
 

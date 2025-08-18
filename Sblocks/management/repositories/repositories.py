@@ -20,9 +20,9 @@ class DriverCountRepository(BaseRepository):
     async def get_daily_driver_counts(self, start_date: Optional[datetime] = None) -> Optional[Dict[str, Any]]:
         """Get all daily driver counts from a certain date"""
         if start_date is not None:
-            return await self.collection.find_many({"date": {"$gt": start_date}})
+            return await self.collection.find({"date": {"$gt": start_date}})
         else:
-            return await self.collection.find_many({})
+            return await self.collection.find({})
         
         
     async def add_driver(self):
