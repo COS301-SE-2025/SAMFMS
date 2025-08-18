@@ -19,10 +19,14 @@ class DriverCountRepository(BaseRepository):
 
     async def get_daily_driver_counts(self, start_date: Optional[datetime] = None) -> Optional[Dict[str, Any]]:
         """Get all daily driver counts from a certain date"""
+        query = {}
         if start_date is not None:
-            return await self.collection.find_many({"date": {"$gt": start_date}})
-        else:
-            return await self.collection.find_many({})
+            query = {"date": {"$gte": start_date}}
+
+        cursor = self.collection.find(query)
+        results = await cursor.to_list(length=None)
+        logger.info(f"Retrieved {results}")
+        return results
         
         
     async def add_driver(self):
@@ -41,7 +45,7 @@ class DriverCountRepository(BaseRepository):
 
     async def remove_driver(self):
         """Remove a driver record with decremented count"""
-        max_record = await self.find_one(sort=[("number_of_drivers", -1)])
+        max_record = await self.collection.find_one(sort=[("number_of_drivers", -1)])
         max_count = max_record["number_of_drivers"] if max_record else 0
 
         new_count = max(0, max_count - 1)
