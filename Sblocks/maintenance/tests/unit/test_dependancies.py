@@ -1,8 +1,10 @@
+from __future__ import annotations
 import uuid
 import pytest
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from starlette.requests import Request
+
 
 import api.dependencies as deps
 import httpx

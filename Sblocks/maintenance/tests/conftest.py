@@ -1,19 +1,29 @@
-# /app/tests/conftest.py
+
 import sys
 import types
 import pathlib
 import pytest
 from unittest.mock import patch
 from types import SimpleNamespace
+from typing import Any, Optional
+from pydantic import BaseModel
+try:
+    # Pydantic v2 config
+    from pydantic import ConfigDict
+    class _BaseModel(BaseModel):
+        model_config = ConfigDict(extra="allow")  # accept any extra fields
+except Exception:
+    # Fallback if v1 (unlikely here but keeps this portable)
+    class _BaseModel(BaseModel):
+        class Config:
+            extra = "allow"
 
-# ------- 1) Put the maintenance package on sys.path (dynamic search) -------
-# We look for the maintenance "api/dependencies.py" file anywhere under the repo root.
-TESTS_DIR = pathlib.Path(__file__).resolve().parent           # /app/tests
-REPO_ROOT = TESTS_DIR.parent                                  # /app
+TESTS_DIR = pathlib.Path(__file__).resolve().parent           
+REPO_ROOT = TESTS_DIR.parent                                  
 api_candidates = list(REPO_ROOT.rglob("api/dependencies.py"))
 
 if not api_candidates:
-    # As a fallback, try common layouts (SBLOCKS vs Sblocks)
+
     common = [
         REPO_ROOT / "SAMFMS" / "SBLOCKS" / "maintenance" / "api" / "dependencies.py",
         REPO_ROOT / "SAMFMS" / "Sblocks" / "maintenance" / "api" / "dependencies.py",
@@ -26,12 +36,11 @@ if not api_candidates:
             break
 
 if api_candidates:
-    # maintenance dir is two up from api/dependencies.py (…/maintenance)
+
     MAINT_DIR = api_candidates[0].parent.parent
     if str(MAINT_DIR) not in sys.path:
         sys.path.insert(0, str(MAINT_DIR))
 
-# ------- 2) Stub 'schemas' package so imports don't explode -------
 schemas_pkg = types.ModuleType("schemas")
 
 responses_mod = types.ModuleType("schemas.responses")
@@ -54,13 +63,14 @@ class ResponseBuilder:
 responses_mod.ResponseBuilder = ResponseBuilder
 
 requests_mod = types.ModuleType("schemas.requests")
-# Minimal classes so "from schemas.requests import X" works
-class CreateMaintenanceRecordRequest: ...
-class UpdateMaintenanceRecordRequest: ...
-class MaintenanceQueryParams: ...
-class CreateLicenseRecordRequest: ...
-class UpdateLicenseRecordRequest: ...
-class LicenseQueryParams: ...
+
+class CreateMaintenanceRecordRequest(_BaseModel): pass
+class UpdateMaintenanceRecordRequest(_BaseModel): pass
+class MaintenanceQueryParams(_BaseModel): pass
+
+class CreateLicenseRecordRequest(_BaseModel): pass
+class UpdateLicenseRecordRequest(_BaseModel): pass
+class LicenseQueryParams(_BaseModel): pass
 for cls in [
     CreateMaintenanceRecordRequest, UpdateMaintenanceRecordRequest, MaintenanceQueryParams,
     CreateLicenseRecordRequest, UpdateLicenseRecordRequest, LicenseQueryParams,
@@ -77,7 +87,7 @@ sys.modules["schemas.responses"] = responses_mod
 sys.modules["schemas.requests"] = requests_mod
 sys.modules["schemas.entities"] = entities_mod
 
-# ------- 3) Stub 'services' package with the singletons routes import -------
+
 services_pkg = types.ModuleType("services")
 
 notif_mod = types.ModuleType("services.notification_service")
@@ -136,7 +146,7 @@ sys.modules["services.analytics_service"] = analytics_mod
 sys.modules["services.license_service"] = license_mod
 sys.modules["services.maintenance_service"] = maint_mod
 
-# ------- 4) Provide a 'mocker' fixture if pytest-mock isn't installed -------
+
 class _PatchWrapper:
     def __call__(self, target, *args, **kwargs):
         return patch(target, *args, **kwargs).start()
