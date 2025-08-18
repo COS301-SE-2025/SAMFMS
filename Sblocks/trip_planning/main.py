@@ -240,6 +240,9 @@ async def lifespan(app: FastAPI):
             await db_manager.disconnect()
             logger.info("Database disconnected")
 
+            await db_manager_management.disconnect()
+            logger.info("Management Database disconnected")
+
             await db_manager_gps.disconnect()
             logger.info("Database GPS disconnected")
 

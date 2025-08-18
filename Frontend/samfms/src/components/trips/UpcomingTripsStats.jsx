@@ -2,7 +2,9 @@ import React from 'react';
 import { Calendar, Clock, User } from 'lucide-react';
 
 const UpcomingTripsStats = ({ upcomingTrips = [] }) => {
-  const highPriorityCount = upcomingTrips.filter(trip => trip.priority === 'High').length;
+  const highPriorityCount = upcomingTrips.filter(
+    trip => trip.priority === 'high' || trip.priority === 'urgent'
+  ).length;
   const pendingApprovalCount = upcomingTrips.filter(
     trip => trip.status === 'Pending Approval'
   ).length;

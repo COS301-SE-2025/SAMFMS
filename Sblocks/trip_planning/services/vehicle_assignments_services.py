@@ -46,6 +46,35 @@ class VehicleAssignmenstService:
         logger.error(f"Error creating assignment: {str(e)}")
         raise
 
+  async def removeAssignment(self, vehicle_id: str, driver_id: str):
+    """Remove assignment by vehicle_id and driver_id"""
+    try:
+        # Find the assignment first to log what we're removing
+        assignment_to_remove = await self.db_management.vehicle_assignments.find_one({
+            "vehicle_id": vehicle_id,
+            "driver_id": driver_id
+        })
+                
+        if not assignment_to_remove:
+            logger.warning(f"No assignment found for vehicle_id: {vehicle_id}, driver_id: {driver_id}")
+            return None
+                
+        # Remove the assignment
+        result = await self.db_management.vehicle_assignments.delete_one({
+            "vehicle_id": vehicle_id,
+            "driver_id": driver_id
+        })
+                
+        if result.deleted_count == 0:
+            raise ValueError("Assignment failed to remove")
+                
+        logger.info(f"Removed assignment: vehicle_id={vehicle_id}, driver_id={driver_id}, trip_id={assignment_to_remove.get('trip_id')}")
+        return assignment_to_remove
+            
+    except Exception as e:
+        logger.error(f"Error removing assignment: {str(e)}")
+        raise
+
 
 vehicle_assignment_service = VehicleAssignmenstService()
 
