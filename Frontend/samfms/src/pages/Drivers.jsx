@@ -373,7 +373,7 @@ const Drivers = () => {
                   Available Drivers
                 </p>
                 <p className="text-3xl font-bold text-green-900 dark:text-green-100 transition-colors duration-300">
-                  {drivers.filter(driver => driver.status?.toLowerCase() !== 'unavailable').length}
+                  {drivers.filter(driver => driver.status?.toLowerCase() === 'available').length}
                 </p>
                 <div className="flex items-center mt-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>

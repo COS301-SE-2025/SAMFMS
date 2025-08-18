@@ -2,6 +2,34 @@ import React from 'react';
 import { MapPin, User, Clock, Calendar } from 'lucide-react';
 
 const UpcomingTripsTable = ({ upcomingTrips = [] }) => {
+  // Helper function to format date/time
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'Not set';
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Helper function to format priority
+  const formatPriority = (priority) => {
+    switch (priority?.toLowerCase()) {
+      case 'urgent': return 'High';
+      case 'high': return 'High';
+      case 'normal': return 'Medium';
+      case 'low': return 'Low';
+      default: return 'Medium';
+    }
+  };
+
+  // Helper function to format status
+  const formatStatus = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'scheduled': return 'Scheduled';
+      case 'in-progress': return 'In Progress';
+      case 'completed': return 'Completed';
+      default: return 'Scheduled';
+    }
+  };
+
   return (
     <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden animate-fade-in animate-delay-200">
       <div className="p-4 border-b border-border">
@@ -48,51 +76,53 @@ const UpcomingTripsTable = ({ upcomingTrips = [] }) => {
                       <MapPin className="h-4 w-4 text-blue-600 dark:text-blue-300" />
                     </div>
                     <div>
-                      <div className="font-medium text-foreground">{trip.tripName}</div>
-                      <div className="text-sm text-muted-foreground">ID: #{trip.id}</div>
+                      <div className="font-medium text-foreground">{trip.name || 'Unnamed Trip'}</div>
+                      <div className="text-sm text-muted-foreground">ID: #{trip.id.slice(-8)}</div>
                     </div>
                   </div>
                 </td>
                 <td className="px-4 py-4">
                   <div>
-                    <div className="font-medium text-foreground">{trip.vehicle}</div>
+                    <div className="font-medium text-foreground">{trip.vehicleId?.slice(-8) || 'Not assigned'}</div>
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
                       <User className="h-3 w-3" />
-                      {trip.driver}
+                      {trip.driverAssignment || 'No driver assigned'}
                     </div>
                   </div>
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex items-center gap-1 text-sm">
                     <Clock className="h-3 w-3 text-muted-foreground" />
-                    <span>{trip.scheduledStart}</span>
+                    <span>{formatDateTime(trip.scheduledStartTime)}</span>
                   </div>
                 </td>
                 <td className="px-4 py-4">
-                  <span className="text-sm">{trip.destination}</span>
+                  <span className="text-sm">{trip.destination?.name || 'Unknown destination'}</span>
                 </td>
                 <td className="px-4 py-4">
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      trip.priority === 'High'
+                      formatPriority(trip.priority) === 'High'
                         ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                        : trip.priority === 'Medium'
+                        : formatPriority(trip.priority) === 'Medium'
                         ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
                         : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                     }`}
                   >
-                    {trip.priority}
+                    {formatPriority(trip.priority)}
                   </span>
                 </td>
                 <td className="px-4 py-4">
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      trip.status === 'Scheduled'
+                      formatStatus(trip.status) === 'Scheduled'
                         ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                        : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
+                        : formatStatus(trip.status) === 'In Progress'
+                        ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
+                        : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                     }`}
                   >
-                    {trip.status}
+                    {formatStatus(trip.status)}
                   </span>
                 </td>
               </tr>
@@ -100,6 +130,12 @@ const UpcomingTripsTable = ({ upcomingTrips = [] }) => {
           </tbody>
         </table>
       </div>
+      {upcomingTrips.length === 0 && (
+        <div className="p-8 text-center text-muted-foreground">
+          <MapPin className="h-12 w-12 mx-auto mb-3 opacity-50" />
+          <p>No upcoming trips scheduled</p>
+        </div>
+      )}
     </div>
   );
 };

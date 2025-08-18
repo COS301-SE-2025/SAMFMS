@@ -16,6 +16,8 @@ from aio_pika.abc import AbstractIncomingMessage
 # Import standardized RabbitMQ config
 from config.rabbitmq_config import RabbitMQConfig, json_serializer
 
+PRETORIA_COORDINATES = [28.1881, -25.7463]
+
 logger = logging.getLogger(__name__)
 
 class ServiceRequestConsumer:
@@ -246,7 +248,7 @@ class ServiceRequestConsumer:
             # Add endpoint to user_context for handlers to use
             user_context["endpoint"] = endpoint
             
-            logger.debug(f"Routing {method} request to endpoint: {endpoint}")
+            logger.info(f"Routing {method} request to endpoint: {endpoint}")
             
             # Route to appropriate handler based on endpoint pattern
             if endpoint == "health" or endpoint == "":
@@ -290,27 +292,86 @@ class ServiceRequestConsumer:
             # Extract data and endpoint from user_context
             data = user_context.get("data", {})
             endpoint = user_context.get("endpoint", "")
+            logger.info(f"Endpoint from user context {endpoint}")
             
             # Handle HTTP methods and route to appropriate logic
             if method == "GET":
                 # Parse endpoint for specific location operations
-                if "locations" in endpoint:
-                    locations = await location_service.get_all_vehicle_locations()
-                    return ResponseBuilder.success(
-                        data=[loc.model_dump() for loc in locations] if locations else None,
-                        message="Vehicle locations retrieved successfully"
-                    ).model_dump()
-                
-                elif "vehicle" in endpoint and endpoint.count('/') > 0:
+                if "vehicle" in endpoint:
                     # locations/vehicle/{vehicle_id} pattern
                     vehicle_id = endpoint.split('/')[-1]
                     location = await location_service.get_vehicle_location(vehicle_id)
+                    logger.info(f"Location retrieved for {vehicle_id}: {location}")
+                    if location is None:
+                        return ResponseBuilder.success(
+                            data={
+                                "vehicle_id": vehicle_id,
+                                "latitude": PRETORIA_COORDINATES[1],
+                                "longitude": PRETORIA_COORDINATES[0]
+                            },
+                            message="Vehicle location retrieved successfully"
+                        ).model_dump()
                     
                     return ResponseBuilder.success(
                         data=location.model_dump() if location else None,
                         message="Vehicle location retrieved successfully"
                     ).model_dump()
+                elif "locations" in endpoint:
+                    vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                    logger.info(f"vehicle_id: {vehicle_id}")
+                    if vehicle_id is None:
+                        # Get current locations and all vehicles
+                        locations = await location_service.get_all_vehicle_locations()
+                        vehicles = await location_service.get_all_vehicles()
+                        
+                        # Create a set of vehicle IDs that have location data
+                        vehicles_with_locations = set()
+                        locations_list = []
+                        
+                        # Process existing locations
+                        if locations:
+                            for loc in locations:
+                                locations_list.append(loc.model_dump())
+                                vehicles_with_locations.add(loc.vehicle_id)
+                        
+                        # Find vehicles without location data
+                        if vehicles:
+                            for vehicle in vehicles:
+                                vehicle_id = vehicle["_id"]
+                                
+                                if vehicle_id not in vehicles_with_locations:
+                                    # Create default location entry for missing vehicle
+                                    default_location = {
+                                        "id": f"default_{vehicle_id}",  # Generate a default ID
+                                        "vehicle_id": vehicle_id,
+                                        "location": {
+                                            "type": "Point",
+                                            "coordinates": PRETORIA_COORDINATES
+                                        },
+                                        "latitude": PRETORIA_COORDINATES[1],
+                                        "longitude": PRETORIA_COORDINATES[0],
+                                        "altitude": None,
+                                        "speed": 0.0,  # Default to stationary
+                                        "heading": 0.0,  # Default heading
+                                        "accuracy": None,
+                                        "timestamp": datetime.utcnow().isoformat(),
+                                        "updated_at": datetime.utcnow().isoformat()
+                                    }
+                                    locations_list.append(default_location)
+                        
+                        return ResponseBuilder.success(
+                            data=locations_list,
+                            message="Vehicle locations retrieved successfully (with defaults for missing vehicles)"
+                        ).model_dump()
                     
+                    location = await location_service.get_vehicle_location(vehicle_id)
+
+
+                    return ResponseBuilder.success(
+                        data=location,
+                        message="Vehicle location retrieved successfully"
+                    ).model_dump()
+                     
                 elif "history" in endpoint:
                     # locations/history with query params
                     vehicle_id = data.get("vehicle_id")
