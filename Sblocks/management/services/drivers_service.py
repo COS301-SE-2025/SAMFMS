@@ -23,7 +23,7 @@ class DriversService:
     async def get_daily_driver_counts(self, start_date: Optional[datetime] = None) -> Optional[Dict[str, Any]]:
         """Get all daily driver counts from a certain date"""
         try:
-            await self.drivers_repo.get_daily_driver_counts(start_date)
+            return await self.drivers_repo.get_daily_driver_counts(start_date)
             
             
             logger.info(f"Driver daily driver counts requested")
