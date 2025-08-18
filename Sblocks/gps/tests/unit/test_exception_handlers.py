@@ -24,11 +24,6 @@ def _req():
     return Request({"type": "http", "headers": [(b"x-request-id", b"rid-1")]})
 
 
-@pytest.fixture(autouse=True)
-def patch_response_builder(monkeypatch):
-    monkeypatch.setattr(eh, "ResponseBuilder", _RB)
-    yield
-
 
 @pytest.mark.asyncio
 async def test_database_connection_error_handler_503():

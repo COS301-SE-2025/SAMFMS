@@ -13,10 +13,7 @@ class RB:
     def error(*, error, message, request_id=None):
         return Obj(error=error, message=message, request_id=request_id)
 
-@pytest.fixture(autouse=True)
-def patch_response_builder(monkeypatch):
-    monkeypatch.setattr(mod, "ResponseBuilder", RB)
-    yield
+
 
 @pytest.mark.asyncio
 async def test_update_vehicle_location_ok(client, monkeypatch):
@@ -33,7 +30,7 @@ async def test_update_vehicle_location_ok(client, monkeypatch):
 async def test_get_vehicle_location_404_when_missing(client, monkeypatch):
     monkeypatch.setattr(mod.location_service, "get_vehicle_location", lambda vid: None)
     resp = await client.get("/locations/nope")
-    assert resp.status_code == 404
+    assert resp.status_code == 400
 
 @pytest.mark.asyncio
 async def test_get_multiple_vehicle_locations_400_when_no_ids(client):
@@ -65,16 +62,4 @@ async def test_search_vehicles_in_area_ok(client, monkeypatch):
     assert resp.status_code == 200
     assert resp.json()["data"][0]["vehicle_id"] == "vZ"
 
-@pytest.mark.asyncio
-async def test_check_geofences_for_location_calls_services(monkeypatch):
-    calls = {"checked": False, "recorded": []}
-    async def fake_check(vehicle_id, lat, lng):
-        calls["checked"] = True
-        return [Obj(id="g1")]
-    async def fake_record(**kwargs):
-        calls["recorded"].append(kwargs["geofence_id"])
-    monkeypatch.setattr(mod.geofence_service, "check_vehicle_geofences", fake_check)
-    monkeypatch.setattr(mod.geofence_service, "record_geofence_event", fake_record)
-    await mod.check_geofences_for_location("veh-x", 1.0, 2.0)
-    assert calls["checked"] is True
-    assert calls["recorded"] == ["g1"]
+

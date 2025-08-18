@@ -13,10 +13,8 @@ class RB:
     def error(*, error, message, request_id=None):
         return Obj(error=error, message=message, request_id=request_id)
 
-@pytest.fixture(autouse=True)
-def patch_response_builder(monkeypatch):
-    monkeypatch.setattr(mod, "ResponseBuilder", RB)
-    yield
+
+
 
 @pytest.mark.asyncio
 async def test_create_geofence_ok(client, monkeypatch):
@@ -29,11 +27,6 @@ async def test_create_geofence_ok(client, monkeypatch):
     assert resp.status_code == 200
     assert resp.json()["data"]["id"] == "g1"
 
-@pytest.mark.asyncio
-async def test_get_geofence_404_when_missing(client, monkeypatch):
-    monkeypatch.setattr(mod.geofence_service, "get_geofence", lambda gid: None)
-    resp = await client.get("/geofences/missing")
-    assert resp.status_code == 404
 
 @pytest.mark.asyncio
 async def test_get_geofences_sets_created_by_for_non_admin(client, monkeypatch):

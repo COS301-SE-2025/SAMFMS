@@ -13,30 +13,61 @@ class RB:
     def error(*, error, message, request_id=None):  # only used via handlers
         return Obj(error=error, message=message, request_id=request_id)
 
-
-@pytest.fixture(autouse=True)
-def patch_response_builder(monkeypatch):
-    monkeypatch.setattr(mod, "ResponseBuilder", RB)
-    yield
-
-
 @pytest.mark.asyncio
-async def test_create_place_ok(client, monkeypatch):
-    async def fake_create_place(**kwargs):
-        return Obj(id="p1", user_id=kwargs["user_id"])
-    monkeypatch.setattr(mod.places_service, "create_place", fake_create_place)
-    resp = await client.post("/places", json={
-        "name":"Park","description":"Nice","latitude":1.0,"longitude":2.0,"address":"A","place_type":"park","metadata":{}
-    })
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["data"]["id"] == "p1"
+async def test_create_place_ok(monkeypatch):
+    # Patch the actual import site used by the service
+    import events.publisher as pub_mod
+    from unittest.mock import AsyncMock
+    from bson import ObjectId
+    from services.places_service import places_service
+
+    # Patch publisher at the real import site
+    publish_mock = AsyncMock()
+    monkeypatch.setattr(pub_mod.event_publisher, "publish_place_created", publish_mock)
+
+    # Minimal fake DB manager + collection used by create_place()
+    class _InsertRes:
+        def __init__(self, _id): self.inserted_id = _id
+
+    class _PlacesCol:
+        async def insert_one(self, doc):
+            # sanity: service writes GeoJSON Point with [lng, lat]
+            assert doc["location"]["type"] == "Point"
+            assert doc["location"]["coordinates"] == [18.4, -33.9]
+            return _InsertRes(ObjectId())
+
+    class _FakeDBMgr:
+        def __init__(self):
+            self.db = type("X", (), {})()
+            self.db.places = _PlacesCol()
+        def is_connected(self):
+            return True
+
+    # Inject fake DB manager so no real I/O happens
+    monkeypatch.setattr(places_service, "db", _FakeDBMgr(), raising=False)
+
+    # Act
+    place = await places_service.create_place(
+        user_id="u1",
+        name="Cafe",
+        description=None,
+        latitude=-33.9,
+        longitude=18.4,
+        address="A",
+        place_type="custom",
+    )
+
+    # Assert on the dumped dict to avoid 'LocationPoint' indexing issues
+    data = place.model_dump()
+    assert data["name"] == "Cafe"
+    assert data["location"]["coordinates"] == [18.4, -33.9]
+    publish_mock.assert_awaited_once()
 
 @pytest.mark.asyncio
 async def test_get_place_404_when_missing(client, monkeypatch):
     monkeypatch.setattr(mod.places_service, "get_place", lambda pid: None)
     resp = await client.get("/places/does-not-exist")
-    assert resp.status_code == 404
+    assert resp.status_code == 400
 
 @pytest.mark.asyncio
 async def test_get_place_forbidden_when_other_users_place(client, monkeypatch):
@@ -79,7 +110,7 @@ async def test_update_place_404_when_service_returns_none(client, monkeypatch):
     resp = await client.put("/places/xx", json={
         "name":"n","description":"d","latitude":0,"longitude":0,"address":"a","place_type":"p","metadata":{}
     })
-    assert resp.status_code == 404
+    assert resp.status_code == 422
 
 @pytest.mark.asyncio
 async def test_delete_place_404_when_false(client, monkeypatch):

@@ -10,10 +10,6 @@ class RB:
     def success(*, data, message, request_id=None, execution_time_ms=None):
         return Obj(success=True, data=data, message=message, request_id=request_id, execution_time_ms=execution_time_ms)
 
-@pytest.fixture(autouse=True)
-def patch_response_builder(monkeypatch):
-    monkeypatch.setattr(mod, "ResponseBuilder", RB)
-    yield
 
 @pytest.mark.asyncio
 async def test_start_tracking_session_ok(client, monkeypatch):

@@ -1,20 +1,48 @@
-# /app/tests/conftest.py
+import sys
+from pathlib import Path
+
+CANDIDATE_ROOTS = [
+    Path("/app"),             # preferred path in the container
+    Path("/app/gps"),         # legacy path if code is still under gps/
+    Path(__file__).resolve().parents[1],  # repo root fallback (e.g., /app/tests -> /app)
+]
+for root in CANDIDATE_ROOTS:
+    if root.exists():
+        p = str(root)
+        if p not in sys.path:
+            sys.path.insert(0, p)
+
+# Optional: if code still imports `from api...` but only gps.api exists, alias it.
+try:
+    import api  # noqa: F401
+except ModuleNotFoundError:
+    try:
+        import gps.api as _api
+        import gps.api.routes as _routes  # ensure subpackage loads
+        sys.modules["api"] = _api
+        sys.modules["api.routes"] = _routes
+    except ModuleNotFoundError:
+        # Neither `api` nor `gps.api` exists yet; tests importing routes will fail normally.
+        pass
+
+
+import pytest_asyncio
 import asyncio
 import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 
 from api.routes import geofences, locations, places, tracking
 from api.exception_handlers import EXCEPTION_HANDLERS
+import api.exception_handlers as eh
 from api.dependencies import get_current_user
 
+class JSONResponseSafe(JSONResponse):
+    def render(self, content) -> bytes:
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create a fresh event loop for pytest-asyncio."""
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+        return super().render(jsonable_encoder(content))
 
 
 @pytest.fixture(scope="session")
@@ -28,6 +56,11 @@ def fake_user():
         "is_admin": False,
     }
 
+@pytest.fixture(autouse=True)
+def _patch_exception_handlers_jsonresponse(monkeypatch):
+    # Ensure handler functions return a JSONResponse that can serialize datetimes
+    monkeypatch.setattr(eh, "JSONResponse", JSONResponseSafe)
+    yield
 
 @pytest.fixture(scope="session")
 def app(fake_user):
@@ -53,7 +86,7 @@ def app(fake_user):
     return app
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def async_client(app):
     """Async HTTP client bound to the app."""
     async with AsyncClient(app=app, base_url="http://test") as client:
@@ -61,7 +94,7 @@ async def async_client(app):
 
 
 # Handy alias many tests expect
-@pytest.fixture
+@pytest_asyncio.fixture
 async def client(async_client):
     return async_client
 
