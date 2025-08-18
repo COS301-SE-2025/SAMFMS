@@ -18,6 +18,99 @@ logger = logging.getLogger(__name__)
 
 class AuthService:
     """Service layer for authentication operations"""
+
+    @staticmethod
+    async def get_user_role(user_id: str):
+        """Retrieve a user's role by user_id"""
+        try:
+            user = await UserRepository.find_by_user_id(user_id)
+            if user and "role" in user:
+                return user["role"]
+            return None
+        except Exception as e:
+            logger.error(f"Get user role error: {e}")
+            return None
+
+    @staticmethod
+    async def update_user_password(user_id: str, new_password: str):
+        """Update a user's password"""
+        try:
+            hashed_password = get_password_hash(new_password)
+            return await UserRepository.update_user_password(user_id, hashed_password)
+        except Exception as e:
+            logger.error(f"Update user password error: {e}")
+            return False
+
+    @staticmethod
+    async def update_user_role(user_id: str, new_role: str):
+        """Update a user's role"""
+        try:
+            return await UserRepository.update_user_role(user_id, new_role)
+        except Exception as e:
+            logger.error(f"Update user role error: {e}")
+            return False
+
+    @staticmethod
+    async def is_token_valid(token: str):
+        """Check if a token is valid and not blacklisted"""
+        try:
+            payload = verify_access_token(token)
+            token_hash = hashlib.sha256(token.encode()).hexdigest()
+            if await TokenRepository.is_token_blacklisted(token_hash):
+                return False
+            return True
+        except Exception as e:
+            logger.error(f"Token validation error: {e}")
+            return False
+
+    @staticmethod
+    async def get_user_by_email(email: str):
+        """Retrieve user details by email"""
+        try:
+            return await UserRepository.find_by_email(email)
+        except Exception as e:
+            logger.error(f"Get user by email error: {e}")
+            return None
+
+    @staticmethod
+    async def reset_failed_login_attempts(user_id: str):
+        """Reset failed login attempts for a user"""
+        try:
+            return await UserRepository.reset_failed_attempts(user_id)
+        except Exception as e:
+            logger.error(f"Reset failed login attempts error: {e}")
+            return False
+
+    @staticmethod
+    async def force_logout_user(user_id: str):
+        """Force logout a user by invalidating all tokens (set force_logout_after)"""
+        try:
+            from datetime import datetime
+            return await UserRepository.set_force_logout_after(user_id, datetime.utcnow())
+        except Exception as e:
+            logger.error(f"Force logout user error: {e}")
+            return False
+
+    @staticmethod
+    async def get_all_users():
+        """Retrieve all users (admin functionality)"""
+        try:
+            return await UserRepository.get_all_users()
+        except Exception as e:
+            logger.error(f"Get all users error: {e}")
+            return []
+
+    @staticmethod
+    async def get_user_permissions(user_id: str):
+        """Retrieve a user's permissions by user_id"""
+        try:
+            user = await UserRepository.find_by_user_id(user_id)
+            if user and "permissions" in user:
+                return user["permissions"]
+            return []
+        except Exception as e:
+            logger.error(f"Get user permissions error: {e}")
+            return []
     
     @staticmethod
     async def signup_user(user_data: Dict[str, Any]) -> TokenResponse:

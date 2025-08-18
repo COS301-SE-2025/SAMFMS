@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Smart Autonomous Fleet Management System",
   "scripts": {
+    "analyze": "npm run build && npx source-map-explorer 'build/static/js/*.js'",
     "test": "run-tests.bat",
     "test:security": "run-tests.bat --service security",
     "test:core": "run-tests.bat --service core",
@@ -13,7 +14,8 @@
   "devDependencies": {
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
-    "tailwindcss": "^4.1.7"
-  },
-  "dependencies": {}
+    "source-map-explorer": "^2.5.3",
+    "tailwindcss": "^4.1.7",
+    "webpack-bundle-analyzer": "^4.10.2"
+  }
 }

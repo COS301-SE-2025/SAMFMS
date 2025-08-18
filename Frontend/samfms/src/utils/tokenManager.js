@@ -3,7 +3,7 @@ import { getCookie, setCookie, deleteCookie } from '../lib/cookies';
 
 // Token refresh configuration
 const TOKEN_REFRESH_BUFFER = 2 * 60 * 1000; // 2 minutes before expiry
-const API_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:21011';
+const API_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:21004';
 
 class TokenManager {
   constructor() {

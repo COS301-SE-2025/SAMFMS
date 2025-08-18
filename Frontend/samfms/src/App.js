@@ -1,19 +1,20 @@
-import {BrowserRouter as Router, Routes, Route, Navigate} from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 import 'leaflet/dist/leaflet.css';
 
 // Import layout and contexts
-import Layout from './components/Layout';
+import Layout from './components/layout/Layout';
 import ThemeProvider from './contexts/ThemeContext';
 import NotificationProvider from './contexts/NotificationContext';
-import ProtectedRoute from './components/ProtectedRoute';
-import ErrorBoundary from './components/ErrorBoundary';
-import AuthErrorBoundary from './components/AuthErrorBoundary';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import RoleBasedRoute from './components/auth/RoleBasedRoute';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import AuthErrorBoundary from './components/auth/AuthErrorBoundary';
 
 // Import pages
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import UserActivation from './components/UserActivation';
+import UserActivation from './components/auth/UserActivation';
 import Dashboard from './pages/Dashboard';
 import Account from './pages/Account';
 import Plugins from './pages/Plugins';
@@ -24,7 +25,8 @@ import Trips from './pages/Trips';
 import Maintenance from './pages/Maintenance';
 import Help from './pages/Help';
 import Landing from './pages/Landing';
-import UserManagement from './components/UserManagement';
+import UserManagement from './pages/UserManagement';
+import DriverHomePage from './pages/DriverHomePage';
 
 function App() {
   return (
@@ -38,7 +40,8 @@ function App() {
 
               {/* Public routes - wrapped in AuthErrorBoundary for auth-related errors */}
               <Route
-                path="/login" element={
+                path="/login"
+                element={
                   <AuthErrorBoundary>
                     <Login />
                   </AuthErrorBoundary>
@@ -68,18 +71,22 @@ function App() {
                   </AuthErrorBoundary>
                 }
               >
-              <Route element={<Layout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/vehicles" element={<Vehicles />} />{' '}
-                <Route path="/drivers" element={<Drivers />} />
-                <Route path="/tracking" element={<Tracking />} />
-                <Route path="/trips" element={<Trips />} />
-                <Route path="/maintenance" element={<Maintenance />} />
-                <Route path="/account" element={<Account />} />
-                <Route path="/plugins" element={<Plugins />} />
-                <Route path="/users" element={<UserManagement />} />
-                <Route path="/help" element={<Help />} />
-              </Route>
+                <Route element={<Layout />}>
+                  <Route
+                    path="/dashboard"
+                    element={<RoleBasedRoute adminComponent={Dashboard} driverComponent={null} />}
+                  />
+                  <Route path="/driver-home" element={<DriverHomePage />} />
+                  <Route path="/vehicles" element={<Vehicles />} />{' '}
+                  <Route path="/drivers" element={<Drivers />} />
+                  <Route path="/tracking" element={<Tracking />} />
+                  <Route path="/trips" element={<Trips />} />
+                  <Route path="/maintenance" element={<Maintenance />} />
+                  <Route path="/account" element={<Account />} />
+                  <Route path="/plugins" element={<Plugins />} />
+                  <Route path="/users" element={<UserManagement />} />
+                  <Route path="/help" element={<Help />} />
+                </Route>
               </Route>
 
               {/* Catch-all route */}

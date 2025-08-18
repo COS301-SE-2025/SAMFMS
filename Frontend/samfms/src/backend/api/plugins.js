@@ -1,16 +1,17 @@
-import { getApiHostname, fetchWithTimeout, getToken } from './auth';
+import { httpClient } from '../services/httpClient';
+import { buildApiUrl } from '../../config/apiConfig';
+import { getToken, fetchWithTimeout } from './auth';
+import { API_ENDPOINTS } from '../../config/apiConfig';
 
-// Get the API hostname with protocol
-const API_URL = `${getApiHostname()}`;
-
-// Plugin API endpoints
+// Plugin API endpoints using centralized configuration
 const PLUGIN_ENDPOINTS = {
-  list: `${API_URL}/api/plugins/available`,
-  all: `${API_URL}/api/plugins/`,
-  start: pluginId => `${API_URL}/api/plugins/${pluginId}/start`,
-  stop: pluginId => `${API_URL}/api/plugins/${pluginId}/stop`,
-  updateRoles: pluginId => `${API_URL}/api/plugins/${pluginId}/roles`,
-  status: pluginId => `${API_URL}/api/plugins/${pluginId}/status`,
+  list: buildApiUrl('/plugins/available'),
+  all: buildApiUrl('/plugins/'),
+  start: pluginId => buildApiUrl(`/plugins/${pluginId}/start`),
+  stop: pluginId => buildApiUrl(`/plugins/${pluginId}/stop`),
+  updateRoles: pluginId => buildApiUrl(`/plugins/${pluginId}/roles`),
+  status: pluginId => buildApiUrl(`/plugins/${pluginId}/status`),
+  health_status: API_ENDPOINTS.PLUGINSTATUS.STATUS,
 };
 
 /**
@@ -18,24 +19,7 @@ const PLUGIN_ENDPOINTS = {
  */
 export const getPlugins = async () => {
   try {
-    const token = getToken();
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
-    const response = await fetchWithTimeout(PLUGIN_ENDPOINTS.list, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch plugins: ${response.statusText}`);
-    }
-
-    return await response.json();
+    return await httpClient.get('/plugins/available');
   } catch (error) {
     console.error('Error fetching plugins:', error);
     throw error;
@@ -160,6 +144,39 @@ export const getAllPlugins = async () => {
 };
 
 /**
+ * Get plugins with health status
+ */
+export const getPluginsWithStatus = async () => {
+  try {
+    const res = await fetch("http://localhost:21004/health/healthy-services", {
+      headers: { Accept: "application/json" },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Health endpoint failed: ${res.status} ${res.statusText}`);
+    }
+
+    const body = await res.json();
+    const sblocks = body?.sblocks ?? {};
+
+    return Object.entries(sblocks).map(([plugin, value]) => {
+      const statusRaw =
+        value?.data?.data?.status ??
+        value?.data?.status ??
+        value?.status ??
+        "unknown";
+
+      const status = String(statusRaw); 
+
+      return { plugin, status };
+    });
+  } catch (err) {
+    console.error("getPluginsWithStatus:", err);
+    throw err; 
+  }
+};
+
+/**
  * Get plugin runtime status
  */
 export const getPluginStatus = async pluginId => {
@@ -191,7 +208,7 @@ export const getPluginStatus = async pluginId => {
 // Test function to check Core service connectivity
 export const testCoreService = async () => {
   try {
-    const healthUrl = `${getApiHostname()}/health`;
+    const healthUrl = buildApiUrl('/health');
     console.log('Testing Core service at:', healthUrl);
 
     const response = await fetchWithTimeout(
@@ -229,7 +246,7 @@ export const syncPluginStatus = async () => {
       throw new Error('No authentication token found');
     }
 
-    const response = await fetchWithTimeout(`${API_URL}/api/plugins/sync-status`, {
+    const response = await fetchWithTimeout(buildApiUrl('/plugins/sync-status'), {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -258,7 +275,7 @@ export const debugDockerAccess = async () => {
       throw new Error('No authentication token found');
     }
 
-    const response = await fetchWithTimeout(`${API_URL}/api/plugins/debug/docker`, {
+    const response = await fetchWithTimeout(buildApiUrl('/plugins/debug/docker'), {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -277,14 +294,14 @@ export const debugDockerAccess = async () => {
   }
 };
 
-export const addSblock = async (username) => {
+export const addSblock = async username => {
   try {
     const token = getToken();
     if (!token) {
       throw new Error('No authentication token found');
     }
 
-    const response = await fetchWithTimeout(`${API_URL}/api/sblock/add/${username}`, {
+    const response = await fetchWithTimeout(buildApiUrl(`/sblock/add/${username}`), {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -303,14 +320,14 @@ export const addSblock = async (username) => {
   }
 };
 
-export const removeSblock = async (username) => {
+export const removeSblock = async username => {
   try {
     const token = getToken();
     if (!token) {
       throw new Error('No authentication token found');
     }
 
-    const response = await fetchWithTimeout(`${API_URL}/api/sblock/remove/${username}`, {
+    const response = await fetchWithTimeout(buildApiUrl(`/sblock/remove/${username}`), {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,

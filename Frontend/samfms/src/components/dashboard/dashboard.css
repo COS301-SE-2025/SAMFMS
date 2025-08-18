@@ -1,0 +1,460 @@
+/* React Grid Layout specific styles that can't be easily converted to Tailwind */
+
+/* React grid item basic styling for drag and drop functionality */
+.react-grid-item {
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+  border-radius: 0.75rem;
+  touch-action: none;
+  background: linear-gradient(135deg, rgb(248 250 252) 0%, rgb(241 245 249) 100%);
+  border: 1px solid rgb(241 245 249);
+  overflow: hidden;
+}
+
+@media (prefers-color-scheme: dark) {
+  .react-grid-item {
+    background: linear-gradient(135deg, rgb(2 6 23) 0%, rgb(15 23 42) 100%);
+    border: 1px solid rgb(15 23 42);
+  }
+}
+
+.react-grid-item.react-draggable-dragging {
+  transition: none !important;
+  z-index: 999;
+  opacity: 0.95;
+  transform: rotate(2deg) scale(1.05);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(59, 130, 246, 0.2);
+}
+
+.react-grid-item.react-resizable-resizing {
+  transition: none !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(16, 185, 129, 0.3);
+}
+
+/* Focus styles for accessibility with smooth transitions */
+.react-grid-item:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.8);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  transition: all 0.2s ease;
+}
+
+.widget-drag-handle:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.8);
+  outline-offset: 1px;
+  background: rgba(59, 130, 246, 0.1);
+  transform: scale(1.05);
+  transition: all 0.2s ease;
+}
+
+/* Enhanced loading states with smooth transitions */
+.dashboard-widget-loading {
+  opacity: 0.6;
+  pointer-events: none;
+  position: relative;
+  transition: opacity 0.3s ease;
+}
+
+.dashboard-widget-loading::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: shimmer 2s infinite;
+  z-index: 1;
+}
+
+.dashboard-widget-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border: 3px solid rgba(59, 130, 246, 0.2);
+  border-top-color: rgba(59, 130, 246, 0.8);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  z-index: 2;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dark mode enhancements */
+@media (prefers-color-scheme: dark) {
+  .react-grid-item.react-draggable-dragging {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  }
+
+  .react-grid-item.react-resizable-resizing {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* Corner resize handles with improved visibility and interactions */
+.react-grid-item>.react-resizable-handle.react-resizable-handle-se {
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: se-resize;
+  background: linear-gradient(135deg,
+      transparent 0%,
+      transparent 40%,
+      rgba(59, 130, 246, 0.3) 50%,
+      rgba(59, 130, 246, 0.6) 100%);
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-se {
+  opacity: 1;
+}
+
+.react-grid-item>.react-resizable-handle.react-resizable-handle-sw {
+  bottom: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  cursor: sw-resize;
+  background: linear-gradient(135deg,
+      transparent 0%,
+      transparent 40%,
+      rgba(59, 130, 246, 0.3) 50%,
+      rgba(59, 130, 246, 0.6) 100%);
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-sw {
+  opacity: 1;
+}
+
+.react-grid-item>.react-resizable-handle.react-resizable-handle-ne {
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: ne-resize;
+  background: linear-gradient(135deg,
+      transparent 0%,
+      transparent 40%,
+      rgba(59, 130, 246, 0.3) 50%,
+      rgba(59, 130, 246, 0.6) 100%);
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-ne {
+  opacity: 1;
+}
+
+.react-grid-item>.react-resizable-handle.react-resizable-handle-nw {
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  cursor: nw-resize;
+  background: linear-gradient(135deg,
+      transparent 0%,
+      transparent 40%,
+      rgba(59, 130, 246, 0.3) 50%,
+      rgba(59, 130, 246, 0.6) 100%);
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-nw {
+  opacity: 1;
+}
+
+/* Edge resize handles with improved visibility */
+.react-grid-item>.react-resizable-handle.react-resizable-handle-n {
+  top: 0;
+  left: 20px;
+  right: 20px;
+  height: 8px;
+  cursor: n-resize;
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-n {
+  opacity: 1;
+}
+
+.react-grid-item>.react-resizable-handle.react-resizable-handle-s {
+  bottom: 0;
+  left: 20px;
+  right: 20px;
+  height: 8px;
+  cursor: s-resize;
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-s {
+  opacity: 1;
+}
+
+.react-grid-item>.react-resizable-handle.react-resizable-handle-e {
+  top: 20px;
+  bottom: 20px;
+  right: 0;
+  width: 8px;
+  cursor: e-resize;
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-e {
+  opacity: 1;
+}
+
+.react-grid-item>.react-resizable-handle.react-resizable-handle-w {
+  top: 20px;
+  bottom: 20px;
+  left: 0;
+  width: 8px;
+  cursor: w-resize;
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.react-grid-item:hover>.react-resizable-handle.react-resizable-handle-w {
+  opacity: 1;
+}
+
+/* Show resize handles only in edit mode with smooth transitions */
+.react-grid-layout:not(.edit-mode) .react-resizable-handle {
+  display: none !important;
+}
+
+/* Enhanced hover effects for resize handles */
+.react-grid-item:hover>.react-resizable-handle {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.react-grid-item>.react-resizable-handle:hover {
+  opacity: 1 !important;
+  transform: scale(1.2);
+  filter: brightness(1.2);
+}
+
+.dashboard-widget {
+  background: linear-gradient(135deg, rgb(248 250 252) 0%, rgb(241 245 249) 100%);
+  border: 1px solid rgb(241 245 249);
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  min-height: 150px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .dashboard-widget {
+    background: linear-gradient(135deg, rgb(2 6 23) 0%, rgb(15 23 42) 100%);
+    border: 1px solid rgb(15 23 42);
+  }
+}
+
+.dashboard-widget:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Widget drag handle styling */
+.widget-drag-handle {
+  cursor: move;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+}
+
+.widget-drag-handle:hover {
+  opacity: 1;
+  background: var(--accent);
+}
+
+/* Grid layout styling */
+.dashboard-canvas .grid {
+  gap: 1rem;
+  padding: 1rem;
+}
+
+/* Widget library modal styling */
+.widget-library-modal {
+  backdrop-filter: blur(4px);
+}
+
+/* Utility classes for responsive widget content */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Widget content responsive utilities */
+.widget-content-responsive {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  min-height: 120px;
+}
+
+.widget-scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+/* Custom scrollbar for widget content */
+.widget-content::-webkit-scrollbar,
+.widget-scroll-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.widget-content::-webkit-scrollbar-track,
+.widget-scroll-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.widget-content::-webkit-scrollbar-thumb,
+.widget-scroll-content::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
+
+.widget-content::-webkit-scrollbar-thumb:hover,
+.widget-scroll-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}
+
+.widget-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
+}
+
+/* Enhanced animation for widget addition with smooth bounce effect */
+@keyframes widget-appear {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+  }
+
+  60% {
+    opacity: 1;
+    transform: scale(1.05) translateY(-5px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes widget-remove {
+  0% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(0.8) rotate(3deg);
+  }
+}
+
+.dashboard-widget.new-widget {
+  animation: widget-appear 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.dashboard-widget.removing-widget {
+  animation: widget-remove 0.3s ease-in-out forwards;
+}
+
+/* Status indicator colors */
+.status-active {
+  color: #10b981;
+  background-color: #d1fae5;
+}
+
+.status-maintenance {
+  color: #f59e0b;
+  background-color: #fef3c7;
+}
+
+.status-idle {
+  color: #6b7280;
+  background-color: #f3f4f6;
+}
+
+/* Priority indicator colors */
+.priority-high {
+  border-left-color: #ef4444;
+}
+
+.priority-medium {
+  border-left-color: #f59e0b;
+}
+
+.priority-low {
+  border-left-color: #3b82f6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .dashboard-canvas .grid {
+    grid-template-columns: 1fr;
+    padding: 0.5rem;
+  }
+
+  .dashboard-widget {
+    grid-column: span 1 !important;
+  }
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .widget-content::-webkit-scrollbar-thumb {
+    background: rgba(75, 85, 99, 0.5);
+  }
+
+  .widget-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(75, 85, 99, 0.7);
+  }
+}

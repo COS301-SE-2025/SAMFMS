@@ -1,0 +1,3 @@
+# Requirements for SAMFMS Mock Data Generation Scripts
+aiohttp>=3.8.0
+# Note: getpass is part of Python standard library for secure password input

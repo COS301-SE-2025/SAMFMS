@@ -1,22 +1,14 @@
-import React, {useState, useEffect, useCallback} from 'react';
-import {PlusCircle} from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus } from 'lucide-react';
 import VehicleList from '../components/vehicles/VehicleList';
 import VehicleSearch from '../components/vehicles/VehicleSearch';
 import VehicleActions from '../components/vehicles/VehicleActions';
 import VehicleDetailsModal from '../components/vehicles/VehicleDetailsModal';
 import DriverAssignmentModal from '../components/vehicles/DriverAssignmentModal';
-import DataVisualization from '../components/vehicles/DataVisualization';
 import AddVehicleModal from '../components/vehicles/AddVehicleModal';
 import EditVehicleModal from '../components/vehicles/EditVehicleModal';
-import {getVehicles, deleteVehicle, searchVehicles} from '../backend/API';
-import FleetUtilizationCard from '../components/analytics/FleetUtilizationCard';
-import VehicleUsageStats from '../components/analytics/VehicleUsageStats';
-import AssignmentMetricsCard from '../components/analytics/AssignmentMetricsCard';
-import MaintenanceAnalyticsCard from '../components/analytics/MaintenanceAnalyticsCard';
-import DriverPerformanceCard from '../components/analytics/DriverPerformanceCard';
-import CostAnalyticsCard from '../components/analytics/CostAnalyticsCard';
-import StatusBreakdownCard from '../components/analytics/StatusBreakdownCard';
-
+import Notification from '../components/common/Notification';
+import { getVehicles, deleteVehicle, searchVehicles } from '../backend/API';
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
   // Removed unused state variable for filteredVehicles
@@ -27,7 +19,7 @@ const Vehicles = () => {
   const [vehicleDetailsOpen, setVehicleDetailsOpen] = useState(false);
   const [currentVehicle, setCurrentVehicle] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortField, setSortField] = useState('id');
   const [sortDirection, setSortDirection] = useState('asc');
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
@@ -38,12 +30,37 @@ const Vehicles = () => {
     status: '',
     make: '',
   });
-  const [analytics, setAnalytics] = useState({});
+
+  // Notification state
+  const [notification, setNotification] = useState({
+    isVisible: false,
+    message: '',
+    type: 'info',
+  });
+
+  // Function to show notifications
+  const showNotification = (message, type = 'info') => {
+    setNotification({
+      isVisible: true,
+      message,
+      type,
+    });
+  };
+
+  // Function to close notifications
+  const closeNotification = () => {
+    setNotification(prev => ({
+      ...prev,
+      isVisible: false,
+    }));
+  };
 
   // Enhanced error handling with retry logic
   const handleAPIError = async (error, retryFn, maxRetries = 3) => {
     if ((error.status === 503 || error.status === 504) && retryFn && maxRetries > 0) {
-      console.log(`Service unavailable (${error.status}), retrying... (${maxRetries} attempts left)`);
+      console.log(
+        `Service unavailable (${error.status}), retrying... (${maxRetries} attempts left)`
+      );
       await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
       return retryFn(maxRetries - 1);
     }
@@ -64,13 +81,16 @@ const Vehicles = () => {
       licensePlate: backendVehicle.license_plate || backendVehicle.licensePlate || 'N/A',
       color: backendVehicle.color || 'N/A',
       fuelType: backendVehicle.fuel_type || backendVehicle.fuelType || 'N/A',
-      mileage: backendVehicle.mileage?.toString() || backendVehicle.current_mileage?.toString() || '0',
+      mileage:
+        backendVehicle.mileage?.toString() || backendVehicle.current_mileage?.toString() || '0',
       // Fix status mapping - handle both is_active boolean and status string
       status: backendVehicle.status
-        ? (backendVehicle.status.charAt(0).toUpperCase() + backendVehicle.status.slice(1))
-        : (backendVehicle.is_active !== undefined
-          ? (backendVehicle.is_active ? 'Active' : 'Inactive')
-          : 'Active'),
+        ? backendVehicle.status.charAt(0).toUpperCase() + backendVehicle.status.slice(1)
+        : backendVehicle.is_active !== undefined
+        ? backendVehicle.is_active
+          ? 'Active'
+          : 'Inactive'
+        : 'Active',
       driver: backendVehicle.driver_name || backendVehicle.driver || 'Unassigned',
       driverId: backendVehicle.driver_id || backendVehicle.driverId || null,
       department: backendVehicle.department || 'N/A',
@@ -101,12 +121,12 @@ const Vehicles = () => {
           params.make_filter = filters.make;
         }
         const response = await getVehicles(params);
-        const vehiclesArray = response.vehicles || response || [];
-        const transformedVehicles = vehiclesArray
+        const vehiclesData =
+          response.data?.data?.vehicles || response.vehicles || response.data?.vehicles || [];
+        const transformedVehicles = vehiclesData
           .map(transformVehicleData)
           .filter(vehicle => vehicle !== null);
         setVehicles(transformedVehicles);
-        setAnalytics(response.analytics || {}); // <-- set analytics here
       } catch (err) {
         console.error('Error loading vehicles:', err);
 
@@ -150,23 +170,36 @@ const Vehicles = () => {
         // If empty search, reload all vehicles
         const response = await getVehicles({
           limit: 100,
-          ...(filters.status && {status_filter: filters.status.toLowerCase()}),
-          ...(filters.make && {make_filter: filters.make}),
+          ...(filters.status && { status_filter: filters.status.toLowerCase() }),
+          ...(filters.make && { make_filter: filters.make }),
         });
-        // Handle both array and object response formats
-        const vehiclesArray = response.vehicles || response || [];
-        const transformedVehicles = vehiclesArray.map(transformVehicleData);
+        // Handle both array and object response formats with proper nesting
+        const vehiclesArray =
+          response.data?.data?.vehicles ||
+          response.vehicles ||
+          response.data?.vehicles ||
+          response ||
+          [];
+        const transformedVehicles = Array.isArray(vehiclesArray)
+          ? vehiclesArray.map(transformVehicleData).filter(v => v !== null)
+          : [];
         setVehicles(transformedVehicles);
       } else {
         // Search vehicles
         const results = await searchVehicles(searchQuery);
-        // Handle both array and object response formats
-        const vehiclesArray = results.vehicles || results || [];
-        if (vehiclesArray) {
-          const transformedResults = vehiclesArray.map(transformVehicleData);
+        // Handle both array and object response formats with proper nesting
+        const vehiclesArray =
+          results.data?.data?.vehicles ||
+          results.vehicles ||
+          results.data?.vehicles ||
+          results ||
+          [];
+        if (Array.isArray(vehiclesArray) && vehiclesArray.length > 0) {
+          const transformedResults = vehiclesArray
+            .map(transformVehicleData)
+            .filter(v => v !== null);
           setVehicles(transformedResults);
-        }
-        else {
+        } else {
           setVehicles([]); // Clear vehicles if no results found
           setError('No vehicles found matching your search criteria.');
           return; // Exit early if no results
@@ -226,6 +259,21 @@ const Vehicles = () => {
         throw new Error('Invalid vehicle ID: ID is undefined');
       }
 
+      // Find the vehicle to check if it has unavailable status
+      const vehicle = vehicles.find(v => v.id === vehicleId);
+      if (!vehicle) {
+        throw new Error('Vehicle not found');
+      }
+
+      // Check if vehicle status is unavailable
+      if (vehicle.status === 'unavailable') {
+        showNotification(
+          `Cannot delete ${vehicle.make} ${vehicle.model} because its status is unavailable.`,
+          'warning'
+        );
+        return;
+      }
+
       setLoading(true);
       await deleteVehicle(vehicleId);
 
@@ -237,10 +285,10 @@ const Vehicles = () => {
       setSelectedVehicles(selectedVehicles.filter(id => id !== vehicleId));
 
       // Show success message
-      console.log('Vehicle deleted successfully');
+      showNotification(`Vehicle ${vehicle.make} ${vehicle.model} deleted successfully`, 'success');
     } catch (err) {
       console.error('Error deleting vehicle:', err);
-      setError(err.message || 'Failed to delete vehicle');
+      showNotification(err.message || 'Failed to delete vehicle', 'error');
     } finally {
       setLoading(false);
     }
@@ -272,14 +320,15 @@ const Vehicles = () => {
       );
 
       // Show success message
-      alert(
-        `Vehicle "${transformedVehicle.make} ${transformedVehicle.model}" has been updated successfully!`
+      showNotification(
+        `Vehicle "${transformedVehicle.make} ${transformedVehicle.model}" has been updated successfully!`,
+        'success'
       );
     } catch (error) {
       console.error('Error processing updated vehicle:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getVehicles({limit: 100});
+        const response = await getVehicles({ limit: 100 });
         const transformedVehicles = response.map(transformVehicleData);
         setVehicles(transformedVehicles);
       } catch (refreshError) {
@@ -342,7 +391,7 @@ const Vehicles = () => {
         // Update selectAll state based on whether all current vehicles are selected
         setSelectAll(
           newSelected.length > 0 &&
-          currentVehicles.every(vehicle => newSelected.includes(vehicle.id))
+            currentVehicles.every(vehicle => newSelected.includes(vehicle.id))
         );
         return newSelected;
       } else {
@@ -375,6 +424,28 @@ const Vehicles = () => {
   const closeAssignmentModal = () => {
     setShowAssignmentModal(false);
   };
+
+  // Callback to refresh vehicles after assignment
+  const handleAssignmentComplete = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = {
+        limit: 100,
+        ...(filters.status && { status_filter: filters.status.toLowerCase() }),
+        ...(filters.make && { make_filter: filters.make }),
+      };
+      const response = await getVehicles(params);
+      const vehiclesArray = response.vehicles || response || [];
+      const transformedVehicles = vehiclesArray
+        .map(transformVehicleData)
+        .filter(vehicle => vehicle !== null);
+      setVehicles(transformedVehicles);
+    } catch (error) {
+      console.error('Error refreshing vehicles after assignment:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, transformVehicleData]);
   // Analytics are always shown now
 
   // Bulk operations
@@ -399,24 +470,6 @@ const Vehicles = () => {
     setCurrentPage(1); // Reset to first page
   };
 
-  // Local Search Function
-  const localSearchVehicles = (searchTerm) => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return;
-
-    const filteredVehicles = vehicles.filter(vehicle => {
-      return (
-        vehicle.make?.toLowerCase().includes(term) ||
-        vehicle.model?.toLowerCase().includes(term) ||
-        vehicle.year?.toString().includes(term) ||
-        vehicle.color?.toLowerCase().includes(term) ||
-        vehicle.fuelType?.toLowerCase().includes(term)
-      );
-    });
-
-    setVehicles(filteredVehicles);
-  };
-
   return (
     <div className="min-h-screen bg-background relative">
       {/* SVG pattern background like Landing page */}
@@ -429,20 +482,140 @@ const Vehicles = () => {
           filter: 'blur(1px)',
         }}
       />
-      <div className="relative z-10 container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">Fleet Vehicles</h1>
-        <div className="bg-card rounded-lg shadow-md p-6">
-          <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <div className="relative z-10 container mx-auto px-4 py-8 animate-in fade-in duration-700">
+        {/* Vehicle Summary Cards - Top Level */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-in fade-in duration-500 delay-200">
+          {/* Total Vehicles Card */}
+          <div className="group bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border border-blue-200 dark:border-blue-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-600 dark:text-blue-300 mb-2">
+                  Total Vehicles
+                </p>
+                <p className="text-3xl font-bold text-blue-900 dark:text-blue-100 transition-colors duration-300">
+                  {vehicles.length}
+                </p>
+                <div className="flex items-center mt-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse"></div>
+                  <p className="text-xs text-blue-600 dark:text-blue-400">Fleet size</p>
+                </div>
+              </div>
+              <div className="h-14 w-14 bg-blue-500 dark:bg-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
+                <svg
+                  className="h-7 w-7 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
+                  />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Available Vehicles Card */}
+          <div className="group bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border border-green-200 dark:border-green-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-600 dark:text-green-300 mb-2">
+                  Available Vehicles
+                </p>
+                <p className="text-3xl font-bold text-green-900 dark:text-green-100 transition-colors duration-300">
+                  {
+                    vehicles.filter(
+                      vehicle =>
+                        vehicle.status?.toLowerCase() === 'active' ||
+                        vehicle.status?.toLowerCase() === 'available'
+                    ).length
+                  }
+                </p>
+                <div className="flex items-center mt-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                  <p className="text-xs text-green-600 dark:text-green-400">Ready to use</p>
+                </div>
+              </div>
+              <div className="h-14 w-14 bg-green-500 dark:bg-green-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
+                <svg
+                  className="h-7 w-7 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Average Mileage Card */}
+          <div className="group bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 border border-orange-200 dark:border-orange-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-orange-600 dark:text-orange-300 mb-2">
+                  Average Mileage
+                </p>
+                <p className="text-3xl font-bold text-orange-900 dark:text-orange-100 transition-colors duration-300">
+                  {(() => {
+                    const validMileages = vehicles
+                      .map(vehicle => parseFloat(vehicle.mileage) || 0)
+                      .filter(mileage => mileage > 0);
+                    const average =
+                      validMileages.length > 0
+                        ? validMileages.reduce((sum, mileage) => sum + mileage, 0) /
+                          validMileages.length
+                        : 0;
+                    return Math.round(average).toLocaleString();
+                  })()}
+                </p>
+                <div className="flex items-center mt-2">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-2 animate-pulse"></div>
+                  <p className="text-xs text-orange-600 dark:text-orange-400">miles traveled</p>
+                </div>
+              </div>
+              <div className="h-14 w-14 bg-orange-500 dark:bg-orange-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
+                <svg
+                  className="h-7 w-7 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6 animate-in slide-in-from-bottom-4 duration-700 delay-150">
+          <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 animate-in fade-in duration-500 delay-300">
             <h2 className="text-xl font-semibold">Manage Vehicles</h2>
             <div className="flex-1 mx-4">
-              <VehicleSearch onSearch={localSearchVehicles} />
+              <VehicleSearch
+                onSearch={handleSearch}
+                onApplyFilters={handleApplyFilters}
+                onResetFilters={handleResetFilters}
+              />
             </div>
             <button
-              className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center gap-2"
+              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
               onClick={() => setShowAddVehicleModal(true)}
+              title="Add Vehicle"
             >
-              <PlusCircle size={18} />
-              <span>Add Vehicle</span>
+              <Plus size={18} />
             </button>
           </div>
           {/* Error Message */}
@@ -451,50 +624,55 @@ const Vehicles = () => {
               <p>{error}</p>
             </div>
           )}
-          {/* Vehicle actions buttons and bulk actions */}{' '}
-          <VehicleActions
-            selectedVehicles={selectedVehicles}
-            openAssignmentModal={openAssignmentModal}
-            exportSelectedVehicles={exportSelectedVehicles}
-            onDeleteSelected={() => {
-              if (
-                selectedVehicles.length > 0 &&
-                window.confirm(
-                  `Are you sure you want to delete ${selectedVehicles.length} vehicle(s)?`
-                )
-              ) {
-                selectedVehicles.forEach(vehicleId => handleDeleteVehicle(vehicleId));
-              }
-            }}
-          />
+          {/* Vehicle actions buttons and bulk actions */}
+          <div className="animate-in fade-in duration-500 delay-500">
+            <VehicleActions
+              selectedVehicles={selectedVehicles}
+              openAssignmentModal={openAssignmentModal}
+              exportSelectedVehicles={exportSelectedVehicles}
+              onDeleteSelected={() => {
+                if (
+                  selectedVehicles.length > 0 &&
+                  window.confirm(
+                    `Are you sure you want to delete ${selectedVehicles.length} vehicle(s)?`
+                  )
+                ) {
+                  selectedVehicles.forEach(vehicleId => handleDeleteVehicle(vehicleId));
+                }
+              }}
+            />
+          </div>
+
           {/* Loading State */}
           {loading && vehicles.length === 0 ? (
-            <div className="text-center py-8">
+            <div className="text-center py-8 animate-in fade-in duration-500">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
               <p className="text-muted-foreground">Loading vehicles...</p>
             </div>
           ) : (
             /* Vehicle list with pagination */
-            <VehicleList
-              vehicles={currentVehicles}
-              selectedVehicles={selectedVehicles}
-              handleSelectVehicle={handleSelectVehicle}
-              selectAll={selectAll}
-              handleSelectAll={handleSelectAll}
-              sortField={sortField}
-              sortDirection={sortDirection}
-              handleSort={handleSort}
-              openVehicleDetails={openVehicleDetails}
-              onEditVehicle={handleEditVehicle}
-              onDeleteVehicle={handleDeleteVehicle}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              itemsPerPage={itemsPerPage}
-              changeItemsPerPage={changeItemsPerPage}
-              goToNextPage={goToNextPage}
-              goToPrevPage={goToPrevPage}
-              totalVehicles={sortedVehicles.length}
-            />
+            <div className="animate-in slide-in-from-bottom-6 duration-700 delay-700">
+              <VehicleList
+                vehicles={currentVehicles}
+                selectedVehicles={selectedVehicles}
+                handleSelectVehicle={handleSelectVehicle}
+                selectAll={selectAll}
+                handleSelectAll={handleSelectAll}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                handleSort={handleSort}
+                openVehicleDetails={openVehicleDetails}
+                onEditVehicle={handleEditVehicle}
+                onDeleteVehicle={handleDeleteVehicle}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                itemsPerPage={itemsPerPage}
+                changeItemsPerPage={changeItemsPerPage}
+                goToNextPage={goToNextPage}
+                goToPrevPage={goToPrevPage}
+                totalVehicles={sortedVehicles.length}
+              />
+            </div>
           )}
         </div>
         {/* Vehicle Details Modal */}
@@ -515,6 +693,7 @@ const Vehicles = () => {
             handleSelectVehicle={handleSelectVehicle}
             vehicles={vehicles}
             currentVehicle={currentVehicle}
+            onAssignmentComplete={handleAssignmentComplete}
           />
         )}{' '}
         {/* Add Vehicle Modal */}
@@ -531,22 +710,16 @@ const Vehicles = () => {
             vehicle={vehicleToEdit}
             closeModal={closeEditVehicleModal}
             onVehicleUpdated={handleVehicleUpdated}
+            showNotification={showNotification}
           />
         )}
-        {/* Data visualization section */}
-        <DataVisualization analytics={analytics} />
-
-        <VehicleUsageStats stats={analytics.vehicle_usage} />
-        <DriverPerformanceCard stats={analytics.driver_performance} />
-        <CostAnalyticsCard stats={analytics.cost_analytics} />
-
-        {/* Analytics Cards Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-          <StatusBreakdownCard stats={analytics.status_breakdown} />
-          <FleetUtilizationCard data={analytics.fleet_utilization} />
-          <AssignmentMetricsCard data={analytics.assignment_metrics} />
-          <MaintenanceAnalyticsCard data={analytics.maintenance_analytics} />
-        </div>
+        {/* Notification Component */}
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          isVisible={notification.isVisible}
+          onClose={closeNotification}
+        />
       </div>
     </div>
   );

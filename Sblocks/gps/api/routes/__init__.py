@@ -1,0 +1,3 @@
+"""
+Initialize API routes package
+"""

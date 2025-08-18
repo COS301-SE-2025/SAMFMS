@@ -1,321 +1,704 @@
-import React, {useState, useEffect, useRef} from 'react';
-import VehicleStatistics from '../components/trips/VehicleStatistics';
-import MapDisplay from '../components/trips/MapDisplay';
-import VehicleList from '../components/trips/VehicleList';
-
-// Custom hook for location autocomplete using Nominatim (OpenStreetMap)
-const useLocationAutocomplete = () => {
-  const [suggestions, setSuggestions] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const searchLocation = async (query) => {
-    if (!query || query.length < 2) { // Reduced from 3 to 2
-      setSuggestions([]);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Enhanced Nominatim query with more parameters
-      const params = new URLSearchParams({
-        format: 'json',
-        q: query,
-        limit: '10', // Increased from 5 to 10
-        addressdetails: '1',
-        'accept-language': 'en', // Prefer English results
-        countrycodes: 'za', // Limit to South Africa (adjust as needed)
-        dedupe: '1', // Remove duplicate results
-        extratags: '1', // Include additional tags
-        namedetails: '1' // Include name variations
-      });
-
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?${params.toString()}`,
-        {
-          headers: {
-            'User-Agent': 'YourAppName/1.0' // Always include a User-Agent
-          }
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      // Enhanced filtering and sorting
-      const filteredResults = data
-        .filter(item => {
-          // Filter out results that are too generic or low quality
-          const importance = parseFloat(item.importance) || 0;
-          return importance > 0.1; // Adjust threshold as needed
-        })
-        .sort((a, b) => {
-          // Sort by importance (relevance)
-          const importanceA = parseFloat(a.importance) || 0;
-          const importanceB = parseFloat(b.importance) || 0;
-          return importanceB - importanceA;
-        });
-
-      setSuggestions(filteredResults);
-    } catch (error) {
-      console.error('Error fetching location suggestions:', error);
-      setSuggestions([]);
-
-      // Fallback: Try a simpler query if the first one fails
-      try {
-        const simpleResponse = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`,
-          {
-            headers: {
-              'User-Agent': 'YourAppName/1.0'
-            }
-          }
-        );
-
-        if (simpleResponse.ok) {
-          const fallbackData = await simpleResponse.json();
-          setSuggestions(fallbackData);
-        }
-      } catch (fallbackError) {
-        console.error('Fallback search also failed:', fallbackError);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return {suggestions, isLoading, searchLocation};
-};
-
-// Location Autocomplete Component
-const LocationAutocomplete = ({value, onChange, placeholder, className, required}) => {
-  const [inputValue, setInputValue] = useState(value || '');
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const {suggestions, isLoading, searchLocation} = useLocationAutocomplete();
-  const debounceRef = useRef(null);
-  const inputRef = useRef(null);
-
-  useEffect(() => {
-    setInputValue(value || '');
-  }, [value]);
-
-  const handleInputChange = (e) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-
-    // Clear previous debounce
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    // Debounce the search
-    debounceRef.current = setTimeout(() => {
-      searchLocation(newValue);
-      setShowSuggestions(true);
-    }, 300);
-  };
-
-  const handleSuggestionClick = (suggestion) => {
-    const address = suggestion.display_name;
-    setInputValue(address);
-    setShowSuggestions(false);
-    onChange(address, {
-      lat: parseFloat(suggestion.lat),
-      lng: parseFloat(suggestion.lon),
-      formatted_address: address,
-      place_id: suggestion.place_id
-    });
-  };
-
-  const handleBlur = () => {
-    // Delay hiding suggestions to allow for clicks
-    setTimeout(() => setShowSuggestions(false), 200);
-  };
-
-  const handleFocus = () => {
-    if (suggestions.length > 0) {
-      setShowSuggestions(true);
-    }
-  };
-
-  return (
-    <div className="relative">
-      <input
-        ref={inputRef}
-        type="text"
-        value={inputValue}
-        onChange={handleInputChange}
-        onBlur={handleBlur}
-        onFocus={handleFocus}
-        placeholder={placeholder}
-        className={className}
-        required={required}
-      />
-
-      {showSuggestions && (suggestions.length > 0 || isLoading) && (
-        <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-60 overflow-y-auto">
-          {isLoading ? (
-            <div className="p-3 text-center text-gray-500">
-              <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
-              <span className="ml-2">Searching...</span>
-            </div>
-          ) : (
-            suggestions.map((suggestion, index) => (
-              <div
-                key={suggestion.place_id || index}
-                className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
-                onClick={() => handleSuggestionClick(suggestion)}
-              >
-                <div className="font-medium text-sm">{suggestion.display_name}</div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus } from 'lucide-react';
+import ActiveTripsPanel from '../components/trips/ActiveTripsPanel';
+import TripsAnalytics from '../components/trips/TripsAnalytics';
+import TripsHistory from '../components/trips/TripsHistory';
+import TripSchedulingModal from '../components/trips/TripSchedulingModal';
+import Notification from '../components/common/Notification';
+import OverviewStatsCards from '../components/trips/OverviewStatsCards';
+import ActiveTripsMap from '../components/trips/ActiveTripsMap';
+import UpcomingTripsStats from '../components/trips/UpcomingTripsStats';
+import UpcomingTripsTable from '../components/trips/UpcomingTripsTable';
+import RecentTripsStats from '../components/trips/RecentTripsStats';
+import RecentTripsTable from '../components/trips/RecentTripsTable';
+import {
+  createTrip,
+  getActiveTrips,
+  getDriverAnalytics,
+  getVehicleAnalytics,
+  listTrips,
+  getAllRecentTrips,
+  getTripHistoryStats,
+  getAllUpcommingTrip,
+} from '../backend/api/trips';
+import { getVehicles } from '../backend/api/vehicles';
+import { getAllDrivers, getTripPlanningDrivers } from '../backend/api/drivers';
 
 const Trips = () => {
-  // Sample mock data for vehicles with location
+  // Existing state
   const [vehicles, setVehicles] = useState([]);
-  const [selectedVehicle, setSelectedVehicle] = useState(null);
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
 
-  // Trip form state
+  // New state for features
+  const [activeTrips, setActiveTrips] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [availableDriversCount, setAvailableDriversCount] = useState(0);
+  const [analyticsTimeframe, setAnalyticsTimeframe] = useState('week');
+  const [driverAnalytics, setDriverAnalytics] = useState({
+    drivers: [],
+    timeframeSummary: {
+      totalTrips: 0,
+      completionRate: 0,
+      averageTripsPerDay: 0,
+    },
+  });
+  const [vehicleAnalytics, setVehicleAnalytics] = useState({
+    vehicles: [],
+    timeframeSummary: {
+      totalDistance: 0,
+    },
+  });
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Trip data state
+  const [upcomingTrips, setUpcomingTrips] = useState([]);
+  const [recentTrips, setRecentTrips] = useState([]);
+  const [upcomingTripsLoading, setUpcomingTripsLoading] = useState(false);
+  const [recentTripsLoading, setRecentTripsLoading] = useState(false);
+
+  // Trip history statistics state
+  const [tripHistoryStats, setTripHistoryStats] = useState({
+    total_trips: 0,
+    total_duration_hours: 0,
+    total_distance_km: 0,
+    average_duration_hours: 0,
+    average_distance_km: 0,
+    time_period: 'All time',
+  });
+  const [historyStatsLoading, setHistoryStatsLoading] = useState(false);
+
+  // Notification state
+  const [notification, setNotification] = useState({
+    isVisible: false,
+    message: '',
+    type: 'info',
+  });
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState('overview');
+
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'active', label: 'Active' },
+    { id: 'upcoming', label: 'Upcoming' },
+    { id: 'recent', label: 'Recent' },
+    { id: 'analytics', label: 'Analytics' },
+  ];
+
+  // Helper function to show notifications
+  const showNotification = useCallback((message, type = 'info') => {
+    setNotification({
+      isVisible: true,
+      message,
+      type,
+    });
+  }, []);
+
+  // Helper function to transform active trips data for map display
+  const transformTripsForMap = trips => {
+    return trips.map(trip => ({
+      id: trip.id,
+      vehicleId: trip.vehicle_id, // Add vehicle ID for location tracking
+      vehicleName: `Vehicle ${trip.vehicle_id || 'Unknown'}`,
+      driver: trip.driver_assignment || 'No driver assigned',
+      destination: trip.destination?.name || 'Unknown destination',
+      position: trip.destination?.location?.coordinates
+        ? [trip.destination.location.coordinates[1], trip.destination.location.coordinates[0]] // [lat, lng]
+        : [0, 0],
+      origin: trip.origin?.location?.coordinates
+        ? [trip.origin.location.coordinates[1], trip.origin.location.coordinates[0]] // [lat, lng]
+        : [0, 0],
+      routeCoordinates: trip.route_info?.coordinates
+        ? trip.route_info.coordinates.map(coord => [coord[0], coord[1]]) // [lat, lng]
+        : [],
+      status:
+        trip.status === 'scheduled'
+          ? 'Loading'
+          : trip.status === 'in_progress'
+          ? 'In Transit'
+          : trip.status === 'completed'
+          ? 'At Destination'
+          : 'Unknown',
+      progress: trip.status === 'completed' ? 100 : trip.status === 'in_progress' ? 50 : 0,
+    }));
+  };
+
+  // Helper function to close notifications
+  const closeNotification = () => {
+    setNotification(prev => ({
+      ...prev,
+      isVisible: false,
+    }));
+  };
+
+  // Helper function to fetch all upcoming trips
+  const fetchUpcomingTrips = useCallback(async () => {
+    try {
+      setUpcomingTripsLoading(true);
+      const response = await getAllUpcommingTrip();
+      console.log('Upcoming trips response:', response);
+
+      // Extract trips from the response structure - based on actual API response
+      let trips = response.data.trips
+      
+      setUpcomingTrips(trips);
+    } catch (error) {
+      console.error('Error fetching upcoming trips:', error);
+      // Show user-friendly error message
+      showNotification('Failed to load upcoming trips. Please try again.', 'error');
+      setUpcomingTrips([]);
+    } finally {
+      setUpcomingTripsLoading(false);
+    }
+  }, [showNotification]);
+
+  // Helper function to fetch all recent trips using the new dedicated endpoint
+  const fetchRecentTrips = useCallback(async () => {
+    try {
+      setRecentTripsLoading(true);
+
+      // Use the new dedicated endpoint for recent trips
+      const response = await getAllRecentTrips(10, 30);
+      console.log('Recent trips response:', response);
+
+      // Extract trips from the response structure
+      let trips = [];
+      if (response?.data?.trips) {
+        trips = response.data.trips;
+      } else if (response?.data?.data) {
+        trips = Array.isArray(response.data.data) ? response.data.data : [];
+      } else if (Array.isArray(response?.data)) {
+        trips = response.data;
+      }
+
+      // Transform API data to match component expectations
+      const transformedTrips = trips.map(trip => {
+        let completedAt = 'Unknown';
+        let duration = 'Unknown';
+
+        try {
+          completedAt = new Date(trip.actualEndTime || trip.actual_end_time).toLocaleString();
+        } catch (error) {
+          console.warn('Invalid date format for trip completion:', trip.id);
+        }
+
+        try {
+          if (
+            (trip.actualStartTime || trip.actual_start_time) &&
+            (trip.actualEndTime || trip.actual_end_time)
+          ) {
+            const startTime = new Date(trip.actualStartTime || trip.actual_start_time);
+            const endTime = new Date(trip.actualEndTime || trip.actual_end_time);
+            const durationMs = endTime - startTime;
+            const durationMinutes = Math.round(durationMs / (1000 * 60));
+            const hours = Math.floor(durationMinutes / 60);
+            const minutes = durationMinutes % 60;
+            duration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+          }
+        } catch (error) {
+          console.warn('Could not calculate duration for trip:', trip.id);
+        }
+
+        return {
+          id: trip.id,
+          tripName: trip.name || 'Unnamed Trip',
+          vehicle: trip.vehicleId || trip.vehicle_id || 'Unknown Vehicle',
+          driver: trip.driverAssignment || trip.driver_assignment || 'Unknown Driver',
+          completedAt,
+          destination: trip.destination?.name || 'Unknown Destination',
+          duration,
+          status: 'Completed',
+          distance:
+            trip.estimatedDistance || trip.estimated_distance
+              ? ((trip.estimatedDistance || trip.estimated_distance) / 1000).toFixed(1)
+              : '0',
+        };
+      });
+
+      console.log('Transformed recent trips:', transformedTrips);
+      setRecentTrips(transformedTrips);
+    } catch (error) {
+      console.error('Error fetching recent trips:', error);
+      // Show user-friendly error message
+      showNotification('Failed to load recent trips. Please try again.', 'error');
+      setRecentTrips([]);
+    } finally {
+      setRecentTripsLoading(false);
+    }
+  }, [showNotification]);
+
+  // Helper function to fetch trip history statistics
+  const fetchTripHistoryStats = useCallback(
+    async (days = null) => {
+      try {
+        setHistoryStatsLoading(true);
+        console.log('Fetching trip history stats for days:', days);
+
+        const response = await getTripHistoryStats(days);
+        console.log('Trip history stats response:', response);
+
+        if (response?.data) {
+          setTripHistoryStats(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching trip history stats:', error);
+        showNotification('Failed to load trip statistics. Please try again.', 'error');
+        // Keep existing stats or use defaults
+      } finally {
+        setHistoryStatsLoading(false);
+      }
+    },
+    [showNotification]
+  );
+
+  // Get current date and time for default values
+  const getCurrentDate = () => {
+    const now = new Date();
+    return now.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+  };
+
+  const getCurrentTime = () => {
+    const now = new Date();
+    return now.toTimeString().slice(0, 5); // Format: HH:MM
+  };
+
+  // Updated trip form state to match new API format
   const [tripForm, setTripForm] = useState({
+    name: '',
+    description: '',
     vehicleId: '',
+    driverId: '',
     startLocation: '',
     endLocation: '',
-    scheduledDate: '',
-    scheduledTime: '',
-    notes: ''
+    scheduledStartDate: getCurrentDate(),
+    scheduledStartTime: getCurrentTime(),
+    scheduledEndDate: '',
+    scheduledEndTime: '',
+    priority: 'normal',
+    temperatureControl: false,
+    driverNote: '',
+    timeWindowStart: '',
+    timeWindowEnd: '',
   });
 
   // Store coordinates for selected locations
   const [locationCoords, setLocationCoords] = useState({
     start: null,
-    end: null
+    end: null,
   });
 
   useEffect(() => {
-    // Connect to your Core backend WebSocket endpoint
-    const ws = new WebSocket('ws://localhost:8000/ws/vehicles');
+    const loadVehicles = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.vehicles) {
-        setVehicles(data.vehicles);
-      } else {
+        const response = await getVehicles();
+
+        // Extract vehicles from the nested response structure with improved path handling
+        let vehicleData =
+          response?.data?.data?.data?.vehicles ||
+          response?.data?.data?.vehicles ||
+          response?.data?.vehicles ||
+          response?.vehicles;
+
+        // Additional fallbacks for different API response structures
+        if (!vehicleData && response?.data?.data) {
+          // Sometimes the API returns an array directly in data.data
+          vehicleData = Array.isArray(response.data.data) ? response.data.data : [];
+        } else if (!vehicleData) {
+          vehicleData = [];
+        }
+
+        console.log('Loaded vehicles response:', response);
+        console.log('Extracted vehicle data:', vehicleData);
+        setVehicles(vehicleData);
+      } catch (error) {
+        console.error('Error loading vehicles:', error);
+        setError('Failed to load vehicles');
         setVehicles([]);
-        console.warn("No vehicles data received:", data);
+      } finally {
+        setLoading(false);
       }
     };
 
-    ws.onerror = (err) => {
-      console.error('WebSocket error:', err);
-    };
-
-    ws.onclose = (event) => {
-      console.warn('WebSocket closed:', event);
-    };
-
-    return () => ws.close();
+    loadVehicles();
   }, []);
 
-  // Calculate statistics
-  const stats = {
-    activeVehicles: vehicles.filter(v => v.status === 'online').length,
-    idleVehicles: vehicles.filter(v => v.status === 'offline').length,
-  };
+  useEffect(() => {
+    const loadActiveTrips = async () => {
+      try {
+        const response = await getActiveTrips();
+        console.log('Active trips response:', response);
+        // The API function now returns { data: tripsArray }
+        const tripsData = Array.isArray(response.data) ? response.data : [];
 
-  const handleSelectVehicle = vehicle => {
-    setSelectedVehicle(vehicle);
-  };
+        console.log('Processed trips data:', tripsData);
+        setActiveTrips(tripsData);
+      } catch (error) {
+        console.error('Error loading active trips:', error);
+        setActiveTrips([]);
+      }
+    };
+
+    const loadAnalytics = async () => {
+      try {
+        const [driverData, vehicleData] = await Promise.all([
+          getDriverAnalytics(analyticsTimeframe),
+          getVehicleAnalytics(analyticsTimeframe),
+        ]);
+
+        console.log('Driver data: ', driverData);
+        console.log('Vehicle data: ', vehicleData);
+
+        // No need to access .data since the API returns the correct structure
+        setDriverAnalytics(driverData);
+        setVehicleAnalytics(vehicleData);
+      } catch (error) {
+        console.error('Error loading analytics:', error);
+      }
+    };
+
+    loadActiveTrips();
+    loadAnalytics();
+
+    // Set up polling for active trips
+    const pollInterval = setInterval(loadActiveTrips, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [analyticsTimeframe]); // Re-run when timeframe changes
+
+  useEffect(() => {
+    const loadDrivers = async () => {
+      try {
+        const response = await getTripPlanningDrivers();
+        console.log('Response received for drivers from trip planning: ', response);
+
+        // Extract drivers from the trip planning service response
+        let driversData = [];
+        if (response?.data?.drivers) {
+          driversData = response.data.drivers;
+        } else if (response?.drivers) {
+          driversData = response.drivers;
+        } else {
+          driversData = [];
+        }
+
+        // Filter to count only drivers with "available" status for the stats card
+        const availableDriversCount = driversData.filter(driver => {
+          if (!driver) return false;
+          const status = (driver.status || '').toLowerCase();
+          return (
+            status === 'available'
+          );
+        });
+
+        console.log('All drivers from API: ', driversData);
+        console.log('Available drivers after filtering: ', availableDrivers);
+        setDrivers(availableDrivers);
+      } catch (error) {
+        console.error('Error loading drivers from trip planning service:', error);
+        setDrivers([]);
+        setAvailableDriversCount(0);
+      }
+    };
+
+    loadDrivers();
+  }, []);
+
+  // Fetch upcoming trips
+  useEffect(() => {
+    fetchUpcomingTrips();
+  }, [fetchUpcomingTrips]);
+
+  // Fetch recent trips
+  useEffect(() => {
+    fetchRecentTrips();
+  }, [fetchRecentTrips]);
+
+  // Refresh trip data when switching tabs
+  useEffect(() => {
+    if (activeTab === 'upcoming') {
+      fetchUpcomingTrips();
+    } else if (activeTab === 'recent') {
+      fetchRecentTrips();
+      fetchTripHistoryStats(); // Also fetch trip statistics for the recent tab
+    }
+  }, [activeTab, fetchUpcomingTrips, fetchRecentTrips, fetchTripHistoryStats]);
 
   const handleScheduleTrip = () => {
+    // Update the form with current date and time values when opening
+    setTripForm(prev => ({
+      ...prev,
+      scheduledStartDate: getCurrentDate(),
+      scheduledStartTime: getCurrentTime(),
+    }));
     setShowScheduleModal(true);
   };
 
   const handleCloseModal = () => {
     setShowScheduleModal(false);
     setTripForm({
+      name: '',
+      description: '',
       vehicleId: '',
+      driverId: '',
       startLocation: '',
       endLocation: '',
-      scheduledDate: '',
-      scheduledTime: '',
-      notes: ''
+      scheduledStartDate: getCurrentDate(),
+      scheduledStartTime: getCurrentTime(),
+      scheduledEndDate: '',
+      scheduledEndTime: '',
+      priority: 'normal',
+      temperatureControl: false,
+      driverNote: '',
     });
+    // Reset location coordinates
     setLocationCoords({
       start: null,
-      end: null
+      end: null,
     });
   };
 
   const handleFormChange = (field, value) => {
-    setTripForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleStartLocationChange = (address, locationData) => {
-    handleFormChange('startLocation', address);
-    setLocationCoords(prev => ({
-      ...prev,
-      start: locationData
-    }));
-  };
-
-  const handleEndLocationChange = (address, locationData) => {
-    handleFormChange('endLocation', address);
-    setLocationCoords(prev => ({
-      ...prev,
-      end: locationData
-    }));
-  };
-
-  const handleSubmitTrip = async (e) => {
-    e.preventDefault();
-
-    // Validate form
-    if (!tripForm.vehicleId || !tripForm.startLocation ||
-      !tripForm.endLocation || !tripForm.scheduledDate || !tripForm.scheduledTime) {
-      alert('Please fill in all required fields');
-      return;
+    // Log vehicle selection changes to help with debugging
+    if (field === 'vehicleId' && value) {
+      const selectedVehicle = vehicles.find(v => (v.id || v._id) === value);
+      console.log('Selected vehicle:', selectedVehicle);
     }
 
+    setTripForm(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+  const formatTripData = () => {
+    const startDateTime = `${tripForm.scheduledStartDate}T${tripForm.scheduledStartTime}:00Z`;
+    const endDateTime = `${tripForm.scheduledEndDate}T${tripForm.scheduledEndTime}:00Z`;
+
+    return {
+      name: tripForm.name,
+      description: tripForm.description,
+      scheduled_start_time: startDateTime,
+      scheduled_end_time: endDateTime,
+      origin: {
+        location: {
+          type: 'Point',
+          coordinates: [locationCoords.start?.lng, locationCoords.start?.lat],
+        },
+        name: tripForm.startLocation,
+        order: 0,
+      },
+      destination: {
+        location: {
+          type: 'Point',
+          coordinates: [locationCoords.end?.lng, locationCoords.end?.lat],
+        },
+        name: tripForm.endLocation,
+        order: 99,
+      },
+      waypoints: [], // Can be extended later for intermediate stops
+      priority: tripForm.priority,
+      vehicle_id: tripForm.vehicleId,
+      driver_assignment: tripForm.driverId,
+      constraints: [], // Time window constraints removed as per requirements
+      custom_fields: {
+        driver_note: tripForm.driverNote,
+      },
+    };
+  };
+
+  const handleSubmitTrip = async enhancedTripData => {
+    // If called from form event, prevent default and use old logic
+    if (enhancedTripData && enhancedTripData.preventDefault) {
+      enhancedTripData.preventDefault();
+
+      // Validate required fields for old form
+      if (
+        !tripForm.name ||
+        !tripForm.vehicleId ||
+        !tripForm.startLocation ||
+        !tripForm.endLocation ||
+        !tripForm.scheduledStartDate ||
+        !tripForm.scheduledStartTime ||
+        !tripForm.scheduledEndDate ||
+        !tripForm.scheduledEndTime
+      ) {
+        showNotification('Please fill in all required fields', 'error');
+        return;
+      }
+
+      if (!locationCoords.start || !locationCoords.end) {
+        showNotification('Please select valid locations from the dropdown suggestions', 'error');
+        return;
+      }
+
+      // Use old data format
+      enhancedTripData = null;
+    }
+
+    setIsSubmitting(true);
+
     try {
-      // Here you would make an API call to your backend to create the trip
-      const tripData = {
-        ...tripForm,
-        scheduledDateTime: `${tripForm.scheduledDate}T${tripForm.scheduledTime}`,
-        status: 'scheduled',
-        coordinates: locationCoords // Include coordinates for mapping
-      };
+      // Use enhanced trip data if provided, otherwise format current trip form
+      let tripData;
+      if (enhancedTripData) {
+        // Enhanced data from the new modal with route information
+        // Handle both old field names (scheduledStartDate) and new ones (startDate)
+        const startDate = enhancedTripData.startDate || enhancedTripData.scheduledStartDate;
+        const startTime = enhancedTripData.startTime || enhancedTripData.scheduledStartTime;
+        const endDate = enhancedTripData.endDate || enhancedTripData.scheduledEndDate;
+        const endTime = enhancedTripData.endTime || enhancedTripData.scheduledEndTime;
 
-      console.log('Creating trip:', tripData);
+        // Ensure proper datetime format (ISO 8601)
+        const startDateTime = startDate && startTime ? `${startDate}T${startTime}:00Z` : null;
+        const endDateTime = endDate && endTime ? `${endDate}T${endTime}:00Z` : null;
 
-      // Replace with actual API call
-      // const response = await fetch('/api/trips', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(tripData)
-      // });
+        tripData = {
+          name: enhancedTripData.name,
+          description: enhancedTripData.description || '',
+          scheduled_start_time: startDateTime,
+          scheduled_end_time: endDateTime,
+          origin: {
+            name: enhancedTripData.startLocation,
+            location: {
+              type: 'Point',
+              coordinates: [
+                enhancedTripData.coordinates?.start?.lng || locationCoords.start?.lng,
+                enhancedTripData.coordinates?.start?.lat || locationCoords.start?.lat,
+              ],
+              address: enhancedTripData.startLocation,
+            },
+            order: 1,
+          },
+          destination: {
+            name: enhancedTripData.endLocation,
+            location: {
+              type: 'Point',
+              coordinates: [
+                enhancedTripData.coordinates?.end?.lng || locationCoords.end?.lng,
+                enhancedTripData.coordinates?.end?.lat || locationCoords.end?.lat,
+              ],
+              address: enhancedTripData.endLocation,
+            },
+            order: 2,
+          },
+          priority: enhancedTripData.priority || 'normal',
+          vehicle_id: enhancedTripData.vehicleId,
+          driver_assignment: enhancedTripData.driverId,
+          // Enhanced route information
+          waypoints: enhancedTripData.waypoints || [],
+          route_info: enhancedTripData.routeInfo || null,
+          driver_note: enhancedTripData.driverNotes || enhancedTripData.driverNote || '',
+        };
+      } else {
+        // Fallback to existing format method
+        tripData = formatTripData();
+      }
 
-      alert('Trip scheduled successfully!');
+      console.log('Creating trip with data:', tripData);
+
+      // Validate the trip data before sending
+      if (!tripData.scheduled_start_time || !tripData.scheduled_end_time) {
+        throw new Error('Start and end times are required');
+      }
+
+      if (!tripData.origin?.location || !tripData.destination?.location) {
+        throw new Error('Start and end locations are required');
+      }
+
+      // Validate coordinates
+      const startCoords = tripData.origin.location.coordinates;
+      const endCoords = tripData.destination.location.coordinates;
+
+      if (
+        !startCoords ||
+        !Array.isArray(startCoords) ||
+        startCoords.length !== 2 ||
+        startCoords.some(coord => coord === null || coord === undefined)
+      ) {
+        throw new Error('Invalid start location coordinates');
+      }
+
+      if (
+        !endCoords ||
+        !Array.isArray(endCoords) ||
+        endCoords.length !== 2 ||
+        endCoords.some(coord => coord === null || coord === undefined)
+      ) {
+        throw new Error('Invalid end location coordinates');
+      }
+
+      if (!tripData.vehicle_id || !tripData.driver_assignment) {
+        throw new Error('Vehicle and driver selection are required');
+      }
+
+      const response = await createTrip(tripData);
+      console.log('Trip created successfully:', response);
+
+      if (response.data.status === 'success') {
+        showNotification('Trip scheduled successfully!', 'success');
+      } else {
+        showNotification(`Failed to create trip: ${response.data.message}`, 'error');
+      }
       handleCloseModal();
     } catch (error) {
       console.error('Error scheduling trip:', error);
-      alert('Failed to schedule trip. Please try again.');
+      showNotification(`Failed to schedule trip: ${error.message || 'Please try again.'}`, 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Get available vehicles (online and not assigned to active trips)
-  const availableVehicles = vehicles.filter(v => v.status === 'online');
+  // More permissive filtering to include vehicles with different status formats
+  const availableVehicles = vehicles.filter(v => {
+    // Check if vehicle exists and has a valid structure
+    console.log('Entered available vehicle, ', v);
+    if (!v) return false;
+
+    // More inclusive filtering logic - accept available, operational, and inactive vehicles
+    const status = (v.status || '').toLowerCase();
+    return (
+      status === 'available' ||
+      status === 'operational' ||
+      status === 'active' ||
+      status === '' || // Include vehicles with no status
+      !v.status
+    ); // Include vehicles where status is not defined
+  });
+
+  console.log('Filtered available vehicles:', availableVehicles);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            <p className="mt-2">Loading vehicles...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <p>{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative container mx-auto px-4 py-8">
@@ -332,218 +715,159 @@ const Trips = () => {
       />
 
       <div className="relative z-10">
-        <h1 className="text-3xl font-bold mb-6">Trip Management</h1>
-
-        {/* Vehicle Statistics */}
-        <VehicleStatistics stats={stats} />
-
-        {/* Map and Vehicle List Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Map display takes 2/3 of the width on large screens */}
-          <div className="lg:col-span-2">
-            <MapDisplay vehicles={vehicles} selectedVehicle={selectedVehicle} />
-          </div>
-          {/* Vehicle list takes 1/3 of the width on large screens */}
-          <div className="lg:col-span-1">
-            <VehicleList vehicles={vehicles} onSelectVehicle={handleSelectVehicle} />
-          </div>
-        </div>
-
-        {/* Schedule Trip Button */}
-        <div className="mt-6 flex justify-end">
+        {/* Header with Title and Schedule Button */}
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold animate-fade-in text-foreground">Trip Management</h1>
           <button
-            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition"
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition animate-fade-in flex items-center gap-2"
             onClick={handleScheduleTrip}
           >
+            <Plus size={18} />
             Schedule New Trip
           </button>
         </div>
 
-        {/* Schedule Trip Modal */}
-        {showScheduleModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold">Schedule New Trip</h2>
-                  <button
-                    onClick={handleCloseModal}
-                    className="text-gray-400 hover:text-gray-600 text-2xl"
-                  >
-                    ×
-                  </button>
-                </div>
-
-                <form onSubmit={handleSubmitTrip} className="space-y-4">
-                  {/* Vehicle Selection */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Select Vehicle <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={tripForm.vehicleId}
-                      onChange={(e) => handleFormChange('vehicleId', e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                      required
-                    >
-                      <option value="">Choose a vehicle...</option>
-                      {availableVehicles.map(vehicle => (
-                        <option key={vehicle.id} value={vehicle.id}>
-                          {vehicle.name || `Vehicle ${vehicle.id}`} - {vehicle.id}
-                        </option>
-                      ))}
-                    </select>
-                    {availableVehicles.length === 0 && (
-                      <p className="text-sm text-red-500 mt-1">No available vehicles</p>
-                    )}
-                  </div>
-
-                  {/* Start Location */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Start Location <span className="text-red-500">*</span>
-                    </label>
-                    <LocationAutocomplete
-                      value={tripForm.startLocation}
-                      onChange={handleStartLocationChange}
-                      placeholder="Enter start location or address"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                      required
-                    />
-                  </div>
-
-                  {/* End Location */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      End Location <span className="text-red-500">*</span>
-                    </label>
-                    <LocationAutocomplete
-                      value={tripForm.endLocation}
-                      onChange={handleEndLocationChange}
-                      placeholder="Enter destination location or address"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                      required
-                    />
-                  </div>
-
-                  {/* Date and Time */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Scheduled Date <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        value={tripForm.scheduledDate}
-                        onChange={(e) => handleFormChange('scheduledDate', e.target.value)}
-                        min={new Date().toISOString().split('T')[0]}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Scheduled Time <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="time"
-                        value={tripForm.scheduledTime}
-                        onChange={(e) => handleFormChange('scheduledTime', e.target.value)}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Notes */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Notes (Optional)
-                    </label>
-                    <textarea
-                      value={tripForm.notes}
-                      onChange={(e) => handleFormChange('notes', e.target.value)}
-                      placeholder="Add any additional notes or instructions..."
-                      rows="3"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-
-                  {/* Form Actions */}
-                  <div className="flex justify-end space-x-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={handleCloseModal}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition"
-                      disabled={availableVehicles.length === 0}
-                    >
-                      Schedule Trip
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Trip History Section */}
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">Trip History</h2>
-          <div className="bg-card rounded-lg shadow-md p-6 border border-border">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4">Vehicle ID</th>
-                    <th className="text-left py-3 px-4">Name</th>
-                    <th className="text-left py-3 px-4">Status</th>
-                    <th className="text-left py-3 px-4">Last Update</th>
-                    <th className="text-left py-3 px-4">Speed</th>
-                    <th className="text-left py-3 px-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {vehicles.length > 0 ? (
-                    vehicles.map(vehicle => (
-                      <tr key={vehicle.id} className="border-b border-border hover:bg-accent/10">
-                        <td className="py-3 px-4">{vehicle.id}</td>
-                        <td className="py-3 px-4">{vehicle.name || 'Unknown'}</td>
-                        <td className="py-3 px-4">
-                          <span className={
-                            vehicle.status === 'online'
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 py-1 px-2 rounded-full text-xs"
-                              : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 py-1 px-2 rounded-full text-xs"
-                          }>
-                            {vehicle.status === 'online' ? 'Active' : 'Idle'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">{vehicle.lastUpdate ? new Date(vehicle.lastUpdate).toLocaleString() : 'Unknown'}</td>
-                        <td className="py-3 px-4">{vehicle.speed != null ? `${vehicle.speed} km/h` : 'N/A'}</td>
-                        <td className="py-3 px-4">
-                          <button className="text-primary hover:text-primary/80" onClick={() => handleSelectVehicle(vehicle)}>
-                            Details
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="py-3 px-4 text-center text-muted-foreground">
-                        No vehicle data available
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+        {/* Tab Navigation */}
+        <div className="mb-6">
+          <div className="border-b border-border">
+            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
           </div>
         </div>
+
+        {/* Tab Content */}
+        <div className="tab-content">
+          {/* Overview Tab */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6 animate-fade-in">
+              {/* Stats Cards */}
+              <OverviewStatsCards
+                availableVehicles={availableVehicles.length}
+                availableDrivers={availableDriversCount}
+              />
+            </div>
+          )}
+
+          {/* Active Tab */}
+          {activeTab === 'active' && (
+            <div className="space-y-6 animate-fade-in">
+              {/* Active Trips Map */}
+              <div className="animate-fade-in animate-delay-200">
+                <ActiveTripsMap activeLocations={transformTripsForMap(activeTrips)} />
+              </div>
+            </div>
+          )}
+
+          {/* Upcoming Tab */}
+          {activeTab === 'upcoming' && (
+            <div className="space-y-6 animate-fade-in">
+              {/* Summary Cards */}
+              <div className="animate-fade-in animate-delay-100">
+                {upcomingTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading upcoming trips...</span>
+                  </div>
+                ) : (
+                  <UpcomingTripsStats upcomingTrips={upcomingTrips} />
+                )}
+              </div>
+
+              {/* Trips Table */}
+              <div className="animate-fade-in animate-delay-200">
+                {upcomingTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading trips table...</span>
+                  </div>
+                ) : (
+                  <UpcomingTripsTable upcomingTrips={upcomingTrips} />
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Recent Tab */}
+          {activeTab === 'recent' && (
+            <div className="space-y-6 animate-fade-in">
+              {/* Summary Cards */}
+              <div className="animate-fade-in animate-delay-100">
+                {recentTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading recent trips...</span>
+                  </div>
+                ) : (
+                  <RecentTripsStats
+                    recentTrips={recentTrips}
+                    tripHistoryStats={tripHistoryStats}
+                    loading={historyStatsLoading}
+                  />
+                )}
+              </div>
+
+              {/* Trips Table */}
+              <div className="animate-fade-in animate-delay-200">
+                {recentTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading trips table...</span>
+                  </div>
+                ) : (
+                  <RecentTripsTable recentTrips={recentTrips} />
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Analytics Tab */}
+          {activeTab === 'analytics' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="animate-fade-in animate-delay-100">
+                <TripsAnalytics
+                  driverData={driverAnalytics}
+                  vehicleData={vehicleAnalytics}
+                  timeframe={analyticsTimeframe}
+                  onTimeframeChange={setAnalyticsTimeframe}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Trip Scheduling Modal */}
+        <TripSchedulingModal
+          showModal={showScheduleModal}
+          onClose={handleCloseModal}
+          onSubmit={handleSubmitTrip}
+          tripForm={tripForm}
+          onFormChange={handleFormChange}
+          vehicles={vehicles}
+          drivers={drivers}
+          isSubmitting={isSubmitting}
+          availableVehicles={availableVehicles}
+        />
+
+        {/* Notification Component */}
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          isVisible={notification.isVisible}
+          onClose={closeNotification}
+        />
       </div>
     </div>
   );

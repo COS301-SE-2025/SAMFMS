@@ -245,6 +245,9 @@ class UserService:
             # Hash the password using the same method as regular signup
             from utils.auth_utils import get_password_hash
             password_hash = get_password_hash(user_data.password)
+
+            # All manually created users should be active by default
+            is_active_determine = True
             
             # Create user in security database
             now = datetime.utcnow()
@@ -253,7 +256,7 @@ class UserService:
                 email=user_data.email.lower(),
                 password_hash=password_hash,
                 role=user_data.role,
-                is_active=True,
+                is_active=is_active_determine,
                 approved=True,
                 full_name=user_data.full_name
             )

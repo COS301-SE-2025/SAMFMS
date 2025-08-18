@@ -1,0 +1,63 @@
+# Multi-stage optimized Dockerfile for faster builds
+FROM python:3.9-slim AS base
+
+WORKDIR /app
+
+# Install only essential tools in base layer (for better caching)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    curl ca-certificates gnupg netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better Docker layer caching
+COPY Core/requirements.txt .
+
+# Install Python dependencies in a separate layer (best caching)
+RUN pip install --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt
+
+# Copy Core application files
+COPY Core/ .
+
+# Test stage - minimal additions
+FROM base AS test
+RUN pip install --no-cache-dir pytest pytest-xdist
+CMD ["pytest", "--disable-warnings", "--tb=no"]
+
+# Runtime stage with optimized MongoDB installation
+FROM base AS runtime
+
+# Set environment variables
+ENV OPENBLAS_CORETYPE=generic
+ENV MKL_DEBUG_CPU_TYPE=5
+ENV PYTHONUNBUFFERED=1
+
+# OPTION 1: Minimal MongoDB client only (recommended if you're using external MongoDB)
+# If you're using the MongoDB service from docker-compose, you don't need the full MongoDB server
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    mongodb-clients \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -f docker
+
+# OPTION 2: If you absolutely need full MongoDB (uncomment below and comment above)
+# RUN curl -fsSL https://pgp.mongodb.com/server-7.0.asc | gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor && \
+#     echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" \
+#       > /etc/apt/sources.list.d/mongodb-org-7.0.list && \
+#     apt-get update && \
+#     apt-get install -y --no-install-recommends mongodb-org && \
+#     rm -rf /var/lib/apt/lists/* && \
+#     groupadd -f docker
+
+# Copy configuration
+COPY Core/config/ /project/Core/config/
+RUN mkdir -p /project
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+EXPOSE 8000
+
+# Optimized startup command
+CMD ["python3", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-keep-alive", "65", "--access-log", "--log-level", "info", "--ws", "none"]

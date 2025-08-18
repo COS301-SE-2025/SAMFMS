@@ -1,67 +1,35 @@
 // auth.js - Authentication API endpoints and functions
 import { setCookie, getCookie, eraseCookie } from '../../lib/cookies';
+import { API_CONFIG, API_ENDPOINTS, buildApiUrl } from '../../config/apiConfig';
 
-// Determine the API hostname depending on environment
-export const getApiHostname = () => {
-  // Use environment variable if available (set in docker-compose or .env)
-  const apiBaseUrl = process.env.REACT_APP_API_BASE_URL;
-  
-  if (apiBaseUrl) {
-    console.log('Using API_BASE_URL from environment:', apiBaseUrl);
-    return apiBaseUrl;
-  }
+// Use centralized API configuration
+export const API_URL = API_CONFIG.baseURL;
 
-  // Fallback logic for development
-  if (typeof window !== 'undefined') {
-    const protocol = window.location.protocol;
-    const host = window.location.hostname;
-    
-    // For production/staging with HTTPS
-    if (protocol === 'https:') {
-      return `https://${host}/api`;
-    }
-    
-    // For local development
-    const CORE_SERVICE_PORT = process.env.REACT_APP_CORE_PORT || '21011';
-    if (host === 'localhost' || host === '127.0.0.1') {
-      return `http://localhost:${CORE_SERVICE_PORT}`;
-    } else {
-      return `http://${host}:${CORE_SERVICE_PORT}`;
-    }
-  }
+// Debug logging for development
+if (API_CONFIG.environment === 'development') {
+  console.log('Auth API URL:', API_URL);
+  console.log('API Config:', API_CONFIG);
+}
 
-  // Default fallback
-  return 'http://localhost:21011';
-};
-
-const hostname = getApiHostname();
-export const API_URL = hostname;
-
-// Debug logging
-console.log('API Configuration:');
-console.log('- REACT_APP_API_BASE_URL:', process.env.REACT_APP_API_BASE_URL);
-console.log('- API_URL:', API_URL);
-console.log('- hostname:', hostname);
-
-// Auth endpoints
+// Auth endpoints using centralized configuration
 export const AUTH_API = {
-  login: `${API_URL}/auth/login`,
-  signup: `${API_URL}/auth/signup`,
-  logout: `${API_URL}/auth/logout`,
-  refreshToken: `${API_URL}/auth/refresh`,
-  me: `${API_URL}/auth/me`,
-  users: `${API_URL}/auth/users`,
-  changePassword: `${API_URL}/auth/change-password`,
-  deleteAccount: `${API_URL}/auth/account`,
-  updatePreferences: `${API_URL}/auth/update-preferences`,
-  inviteUser: `${API_URL}/auth/invite-user`,
-  createUser: `${API_URL}/auth/create-user`, // New endpoint for manual user creation
-  updatePermissions: `${API_URL}/auth/update-permissions`,
-  getRoles: `${API_URL}/auth/roles`,
-  verifyPermission: `${API_URL}/auth/verify-permission`,
-  userExists: `${API_URL}/auth/user-exists`,
-  updateProfile: `${API_URL}/auth/update-profile`,
-  uploadProfilePicture: `${API_URL}/auth/upload-profile-picture`,
+  login: buildApiUrl(API_ENDPOINTS.AUTH.LOGIN),
+  signup: buildApiUrl(API_ENDPOINTS.AUTH.SIGNUP),
+  logout: buildApiUrl(API_ENDPOINTS.AUTH.LOGOUT),
+  refreshToken: buildApiUrl(API_ENDPOINTS.AUTH.REFRESH),
+  me: buildApiUrl('/auth/me'),
+  users: buildApiUrl('/auth/users'),
+  changePassword: buildApiUrl(API_ENDPOINTS.AUTH.CHANGE_PASSWORD),
+  deleteAccount: buildApiUrl('/auth/account'),
+  updatePreferences: buildApiUrl('/auth/update-preferences'),
+  inviteUser: buildApiUrl('/auth/invite-user'),
+  createUser: buildApiUrl('/auth/create-user'),
+  updatePermissions: buildApiUrl('/auth/update-permissions'),
+  getRoles: buildApiUrl('/auth/roles'),
+  verifyPermission: buildApiUrl('/auth/verify-permission'),
+  userExists: buildApiUrl(API_ENDPOINTS.AUTH.USER_EXISTS),
+  updateProfile: buildApiUrl(API_ENDPOINTS.AUTH.PROFILE),
+  uploadProfilePicture: buildApiUrl(API_ENDPOINTS.AUTH.UPLOAD_PICTURE),
 };
 
 // Helper functions for auth management
@@ -436,6 +404,14 @@ export const login = async (email, password) => {
     );
     setCookie('permissions', JSON.stringify(data.permissions), 1); // 1 day
     setCookie('preferences', JSON.stringify(data.preferences), 1); // 1 day
+
+    // Apply user theme preference immediately
+    try {
+      const { applyUserThemePreference } = await import('../../utils/themeUtils');
+      applyUserThemePreference();
+    } catch (error) {
+      console.error('Failed to apply theme preference:', error);
+    }
 
     // Start automatic token refresh
     const { startTokenRefresh } = await import('../../utils/tokenManager');
@@ -918,13 +894,20 @@ export const fetchWithTimeout = async (url, options = {}, timeout = 5000) => {
     if (isDevMode && !url.includes('/roles') && !url.includes('/users')) {
       // Skip logging for roles and users endpoints
       console.log(`Fetching ${url}...`);
+      console.log(`Request options:`, {
+        method: options.method || 'GET',
+        headers: options.headers || {},
+        hasBody: !!options.body,
+      });
     }
 
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
     });
-    clearTimeout(id); // Log response status
+    clearTimeout(id);
+
+    // Log response status
     if (isDevMode && !url.includes('/roles') && !url.includes('/users')) {
       // Skip logging for roles and users endpoints
       console.log(`${url} responded with status: ${response.status}`);
@@ -934,14 +917,26 @@ export const fetchWithTimeout = async (url, options = {}, timeout = 5000) => {
   } catch (error) {
     clearTimeout(id);
     console.error(`Request to ${url} failed:`, error);
+    console.error(`Current API_URL configuration: ${API_URL}`);
+    console.error(`URL being requested: ${url}`);
 
     // Enhance error message for common issues
     if (error.name === 'AbortError') {
       throw new Error(`Request to ${url} timed out after ${timeout}ms`);
     } else if (error.message && error.message.includes('Failed to fetch')) {
-      throw new Error(
-        `Network error when connecting to ${url}. The service may be down or unreachable.`
-      );
+      // Provide more specific guidance based on the URL pattern
+      if (url.includes(':21017')) {
+        throw new Error(
+          `Network error when connecting to ${url}. This appears to be trying to connect to the NGINX HTTPS port directly. ` +
+            `If you're running in production with HTTPS, the API should be accessed through the /api path without specifying a port. ` +
+            `Check your REACT_APP_API_BASE_URL environment variable configuration.`
+        );
+      } else {
+        throw new Error(
+          `Network error when connecting to ${url}. The service may be down or unreachable. ` +
+            `Please check if the backend services are running and accessible.`
+        );
+      }
     }
 
     throw error;

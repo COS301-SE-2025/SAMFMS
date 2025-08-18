@@ -1,286 +1,173 @@
-# GPS Service - Enhanced Microservice
+# GPS Service
 
-The GPS Service is part of the SAMFMS (Student Affairs Management with Fleet Management System) microservices architecture. This service has been enhanced with comprehensive logging, health monitoring, and performance metrics.
+The GPS Service is responsible for location tracking, geofencing, and places management within the SAMFMS system.
 
 ## Features
 
-### 🔍 Enhanced Logging
-- **Structured JSON Logging**: All logs are formatted as JSON for easy parsing and aggregation
-- **Environment-based Log Levels**: Configure log level via `LOG_LEVEL` environment variable
-- **Request/Response Logging**: Automatic logging of HTTP requests and responses with performance metrics
-- **Error Tracking**: Detailed error logging with stack traces and context information
-- **Performance Monitoring**: Automatic detection and logging of slow requests
+- **Real-time Location Tracking**: Track vehicle locations in real-time
+- **Location History**: Store and retrieve historical location data
+- **Geofencing**: Create and manage geofences with entry/exit detection
+- **Places Management**: User-defined places with search capabilities
+- **Map Provider Agnostic**: Compatible with Leaflet and other mapping libraries
+- **Event-Driven Architecture**: Publishes events for location updates and geofence activities
 
-### 🏥 Health Monitoring
-- **Comprehensive Health Checks**: Multi-component health monitoring
-- **Dependency Status**: Real-time status of Redis and RabbitMQ connections
-- **System Resources**: Memory, disk space, and CPU usage monitoring
-- **Response Time Tracking**: Health check response time measurement
+## Architecture
 
-### 📊 Performance Metrics
-- **System Metrics**: CPU, memory, and disk usage
-- **Process Metrics**: Service-specific resource usage
-- **Connection Metrics**: Database and message queue connection status
-- **Application Metrics**: Request counts, error rates, and response times
+The GPS service follows the same architectural patterns as other SAMFMS services:
 
-### 🔧 Modular Architecture
-- **Separation of Concerns**: Organized into focused modules
-- **Reusable Components**: Common functionality extracted into utility modules
-- **Clean Code Structure**: Easy to maintain and extend
-
-## Project Structure
-
-```
-gps/
-├── main.py                 # Main FastAPI application
-├── logging_config.py       # Logging configuration and JSON formatter
-├── connections.py          # Database and message queue connection management
-├── middleware.py           # HTTP middleware for logging and security
-├── health_metrics.py       # Health checks and performance metrics
-├── utils.py               # Utility functions and common helpers
-├── requirements.txt        # Python dependencies
-├── Dockerfile             # Docker container configuration
-├── .env                   # Environment variables (development)
-└── README.md              # This documentation
-```
-
-## Quick Start
-
-### Prerequisites
-- Python 3.8+
-- Redis server
-- RabbitMQ server
-- Docker (optional)
-
-### Installation
-
-1. **Install dependencies:**
-```bash
-pip install -r requirements.txt
-```
-
-2. **Set environment variables:**
-```bash
-export LOG_LEVEL=INFO
-export ENVIRONMENT=development
-export REDIS_HOST=localhost
-export RABBITMQ_HOST=localhost
-```
-
-3. **Run the service:**
-```bash
-python main.py
-```
-
-### Using Docker
-
-1. **Build the image:**
-```bash
-docker build -t gps-service .
-```
-
-2. **Run the container:**
-```bash
-docker run -p 8000:8000 -e LOG_LEVEL=INFO gps-service
-```
+- **Repository Pattern**: Data access abstraction
+- **Service Layer**: Business logic separation
+- **Event-Driven Communication**: RabbitMQ for inter-service messaging
+- **Standardized API Responses**: Consistent response format
+- **Comprehensive Error Handling**: Robust error management
+- **Health Monitoring**: Built-in health checks and metrics
 
 ## API Endpoints
 
-### Core Endpoints
+### Location Tracking
 
-- `GET /` - Service information and status
-- `GET /health` - Comprehensive health check
-- `GET /metrics` - Performance metrics
-- `GET /docs` - API documentation (development only)
+- `POST /api/locations/update` - Update vehicle location
+- `GET /api/locations/{vehicle_id}` - Get current vehicle location
+- `GET /api/locations` - Get multiple vehicle locations
+- `GET /api/locations/{vehicle_id}/history` - Get location history
+- `POST /api/locations/search/area` - Search vehicles in area
 
-### GPS Endpoints
+### Geofencing
 
-- `GET /gps/locations` - Retrieve GPS location data
-- `POST /gps/locations` - Update GPS location data
+- `POST /api/geofences` - Create geofence
+- `GET /api/geofences/{geofence_id}` - Get geofence
+- `GET /api/geofences` - List geofences
+- `PUT /api/geofences/{geofence_id}` - Update geofence
+- `DELETE /api/geofences/{geofence_id}` - Delete geofence
+- `GET /api/geofences/{geofence_id}/events` - Get geofence events
+- `GET /api/geofences/{geofence_id}/statistics` - Get geofence statistics
 
-## Configuration
+### Places Management
 
-### Environment Variables
+- `POST /api/places` - Create place
+- `GET /api/places/{place_id}` - Get place
+- `GET /api/places` - List user places
+- `POST /api/places/search` - Search places
+- `POST /api/places/nearby` - Get nearby places
+- `PUT /api/places/{place_id}` - Update place
+- `DELETE /api/places/{place_id}` - Delete place
+- `GET /api/places/statistics` - Get place statistics
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) |
-| `ENVIRONMENT` | `development` | Environment name (development, staging, production) |
-| `SERVICE_NAME` | `gps-service` | Service identifier for logs |
-| `REDIS_HOST` | `redis` | Redis server hostname |
-| `REDIS_PORT` | `6379` | Redis server port |
-| `RABBITMQ_HOST` | `rabbitmq` | RabbitMQ server hostname |
-| `RABBITMQ_PORT` | `5672` | RabbitMQ server port |
-| `API_HOST` | `0.0.0.0` | API server bind address |
-| `API_PORT` | `8000` | API server port |
+### Tracking Sessions
 
-### Log Configuration
+- `POST /api/tracking/sessions` - Start tracking session
+- `DELETE /api/tracking/sessions/{session_id}` - End tracking session
+- `GET /api/tracking/sessions` - Get active tracking sessions
 
-The service uses structured JSON logging with the following format:
+## Data Models
 
-```json
-{
-  "timestamp": "2023-12-07T10:30:00.000Z",
-  "level": "INFO",
-  "service": "gps-service",
-  "environment": "development",
-  "logger": "main",
-  "message": "Request completed successfully",
-  "module": "main",
-  "function": "logging_middleware",
-  "line": 45,
-  "request_id": "req_1701942600000",
-  "status_code": 200,
-  "duration_ms": 12.5
-}
+### Location Data
+
+- Vehicle locations with coordinates, speed, heading
+- Altitude and GPS accuracy information
+- Timestamp-based history tracking
+
+### Geofences
+
+- Polygon, circle, and rectangle geofences
+- GeoJSON-based geometry storage
+- Entry, exit, and dwell event tracking
+
+### Places
+
+- User-defined places with categories
+- Address and metadata support
+- Spatial search capabilities
+
+## Environment Configuration
+
+The service uses environment variables for configuration:
+
+```bash
+# Service Configuration
+GPS_HOST=gps
+GPS_PORT=8000
+SERVICE_NAME=gps
+SERVICE_VERSION=1.0.0
+
+# Database
+MONGODB_URL=mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017
+DATABASE_NAME=samfms_gps
+
+# RabbitMQ
+RABBITMQ_URL=amqp://samfms_rabbit:RabbitPass2025%21@rabbitmq:5672/
+
+# GPS-Specific
+LOCATION_HISTORY_DAYS=90
+GEOFENCE_CHECK_ENABLED=true
+REAL_TIME_TRACKING=true
 ```
 
-## Health Check Response
+## Database Collections
 
-The `/health` endpoint returns detailed status information:
+### vehicle_locations
 
-```json
-{
-  "service": "gps-service",
-  "version": "1.0.0",
-  "status": "healthy",
-  "timestamp": "2023-12-07T10:30:00.000Z",
-  "uptime_seconds": 3600.0,
-  "checks": {
-    "redis": {
-      "status": "healthy",
-      "message": "Connection successful"
-    },
-    "rabbitmq": {
-      "status": "healthy",
-      "message": "Connection successful"
-    },
-    "disk": {
-      "status": "healthy",
-      "message": "Sufficient disk space: 75.2% free",
-      "free_percent": 75.2,
-      "free_gb": 150.4,
-      "total_gb": 200.0
-    },
-    "memory": {
-      "status": "healthy",
-      "message": "Normal memory usage: 45.1%",
-      "used_percent": 45.1,
-      "available_gb": 2.2,
-      "total_gb": 4.0
-    }
-  },
-  "response_time_ms": 15.3
-}
+Current vehicle locations with GeoJSON points and 2dsphere indexing.
+
+### location_history
+
+Historical location data with TTL for automatic cleanup.
+
+### geofences
+
+Geofence definitions with spatial indexing for intersection queries.
+
+### geofence_events
+
+Events triggered by geofence interactions.
+
+### places
+
+User-defined places with spatial indexing for proximity searches.
+
+### tracking_sessions
+
+Active and historical tracking sessions.
+
+## Integration with Frontend
+
+The GPS service is designed to work seamlessly with frontend mapping libraries:
+
+- **Leaflet Compatible**: Uses standard GeoJSON formats
+- **Real-time Updates**: WebSocket support for live tracking
+- **Efficient Queries**: Optimized spatial queries for map views
+- **Flexible Filtering**: Support for various filtering options
+
+## Running the Service
+
+### Development
+
+```bash
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-## Metrics Response
+### Docker
 
-The `/metrics` endpoint provides performance data:
-
-```json
-{
-  "service": "gps-service",
-  "version": "1.0.0",
-  "timestamp": "2023-12-07T10:30:00.000Z",
-  "uptime_seconds": 3600.0,
-  "system": {
-    "cpu_percent": 25.5,
-    "memory_percent": 45.1,
-    "disk_percent": 24.8
-  },
-  "process": {
-    "cpu_percent": 2.1,
-    "memory_mb": 128.5,
-    "memory_percent": 3.2,
-    "num_threads": 8
-  },
-  "connections": {
-    "redis": {
-      "status": "connected",
-      "pool_size": 10
-    },
-    "rabbitmq": {
-      "status": "connected",
-      "is_open": true
-    }
-  }
-}
+```bash
+docker build -t samfms-gps .
+docker run -p 8000:8000 samfms-gps
 ```
-
-## Development
-
-### Adding New Endpoints
-
-1. Add your endpoint function to `main.py`
-2. Use the logging utilities for consistent logging
-3. Use connection managers for database access
-4. Return formatted responses using utility functions
-
-### Extending Health Checks
-
-1. Add new health check functions to `health_metrics.py`
-2. Update the `HealthChecker.get_health_status()` method
-3. Add appropriate logging for your checks
-
-### Custom Middleware
-
-1. Add new middleware functions to `middleware.py`
-2. Register them in `main.py` using `app.middleware("http")`
-
-## Production Deployment
 
 ### Docker Compose
 
-```yaml
-version: '3.8'
-services:
-  gps-service:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      - LOG_LEVEL=INFO
-      - ENVIRONMENT=production
-      - REDIS_HOST=redis
-      - RABBITMQ_HOST=rabbitmq
-    depends_on:
-      - redis
-      - rabbitmq
-```
-
-### Log Aggregation
-
-For production deployments, consider using log aggregation tools:
-
-- **ELK Stack**: Elasticsearch, Logstash, and Kibana
-- **Fluentd**: For log collection and forwarding
-- **Grafana**: For metrics visualization
-- **Prometheus**: For metrics collection
+The service is integrated into the main SAMFMS docker-compose.yml configuration.
 
 ## Testing
 
-Run tests with:
-
 ```bash
-# Unit tests
-python -m pytest tests/
-
-# Health check
-curl http://localhost:8000/health
-
-# Metrics
-curl http://localhost:8000/metrics
+pytest tests/ -v
 ```
 
-## Contributing
+## Health Check
 
-1. Follow the established code structure
-2. Add appropriate logging to new features
-3. Update health checks for new dependencies
-4. Document any new environment variables
-5. Write tests for new functionality
+The service provides health checks at `/health` endpoint with component status:
 
-## License
-
-This project is part of the SAMFMS system. See the main project for license information.
+- Database connectivity
+- RabbitMQ connectivity
+- Service uptime and metrics

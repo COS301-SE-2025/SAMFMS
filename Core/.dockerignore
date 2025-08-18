@@ -1,0 +1,65 @@
+# Core-specific dockerignore for faster builds
+# Exclude everything except what's needed for Core service
+
+# Exclude other services and components
+Frontend/
+Sblocks/
+Dblocks/
+nginx/
+traccar/
+certbot/
+dhparam/
+ssl-certs/
+ssl-private/
+scripts/
+
+# Documentation
+docs/
+*.md
+*.pdf
+
+# Test files
+**/tests/
+**/test_*.py
+**/*_test.py
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python cache
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
+
+# Environment and config files not needed in container
+**/.env*
+**/*.env
+docker-compose*.yml
+.dockerignore
+
+# Version control
+.git/
+.gitignore
+
+# Logs and data
+**/logs/
+**/*.log
+**/*.db
+**/*.sqlite3
+
+# Node.js (not needed for Core)
+**/node_modules/
+package.json
+package-lock.json
+
+# Large files
+**/*.zip
+**/*.tar.gz
+
+# Only include Core directory and root files needed for build context
+# Everything else is excluded by default with this approach

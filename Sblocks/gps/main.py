@@ -1,685 +1,512 @@
 """
-GPS Service - SAMFMS Microservice
-Enhanced with structured logging, health monitoring, performance metrics, and RabbitMQ request handling.
+GPS Service main application with location tracking and geofencing capabilities
 """
-
-# Somewhere the will have to be like a default start location// probably the companies building
-# Traccar account will be created for the admin, admin details should be passed to GPS SBlock
-
-import os
 import asyncio
-import aio_pika
-import json
-import httpx
-# import for vehicle simulation
-import time
-import requests
-import openrouteservice
-import threading
-from pydantic import BaseModel
-from requests.auth import HTTPBasicAuth
+import logging
+import os
+from datetime import datetime, timezone
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Body, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.responses import JSONResponse
 
-from logging_config import setup_logging, get_logger
-from connections import ConnectionManager
-from middleware import get_logging_middleware, get_security_middleware
-from health_metrics import get_health_status, get_metrics
-from service_request_handler import gps_request_handler
+# Import organized modules
+from repositories.database import db_manager, db_manager_management
+from events.publisher import event_publisher
+from events.consumer import event_consumer, setup_event_handlers
+from services.location_service import location_service
+from services.geofence_service import geofence_service
+from services.places_service import places_service
+from services.request_consumer import service_request_consumer
+from api.routes.locations import router as locations_router
+from api.routes.geofences import router as geofences_router
+from api.routes.places import router as places_router
+from api.routes.tracking import router as tracking_router
 
-# message queue imports
-from rabbitmq.consumer import consume_messages_Direct,consume_messages_FanOut
-from rabbitmq.admin import create_exchange
-from rabbitmq.producer import publish_message
+# Import middleware and exception handlers
+from middleware import (
+    RequestContextMiddleware, LoggingMiddleware, SecurityHeadersMiddleware,
+    MetricsMiddleware, RateLimitMiddleware, HealthCheckMiddleware
+)
+from api.exception_handlers import (
+    EXCEPTION_HANDLERS, DatabaseConnectionError, EventPublishError, 
+    BusinessLogicError
+)
+from schemas.responses import ResponseBuilder
 
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-SERVICE_NAME = "gps-service"
-SERVICE_VERSION = "1.0.0"
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+# Global metrics middleware instance for health checks
+metrics_middleware = MetricsMiddleware(None)
 
-logger = setup_logging(SERVICE_NAME)
+async def register_with_core_service():
+    """Register this service with Core's service discovery"""
+    try:
+        import aiohttp
+        import json
+        
+        # Try to register with Core service discovery
+        core_host = os.getenv("CORE_HOST", "core")
+        core_port = int(os.getenv("CORE_PORT", "8000"))
+        
+        service_info = {
+            "name": "gps",
+            "host": os.getenv("GPS_HOST", "gps"),
+            "port": int(os.getenv("GPS_PORT", "8000")),
+            "version": "1.0.0",
+            "protocol": "http",
+            "health_check_url": "/health",
+            "tags": ["gps", "location", "tracking", "geofencing", "places"],
+            "metadata": {
+                "features": [
+                    "location_tracking",
+                    "geofencing",
+                    "places_management",
+                    "location_history",
+                    "real_time_tracking",
+                    "map_provider_agnostic"
+                ],
+                "startup_time": datetime.utcnow().isoformat()
+            }
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"http://{core_host}:{core_port}/api/services/register",
+                json=service_info,
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                if response.status == 200:
+                    logger.info("Successfully registered with Core service discovery")
+                    return True
+                else:
+                    logger.warning(f"Service registration failed with status {response.status}")
+                    return False
+                    
+    except Exception as e:
+        logger.warning(f"Failed to register with Core service discovery: {e}")
+        logger.info("Service will continue without Core registration")
+        return False
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    logger.info("GPS Service Starting Up...")
+    
+    try:
+        # Connect to database with error handling
+        logger.info("Connecting to database...")
+        try:
+            await db_manager.connect()
+            logger.info("Database connected successfully")
+        except Exception as e:
+            logger.error(f"Database connection failed: {e}")
+            raise DatabaseConnectionError(f"Failed to connect to database: {e}")
+        
+        # Start database for Management
+        logger.info("Connecting to database Management...")
+        try:
+            await db_manager_management.connect()
+            logger.info("Database Management connected successfully")
+        except Exception as e:
+            logger.error(f"Database Management connection failed: {e}")
+            raise DatabaseConnectionError(f"Failed to connect to database Management: {e}")
+        
+        # Connect to RabbitMQ for event publishing
+        logger.info("Connecting to RabbitMQ for event publishing...")
+        try:
+            publisher_connected = await event_publisher.connect()
+            if publisher_connected:
+                logger.info("Event publisher connected successfully")
+            else:
+                logger.warning("Event publisher connection failed - continuing without events")
+        except Exception as e:
+            logger.error(f"Event publisher connection error: {e}")
+            publisher_connected = False
+        
+        # Setup and start event consumer
+        logger.info("Setting up event consumer...")
+        try:
+            consumer_connected = await event_consumer.connect()
+            if consumer_connected:
+                await setup_event_handlers()
+                # Start consuming in background
+                asyncio.create_task(event_consumer.start_consuming())
+                logger.info("Event consumer started successfully")
+            else:
+                logger.warning("Event consumer connection failed - continuing without event consumption")
+        except Exception as e:
+            logger.error(f"Event consumer setup error: {e}")
+            consumer_connected = False
+        
+        # Setup and start service request consumer
+        logger.info("Setting up service request consumer...")
+        try:
+            request_consumer_connected = await service_request_consumer.connect()
+            if request_consumer_connected:
+                # Start consuming service requests in background
+                consumer_task = asyncio.create_task(service_request_consumer.start_consuming())
+                # Keep reference to prevent garbage collection
+                app.state.consumer_task = consumer_task
+                logger.info("Service request consumer started successfully")
+            else:
+                logger.warning("Service request consumer connection failed - Core communication disabled")
+        except Exception as e:
+            logger.error(f"Service request consumer setup error: {e}")
+        
+        # Publish service started event with enhanced error handling
+        if publisher_connected:
+            try:
+                await event_publisher.publish_service_started(
+                    version="1.0.0",
+                    data={
+                        "service": "gps",
+                        "event_driven": True,
+                        "enhanced_features": [
+                            "location_tracking", 
+                            "geofencing", 
+                            "places_management",
+                            "real_time_tracking",
+                            "location_history",
+                            "event_driven_communication",
+                            "comprehensive_monitoring"
+                        ]
+                    }
+                )
+                logger.info("Service started event published")
+            except Exception as e:
+                logger.warning(f"Failed to publish service started event: {e}")
+        
+        # Register with Core's service discovery
+        await register_with_core_service()
+        
+        # Schedule background tasks with a delay to ensure database is ready
+        async def start_background_tasks():
+            await asyncio.sleep(5)  # Wait 5 seconds for database to stabilize
+            await enhanced_background_tasks()
+        
+        asyncio.create_task(start_background_tasks())
+        
+        # Store start time for uptime calculation
+        app.state.start_time = datetime.now(timezone.utc)
+        metrics_middleware.app = app
+
+        logger.info("GPS Service Startup Completed Successfully")
+        
+        yield
+        
+    except Exception as e:
+        logger.error(f"CRITICAL ERROR DURING STARTUP: {e}")
+        raise
+    
+    finally:
+        # Cleanup on shutdown
+        logger.info("GPS Service Shutting Down...")
+        try:
+            # Publish service stopped event
+            try:
+                await event_publisher.publish_service_stopped(
+                    version="1.0.0",
+                    data={"reason": "graceful_shutdown"}
+                )
+                logger.info("Service stopped event published")
+            except Exception as e:
+                logger.warning(f"Failed to publish service stopped event: {e}")
+            
+            await event_consumer.disconnect()
+            logger.info("Event consumer disconnected")
+            
+            await event_publisher.disconnect()
+            logger.info("Event publisher disconnected")
+
+            await service_request_consumer.stop_consuming()
+            await service_request_consumer.disconnect()
+            logger.info("Service request consumer stopped")
+
+            await db_manager.disconnect()
+            logger.info("Database disconnected")
+
+            await db_manager_management.disconnect()
+            logger.info("Management Database disconnected")
+
+            logger.info("GPS Service shutdown completed")
+        except Exception as e:
+            logger.error(f"Error during shutdown: {e}")
+
+async def enhanced_background_tasks():
+    """Enhanced background tasks for GPS service"""
+    while True:
+        try:
+            # Check if database is connected before running tasks
+            if not db_manager.is_connected():
+                logger.warning("Database not connected, skipping background tasks")
+                await asyncio.sleep(300)  # Wait 5 minutes before retry
+                continue
+                
+            # Cleanup old location history (keep last 90 days)
+            await location_service.cleanup_old_locations()
+            
+            # Validate active tracking sessions
+            await location_service.validate_tracking_sessions()
+            
+            await asyncio.sleep(3600)  # Run every hour
+            
+        except Exception as e:
+            logger.error(f"Background task error: {e}")
+            await asyncio.sleep(300)  # Wait 5 minutes before retry
+
+# Create FastAPI app
 app = FastAPI(
     title="GPS Service",
-    version=SERVICE_VERSION,
-    description="GPS tracking and location services for SAMFMS",
-    docs_url="/docs" if ENVIRONMENT == "development" else None,
-    redoc_url="/redoc" if ENVIRONMENT == "development" else None
+    description="Location tracking, geofencing, and places management service",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=["*"],  # Configure properly in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Add custom middleware
-app.middleware("http")(get_security_middleware())
-app.middleware("http")(get_logging_middleware())
+# Add custom middleware in order
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(MetricsMiddleware)
+app.add_middleware(LoggingMiddleware)
+app.add_middleware(RequestContextMiddleware)
 
-async def test_traccar_connection():
-    """Test connection to Traccar server"""
-    try:
-        response = requests.get(
-            f"{TRACCAR_API_URL}/server",
-            auth=(TRACCAR_ADMIN_USER, TRACCAR_ADMIN_PASS),
-            timeout=10
-        )
-        response.raise_for_status()
-        logger.info("Traccar connection test successful")
-        return True
-    except Exception as e:
-        logger.error(f"Traccar connection test failed: {e}")
-        return False
+# Add exception handlers
+for exception_type, handler in EXCEPTION_HANDLERS.items():
+    app.add_exception_handler(exception_type, handler)
 
+# Include routers with enhanced error handling
+app.include_router(locations_router, tags=["locations"])
+app.include_router(geofences_router, tags=["geofences"])
+app.include_router(places_router, tags=["places"])
+app.include_router(tracking_router, tags=["tracking"])
 
-# Event handlers
-@app.on_event("startup")
-async def startup_event():
-    """Initialize service on startup."""
-    logger.info(
-        "GPS Service starting up",
-        extra={
-            "version": SERVICE_VERSION,
-            "environment": ENVIRONMENT,
-            "service": SERVICE_NAME
-        }    )
-
-    traccar_ready = await test_traccar_connection()
-    if not traccar_ready:
-        logger.warning("Traccar connection failed during startup")
-
-    # Test connections during startup
-#    redis_conn = ConnectionManager.get_redis_connection()
-#    if redis_conn:
-#        logger.info("Redis connection established successfully")
-#    else:
-#        logger.error("Failed to establish Redis connection")
-    
-    rabbitmq_conn = ConnectionManager.get_rabbitmq_connection()
-    if rabbitmq_conn:
-        logger.info("RabbitMQ connection established successfully")
-        rabbitmq_conn.close()  # Close test connection
-    else:
-        logger.error("Failed to establish RabbitMQ connection")
-    
-    # Initialize GPS service request handler
-    try:
-        await gps_request_handler.initialize()
-        logger.info("GPS service request handler initialized")
-    except Exception as e:
-        logger.error(f"GPS service request handler initialization failed: {e}")
-    
-    logger.info("GPS Service startup completed")
-
-
-    # Start the RabbitMQ consumer
-    asyncio.create_task(consume_messages_Direct("gps_requests_Direct","gps_requests_Direct",handle_gps_request))
-    asyncio.create_task(consume_messages_Direct("gps_responses_Direct","gps_responses_Direct" ,handle_DBlock_responses))
-    publish_message("service_presence", aio_pika.ExchangeType.FANOUT, {"type": "service_presence", "service":"gps"}, "")
-    
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Clean up resources on shutdown."""
-    logger.info("GPS Service shutting down")
-    
-    # Close all connections
-    ConnectionManager.close_connections()
-    
-    logger.info("GPS Service shutdown completed")
-
-
-# API Endpoints
 @app.get("/")
-def read_root():
-    """Root endpoint with service information."""
-    logger.info("Root endpoint accessed")
-    return {
-        "message": "Hello from GPS Service",
-        "service": SERVICE_NAME,
-        "version": SERVICE_VERSION,
-        "environment": ENVIRONMENT
-    }
-
+async def root():
+    """Enhanced service information endpoint"""
+    uptime_seconds = (datetime.now(timezone.utc) - getattr(app.state, 'start_time', datetime.now(timezone.utc))).total_seconds()
+    return ResponseBuilder.success(
+        data={
+            "service": "gps",
+            "version": "1.0.0",
+            "status": "operational",
+            "uptime_seconds": uptime_seconds,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        },
+        message="GPS Service is operational"
+    ).model_dump()
 
 @app.get("/health")
-def health_check():
-    """Comprehensive health check endpoint."""
-    return get_health_status()
+async def health_check():
+    """Comprehensive health check with detailed component status"""
+    try:
+        # Check database
+        db_healthy = False
+        try:
+            if db_manager.is_connected():
+                await db_manager.health_check()
+                db_healthy = True
+        except Exception as e:
+            logger.error(f"Database health check failed: {e}")
 
+        # Check RabbitMQ consumer
+        rabbitmq_healthy = service_request_consumer.is_consuming
+
+        # Check background tasks
+        jobs_healthy = True  # Simplified for now
+
+        # Overall status determination
+        critical_components = [db_healthy]
+        optional_components = [rabbitmq_healthy, jobs_healthy]
+
+        if all(critical_components):
+            if all(optional_components):
+                overall_status = "healthy"
+            else:
+                overall_status = "degraded"
+        else:
+            overall_status = "unhealthy"
+
+        uptime_seconds = (datetime.now(timezone.utc) - getattr(app.state, 'start_time', datetime.now(timezone.utc))).total_seconds()
+
+        health_data = {
+            "status": overall_status,
+            "service": "gps",
+            "version": "1.0.0",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "uptime_seconds": uptime_seconds,
+            "components": {
+                "database": {
+                    "status": "up" if db_healthy else "down",
+                    "critical": True
+                },
+                "rabbitmq_consumer": {
+                    "status": "up" if rabbitmq_healthy else "down",
+                    "critical": False,
+                    "consuming": rabbitmq_healthy
+                },
+                "background_jobs": {
+                    "status": "up" if jobs_healthy else "down",
+                    "critical": False,
+                    "running": jobs_healthy
+                }
+            }
+        }
+
+        return ResponseBuilder.success(
+            data=health_data,
+            message=f"Service is {overall_status}"
+        ).model_dump()
+
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return ResponseBuilder.error(
+            error="HealthCheckError",
+            message="Health check failed",
+            details={"error": str(e)}
+        ).model_dump()
 
 @app.get("/metrics")
-def metrics():
-    """Performance metrics endpoint."""
-    return get_metrics()
-
-
-@app.get("/gps/locations")
-def get_locations():
-    """Get GPS location data."""
-    logger.info("GPS locations endpoint accessed")
-    
-    # TODO: Implement actual GPS location retrieval
-    # This is a placeholder implementation
+async def get_service_metrics():
+    """Get service performance metrics"""
     try:
-        redis_conn = ConnectionManager.get_redis_connection()
-        if redis_conn:
-            # Example: Get locations from Redis
-            # locations = redis_conn.get("gps:locations")
-            logger.debug("Retrieved GPS locations from Redis")
-        
-        return {
-            "locations": [],
-            "message": "GPS locations retrieved successfully",
-            "count": 0
-        }
-        
+        metrics = metrics_middleware.get_metrics()
+        return ResponseBuilder.success(
+            data=metrics,
+            message="Service metrics retrieved successfully"
+        ).model_dump()
     except Exception as e:
-        logger.error(
-            "Failed to retrieve GPS locations",
-            extra={
-                "error": str(e),
-                "endpoint": "/gps/locations"
-            }
-        )
-        raise
+        logger.error(f"Metrics collection error: {e}")
+        return ResponseBuilder.error(
+            error="MetricsError",
+            message="Failed to collect metrics",
+            details={"error": str(e)}
+        ).model_dump()
 
-
-@app.post("/gps/locations")
-def update_location(location_data: dict):
-    """Update GPS location data."""
-    logger.info("GPS location update endpoint accessed")
-    
-    # TODO: Implement actual GPS location update
-    # This is a placeholder implementation
-    try:
-        redis_conn = ConnectionManager.get_redis_connection()
-        if redis_conn:
-            # Example: Store location in Redis
-            # redis_conn.set("gps:locations", json.dumps(location_data))
-            logger.debug("Stored GPS location data in Redis")
-        
-        rabbitmq_conn = ConnectionManager.get_rabbitmq_connection()
-        if rabbitmq_conn:
-            # Example: Publish location update to message queue
-            # channel = rabbitmq_conn.channel()
-            # channel.basic_publish(exchange='', routing_key='gps_updates', body=json.dumps(location_data))
-            logger.debug("Published GPS location update to message queue")
-            rabbitmq_conn.close()
-        
-        return {
-            "message": "GPS location updated successfully",
-            "location_id": location_data.get("id", "unknown")
-        }
-        
-    except Exception as e:
-        logger.error(
-            "Failed to update GPS location",
-            extra={
-                "error": str(e),
-                "endpoint": "/gps/locations",
-                "location_data": location_data
-            }
-        )
-        raise
-
-# Traccar function to create a new simulation
-async def create_new_simulation(device_id, lat, lon, speed):
-    payload = {
-        "device_id": device_id,
-        "start_latitude": lat,
-        "start_longitude": lon,
-        "speed": speed
-    }
-
-    async with httpx.AsyncClient() as client:
-        response = await client.post("http://simulator_manager:8000/simulate_vehicle", json=payload)
-        return response.json()
-
-# Herrie code: For Message queue between GPS SBlock and Core
-# Function to handle the direct messages sent to the gps_requests queue
-TRACCAR_API_URL = os.getenv("TRACCAR_API_URL", "http://196.29.59.165:8082/api")
-TRACCAR_ADMIN_USER = os.getenv("TRACCAR_ADMIN_USER", "herrie732@gmail.com")
-TRACCAR_ADMIN_PASS = os.getenv("TRACCAR_ADMIN_PASS", "Pass@1233")
-
-async def fetch_and_respond_live_locations(request_data):
-    correlation_id = request_data.get("correlation_id")
-    # 1. Fetch live vehicle/device data from Traccar
-    try:
-        # This will retrieve information like name, id, online/offline
-        responseDevices = requests.get(
-            f"{TRACCAR_API_URL}/devices",
-            auth=(TRACCAR_ADMIN_USER, TRACCAR_ADMIN_PASS)
-        )
-        responseDevices.raise_for_status()
-        devices = responseDevices.json()
-        # This will retrieve actual gps locations, speed ens.
-        responsePositions = requests.get(
-            f"{TRACCAR_API_URL}/positions",
-            auth=(TRACCAR_ADMIN_USER, TRACCAR_ADMIN_PASS)
-        )
-        responsePositions.raise_for_status()
-        Positions = responsePositions.json()
-        # You can filter/transform devices as needed for your frontend
-        vehicles = [
-            {
-                "id": d["id"],
-                "name": d.get("name"),
-                "attributes": d.get("attributes"),
-                "lastUpdate": d.get("lastUpdate"),
-                "model": d.get("model"),
-                "category": d.get("category"),
-                "status": d.get("status"),
-            }
-            for d in devices
-        ]
-        logger.info(f"Vehicles info: {vehicles} ")
-
-        positions = [
-            {
-                "distance": p.get("attributes", {}).get("distance"),
-                "totalDistance": p.get("attributes", {}).get("totalDistance"),
-                "motion": p.get("attributes", {}).get("motion"),
-                "deviceId": p.get("deviceId"),
-                "latitude": p.get("latitude"),
-                "longitude": p.get("longitude"),
-                "altitude": p.get("altitude"),
-                "speed": p.get("speed"),
-                "geofenceIds": p.get("geofenceIds"),
-            }
-            for p in Positions
-        ]
-        logger.info(f"Positions info: {positions}")
-
-        # Merge vehicles and Positions by id/deviceId
-        positions_lookup = {p["deviceId"]: p for p in positions}
-        merged_vehicles = []
-        for v in vehicles:
-            pos = positions_lookup.get(v["id"], {})
-            merged_vehicle = {**v, **pos} 
-            merged_vehicles.append(merged_vehicle)
-        
-        logger.info(f"Merged devices and positions: {merged_vehicles}")
-    except Exception as e:
-        vehicles = []
-        print(f"Error fetching Traccar devices: {e}")
-
-    # Response via message queue back to core
-    response_payload = {
-        "correlation_id": correlation_id,
-        "vehicles": merged_vehicles
-    }
-    await publish_message(
-        "core_responses",
-        aio_pika.ExchangeType.DIRECT,
-        response_payload,
-        routing_key="core_responses"
-    )
-
-async def handle_gps_request(message: aio_pika.IncomingMessage):
-    async with message.process():
-        data = json.loads(message.body.decode())
-        logger.info(f"Received message: {data}")
-
-        operation = data.get("operation")
-        data_type = data.get("type")
-
-        # if it is retrieve then forward it to DBlock
-        if operation == "retrieve":
-            await request_gps_location(data)
-        elif operation == "retrieve_live_locations":
-            await fetch_and_respond_live_locations(data)
-        elif operation == "add_new_geofence":
-            await handle_add_new_geofence(data)
-        else:
-            logger.warning(f"Unsupported operation: {operation} for message: {data}")
-
-# function to create new geofence()
-async def handle_add_new_geofence(request_Data):
-    logger.info(f"Geofence information received: {request_Data}")
-    correlation_id = request_Data.get("correlation_id")
-    parameters = request_Data.get("parameters", {})
-    try:
-        name = parameters.get("name")
-        latitude = parameters.get("latitude")
-        longitude = parameters.get("longitude")
-        radius = parameters.get("radius")
-        description = parameters.get("description", "")
-
-        response = await add_circle_geofence(name, latitude, longitude, radius, description)
-        logger.info(f"Response from traccar server: {response}")
-        if response:
-            status = response["id"]
-            if status:
-                response_payload = {
-                    "correlation_id": correlation_id,
-                    "geofence": response
+@app.get("/docs")
+async def api_documentation():
+    """GPS Service API Documentation"""
+    return ResponseBuilder.success(
+        data={
+            "service": "SAMFMS GPS Service",
+            "version": "1.0.0",
+            "description": "Location Tracking, Geofencing, and Places Management for SAMFMS Fleet Management System",
+            "base_url": "/gps",
+            "endpoints": {
+                "locations": {
+                    "GET /locations": "List vehicle locations",
+                    "GET /locations/vehicle/{vehicle_id}": "Get specific vehicle location",
+                    "GET /locations/history": "Get location history",
+                    "POST /locations": "Update vehicle location"
+                },
+                "geofences": {
+                    "GET /geofences": "List geofences",
+                    "GET /geofences/{id}": "Get specific geofence",
+                    "POST /geofences": "Create geofence",
+                    "PUT /geofences/{id}": "Update geofence",
+                    "DELETE /geofences/{id}": "Delete geofence"
+                },
+                "places": {
+                    "GET /places": "List places",
+                    "GET /places/{id}": "Get specific place",
+                    "GET /places/search": "Search places",
+                    "POST /places": "Create place",
+                    "PUT /places/{id}": "Update place",
+                    "DELETE /places/{id}": "Delete place"
+                },
+                "tracking": {
+                    "GET /tracking/live": "Real-time tracking",
+                    "GET /tracking/route": "Vehicle route history",
+                    "POST /tracking": "Start vehicle tracking"
+                },
+                "service_endpoints": {
+                    "GET /": "Service information",
+                    "GET /health": "Health check",
+                    "GET /metrics": "Service metrics",
+                    "GET /docs": "API documentation"
                 }
-
-                await publish_message(
-                    "core_responses_geofence",
-                    aio_pika.ExchangeType.DIRECT,
-                    response_payload,
-                    routing_key="core_responses_geofence"
-                )
-            else:
-                response_payload = {
-                    "correlation_id": correlation_id,
-                    "geofence": "failed"
-                }
-
-                await publish_message(
-                    "core_responses_geofence",
-                    aio_pika.ExchangeType.DIRECT,
-                    response_payload,
-                    routing_key="core_responses_geofence"
-                )
-        else:
-            response_payload = {
-                "correlation_id": correlation_id,
-                "geofence": "failed"
-            }
-
-            await publish_message(
-                "core_responses_geofence",
-                aio_pika.ExchangeType.DIRECT,
-                response_payload,
-                routing_key="core_responses_geofence"
-            )
-
-        logger.info(f"Geofence creation result: {response}")
-
-    except KeyError as e:
-        logger.error(f"Missing required geofence parameter: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error in geofence handler: {e}")
-
-# function to send updated geofence information
-async def send_geofence_data():
-    await publish_message(
-        "core_responses_geofence",
-        aio_pika.ExchangeType.DIRECT,
-        {
-
-        },
-        "core_responses_geofence"
-    )
-    return {"status": "Geofence data sent to Core"}
-
-# function to for responses from DBlock
-async def handle_DBlock_responses(message: aio_pika.IncomingMessage):
-    async with message.process():
-        data = json.loads(message.body.decode())
-        logger.info(f"Received message from DBlock: {data}")
-
-# function to forward messages to dblock
-async def request_gps_location(message: dict):
-    await publish_message(
-        "gps_db_requests",
-        aio_pika.ExchangeType.DIRECT,
-        {"message": f"Message From GPS SBlock to GPS DBlock test : {message}"},
-        routing_key="gps_db_requests"
-    )
-    return {"status": "Request sent to GPS DB service"}
-#############################################################################
-
-
-# Herrie code for GPS vehicle simulation
-TRACCAR_SIMULATION_HOST = os.getenv("TRACCAR_SIMULATION_HOST", "http://196.29.59.165:5055")
-
-ORS_API_KEY = "5b3ce3597851110001cf6248967d5deccac54ac1bca4d679e41d602d"
-DELAY = 2
-
-def simulate_vehicle_route(device_id, traccar_host, ors_api_key, start, end, delay=2):
-    client = openrouteservice.Client(key=ors_api_key)
-    route = client.directions(
-        coordinates=[start, end],
-        profile='driving-car',
-        format='geojson'
-    )
-    coordinates = route['features'][0]['geometry']['coordinates']
-
-    print(f"Simulating vehicle '{device_id}' on a real route...")
-    print(f"Total points in route: {len(coordinates)}")
-
-    for point in coordinates:
-        lon, lat = point
-        response = requests.get(traccar_host, params={
-            "id": device_id,
-            "lat": lat,
-            "lon": lon,
-            "speed": 50
-        })
-        print(f"[{response.status_code}] Sent point: ({lat:.6f}, {lon:.6f})")
-        time.sleep(delay)
-
-    print("Route complete.")
-
-class SimulationRequest(BaseModel):
-    device_id: str
-    start_lat: float
-    start_lon: float
-    end_lat: float
-    end_lon: float
-
-@app.post("/simulate_vehicle")
-def api_simulate_vehicle(req: SimulationRequest):
-    ors_api_key = os.getenv("ORS_API_KEY", ORS_API_KEY)
-    traccar_host = os.getenv("TRACCAR_HOST", TRACCAR_SIMULATION_HOST)
-    delay = int(os.getenv("SIM_DELAY", DELAY))
-
-    # Run simulation in a background thread so it doesn't block the API
-    threading.Thread(
-        target=simulate_vehicle_route,
-        args=(req.device_id, traccar_host, ors_api_key, [req.start_lon, req.start_lat], [req.end_lon, req.end_lat], delay),
-        daemon=True
-    ).start()
-
-    return {"status": "started", "device_id": req.device_id}
-
-def add_traccar_device(name, unique_id):
-    url = f"{TRACCAR_API_URL}/devices"
-    payload = {
-        "name": name,
-        "uniqueId": unique_id
-    }
-
-    response = requests.post(
-        url,
-        json = payload,
-        auth = HTTPBasicAuth("herrie732@gmail.com","Pass@1233")    
-    )
-    if response.status_code == 200:
-        print(f"Device '{name}' added successfully.")
-        return response.json()
-    else:
-        print(f"Failed to add device: {response.text}")
-        return None
-
-class CreateDeviceRequest(BaseModel):
-    name: str
-    unique_id: str
-
-@app.post("/create_device")
-def create_device(req: CreateDeviceRequest):
-    result = add_traccar_device(req.name, req.unique_id)
-    if result:
-        return {"status": "created", "device": result}
-    else:
-        return {"status": "error", "message": "Failed to create device"}
-# User creation does not work yet!
-class CreateUserRequest(BaseModel):
-    name: str
-    email: str
-    password: str
-
-def add_traccar_user(name,email, password):
-    url = f"{TRACCAR_API_URL}/users"
-    payload = {
-        "name": name,
-        "email": email,
-        "password": password
-    }
-    # By default, Traccar requires admin authentication to create users
-    # Replace with your admin credentials or use environment variables for security
-    admin_user = os.getenv("TRACCAR_ADMIN_USER", "admin")
-    admin_pass = os.getenv("TRACCAR_ADMIN_PASS", "admin")
-    response = requests.post(
-        url,
-        json=payload,
-        auth=HTTPBasicAuth("herrie732@gmail.com", "Pass@1233")
-    )
-    logger.info(f"Traccar user creation response: {response.status_code} {response.text}")
-    if response.status_code in (200, 201):
-        print(f"User '{email}' created successfully.")
-        return response.json()
-    else:
-        print(f"Failed to create user: {response.text}")        
-        return None
-
-@app.post("/create_traccar_user")
-def create_traccar_user(req: CreateUserRequest):
-    result = add_traccar_user(req.name, req.email, req.password)
-    if result:
-        return {"status": "created", "user": result}
-    else:
-        return {"status": "error", "message": "Failed to create user"}
-    
-# Code for adding geofences
-
-class PolylineGeofenceRequest(BaseModel):
-    name: str
-    coordinates: list  # List of [lon, lat] pairs
-    description: str = ""
-
-class CircleGeofenceRequest(BaseModel):
-    name: str
-    center_lat: float
-    center_lon: float
-    radius: float  # in meters
-    description: str = ""
-
-def add_polyline_geofence(name, coordinates, description=""):
-    url = f"{TRACCAR_API_URL}/geofences"
-    payload = {
-        "name": name,
-        "description": description,
-        "area": "POLYGON((" + ", ".join([f"{lon} {lat}" for lon, lat in coordinates] + [f"{coordinates[0][0]} {coordinates[0][1]}"]) + "))"
-    }
-    #admin_user = os.getenv("TRACCAR_ADMIN_USER", "admin")
-    #admin_pass = os.getenv("TRACCAR_ADMIN_PASS", "admin")
-    response = requests.post(
-        url,
-        json=payload,
-        auth=HTTPBasicAuth("herrie732@gmail.com","Pass@1233")
-    )
-    logger.info(f"Traccar polyline geofence response: {response.status_code} {response.text}")
-    if response.status_code in (200, 201):
-        return response.json()
-    else:
-        return None
-
-async def add_circle_geofence(name, center_lat, center_lon, radius, description=""):
-    url = f"{TRACCAR_API_URL}/geofences"
-    payload = {
-        "name": name,
-        "description": description,
-        "area": f"CIRCLE({center_lon} {center_lat},{radius})"
-    }
-    #admin_user = os.getenv("TRACCAR_ADMIN_USER", "admin")
-    #admin_pass = os.getenv("TRACCAR_ADMIN_PASS", "admin")
-    response = requests.post(
-        url,
-        json=payload,
-        auth=HTTPBasicAuth("herrie732@gmail.com","Pass@1233")
-    )
-    logger.info(f"Traccar circle geofence response: {response.status_code} {response.text}")
-    if response.status_code in (200, 201):
-        return response.json()
-    else:
-        return None
-
-@app.post("/geofence/polyline")
-def create_polyline_geofence(req: PolylineGeofenceRequest):
-    result = add_polyline_geofence(req.name, req.coordinates, req.description)
-    if result:
-        return {"status": "created", "geofence": result}
-    else:
-        return {"status": "error", "message": "Failed to create polyline geofence"}
-
-@app.post("/geofence/circle")
-def create_circle_geofence(req: CircleGeofenceRequest):
-    result = add_circle_geofence(req.name, req.center_lat, req.center_lon, req.radius, req.description)
-    if result:
-        return {"status": "created", "geofence": result}
-    else:
-        return {"status": "error", "message": "Failed to create circle geofence"}
-
-#############################################################################
-
-@app.get("/devices")
-def get_devices():
-    response = requests.get(
-        f"{TRACCAR_API_URL}/geofences/devices",
-        auth=HTTPBasicAuth("herrie732@gmail.com","Pass@1233")
-    )
-    return response
-    
-@app.post("/test/fetch_live_locations")
-async def test_fetch_live_locations(request: Request):
-    """
-    Test endpoint to fetch live locations from Traccar and return the result directly.
-    """
-    request_data = await request.json()
-    # Patch fetch_and_respond_live_locations to return vehicles directly for testing
-    correlation_id = request_data.get("correlation_id", "test-correlation-id")
-    try:
-        # Call the function and capture the vehicles
-        vehicles = []
-        try:
-            response = requests.get(
-                f"{TRACCAR_API_URL}/devices",
-                auth=(TRACCAR_ADMIN_USER, TRACCAR_ADMIN_PASS)
-            )
-            response.raise_for_status()
-            devices = response.json()
-            vehicles = [
-                {
-                    "id": d["id"],
-                    "name": d.get("name"),
-                    "status": d.get("status", "unknown"),
-                    "latitude": d.get("lastPosition", {}).get("latitude"),
-                    "longitude": d.get("lastPosition", {}).get("longitude"),
-                    "altitude": d.get("lastPosition", {}).get("altitude"),
-                    "speed": d.get("lastPosition", {}).get("speed"),
-                    "geofenceIds" : d.get("geofenceIds"),
-                    "distance": d.get("lastPosition", {}).get("distance"),
-                    "totalDistance": d.get("lastPosition", {}).get("totalDistance"),
-                    "motion": d.get("lastPosition", {}).get("motion"),
-                }
-                for d in devices
+            },
+            "features": [
+                "Real-time location tracking",
+                "Location history management",
+                "Geofence creation and monitoring",
+                "Places and POI management",
+                "Route tracking and analysis",
+                "Event-driven communication",
+                "Enhanced error handling"
             ]
-        except Exception as e:
-            vehicles = []
-            return {"vehicles": vehicles, "error": str(e), "correlation_id": correlation_id}
-        return {"vehicles": vehicles, "correlation_id": correlation_id}
-    except Exception as e:
-        return {"vehicles": [], "error": str(e), "correlation_id": correlation_id}
+        },
+        message="GPS Service API documentation"
+    ).model_dump()
+
+
+# Exception handlers using ResponseBuilder for consistency
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.warning(f"Validation error for {request.url}: {exc}")
+    return JSONResponse(
+        status_code=422,
+        content=ResponseBuilder.error(
+            error="ValidationError",
+            message="Validation error",
+            details=exc.errors()
+        ).model_dump()
+    )
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    logger.warning(f"HTTP error {exc.status_code} for {request.url}: {exc.detail}")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=ResponseBuilder.error(
+            error=f"HTTP_{exc.status_code}",
+            message=exc.detail
+        ).model_dump()
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled error for {request.url}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content=ResponseBuilder.error(
+            error="INTERNAL_ERROR",
+            message="Internal server error"
+        ).model_dump()
+    )
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info("Starting GPS Service in standalone mode")
-    port = int(os.getenv("GPS_SERVICE_PORT", "8000"))
+    
+    # Get configuration from environment
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("GPS_PORT", "8000"))  # Use GPS_PORT from environment
+    log_level = os.getenv("LOG_LEVEL", "info").lower()
+    
+    logger.info(f"Starting GPS Service on {host}:{port}")
+    
     uvicorn.run(
-        app,
-        host="0.0.0.0",
+        "main:app",
+        host=host,
         port=port,
-        log_config=None  # Use our custom logging configuration
+        log_level=log_level,
+        reload=os.getenv("ENVIRONMENT", "production") == "development"
     )
-
