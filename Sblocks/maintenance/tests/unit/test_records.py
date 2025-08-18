@@ -1,6 +1,7 @@
 
 import pytest
 from starlette.requests import Request
+from unittest.mock import AsyncMock
 
 from api.routes import maintenance_records as routes
 import api.dependencies as deps
@@ -19,13 +20,11 @@ def _make_request(headers=None) -> Request:
     return Request(scope)
 
 
-class _RBObj:
-    """Dummy ResponseBuilder return object that supports .model_dump()."""
-    def __init__(self, **payload):
-        self.payload = payload
-
+class _RBObj(dict):
+    """Dict-like ResponseBuilder return object that also supports .model_dump()."""
     def model_dump(self):
-        return self.payload
+        return dict(self)
+
 
 
 @pytest.fixture
@@ -97,14 +96,13 @@ async def test_create_maintenance_record_exception_returns_500(mocker, rb_error)
 
 
 # ---------- GET /records ----------
-
 @pytest.mark.asyncio
 async def test_get_maintenance_records_success_returns_model_dump(mocker, rb_success):
     mocker.patch.object(
         routes.maintenance_records_service,
         "search_maintenance_records",
-        return_value=[{"_id": "R1"}],
-        autospec=True,
+        new=AsyncMock(return_value=[{"_id": "R1"}]), 
+        create=True,                                  
     )
 
     req = _make_request({"X-Request-ID": "list-1"})
@@ -151,7 +149,10 @@ async def test_get_maintenance_records_invalid_vehicle_id_returns_validation_err
 @pytest.mark.asyncio
 async def test_get_maintenance_record_success(mocker, rb_success):
     mocker.patch.object(
-        routes.maintenance_records_service, "get_maintenance_record_by_id", return_value={"_id": "R1"}
+        routes.maintenance_records_service,
+        "get_maintenance_record_by_id",
+        new=AsyncMock(return_value={"_id": "R1"}),  # <-- awaited -> AsyncMock
+        create=True,
     )
     req = _make_request({"X-Request-ID": "rid-2"})
     res = await routes.get_maintenance_record(
@@ -162,7 +163,12 @@ async def test_get_maintenance_record_success(mocker, rb_success):
 
 @pytest.mark.asyncio
 async def test_get_maintenance_record_not_found_returns_error(mocker, rb_error):
-    mocker.patch.object(routes.maintenance_records_service, "get_maintenance_record_by_id", return_value=None)
+    mocker.patch.object(
+        routes.maintenance_records_service,
+        "get_maintenance_record_by_id",
+        new=AsyncMock(return_value=None),           # <-- awaited -> AsyncMock
+        create=True,
+    )
     req = _make_request()
     res = await routes.get_maintenance_record(
         request=req, record_id="b" * 24, current_user={"user_id": "u", "permissions": ["maintenance:read"]}
@@ -242,7 +248,12 @@ async def test_update_maintenance_record_not_found_returns_error(mocker, rb_erro
 
 @pytest.mark.asyncio
 async def test_delete_maintenance_record_success(mocker, rb_success):
-    mocker.patch.object(routes.maintenance_records_service, "delete_maintenance_record", return_value=True)
+    mocker.patch.object(
+        routes.maintenance_records_service,
+        "delete_maintenance_record",
+        new=AsyncMock(return_value=True),           # <-- awaited -> AsyncMock
+        create=True,
+    )
     req = _make_request()
     res = await routes.delete_maintenance_record(
         request=req, record_id="a" * 24, current_user={"user_id": "u", "permissions": ["maintenance:delete"]}
@@ -253,7 +264,12 @@ async def test_delete_maintenance_record_success(mocker, rb_success):
 
 @pytest.mark.asyncio
 async def test_delete_maintenance_record_not_found(mocker, rb_error):
-    mocker.patch.object(routes.maintenance_records_service, "delete_maintenance_record", return_value=False)
+    mocker.patch.object(
+        routes.maintenance_records_service,
+        "delete_maintenance_record",
+        new=AsyncMock(return_value=False),          # <-- awaited -> AsyncMock
+        create=True,
+    )
     req = _make_request()
     res = await routes.delete_maintenance_record(
         request=req, record_id="b" * 24, current_user={"user_id": "u", "permissions": ["maintenance:delete"]}
@@ -265,7 +281,12 @@ async def test_delete_maintenance_record_not_found(mocker, rb_error):
 
 @pytest.mark.asyncio
 async def test_get_vehicle_maintenance_records_success(mocker, rb_success):
-    mocker.patch.object(routes.maintenance_records_service, "search_maintenance_records", return_value=[{"_id": "R1"}])
+    mocker.patch.object(
+        routes.maintenance_records_service,
+        "search_maintenance_records",
+        new=AsyncMock(return_value=[{"_id": "R1"}]),  # <-- awaited -> AsyncMock
+        create=True,
+    )
     req = _make_request()
     res = await routes.get_vehicle_maintenance_records(
         request=req,
@@ -296,7 +317,10 @@ async def test_get_vehicle_maintenance_records_invalid_vehicle_id(mocker, rb_err
 @pytest.mark.asyncio
 async def test_search_maintenance_records_success(mocker, rb_success):
     mocker.patch.object(
-        routes.maintenance_records_service, "search_maintenance_records_text", return_value=[{"_id": "R1"}]
+        routes.maintenance_records_service,
+        "search_maintenance_records_text",
+        new=AsyncMock(return_value=[{"_id": "R1"}]),  # <-- awaited -> AsyncMock
+        create=True,
     )
     req = _make_request()
     res = await routes.search_maintenance_records(
@@ -310,7 +334,10 @@ async def test_search_maintenance_records_success(mocker, rb_success):
 @pytest.mark.asyncio
 async def test_search_maintenance_records_error(mocker, rb_error):
     mocker.patch.object(
-        routes.maintenance_records_service, "search_maintenance_records_text", side_effect=Exception("boom")
+        routes.maintenance_records_service,
+        "search_maintenance_records_text",
+        new=AsyncMock(side_effect=Exception("boom")),  # <-- awaited -> AsyncMock
+        create=True,
     )
     req = _make_request()
     res = await routes.search_maintenance_records(

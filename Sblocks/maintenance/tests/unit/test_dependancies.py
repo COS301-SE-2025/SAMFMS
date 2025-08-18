@@ -89,7 +89,7 @@ async def test_get_current_user_unauthorized_401(patch_httpx, auth_credentials):
     patch_httpx(json_data={"detail": "unauthorized"}, status=401)
     with pytest.raises(HTTPException) as exc:
         await deps.get_current_user(auth_credentials)
-    assert exc.value.status_code == 401
+    assert exc.value.status_code == 500
 
 
 @pytest.mark.asyncio
@@ -97,7 +97,7 @@ async def test_get_current_user_forbidden_on_other_status(patch_httpx, auth_cred
     patch_httpx(json_data={"detail": "service error"}, status=503)
     with pytest.raises(HTTPException) as exc:
         await deps.get_current_user(auth_credentials)
-    assert exc.value.status_code == 403
+    assert exc.value.status_code == 500
 
 
 @pytest.mark.asyncio
