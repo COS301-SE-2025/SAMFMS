@@ -1007,30 +1007,77 @@ class ServiceRequestConsumer:
                 if "dashboard" in endpoint:
                     # Get dashboard analytics
                     try:
-                        # Get various maintenance statistics
-                        overdue_records = await maintenance_records_service.get_overdue_maintenance()
-                        upcoming_records = await maintenance_records_service.get_upcoming_maintenance(30)
+                        # Import required repositories
+                        from repositories.repositories import MaintenanceRecordsRepository, MaintenanceSchedulesRepository
+                        from datetime import datetime, timezone, timedelta
+                        
+                        # Get total records from maintenance_records collection
+                        maintenance_repo = MaintenanceRecordsRepository()
+                        total_records = await maintenance_repo.count({})
+                        
+                        # Get overdue and upcoming counts from maintenance_schedules collection
+                        today = datetime.now(timezone.utc)
+                        schedules_repo = MaintenanceSchedulesRepository()
+                        
+                        # Count overdue schedules (scheduled_date < today)
+                        overdue_count = await schedules_repo.count({
+                            "scheduled_date": {"$lt": today}
+                        })
+                        
+                        # Count upcoming schedules (scheduled_date >= today)
+                        upcoming_count = await schedules_repo.count({
+                            "scheduled_date": {"$gte": today}
+                        })
+                        
+                        # Get cost summary from maintenance records
                         cost_summary = await maintenance_records_service.get_maintenance_cost_summary(
                             vehicle_id=vehicle_id,
                             start_date=start_date,
                             end_date=end_date
                         )
                         
-                        # Calculate performance metrics
-                        total_records = len(overdue_records) + len(upcoming_records)
-                        overdue_count = len(overdue_records)
-                        upcoming_count = len(upcoming_records)
+                        # Get recent maintenance records (less than a month old)
+                        one_month_ago = today - timedelta(days=30)
+                        recent_records = await maintenance_repo.find(
+                            query={
+                                "created_at": {"$gte": one_month_ago}
+                            },
+                            limit=10,
+                            sort=[("created_at", -1)]  # Most recent first
+                        )
+                        
+                        # Transform recent records for frontend consumption
+                        formatted_recent_records = []
+                        for record in recent_records:
+                            formatted_record = {
+                                "id": str(record.get("_id", record.get("id", ""))),
+                                "vehicle_id": record.get("vehicle_id", ""),
+                                "maintenance_type": record.get("maintenance_type", ""),
+                                "title": record.get("title", ""),
+                                "description": record.get("description", ""),
+                                "status": record.get("status", ""),
+                                "scheduled_date": record.get("scheduled_date").isoformat() if record.get("scheduled_date") else None,
+                                "completed_date": record.get("completed_date").isoformat() if record.get("completed_date") else None,
+                                "created_at": record.get("created_at").isoformat() if record.get("created_at") else None,
+                                "actual_cost": record.get("actual_cost", 0),
+                                "estimated_cost": record.get("estimated_cost", 0),
+                                "labor_cost": record.get("labor_cost", 0),
+                                "parts_cost": record.get("parts_cost", 0),
+                                "vendor": record.get("vendor", ""),
+                                "notes": record.get("notes", "")
+                            }
+                            formatted_recent_records.append(formatted_record)
                         
                         dashboard_data = {
                             "maintenance_summary": {
                                 "total_records": total_records,
                                 "overdue_count": overdue_count,
                                 "upcoming_count": upcoming_count,
-                                "completion_rate": round((1 - (overdue_count / max(total_records, 1))) * 100, 2)
+                                "completion_rate": round((1 - (overdue_count / max(overdue_count + upcoming_count, 1))) * 100, 2)
                             },
                             "cost_analysis": cost_summary,
                             "performance_metrics": {
-                                "on_time_completion": round((1 - (overdue_count / max(total_records, 1))) * 100, 2),
+                                "on_time_completion": round((1 - (overdue_count / max(overdue_count + upcoming_count, 1))) * 100, 2),
                                 "average_cost_per_maintenance": cost_summary.get("average_cost", 0),
                                 "total_cost_period": cost_summary.get("total_cost", 0)
                             },
@@ -1038,7 +1085,8 @@ class ServiceRequestConsumer:
                                 "overdue_trend": "increasing" if overdue_count > 5 else "stable",
                                 "cost_trend": "stable",
                                 "efficiency_trend": "improving" if overdue_count < 3 else "declining"
-                            }
+                            },
+                            "recent_maintenance_records": formatted_recent_records
                         }
                         
                         return ResponseBuilder.success(
@@ -1055,7 +1103,8 @@ class ServiceRequestConsumer:
                                     "maintenance_summary": {"total_records": 0, "overdue_count": 0, "upcoming_count": 0},
                                     "cost_analysis": {"total_cost": 0, "average_cost": 0},
                                     "performance_metrics": {"on_time_completion": 100, "efficiency_score": 85},
-                                    "trends": {"overall_trend": "stable"}
+                                    "trends": {"overall_trend": "stable"},
+                                    "recent_maintenance_records": []
                                 },
                                 "message": "Analytics data temporarily unavailable"
                             },
@@ -1063,16 +1112,102 @@ class ServiceRequestConsumer:
                         ).model_dump()
                         
                 elif "costs" in endpoint:
-                    # Get cost-specific analytics
+                    # Get cost-specific analytics with period support
                     try:
-                        cost_data = await maintenance_records_service.calculate_maintenance_costs(
+                        # Import analytics service for proper cost analytics
+                        from services.analytics_service import maintenance_analytics_service
+                        
+                        # Extract parameters from request data
+                        period = data.get("period", "monthly")
+                        group_by = data.get("group_by")
+                        
+                        # Map period parameter to group_by for analytics service
+                        if period and not group_by:
+                            if period in ["monthly", "quarterly"]:
+                                group_by = "month"
+                            elif period == "yearly":
+                                group_by = "month"  # Group by month, frontend can aggregate yearly
+                            elif period == "weekly":
+                                group_by = "week"
+                            elif period == "daily":
+                                group_by = "day"
+                            else:
+                                group_by = "month"  # default
+                        elif not group_by:
+                            group_by = "month"  # default
+                        
+                        # Convert date strings to proper format if provided
+                        start_date_str = None
+                        end_date_str = None
+                        if start_date:
+                            start_date_str = start_date if isinstance(start_date, str) else start_date.isoformat()
+                        if end_date:
+                            end_date_str = end_date if isinstance(end_date, str) else end_date.isoformat()
+                        
+                        # Get cost analytics using the proper analytics service
+                        cost_analytics_data = await maintenance_analytics_service.get_cost_analytics(
                             vehicle_id=vehicle_id,
-                            start_date=datetime.fromisoformat(start_date.replace("Z", "+00:00")) if start_date else None,
-                            end_date=datetime.fromisoformat(end_date.replace("Z", "+00:00")) if end_date else None
+                            start_date=start_date_str,
+                            end_date=end_date_str,
+                            group_by=group_by
                         )
                         
+                        # Get total record count from maintenance_records table
+                        from repositories.repositories import MaintenanceRecordsRepository
+                        maintenance_repo = MaintenanceRecordsRepository()
+                        total_records = await maintenance_repo.count({})
+                        
+                        # Get detailed cost by month and type breakdown
+                        cost_by_month_and_type = await maintenance_analytics_service.get_cost_by_month_and_type(
+                            start_date=start_date_str,
+                            end_date=end_date_str,
+                            vehicle_id=vehicle_id
+                        )
+                        
+                        # Extract time series data and transform to cost_by_month
+                        cost_by_month = {}
+                        if cost_analytics_data.get("time_series"):
+                            for period_data in cost_analytics_data["time_series"]:
+                                period_id = period_data.get("_id", {})
+                                if isinstance(period_id, dict) and "year" in period_id and "month" in period_id:
+                                    # Create month key in YYYY-MM format
+                                    month_key = f"{period_id['year']}-{str(period_id['month']).zfill(2)}"
+                                    cost_by_month[month_key] = {
+                                        "total_cost": period_data.get("total_cost", 0),
+                                        "labor_cost": period_data.get("labor_cost", 0),
+                                        "parts_cost": period_data.get("parts_cost", 0),
+                                        "maintenance_count": period_data.get("maintenance_count", 0),
+                                        "average_cost": period_data.get("average_cost", 0)
+                                    }
+                        
+                        # If cost_by_month is empty from time series, use the detailed breakdown
+                        if not cost_by_month and cost_by_month_and_type:
+                            cost_by_month = cost_by_month_and_type
+                        
+                        # Get maintenance by type for cost_by_type
+                        cost_by_type = {}
+                        maintenance_by_type = await maintenance_analytics_service.get_maintenance_records_by_type(
+                            start_date=start_date_str,
+                            end_date=end_date_str
+                        )
+                        if maintenance_by_type:
+                            for type_data in maintenance_by_type:
+                                maintenance_type = type_data.get("maintenance_type", "unknown")
+                                cost_by_type[maintenance_type] = type_data.get("total_cost", 0)
+                        
+                        # Build response matching expected frontend format
+                        response_data = {
+                            "total_cost": cost_analytics_data.get("summary", {}).get("total_cost", 0),
+                            "labor_cost": cost_analytics_data.get("summary", {}).get("total_labor_cost", 0),
+                            "parts_cost": cost_analytics_data.get("summary", {}).get("total_parts_cost", 0),
+                            "record_count": total_records,  # Total records from maintenance_records table
+                            "average_cost": cost_analytics_data.get("summary", {}).get("average_cost", 0),
+                            "cost_by_type": cost_by_type,
+                            "cost_by_month": cost_by_month  # Properly populated cost by month
+                        }
+                        
                         return ResponseBuilder.success(
-                            data={"cost_analytics": cost_data},
+                            data={"cost_analytics": response_data},
                             message="Cost analytics retrieved successfully"
                         ).model_dump()
                         
@@ -1082,24 +1217,51 @@ class ServiceRequestConsumer:
                             data={
                                 "cost_analytics": {
                                     "total_cost": 0,
+                                    "labor_cost": 0,
+                                    "parts_cost": 0,
+                                    "record_count": 0,
                                     "average_cost": 0,
                                     "cost_by_type": {},
-                                    "cost_trend": "stable"
+                                    "cost_by_month": {}
                                 }
                             },
-                            message="Cost analytics data retrieved"
+                            message="Cost analytics data retrieved with fallback data"
                         ).model_dump()
                         
                 else:
                     # General analytics
                     try:
+                        # Import required repositories
+                        from repositories.repositories import MaintenanceSchedulesRepository
+                        
+                        # Get cost summary from maintenance records
                         cost_summary = await maintenance_records_service.get_maintenance_cost_summary(
                             vehicle_id=vehicle_id,
                             start_date=start_date,
                             end_date=end_date
                         )
-                        overdue_count = len(await maintenance_records_service.get_overdue_maintenance())
-                        upcoming_count = len(await maintenance_records_service.get_upcoming_maintenance(30))
+                        
+                        # Get overdue and upcoming counts from maintenance_schedules collection
+                        from datetime import datetime, timezone
+                        today = datetime.now(timezone.utc)
+                        
+                        schedules_repo = MaintenanceSchedulesRepository()
+                        
+                        # Get overdue schedules (scheduled_date < today and not completed)
+                        overdue_schedules = await schedules_repo.find({
+                            "scheduled_date": {"$lt": today},
+                            "status": {"$ne": "completed"},
+                            "is_active": True
+                        })
+                        overdue_count = len(overdue_schedules)
+                        
+                        # Get upcoming schedules (scheduled_date >= today and not completed)
+                        upcoming_schedules = await schedules_repo.find({
+                            "scheduled_date": {"$gte": today},
+                            "status": {"$ne": "completed"},
+                            "is_active": True
+                        })
+                        upcoming_count = len(upcoming_schedules)
                         
                         return ResponseBuilder.success(
                             data={

@@ -1,6 +1,70 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { maintenanceAPI } from '../../backend/api/maintenance';
+import { getVehicle } from '../../backend/api/vehicles';
+
+// Component to display vehicle details with direct API calls
+const VehicleDetailDisplay = ({ vehicleId, fetchVehicleDetails }) => {
+  const [vehicleDetails, setVehicleDetails] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const loadVehicleDetails = async () => {
+      if (!vehicleId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(false);
+        const details = await fetchVehicleDetails(vehicleId);
+        setVehicleDetails(details);
+      } catch (err) {
+        console.error(`Failed to load vehicle details for ${vehicleId}:`, err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadVehicleDetails();
+  }, [vehicleId, fetchVehicleDetails]);
+
+  if (loading) {
+    return (
+      <div className="text-sm">
+        <div className="flex items-center gap-2">
+          <div className="animate-spin w-3 h-3 border border-border rounded-full border-t-transparent"></div>
+          <span className="text-muted-foreground">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !vehicleDetails) {
+    return (
+      <div className="text-sm">
+        <div className="text-muted-foreground">Vehicle {vehicleId.slice(-6)}</div>
+        <div className="text-xs text-muted-foreground">Details unavailable</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-sm">
+      <div className="font-medium">
+        {vehicleDetails.year && `${vehicleDetails.year} `}
+        {vehicleDetails.make && `${vehicleDetails.make} `}
+        {vehicleDetails.model || 'Vehicle'}
+      </div>
+      {vehicleDetails.license_plate && (
+        <div className="text-xs text-muted-foreground">{vehicleDetails.license_plate}</div>
+      )}
+    </div>
+  );
+};
 
 const MaintenanceRecords = ({ vehicles }) => {
   const [records, setRecords] = useState([]);
@@ -61,29 +125,79 @@ const MaintenanceRecords = ({ vehicles }) => {
     loadRecords();
   }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Debug vehicles prop
+  useEffect(() => {
+    console.log('MaintenanceRecords: Vehicles prop updated:', {
+      count: vehicles?.length,
+      sampleVehicle: vehicles?.[0],
+      vehicleIds: vehicles?.slice(0, 3).map(v => ({ id: v.id, _id: v._id })),
+    });
+  }, [vehicles]);
+
   const loadRecords = async () => {
     try {
       setLoading(true);
+      setError(null);
+
+      // Calculate skip for pagination
+      const skip = (filters.page - 1) * filters.size;
+
+      // Build query parameters matching the API
+      const params = {
+        skip,
+        limit: filters.size,
+      };
+
+      // Only add vehicle_id if it exists and is valid
+      if (filters.vehicleId && filters.vehicleId.trim()) {
+        params.vehicle_id = filters.vehicleId.trim();
+      }
+
+      if (filters.status && filters.status.trim()) {
+        params.status = filters.status.trim();
+      }
+
+      console.log('API Request Parameters:', params);
+      console.log('Final API URL will be constructed with:', JSON.stringify(params, null, 2));
+
+      // Call the API with individual parameters instead of an object
+      const vehicleIdParam =
+        filters.vehicleId && filters.vehicleId.trim() ? filters.vehicleId.trim() : null;
+      const statusParam = filters.status && filters.status.trim() ? filters.status.trim() : null;
+
+      console.log('Calling maintenanceAPI.getMaintenanceRecords with parameters:');
+      console.log('- vehicleIdParam:', vehicleIdParam, '(type:', typeof vehicleIdParam, ')');
+      console.log('- statusParam:', statusParam, '(type:', typeof statusParam, ')');
+      console.log('- page:', filters.page);
+      console.log('- size:', filters.size);
+
       const response = await maintenanceAPI.getMaintenanceRecords(
-        filters.vehicleId || null,
-        filters.status || null,
+        vehicleIdParam,
+        statusParam,
         filters.page,
         filters.size
       );
 
-      // Handle nested data structure from backend
-      const data = response.data?.data || response.data || {};
-      const records = data.maintenance_records || data.records || data || [];
+      console.log('Maintenance Records API Response:', response);
+
+      // Handle the nested response structure from your API
+      const outerData = response.data?.data || response.data || {};
+      const innerData = outerData.data || outerData;
+      const records = innerData.maintenance_records || innerData.records || innerData || [];
+
+      console.log('Extracted records:', records);
+      console.log('Total from API:', innerData.total);
 
       setRecords(records);
       setPagination({
-        total: data.total || 0,
-        pages: data.pages || Math.ceil((data.total || 0) / filters.size),
+        total: innerData.total || 0,
+        pages: Math.ceil((innerData.total || 0) / filters.size),
         current_page: filters.page || 1,
+        has_more: innerData.has_more || false,
       });
     } catch (err) {
       console.error('Error loading maintenance records:', err);
-      setError('Failed to load maintenance records');
+      setError('Failed to load maintenance records. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -167,9 +281,111 @@ const MaintenanceRecords = ({ vehicles }) => {
     });
   };
 
+  // Fetch vehicle details directly from the management API
+  const fetchVehicleDetails = async vehicleId => {
+    const vehicleIdStr = vehicleId.toString();
+
+    if (!vehicleId) {
+      return null;
+    }
+
+    try {
+      console.log(`Fetching vehicle details for ID: ${vehicleIdStr}`);
+      const response = await getVehicle(vehicleIdStr);
+
+      console.log(`Vehicle API Response for ${vehicleIdStr}:`, response);
+
+      if (response.data && response.data.data) {
+        // Handle nested response structure: response.data.data contains the actual vehicle details
+        const vehicleDetails = response.data.data;
+        console.log(`Extracted vehicle details for ${vehicleIdStr}:`, vehicleDetails);
+        return vehicleDetails;
+      } else {
+        console.warn(`No vehicle details found for ${vehicleIdStr}`);
+        return null;
+      }
+    } catch (error) {
+      console.error(`Failed to fetch vehicle details for ${vehicleIdStr}:`, error);
+      return null;
+    }
+  };
+
   const getVehicleName = vehicleId => {
-    const vehicle = vehicles.find(v => v.id === vehicleId);
-    return vehicle ? `${vehicle.make} ${vehicle.model} (${vehicle.license_plate})` : vehicleId;
+    if (!vehicleId) return 'Unknown Vehicle';
+
+    // Handle both string and ObjectId formats
+    const vehicleIdStr = vehicleId.toString();
+
+    // Fallback to the provided vehicles prop for immediate display
+    let vehicle = vehicles?.find(v => v.id?.toString() === vehicleIdStr);
+    if (!vehicle) {
+      vehicle = vehicles?.find(v => v._id?.toString() === vehicleIdStr);
+    }
+
+    if (vehicle) {
+      return formatVehicleDisplay(vehicle);
+    }
+
+    // If no vehicle found, return truncated ID for readability
+    return `Vehicle ${
+      vehicleIdStr.length > 8 ? vehicleIdStr.substring(0, 8) + '...' : vehicleIdStr
+    }`;
+  };
+
+  const formatVehicleDisplay = vehicle => {
+    if (!vehicle) return 'Unknown Vehicle';
+
+    const parts = [];
+
+    // Add year if available
+    if (vehicle.year) parts.push(vehicle.year);
+
+    // Add make and model
+    if (vehicle.make) parts.push(vehicle.make);
+    if (vehicle.model) parts.push(vehicle.model);
+
+    // If no make/model, show a generic vehicle name
+    if (parts.length === 0 || (parts.length === 1 && vehicle.year)) {
+      parts.push('Vehicle');
+    }
+
+    const vehicleInfo = parts.join(' ');
+    const licensePlate = vehicle.license_plate || vehicle.vin;
+
+    return licensePlate ? `${vehicleInfo} (${licensePlate})` : vehicleInfo;
+  };
+
+  const getVehicleDisplay = vehicleId => {
+    if (!vehicleId) return 'Unknown Vehicle';
+
+    const vehicleIdStr = vehicleId.toString();
+
+    // Check if we have this vehicle in the fallback data first
+    const fallbackVehicle = vehicles?.find(v => {
+      const vId = v.id?.toString() || v._id?.toString();
+      return vId === vehicleIdStr;
+    });
+
+    if (fallbackVehicle) {
+      console.log(`Using fallback vehicle for ${vehicleIdStr}:`, fallbackVehicle);
+      return (
+        <div className="text-sm">
+          <div className="font-medium">
+            {fallbackVehicle.year && `${fallbackVehicle.year} `}
+            {fallbackVehicle.make && `${fallbackVehicle.make} `}
+            {fallbackVehicle.model || 'Vehicle'}
+          </div>
+          {fallbackVehicle.license_plate && (
+            <div className="text-xs text-muted-foreground">{fallbackVehicle.license_plate}</div>
+          )}
+        </div>
+      );
+    }
+
+    // Return a component that will fetch and display vehicle details
+    return (
+      <VehicleDetailDisplay vehicleId={vehicleIdStr} fetchVehicleDetails={fetchVehicleDetails} />
+    );
   };
 
   const getStatusBadge = status => {
@@ -235,15 +451,60 @@ const MaintenanceRecords = ({ vehicles }) => {
             <label className="block text-sm font-medium mb-1">Filter by Vehicle</label>
             <select
               value={filters.vehicleId}
-              onChange={e => setFilters(prev => ({ ...prev, vehicleId: e.target.value, page: 1 }))}
+              onChange={e => {
+                const selectedValue = e.target.value;
+                console.log(
+                  'Vehicle filter changed to:',
+                  selectedValue,
+                  '(type:',
+                  typeof selectedValue,
+                  ')'
+                );
+                setFilters(prev => ({ ...prev, vehicleId: selectedValue, page: 1 }));
+              }}
               className="w-full border border-border rounded-md px-3 py-2"
             >
               <option value="">All Vehicles</option>
-              {vehicles.map((vehicle, index) => (
-                <option key={vehicle.id || `filter-vehicle-${index}`} value={vehicle.id}>
-                  {getVehicleName(vehicle.id)}
-                </option>
-              ))}
+              {vehicles && vehicles.length > 0 ? (
+                vehicles.map((vehicle, index) => {
+                  // More robust vehicle ID extraction
+                  let vehicleIdStr = '';
+
+                  if (vehicle.id) {
+                    if (typeof vehicle.id === 'string') {
+                      vehicleIdStr = vehicle.id;
+                    } else if (vehicle.id.$oid) {
+                      vehicleIdStr = vehicle.id.$oid;
+                    } else {
+                      vehicleIdStr = String(vehicle.id);
+                    }
+                  } else if (vehicle._id) {
+                    if (typeof vehicle._id === 'string') {
+                      vehicleIdStr = vehicle._id;
+                    } else if (vehicle._id.$oid) {
+                      vehicleIdStr = vehicle._id.$oid;
+                    } else {
+                      vehicleIdStr = String(vehicle._id);
+                    }
+                  } else {
+                    vehicleIdStr = `vehicle-${index}`;
+                  }
+
+                  console.log(`Vehicle ${index}:`, {
+                    original: vehicle,
+                    extractedId: vehicleIdStr,
+                    idType: typeof vehicleIdStr,
+                  });
+
+                  return (
+                    <option key={vehicleIdStr} value={vehicleIdStr}>
+                      {getVehicleName(vehicle.id || vehicle._id)}
+                    </option>
+                  );
+                })
+              ) : (
+                <option disabled>No vehicles available</option>
+              )}
             </select>
           </div>
           <div>
@@ -312,23 +573,57 @@ const MaintenanceRecords = ({ vehicles }) => {
                   {records.length > 0 ? (
                     records.map(record => (
                       <tr key={record.id} className="border-b border-border hover:bg-accent/10">
-                        <td className="py-3 px-4">{getVehicleName(record.vehicle_id)}</td>
+                        <td className="py-3 px-4">
+                          <div className="min-w-0">{getVehicleDisplay(record.vehicle_id)}</div>
+                        </td>
                         <td className="py-3 px-4">
                           <div>
                             <p className="font-medium">
-                              {record.maintenance_type?.replace('_', ' ')}
+                              {record.title ||
+                                record.maintenance_type?.replace('_', ' ') ||
+                                'Unknown Type'}
                             </p>
                             {record.description && (
-                              <p className="text-sm text-muted-foreground">{record.description}</p>
+                              <p
+                                className="text-sm text-muted-foreground truncate max-w-xs"
+                                title={record.description}
+                              >
+                                {record.description}
+                              </p>
                             )}
                           </div>
                         </td>
                         <td className="py-3 px-4">
-                          {record.date_performed
-                            ? new Date(record.date_performed).toLocaleDateString()
-                            : 'Not set'}
+                          <div>
+                            <p className="text-sm">
+                              <span className="font-medium">Scheduled:</span>{' '}
+                              {record.scheduled_date
+                                ? new Date(record.scheduled_date).toLocaleDateString()
+                                : 'Not set'}
+                            </p>
+                            {record.completed_date && (
+                              <p className="text-sm text-muted-foreground">
+                                <span className="font-medium">Completed:</span>{' '}
+                                {new Date(record.completed_date).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
                         </td>
-                        <td className="py-3 px-4">R{record.cost?.toLocaleString() || 0}</td>
+                        <td className="py-3 px-4">
+                          <div>
+                            {record.actual_cost && (
+                              <p className="font-medium">R{record.actual_cost?.toLocaleString()}</p>
+                            )}
+                            {record.estimated_cost && (
+                              <p className="text-sm text-muted-foreground">
+                                Est: R{record.estimated_cost?.toLocaleString()}
+                              </p>
+                            )}
+                            {!record.actual_cost && !record.estimated_cost && (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </div>
+                        </td>
                         <td className="py-3 px-4">{getStatusBadge(record.status)}</td>
                         <td className="py-3 px-4">{getPriorityBadge(record.priority)}</td>
                         <td className="py-3 px-4">
@@ -360,10 +655,10 @@ const MaintenanceRecords = ({ vehicles }) => {
               </table>
             </div>
 
-            {/* Pagination - matching vehicles page style */}
-            {pagination.pages > 1 && (
-              <div className="mt-6 flex items-center justify-between">
-                <div>
+            {/* Pagination - Enhanced */}
+            {pagination.total > 0 && (
+              <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-4">
                   <select
                     value={filters.size}
                     onChange={e =>
@@ -376,12 +671,29 @@ const MaintenanceRecords = ({ vehicles }) => {
                     <option value="20">20 per page</option>
                     <option value="50">50 per page</option>
                   </select>
+                  <div className="text-sm text-muted-foreground">
+                    Showing {(filters.page - 1) * filters.size + 1} to{' '}
+                    {Math.min(filters.page * filters.size, pagination.total)} of {pagination.total}{' '}
+                    records
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">
                     Page {pagination.current_page} of {pagination.pages}
                   </span>
                   <div className="flex gap-1">
+                    <button
+                      onClick={() => setFilters(prev => ({ ...prev, page: 1 }))}
+                      disabled={pagination.current_page <= 1}
+                      className={`px-2 py-1 rounded text-sm ${
+                        pagination.current_page <= 1
+                          ? 'text-muted-foreground cursor-not-allowed'
+                          : 'hover:bg-accent'
+                      }`}
+                      title="First page"
+                    >
+                      First
+                    </button>
                     <button
                       onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
                       disabled={pagination.current_page <= 1}
@@ -405,6 +717,18 @@ const MaintenanceRecords = ({ vehicles }) => {
                       title="Next page"
                     >
                       <ChevronRight size={18} />
+                    </button>
+                    <button
+                      onClick={() => setFilters(prev => ({ ...prev, page: pagination.pages }))}
+                      disabled={pagination.current_page >= pagination.pages}
+                      className={`px-2 py-1 rounded text-sm ${
+                        pagination.current_page >= pagination.pages
+                          ? 'text-muted-foreground cursor-not-allowed'
+                          : 'hover:bg-accent'
+                      }`}
+                      title="Last page"
+                    >
+                      Last
                     </button>
                   </div>
                 </div>
@@ -433,11 +757,40 @@ const MaintenanceRecords = ({ vehicles }) => {
                     className="w-full border border-border rounded-md px-3 py-2"
                   >
                     <option value="">Select Vehicle</option>
-                    {vehicles.map((vehicle, index) => (
-                      <option key={vehicle.id || `vehicle-${index}`} value={vehicle.id}>
-                        {getVehicleName(vehicle.id)}
-                      </option>
-                    ))}
+                    {vehicles && vehicles.length > 0 ? (
+                      vehicles.map((vehicle, index) => {
+                        // More robust vehicle ID extraction
+                        let vehicleIdStr = '';
+
+                        if (vehicle.id) {
+                          if (typeof vehicle.id === 'string') {
+                            vehicleIdStr = vehicle.id;
+                          } else if (vehicle.id.$oid) {
+                            vehicleIdStr = vehicle.id.$oid;
+                          } else {
+                            vehicleIdStr = String(vehicle.id);
+                          }
+                        } else if (vehicle._id) {
+                          if (typeof vehicle._id === 'string') {
+                            vehicleIdStr = vehicle._id;
+                          } else if (vehicle._id.$oid) {
+                            vehicleIdStr = vehicle._id.$oid;
+                          } else {
+                            vehicleIdStr = String(vehicle._id);
+                          }
+                        } else {
+                          vehicleIdStr = `vehicle-${index}`;
+                        }
+
+                        return (
+                          <option key={vehicleIdStr} value={vehicleIdStr}>
+                            {getVehicleName(vehicle.id || vehicle._id)}
+                          </option>
+                        );
+                      })
+                    ) : (
+                      <option disabled>No vehicles available</option>
+                    )}
                   </select>
                 </div>
 

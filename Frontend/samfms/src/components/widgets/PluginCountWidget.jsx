@@ -127,7 +127,7 @@ registerWidget(WIDGET_TYPES.PLUGIN_COUNT, PluginCountWidget, {
   defaultSize: { w: 2, h: 3 },
   minSize: { w: 2, h: 2 },
   maxSize: { w: 3, h: 4 },
-  icon: <Package size={20} />,
+  icon: Package,
   configSchema: {
     title: { type: 'string', default: 'Plugin Overview' },
     refreshInterval: { type: 'number', default: 60, min: 30 },

@@ -92,7 +92,7 @@ registerWidget(WIDGET_TYPES.STATS_CARD, StatsCardWidget, {
   defaultSize: { w: 2, h: 2 },
   minSize: { w: 1, h: 1 },
   maxSize: { w: 3, h: 3 },
-  icon: <BarChart3 size={20} />,
+  icon: BarChart3,
   configSchema: {
     title: { type: 'string', default: 'Statistics' },
     primaryValue: { type: 'string', default: '0' },

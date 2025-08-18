@@ -142,6 +142,9 @@ class DriverService:
             driver_id = await self.driver_repo.create(driver_data)
             
             logger.info(f"Created driver: {driver_id}")
+            
+
+
                         
             # Create user account in security service
             user_created = await self._create_user_account(driver_data)
@@ -157,6 +160,13 @@ class DriverService:
                 driver['id'] = str(driver.pop('_id'))
                     
             logger.info(f"Created driver: {driver_id}")
+
+
+            from .drivers_service import DriversService
+            drivers_service = DriversService()
+            await drivers_service.add_driver()
+            logger.info(f"Driver analytics addition")
+
             return driver
                     
         except ValueError as e:
@@ -319,6 +329,10 @@ class DriverService:
             else:
                 logger.error(f"Failed to delete driver: {driver_id}")
             
+            from .drivers_service import DriversService
+            drivers_service = DriversService()
+            await drivers_service.remove_driver()
+            logger.info(f"Driver analytics removal logged")
             return success
         except Exception as e:
             logger.error(f"Error deleting driver {driver_id}: {e}")

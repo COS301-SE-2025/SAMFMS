@@ -420,6 +420,7 @@ export const maintenanceAPI = {
   async getCostAnalytics(period = 'monthly', vehicleId = null) {
     return withRetry(async () => {
       const params = new URLSearchParams();
+      // Send as 'period' parameter to maintain frontend compatibility
       params.append('period', period);
       if (vehicleId) params.append('vehicle_id', vehicleId);
 
@@ -433,6 +434,149 @@ export const maintenanceAPI = {
   async getMaintenanceDashboard() {
     return withRetry(async () => {
       const response = await httpClient.get(API_ENDPOINTS.MAINTENANCE.ANALYTICS.DASHBOARD);
+      return handleApiResponse(response);
+    });
+  },
+
+  // New Analytics Endpoints
+  async getTotalCostTimeframe(startDate, endDate) {
+    validateRequiredFields({ startDate, endDate }, ['startDate', 'endDate']);
+
+    return withRetry(async () => {
+      const params = new URLSearchParams();
+      params.append('start_date', startDate);
+      params.append('end_date', endDate);
+
+      const response = await httpClient.get(
+        `${API_ENDPOINTS.MAINTENANCE.ANALYTICS.TIMEFRAME_TOTAL_COST}?${params}`
+      );
+      return handleApiResponse(response);
+    });
+  },
+
+  async getRecordsCountTimeframe(startDate, endDate) {
+    validateRequiredFields({ startDate, endDate }, ['startDate', 'endDate']);
+
+    return withRetry(async () => {
+      const params = new URLSearchParams();
+      params.append('start_date', startDate);
+      params.append('end_date', endDate);
+
+      const response = await httpClient.get(
+        `${API_ENDPOINTS.MAINTENANCE.ANALYTICS.TIMEFRAME_RECORDS_COUNT}?${params}`
+      );
+      return handleApiResponse(response);
+    });
+  },
+
+  async getVehiclesServicedTimeframe(startDate, endDate) {
+    validateRequiredFields({ startDate, endDate }, ['startDate', 'endDate']);
+
+    return withRetry(async () => {
+      const params = new URLSearchParams();
+      params.append('start_date', startDate);
+      params.append('end_date', endDate);
+
+      const response = await httpClient.get(
+        `${API_ENDPOINTS.MAINTENANCE.ANALYTICS.TIMEFRAME_VEHICLES_SERVICED}?${params}`
+      );
+      return handleApiResponse(response);
+    });
+  },
+
+  async getMaintenanceByType(startDate = null, endDate = null) {
+    return withRetry(async () => {
+      const params = new URLSearchParams();
+      if (startDate) params.append('start_date', startDate);
+      if (endDate) params.append('end_date', endDate);
+
+      const response = await httpClient.get(
+        `${API_ENDPOINTS.MAINTENANCE.ANALYTICS.MAINTENANCE_BY_TYPE}?${params}`
+      );
+      return handleApiResponse(response);
+    });
+  },
+
+  async getCostOutliers(startDate = null, endDate = null, thresholdMultiplier = 2.0) {
+    return withRetry(async () => {
+      const params = new URLSearchParams();
+      if (startDate) params.append('start_date', startDate);
+      if (endDate) params.append('end_date', endDate);
+      params.append('threshold_multiplier', thresholdMultiplier.toString());
+
+      const response = await httpClient.get(
+        `${API_ENDPOINTS.MAINTENANCE.ANALYTICS.COST_OUTLIERS}?${params}`
+      );
+      return handleApiResponse(response);
+    });
+  },
+
+  async getMaintenancePerVehicleTimeframe(startDate, endDate) {
+    validateRequiredFields({ startDate, endDate }, ['startDate', 'endDate']);
+
+    return withRetry(async () => {
+      const params = new URLSearchParams();
+      params.append('start_date', startDate);
+      params.append('end_date', endDate);
+
+      const response = await httpClient.get(
+        `${API_ENDPOINTS.MAINTENANCE.ANALYTICS.TIMEFRAME_MAINTENANCE_PER_VEHICLE}?${params}`
+      );
+      return handleApiResponse(response);
+    });
+  },
+
+  async getMaintenanceTrends(days = 90) {
+    return withRetry(async () => {
+      const params = new URLSearchParams();
+      params.append('days', days.toString());
+
+      const response = await httpClient.get(
+        `${API_ENDPOINTS.MAINTENANCE.ANALYTICS.TRENDS}?${params}`
+      );
+      return handleApiResponse(response);
+    });
+  },
+
+  async getVendorAnalytics() {
+    return withRetry(async () => {
+      const response = await httpClient.get(API_ENDPOINTS.MAINTENANCE.ANALYTICS.VENDORS);
+      return handleApiResponse(response);
+    });
+  },
+
+  async getLicenseAnalytics() {
+    return withRetry(async () => {
+      const response = await httpClient.get(API_ENDPOINTS.MAINTENANCE.ANALYTICS.LICENSES);
+      return handleApiResponse(response);
+    });
+  },
+
+  async getMaintenanceKPIs() {
+    return withRetry(async () => {
+      const response = await httpClient.get(API_ENDPOINTS.MAINTENANCE.ANALYTICS.KPI);
+      return handleApiResponse(response);
+    });
+  },
+
+  async getVehicleMaintenanceSummary(vehicleId, startDate = null, endDate = null) {
+    if (!vehicleId) {
+      throw parseApiError({
+        response: {
+          status: 400,
+          data: { message: 'Vehicle ID is required', error_code: ERROR_TYPES.VALIDATION },
+        },
+      });
+    }
+
+    return withRetry(async () => {
+      const params = new URLSearchParams();
+      if (startDate) params.append('start_date', startDate);
+      if (endDate) params.append('end_date', endDate);
+
+      const response = await httpClient.get(
+        `${API_ENDPOINTS.MAINTENANCE.ANALYTICS.VEHICLE_SUMMARY(vehicleId)}?${params}`
+      );
       return handleApiResponse(response);
     });
   },

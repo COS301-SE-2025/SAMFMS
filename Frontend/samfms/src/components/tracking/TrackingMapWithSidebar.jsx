@@ -27,7 +27,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { getVehicles } from '../../backend/api/vehicles';
 import { listGeofences, deleteGeofence } from '../../backend/api/geofences';
-import { listLocations } from '../../backend/api/locations';
+import { listLocations, getVehicleLocation } from '../../backend/api/locations';
 import GeofenceManager from './GeofenceManager';
 
 // Fix for marker icons in React-Leaflet
@@ -85,7 +85,7 @@ const getGeofenceOptions = type => {
         fillOpacity: 0.3,
         weight: 2,
       };
-    case 'safe_zone':
+    case 'boundary':
       return {
         color: '#22c55e',
         fillColor: '#22c55e',
@@ -339,7 +339,7 @@ const TrackingMapWithSidebar = () => {
     };
 
     loadLocations();
-    const interval = setInterval(loadLocations, 5000); // Refresh every 5 seconds
+    const interval = setInterval(loadLocations, 2000); // Refresh every 5 seconds
     return () => clearInterval(interval);
   }, [followMode, focusLocation]);
 
@@ -387,18 +387,23 @@ const TrackingMapWithSidebar = () => {
   }, [loadGeofences]);
 
   // Handle item selection and map centering
-  const handleItemSelect = item => {
+  const handleItemSelect = async (item) => {
+    console.log("Item selected", item);
+    console.log("Item id: ", item.id)
     setSelectedItem(item);
-    const location = locations.find(loc => loc.vehicle_id === item.id);
-    console.log("FOund location: ", location)
 
-    const [lng, lat] = location.location.coordinates;
-    if (lat != null && lng != null) {
-      setMapCenter([lat, lng]);
-    } else {
-      console.warn("No location found for item", item);
+    try {
+      const vehicleData = await getVehicleLocation(item.id); 
+      console.log("Full response:", vehicleData);
+
+      const { latitude, longitude } = vehicleData;
+      setMapCenter([latitude, longitude]);
+
+    } catch (err) {
+      console.error("Failed to fetch vehicle location:", err);
     }
   };
+
 
   // Handle live location selection
   const handleLocationSelect = location => {
@@ -792,7 +797,7 @@ const TrackingMapWithSidebar = () => {
                               ? 'bg-blue-500'
                               : geofence.type === 'restricted'
                                 ? 'bg-red-500'
-                                : geofence.type === 'safe_zone'
+                                : geofence.type === 'boundary'
                                   ? 'bg-green-500'
                                   : 'bg-purple-500'
                               }`}
@@ -829,8 +834,8 @@ const TrackingMapWithSidebar = () => {
             <div className="bg-white dark:bg-gray-800 p-2 rounded-lg shadow-lg border border-gray-300 dark:border-gray-600">
               <button
                 className={`p-2 rounded-md w-8 h-8 flex items-center justify-center transition-all duration-200 ${mapType === 'streets'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 onClick={() => setMapType('streets')}
                 title="Street map"
@@ -839,8 +844,8 @@ const TrackingMapWithSidebar = () => {
               </button>
               <button
                 className={`p-2 rounded-md w-8 h-8 flex items-center justify-center mt-1 transition-all duration-200 ${mapType === 'satellite'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 onClick={() => setMapType('satellite')}
                 title="Satellite map"
@@ -849,8 +854,8 @@ const TrackingMapWithSidebar = () => {
               </button>
               <button
                 className={`p-2 rounded-md w-8 h-8 flex items-center justify-center mt-1 transition-all duration-200 ${mapType === 'terrain'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 onClick={() => setMapType('terrain')}
                 title="Terrain map"
@@ -1070,12 +1075,25 @@ const TrackingMapWithSidebar = () => {
 
       {/* Add Geofence Modal */}
       {showAddGeofenceModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-5xl w-full max-h-[90vh] overflow-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ease-out">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-300"
+          onClick={(e) => {
+            // Close modal if clicking on backdrop
+            if (e.target === e.currentTarget) {
+              setShowAddGeofenceModal(false);
+              setEditingGeofence(null);
+            }
+          }}
+        >
+          <div
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-5xl w-full max-h-[90vh] overflow-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ease-out"
+            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+          >
             <GeofenceManager
               showFormOnly={true}
               initialShowForm={true}
               onCancel={() => {
+                console.log('Cancel button clicked'); // Debug log
                 setShowAddGeofenceModal(false);
                 setEditingGeofence(null);
               }}

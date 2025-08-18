@@ -1,10 +1,10 @@
-import React, {useState, useEffect} from 'react';
-import {BaseWidget} from '../dashboard/BaseWidget';
-import {maintenanceAPI} from '../../backend/api/maintenance';
-import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
-import {CheckCircle, AlertTriangle, Calendar, DollarSign} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BaseWidget } from '../dashboard/BaseWidget';
+import { maintenanceAPI } from '../../backend/api/maintenance';
+import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
+import { Dock, AlertTriangle, Calendar, DollarSign } from 'lucide-react';
 
-const MaintenanceSummaryWidget = ({id, config = {}}) => {
+const MaintenanceSummaryWidget = ({ id, config = {} }) => {
   const [data, setData] = useState({
     total_records: 0,
     overdue_count: 0,
@@ -54,9 +54,9 @@ const MaintenanceSummaryWidget = ({id, config = {}}) => {
 
   const summaryCards = [
     {
-      title: 'Total Records',
+      title: 'Maintenance Records',
       value: data.total_records,
-      icon: <CheckCircle className="h-6 w-6 text-blue-600" />,
+      icon: <Dock className="h-6 w-6 text-blue-600" />,
       color: 'bg-blue-100 dark:bg-blue-900',
       textColor: 'text-blue-800 dark:text-blue-200',
     },
@@ -68,14 +68,14 @@ const MaintenanceSummaryWidget = ({id, config = {}}) => {
       textColor: 'text-red-800 dark:text-red-200',
     },
     {
-      title: 'Upcoming (30 days)',
+      title: 'Upcoming',
       value: data.upcoming_count,
       icon: <Calendar className="h-6 w-6 text-yellow-600" />,
       color: 'bg-yellow-100 dark:bg-yellow-900',
       textColor: 'text-yellow-800 dark:text-yellow-200',
     },
     {
-      title: 'This Month Cost',
+      title: 'Spent this month',
       value: `R${data.total_cost_this_month?.toLocaleString() || 0}`,
       icon: <DollarSign className="h-6 w-6 text-green-600" />,
       color: 'bg-green-100 dark:bg-green-900',
@@ -91,13 +91,15 @@ const MaintenanceSummaryWidget = ({id, config = {}}) => {
       loading={loading}
       error={error}
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 h-full">
+      <div className="grid grid-cols-4 sm:grid-cols-4 gap-3 h-full">
         {summaryCards.map((card, index) => (
           <div key={index} className="flex items-center space-x-2 min-h-0">
-            <div className={`p-2 rounded-lg ${card.color} flex-shrink-0`}>{card.icon}</div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-muted-foreground truncate">{card.title}</p>
-              <p className={`text-lg font-bold ${card.textColor} truncate`}>{card.value}</p>
+            <div className={`p-2 rounded-lg ${card.color} flex-shrink-0`}>
+              {card.icon}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground truncate">{card.title}</p>
+                <p className={`text-lg font-bold ${card.textColor} truncate`}>{card.value}</p>
+              </div>
             </div>
           </div>
         ))}
@@ -111,13 +113,13 @@ registerWidget(WIDGET_TYPES.MAINTENANCE_SUMMARY, MaintenanceSummaryWidget, {
   title: 'Maintenance Summary',
   description: 'Overview of maintenance records, overdue items, and costs',
   category: WIDGET_CATEGORIES.MAINTENANCE,
-  defaultSize: {w: 3, h: 6},
-  minSize: {w: 3, h: 4},
-  maxSize: {w: 8, h: 8},
-  icon: <CheckCircle size={20} />,
+  defaultSize: { w: 3, h: 6 },
+  minSize: { w: 3, h: 4 },
+  maxSize: { w: 8, h: 8 },
+  icon: Dock,
   configSchema: {
-    title: {type: 'string', default: 'Maintenance Summary'},
-    refreshInterval: {type: 'number', default: 30, min: 5},
+    title: { type: 'string', default: 'Maintenance Summary' },
+    refreshInterval: { type: 'number', default: 30, min: 5 },
   },
 });
 
