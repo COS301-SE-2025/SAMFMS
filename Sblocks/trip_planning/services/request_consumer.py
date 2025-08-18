@@ -648,7 +648,7 @@ class ServiceRequestConsumer:
                 status = query_params.get("status")
                 department = query_params.get("department") 
                 skip = int(query_params.get("skip", 0))
-                limit = int(query_params.get("limit", 100))
+                limit = int(query_params.get("limit", 1000))
                 
                 logger.info(f"[_handle_drivers_request] Query params: status={status}, department={department}, skip={skip}, limit={limit}")
                 

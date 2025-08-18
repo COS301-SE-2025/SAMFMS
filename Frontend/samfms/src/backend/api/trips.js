@@ -63,7 +63,7 @@ export const updateTrip = async (tripID, tripData) => {
   }
 };
 
-export const finishTrip = async (tripID ,tripData) => {
+export const finishTrip = async (tripID, tripData) => {
   try {
     if (!tripData || !tripID) {
       throw new Error('Trip Data is required');
@@ -99,7 +99,7 @@ export const getDriverActiveTrips = async (driver_id) => {
     const activeTrip = response.data.data;
 
     return activeTrip;
-  } catch (error){
+  } catch (error) {
     console.error('Error fetching active trip:', error);
     throw error;
   }
@@ -144,6 +144,38 @@ export const getTripsHistory = async (page = 1, limit = 10) => {
     return await httpClient.get(`${TRIPS_ENDPOINTS.HISTORY}?page=${page}&limit=${limit}`);
   } catch (error) {
     console.error('Error fetching trips history:', error);
+    throw error;
+  }
+};
+
+export const getDriverSpecificAnalytics = async (driver_id, timeframe = 'week') => {
+  try {
+    const driverStatsResponse = await httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.DRIVERSTATS}`, {
+      params: { timeframe },
+    });
+
+    // Extract the data from the nested response structure
+    const allDriversData = driverStatsResponse.data?.data?.data?.total || [];
+    
+    // Filter by specific driver_id
+    const driverAnalytics = allDriversData.find(driver => 
+      driver.driver_name === driver_id || 
+      driver.driver_name.includes(driver_id)
+    );
+
+    if (!driverAnalytics) {
+      throw new Error(`Driver with ID ${driver_id} not found`);
+    }
+
+    return {
+      status: 'success',
+      data: driverAnalytics,
+      message: `Analytics for ${driver_id} retrieved successfully`,
+      meta: driverStatsResponse.data?.data?.meta || null
+    };
+
+  } catch (error) {
+    console.error('Error fetching driver specific analytics', error);
     throw error;
   }
 };
