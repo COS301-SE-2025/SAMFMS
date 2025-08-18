@@ -17,6 +17,7 @@ class UserService:
         """Get all users"""
         try:
             users = await UserRepository.get_all_users()
+            logger.info(f"Users returned in user_service: {users}")
             # Remove sensitive data
             for user in users:
                 user.pop("password_hash", None)
