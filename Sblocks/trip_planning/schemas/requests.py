@@ -75,11 +75,11 @@ class UpdateTripRequest(BaseModel):
     custom_fields: Optional[Dict[str, Any]] = None
 
 class FinishTripRequest(BaseModel):
-    name: str
+    name: Optional[str] = None
     description: Optional[str] = None
-    actual_end_time: datetime
-    driver_assignment: str
-    status: str
+    actual_end_time: Optional[datetime] = None
+    driver_assignment: Optional[str] = None
+    status: Optional[str]
 
 
 

@@ -157,7 +157,7 @@ export const DashboardCanvas = () => {
           return (
             <div
               key={widget.id}
-              className={`bg-white/90 backdrop-blur-sm rounded-md shadow-sm h-full transition-all duration-200 ease-out ${
+              className={`bg-transparent backdrop-blur-sm rounded-md shadow-sm h-full transition-all duration-200 ease-out ${
                 state.isEditing
                   ? 'cursor-grab active:cursor-grabbing hover:shadow-md hover:-translate-y-0.5 hover:bg-white/95 hover:scale-[1.02]'
                   : 'hover:shadow-md hover:-translate-y-1 hover:scale-[1.01]'

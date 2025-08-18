@@ -1,6 +1,70 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { maintenanceAPI } from '../../backend/api/maintenance';
+import { getVehicle } from '../../backend/api/vehicles';
+
+// Component to display vehicle details with direct API calls
+const VehicleDetailDisplay = ({ vehicleId, fetchVehicleDetails }) => {
+  const [vehicleDetails, setVehicleDetails] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const loadVehicleDetails = async () => {
+      if (!vehicleId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(false);
+        const details = await fetchVehicleDetails(vehicleId);
+        setVehicleDetails(details);
+      } catch (err) {
+        console.error(`Failed to load vehicle details for ${vehicleId}:`, err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadVehicleDetails();
+  }, [vehicleId, fetchVehicleDetails]);
+
+  if (loading) {
+    return (
+      <div className="text-sm">
+        <div className="flex items-center gap-2">
+          <div className="animate-spin w-3 h-3 border border-border rounded-full border-t-transparent"></div>
+          <span className="text-muted-foreground">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !vehicleDetails) {
+    return (
+      <div className="text-sm">
+        <div className="text-muted-foreground">Vehicle {vehicleId.slice(-6)}</div>
+        <div className="text-xs text-muted-foreground">Details unavailable</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-sm">
+      <div className="font-medium">
+        {vehicleDetails.year && `${vehicleDetails.year} `}
+        {vehicleDetails.make && `${vehicleDetails.make} `}
+        {vehicleDetails.model || 'Vehicle'}
+      </div>
+      {vehicleDetails.license_plate && (
+        <div className="text-xs text-muted-foreground">{vehicleDetails.license_plate}</div>
+      )}
+    </div>
+  );
+};
 
 const MaintenanceSchedules = ({ vehicles }) => {
   const [schedules, setSchedules] = useState([]);
@@ -85,6 +149,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
       const data = response.data?.data || response.data || {};
       const schedules = data.schedules || data || [];
 
+      console.log('Maintenance Schedules loaded:', schedules);
       setSchedules(schedules);
     } catch (err) {
       console.error('Error loading maintenance schedules:', err);
@@ -172,6 +237,68 @@ const MaintenanceSchedules = ({ vehicles }) => {
       next_due_mileage: '',
       is_active: true,
     });
+  };
+
+  // Fetch vehicle details from the management API
+  // Fetch vehicle details directly from the management API
+  const fetchVehicleDetails = async vehicleId => {
+    const vehicleIdStr = vehicleId.toString();
+
+    if (!vehicleId) {
+      return null;
+    }
+
+    try {
+      console.log(`Fetching vehicle details for ID: ${vehicleIdStr}`);
+      const response = await getVehicle(vehicleIdStr);
+
+      console.log(`Vehicle API Response for ${vehicleIdStr}:`, response);
+
+      if (response.data && response.data.data) {
+        const vehicleDetails = response.data.data;
+        console.log(`Extracted vehicle details for ${vehicleIdStr}:`, vehicleDetails);
+        return vehicleDetails;
+      } else {
+        console.warn(`No vehicle details found for ${vehicleIdStr}`);
+        return null;
+      }
+    } catch (error) {
+      console.error(`Failed to fetch vehicle details for ${vehicleIdStr}:`, error);
+      return null;
+    }
+  };
+
+  const getVehicleDisplay = vehicleId => {
+    if (!vehicleId) return 'Unknown Vehicle';
+
+    const vehicleIdStr = vehicleId.toString();
+
+    // Check if we have this vehicle in the fallback data first
+    const fallbackVehicle = vehicles?.find(v => {
+      const vId = v.id?.toString() || v._id?.toString();
+      return vId === vehicleIdStr;
+    });
+
+    if (fallbackVehicle) {
+      console.log(`Using fallback vehicle for ${vehicleIdStr}:`, fallbackVehicle);
+      return (
+        <div className="text-sm">
+          <div className="font-medium">
+            {fallbackVehicle.year && `${fallbackVehicle.year} `}
+            {fallbackVehicle.make && `${fallbackVehicle.make} `}
+            {fallbackVehicle.model || 'Vehicle'}
+          </div>
+          {fallbackVehicle.license_plate && (
+            <div className="text-xs text-muted-foreground">{fallbackVehicle.license_plate}</div>
+          )}
+        </div>
+      );
+    }
+
+    // Return a component that will fetch and display vehicle details
+    return (
+      <VehicleDetailDisplay vehicleId={vehicleIdStr} fetchVehicleDetails={fetchVehicleDetails} />
+    );
   };
 
   const getVehicleName = vehicleId => {
@@ -306,11 +433,40 @@ const MaintenanceSchedules = ({ vehicles }) => {
               className="w-full border border-border rounded-md px-3 py-2"
             >
               <option value="">All Vehicles</option>
-              {vehicles.map((vehicle, index) => (
-                <option key={vehicle.id || `filter-vehicle-${index}`} value={vehicle.id}>
-                  {getVehicleName(vehicle.id)}
-                </option>
-              ))}
+              {vehicles && vehicles.length > 0 ? (
+                vehicles.map((vehicle, index) => {
+                  // More robust vehicle ID extraction
+                  let vehicleIdStr = '';
+
+                  if (vehicle.id) {
+                    if (typeof vehicle.id === 'string') {
+                      vehicleIdStr = vehicle.id;
+                    } else if (vehicle.id.$oid) {
+                      vehicleIdStr = vehicle.id.$oid;
+                    } else {
+                      vehicleIdStr = String(vehicle.id);
+                    }
+                  } else if (vehicle._id) {
+                    if (typeof vehicle._id === 'string') {
+                      vehicleIdStr = vehicle._id;
+                    } else if (vehicle._id.$oid) {
+                      vehicleIdStr = vehicle._id.$oid;
+                    } else {
+                      vehicleIdStr = String(vehicle._id);
+                    }
+                  } else {
+                    vehicleIdStr = `vehicle-${index}`;
+                  }
+
+                  return (
+                    <option key={vehicleIdStr} value={vehicleIdStr}>
+                      {getVehicleName(vehicle.id || vehicle._id)}
+                    </option>
+                  );
+                })
+              ) : (
+                <option disabled>No vehicles available</option>
+              )}
             </select>
           </div>
           <div className="flex items-end">
@@ -362,7 +518,9 @@ const MaintenanceSchedules = ({ vehicles }) => {
                 {currentSchedules.length > 0 ? (
                   currentSchedules.map(schedule => (
                     <tr key={schedule.id} className="border-b border-border hover:bg-accent/10">
-                      <td className="py-3 px-4">{getVehicleName(schedule.vehicle_id)}</td>
+                      <td className="py-3 px-4">
+                        <div className="min-w-0">{getVehicleDisplay(schedule.vehicle_id)}</div>
+                      </td>
                       <td className="py-3 px-4">
                         <div>
                           <p className="font-medium">
@@ -504,11 +662,40 @@ const MaintenanceSchedules = ({ vehicles }) => {
                     className="w-full border border-border rounded-md px-3 py-2"
                   >
                     <option value="">Select Vehicle</option>
-                    {vehicles.map((vehicle, index) => (
-                      <option key={vehicle.id || `vehicle-${index}`} value={vehicle.id}>
-                        {getVehicleName(vehicle.id)}
-                      </option>
-                    ))}
+                    {vehicles && vehicles.length > 0 ? (
+                      vehicles.map((vehicle, index) => {
+                        // More robust vehicle ID extraction
+                        let vehicleIdStr = '';
+
+                        if (vehicle.id) {
+                          if (typeof vehicle.id === 'string') {
+                            vehicleIdStr = vehicle.id;
+                          } else if (vehicle.id.$oid) {
+                            vehicleIdStr = vehicle.id.$oid;
+                          } else {
+                            vehicleIdStr = String(vehicle.id);
+                          }
+                        } else if (vehicle._id) {
+                          if (typeof vehicle._id === 'string') {
+                            vehicleIdStr = vehicle._id;
+                          } else if (vehicle._id.$oid) {
+                            vehicleIdStr = vehicle._id.$oid;
+                          } else {
+                            vehicleIdStr = String(vehicle._id);
+                          }
+                        } else {
+                          vehicleIdStr = `vehicle-${index}`;
+                        }
+
+                        return (
+                          <option key={vehicleIdStr} value={vehicleIdStr}>
+                            {getVehicleName(vehicle.id || vehicle._id)}
+                          </option>
+                        );
+                      })
+                    ) : (
+                      <option disabled>No vehicles available</option>
+                    )}
                   </select>
                 </div>
 

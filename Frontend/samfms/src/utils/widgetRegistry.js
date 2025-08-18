@@ -5,10 +5,27 @@ export const WIDGET_TYPES = Object.freeze({
   MAINTENANCE_RECORDS: 'maintenance_records',
   MAINTENANCE_ALERTS: 'maintenance_alerts',
   MAINTENANCE_COST_ANALYTICS: 'maintenance_cost_analytics',
+  MAINTENANCE_TYPE_DISTRIBUTION: 'maintenance_type_distribution',
+  MAINTENANCE_OVERVIEW: 'maintenance_overview',
+
+  // Split Maintenance Overview Widgets
+  MAINTENANCE_DONUT_CHART: 'maintenance_donut_chart',
+  MAINTENANCE_UPCOMING_COUNT: 'maintenance_upcoming_count',
+  MAINTENANCE_OVERDUE_COUNT: 'maintenance_overdue_count',
+  MAINTENANCE_TOTAL_COUNT: 'maintenance_total_count',
 
   // Vehicle Widgets
   VEHICLE_STATUS: 'vehicle_status',
   VEHICLE_ANALYTICS: 'vehicle_analytics',
+
+  // Split Vehicle Status Widgets
+  VEHICLE_TOTAL_COUNT: 'vehicle_total_count',
+  VEHICLE_ACTIVE_COUNT: 'vehicle_active_count',
+  VEHICLE_MAINTENANCE_COUNT: 'vehicle_maintenance_count',
+  VEHICLE_IDLE_COUNT: 'vehicle_idle_count',
+
+  // Tracking Widgets
+  TRACKING_MAP: 'tracking_map',
 
   // Plugin Widgets
   PLUGIN_HEALTH: 'plugin_health',
@@ -27,6 +44,7 @@ export const WIDGET_TYPES = Object.freeze({
 export const WIDGET_CATEGORIES = Object.freeze({
   MAINTENANCE: 'Maintenance',
   VEHICLES: 'Vehicles',
+  TRACKING: 'Tracking',
   PLUGINS: 'Plugins',
   ANALYTICS: 'Analytics',
   CHARTS: 'Charts',
@@ -63,21 +81,21 @@ const validateWidgetMetadata = metadata => {
 
   // Validate size constraints
   if (metadata.defaultSize) {
-    const {w, h} = metadata.defaultSize;
+    const { w, h } = metadata.defaultSize;
     if (typeof w !== 'number' || typeof h !== 'number' || w <= 0 || h <= 0 || w > 12 || h > 12) {
       errors.push('Invalid default size - width must be 1-12, height must be 1-12');
     }
   }
 
   if (metadata.minSize) {
-    const {w, h} = metadata.minSize;
+    const { w, h } = metadata.minSize;
     if (typeof w !== 'number' || typeof h !== 'number' || w <= 0 || h <= 0 || w > 12 || h > 12) {
       errors.push('Invalid minimum size - width must be 1-12, height must be 1-12');
     }
   }
 
   if (metadata.maxSize) {
-    const {w, h} = metadata.maxSize;
+    const { w, h } = metadata.maxSize;
     if (typeof w !== 'number' || typeof h !== 'number' || w <= 0 || h <= 0 || w > 12 || h > 12) {
       errors.push('Invalid maximum size - width must be 1-12, height must be 1-12');
     }
@@ -132,9 +150,9 @@ export const registerWidget = (type, component, metadata) => {
     title: metadata?.title || 'Untitled Widget',
     description: metadata?.description || '',
     category: metadata?.category || WIDGET_CATEGORIES.GENERAL,
-    defaultSize: metadata?.defaultSize || {w: 4, h: 3},
-    minSize: metadata?.minSize || {w: 2, h: 2},
-    maxSize: metadata?.maxSize || {w: 12, h: 8},
+    defaultSize: metadata?.defaultSize || { w: 4, h: 3 },
+    minSize: metadata?.minSize || { w: 2, h: 2 },
+    maxSize: metadata?.maxSize || { w: 12, h: 8 },
     configSchema: metadata?.configSchema || {},
     icon: metadata?.icon || null,
     version: metadata?.version || '1.0.0',
@@ -231,7 +249,7 @@ export const validateWidgetInstance = widgetData => {
 
   // Validate size constraints if present
   if (widgetData.size) {
-    const {w, h} = widgetData.size;
+    const { w, h } = widgetData.size;
     if (typeof w !== 'number' || typeof h !== 'number' || w <= 0 || h <= 0 || w > 12 || h > 12) {
       errors.push('Invalid widget size - width must be 1-12, height must be 1-12');
     }

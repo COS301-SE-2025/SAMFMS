@@ -1,10 +1,10 @@
-import React, {useState, useEffect} from 'react';
-import {BaseWidget} from '../dashboard/BaseWidget';
-import {maintenanceAPI} from '../../backend/api/maintenance';
-import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
-import {Wrench} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BaseWidget } from '../dashboard/BaseWidget';
+import { maintenanceAPI } from '../../backend/api/maintenance';
+import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
+import { Wrench } from 'lucide-react';
 
-const MaintenanceRecordsWidget = ({id, config = {}}) => {
+const MaintenanceRecordsWidget = ({ id, config = {} }) => {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -99,14 +99,14 @@ registerWidget(WIDGET_TYPES.MAINTENANCE_RECORDS, MaintenanceRecordsWidget, {
   title: 'Recent Maintenance Records',
   description: 'Shows the most recent maintenance activities across your fleet',
   category: WIDGET_CATEGORIES.MAINTENANCE,
-  defaultSize: {w: 3, h: 6},
-  minSize: {w: 3, h: 2},
-  maxSize: {w: 8, h: 8},
-  icon: <Wrench size={20} />,
+  defaultSize: { w: 3, h: 6 },
+  minSize: { w: 3, h: 2 },
+  maxSize: { w: 8, h: 8 },
+  icon: Wrench,
   configSchema: {
-    title: {type: 'string', default: 'Recent Maintenance Records'},
-    refreshInterval: {type: 'number', default: 60, min: 10},
-    maxRecords: {type: 'number', default: 5, min: 3, max: 10},
+    title: { type: 'string', default: 'Recent Maintenance Records' },
+    refreshInterval: { type: 'number', default: 60, min: 10 },
+    maxRecords: { type: 'number', default: 5, min: 3, max: 10 },
   },
 });
 

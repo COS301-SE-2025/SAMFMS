@@ -14,7 +14,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
 
 # Import organized modules
-from repositories.database import db_manager
+from repositories.database import db_manager, db_manager_management
 from events.publisher import event_publisher
 from events.consumer import event_consumer, setup_event_handlers
 from services.location_service import location_service
@@ -110,6 +110,15 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Database connection failed: {e}")
             raise DatabaseConnectionError(f"Failed to connect to database: {e}")
+        
+        # Start database for Management
+        logger.info("Connecting to database Management...")
+        try:
+            await db_manager_management.connect()
+            logger.info("Database Management connected successfully")
+        except Exception as e:
+            logger.error(f"Database Management connection failed: {e}")
+            raise DatabaseConnectionError(f"Failed to connect to database Management: {e}")
         
         # Connect to RabbitMQ for event publishing
         logger.info("Connecting to RabbitMQ for event publishing...")
@@ -224,6 +233,9 @@ async def lifespan(app: FastAPI):
 
             await db_manager.disconnect()
             logger.info("Database disconnected")
+
+            await db_manager_management.disconnect()
+            logger.info("Management Database disconnected")
 
             logger.info("GPS Service shutdown completed")
         except Exception as e:

@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from bson import ObjectId
 
-from repositories.database import db_manager
+from repositories.database import db_manager, db_manager_management
 from schemas.entities import VehicleLocation, LocationHistory, TrackingSession
 from events.publisher import event_publisher
 
@@ -18,6 +18,7 @@ class LocationService:
     
     def __init__(self):
         self.db = db_manager
+        self.db_management = db_manager_management
 
     def _build_location_doc(self, vehicle_id: str, latitude: float, longitude: float,
                             altitude: Optional[float], speed: Optional[float],
@@ -176,7 +177,7 @@ class LocationService:
             except Exception as e:
                 logger.warning(f"Failed to publish location update event: {e}")
             
-            logger.info(f"Updated location for vehicle {vehicle_id}")
+            #logger.info(f"Updated location for vehicle {vehicle_id}")
             return VehicleLocation(**location_data)
             
         except Exception as e:
@@ -535,6 +536,16 @@ class LocationService:
                 "status": "error",
                 "message": f"Failed to start tracking: {str(e)}"
             }
+        
+    async def get_all_vehicles(self):
+        """
+        Get all vehicles from the database without any parameters.
+        """
+        try:
+            return await self.db_management.vehicles.find({}).to_list(length=None)
+        except Exception as e:
+            print(f"Error fetching vehicles: {e}")
+            return []
 
     def _calculate_distance(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
         """Calculate distance between two coordinates using Haversine formula (returns km)"""

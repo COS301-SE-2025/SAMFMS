@@ -135,6 +135,7 @@ export const API_ENDPOINTS = {
   ASSIGNMENTS: {
     LIST: '/management/assignments',
     CREATE: '/management/assignments',
+    GETDRIVERASSIGNMENT: id => `/management/assignments/driver/${id}`,
     UPDATE: id => `/management/assignments/${id}`,
     DELETE: id => `/management/assignments/${id}`,
     COMPLETE: id => `/management/assignments/${id}/complete`,
@@ -147,6 +148,7 @@ export const API_ENDPOINTS = {
     CREATE: '/gps/locations',
     UPDATE: '/gps/locations/update',
     DELETE: id => `/gps/locations/${id}`,
+    VEHICLELOC: id => `/gps/locations/vehicle/${id}`,
   },
 
   GEOFENCES: {
@@ -162,14 +164,16 @@ export const API_ENDPOINTS = {
     CREATE: '/trips/trips/create',
     UPDATE: id => `/trips/trips/${id}`,
     DELETE: id => `/trips/trips/${id}`,
-    ACTIVE: '/trips/trips/active',
+    ACTIVE: '/trips/trips/active/all',
+    DRIVERACTIVE: id => `/trips/trips/active/${id}`,
     HISTORY: '/trips/history',
-    FINISHED: 'trips/trips/completed',
-    UPCOMMINGTRIPSALL: '/trips/trips/upcomming',
+    FINISHED: id => `/trips/trips/completed/${id}`,
+    UPCOMMINGTRIPSALL: '/trips/trips/upcomming/all',
     UPCOMMINGTRIPS: id => `/trips/trips/upcomming/${id}`,
     RECENTTRIPS: id => `/trips/trips/recent/${id}`,
     RECENTTRIPSALL: '/trips/recent',
     VEHICLEPOLYLINE: id => `/trips/trips/polyline/${id}`,
+    VEHICLETRIP: id => `/trips/trips/vehicle/${id}`,
     ANALYTICS: {
       // Trip History Statistics
       HISTORY_STATS: '/trips/analytics/trips/history-stats',
@@ -181,9 +185,11 @@ export const API_ENDPOINTS = {
       AVGTRIPSPERDAYDRIVERS: '/trips/analytics/drivers/averagedaytrips',
 
       // Vehicle analytics with timeframe
+      VehicleSTATS: '/trips/analytics/vehicles/stats',
       TOTALTRIPSVEHICLES: '/trips/analytics/vehicles/totaltrips',
       COMPLETIONRATEVEHICLES: '/trips/analytics/vehicles/completionrate',
       AVGTRIPSPERDAYVEHICLES: '/trips/analytics/vehicles/averagedaytrips',
+      TOTALDISTANCE: '/trips/analytics/vehicles/totaldistance',
     },
   },
 
@@ -227,7 +233,19 @@ export const API_ENDPOINTS = {
     ANALYTICS: {
       DASHBOARD: '/maintenance/analytics/dashboard',
       COSTS: '/maintenance/analytics/costs',
-      OVERVIEW: '/maintenance/analytics',
+      OVERVIEW: '/maintenance/analytics/overview',
+      // New analytics endpoints
+      TIMEFRAME_TOTAL_COST: '/maintenance/analytics/timeframe/total-cost',
+      TIMEFRAME_RECORDS_COUNT: '/maintenance/analytics/timeframe/records-count',
+      TIMEFRAME_VEHICLES_SERVICED: '/maintenance/analytics/timeframe/vehicles-serviced',
+      MAINTENANCE_BY_TYPE: '/maintenance/analytics/maintenance-by-type',
+      COST_OUTLIERS: '/maintenance/analytics/cost-outliers',
+      TIMEFRAME_MAINTENANCE_PER_VEHICLE: '/maintenance/analytics/timeframe/maintenance-per-vehicle',
+      TRENDS: '/maintenance/analytics/trends',
+      VENDORS: '/maintenance/analytics/vendors',
+      LICENSES: '/maintenance/analytics/licenses',
+      KPI: '/maintenance/analytics/metrics/kpi',
+      VEHICLE_SUMMARY: vehicleId => `/maintenance/analytics/summary/vehicle/${vehicleId}`,
     },
     NOTIFICATIONS: {
       LIST: '/maintenance/notifications',
