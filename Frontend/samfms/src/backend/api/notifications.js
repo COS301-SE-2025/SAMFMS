@@ -4,8 +4,8 @@
 };
  */
 
-import { httpClient } from '../services/httpClient';
-import { API_CONFIG } from '../../config/apiConfig';
+import {httpClient} from '../services/httpClient';
+import {API_CONFIG} from '../../config/apiConfig';
 
 const NOTIFICATIONS_BASE_URL = `${API_CONFIG.baseURL}/trips/notifications`;
 
@@ -91,7 +91,7 @@ export const updateNotificationPreferences = async preferencesData => {
 export const getDriverNotifications = async () => {
   try {
     // Get regular notifications
-    const response = await getNotifications({ limit: 20 });
+    const response = await getNotifications({limit: 20});
 
     // Handle nested response structure from trip planning service
     // The response structure is: response.data.data.notifications (double nested)
@@ -148,6 +148,16 @@ export const getDriverNotifications = async () => {
     };
   } catch (error) {
     console.error('Error fetching driver notifications:', error);
+    throw error;
+  }
+};
+
+export const getUserNotifications = async () => {
+  try {
+    const response = await httpClient.get(`${NOTIFICATIONS_BASE_URL}/my-notifications`);
+    return response;
+  } catch (error) {
+    console.error('Error fetching user notifications:', error);
     throw error;
   }
 };

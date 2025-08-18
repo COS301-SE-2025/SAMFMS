@@ -2,8 +2,8 @@
  * Driver Management API
  * All driver-related API endpoints and functions
  */
-import { httpClient } from '../services/httpClient';
-import { API_ENDPOINTS } from '../../config/apiConfig';
+import {httpClient} from '../services/httpClient';
+import {API_ENDPOINTS} from '../../config/apiConfig';
 
 // Driver API endpoints using centralized configuration
 const DRIVER_ENDPOINTS = {
@@ -15,6 +15,7 @@ const DRIVER_ENDPOINTS = {
   assign: API_ENDPOINTS.DRIVERS.ASSIGN,
   empid: API_ENDPOINTS.DRIVERS.EMPID,
   TRIP_PLANNING_LIST: API_ENDPOINTS.DRIVERS.TRIP_PLANNING_LIST,
+  count: API_ENDPOINTS.DRIVERS.COUNT
 };
 
 /**
@@ -87,7 +88,7 @@ export const getAllDrivers = async (filters = {}) => {
     };
 
     console.log('Sending query params to getAllDrivers:', queryParams);
-    const response = await httpClient.get(DRIVER_ENDPOINTS.list, { params: queryParams });
+    const response = await httpClient.get(DRIVER_ENDPOINTS.list, {params: queryParams});
     console.log('Response received from backend:', response);
     return response;
   } catch (error) {
@@ -262,6 +263,16 @@ export const assignVehicle = async data => {
     return await httpClient.post(DRIVER_ENDPOINTS.assign, data);
   } catch (error) {
     console.error('Error assigning vehicle to driver: ', error);
+    throw error;
+  }
+};
+
+export const getNumberOfDrivers = async () => {
+  try {
+    const response = await httpClient.get(DRIVER_ENDPOINTS.count);
+    return response;
+  } catch (error) {
+    console.error('Error fetching number of drivers:', error);
     throw error;
   }
 };
