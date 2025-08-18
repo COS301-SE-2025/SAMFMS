@@ -267,9 +267,9 @@ export const assignVehicle = async data => {
   }
 };
 
-export const getNumberOfDrivers = async () => {
+export const getNumberOfDrivers = async (data) => {
   try {
-    const response = await httpClient.get(DRIVER_ENDPOINTS.count);
+    const response = await httpClient.post(DRIVER_ENDPOINTS.count, data);
     return response;
   } catch (error) {
     console.error('Error fetching number of drivers:', error);
