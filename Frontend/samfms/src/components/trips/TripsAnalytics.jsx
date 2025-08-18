@@ -54,11 +54,12 @@ const TripsAnalytics = ({ driverData, vehicleData, timeframe, onTimeframeChange 
           <BarChart width={400} height={300} data={vehicleData?.vehicles || []}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="vehicleName" />
-            <YAxis />
+            <YAxis yAxisId="left" orientation="left" />
+            <YAxis yAxisId="right" orientation="right" />
             <Tooltip />
             <Legend />
-            <Bar dataKey="totalTrips" fill="#8884d8" name="Total Trips" />
-            <Bar dataKey="totalDistance" fill="#82ca9d" name="Distance (km)" />
+            <Bar yAxisId="left" dataKey="totalTrips" fill="#8884d8" name="Total Trips" />
+            <Bar yAxisId="right" dataKey="totalDistance" fill="#82ca9d" name="Distance (km)" />
           </BarChart>
         </div>
       </div>

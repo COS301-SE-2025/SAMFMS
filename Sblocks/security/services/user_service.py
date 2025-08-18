@@ -254,6 +254,7 @@ class UserService:
             security_user = SecurityUser(
                 user_id=user_id,
                 email=user_data.email.lower(),
+                phone=user_data.phoneNo,
                 password_hash=password_hash,
                 role=user_data.role,
                 is_active=is_active_determine,
@@ -272,7 +273,7 @@ class UserService:
             }
             
             # Save to database
-            await UserRepository.create_user(security_user.dict(exclude={"id"}))
+            await UserRepository.create_user(security_user.model_dump(exclude={"id"}))
             
             # Publish message for user creation to other services
             user_created_msg = UserCreatedMessage(

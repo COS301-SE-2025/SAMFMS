@@ -324,7 +324,7 @@ async def create_user_manually(
 ):
     """Admin can manually create a user without invitation flow"""
     # Log the incoming request data received by the Security service
-    logger.info(f"Security service received user creation request with data: {user_data.dict() if user_data else 'None'}")
+    logger.info(f"Security service received user creation request with data: {user_data.model_dump() if user_data else 'None'}")
     try:
         # Only admins can create users directly
         if current_user["role"] != "admin":
