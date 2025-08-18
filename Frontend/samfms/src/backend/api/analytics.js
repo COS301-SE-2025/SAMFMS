@@ -1,5 +1,5 @@
-import { authFetch } from './auth';
-import { buildApiUrl, API_ENDPOINTS } from '../../config/apiConfig';
+import {authFetch} from './auth';
+import {buildApiUrl, API_ENDPOINTS} from '../../config/apiConfig';
 
 // Analytics API endpoints using centralized configuration
 const ANALYTICS_API = {
@@ -14,6 +14,7 @@ const ANALYTICS_API = {
   statusBreakdown: buildApiUrl(API_ENDPOINTS.ANALYTICS.STATUS_BREAKDOWN),
   incidentStatistics: buildApiUrl(API_ENDPOINTS.ANALYTICS.INCIDENTS),
   departmentLocation: buildApiUrl(API_ENDPOINTS.ANALYTICS.DEPARTMENT_LOCATION),
+  activeVehicles: buildApiUrl(API_ENDPOINTS.ANALYTICS.ACTIVE),
 };
 
 const handleResponse = async (response, errorMessage) => {
@@ -165,6 +166,17 @@ export const getDepartmentLocationAnalytics = async (useCache = true) => {
     return await handleResponse(response, 'Failed to fetch department location analytics');
   } catch (err) {
     console.error('Error in getDepartmentLocationAnalytics:', err);
+    throw err;
+  }
+};
+
+export const getActiveVehicles = async (useCache = true) => {
+  try {
+    const url = `${ANALYTICS_API.activeVehicles}?use_cache=${useCache}`;
+    const response = await authFetch(url);
+    return await handleResponse(response, 'Failed to fetch active vehicles');
+  } catch (err) {
+    console.error('Error in getActiveVehicles:', err);
     throw err;
   }
 };

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Button } from '../ui/button';
-import { useAuth, ROLES } from '../auth/RBACUtils';
+import React, {useState} from 'react';
+import {Button} from '../ui/button';
+import {useAuth, ROLES} from '../auth/RBACUtils';
 
 const ManualCreateUserModal = ({
   isOpen,
@@ -9,7 +9,7 @@ const ManualCreateUserModal = ({
   loading,
   preselectedRole = 'driver',
 }) => {
-  const { hasRole } = useAuth();
+  const {hasRole} = useAuth();
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -19,6 +19,7 @@ const ManualCreateUserModal = ({
     phoneNo: '',
   });
   const [passwordError, setPasswordError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   // Update form data when preselectedRole changes
   React.useEffect(() => {
@@ -28,8 +29,60 @@ const ManualCreateUserModal = ({
     }));
   }, [preselectedRole]);
 
+  // Phone number validation function
+  const validatePhoneNumber = (phone) => {
+    // Remove all spaces and non-digit characters except +
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+
+    // Check if it starts with +27 (South African international format)
+    if (cleanPhone.startsWith('+27')) {
+      const localNumber = cleanPhone.substring(3);
+      // Should have 9 digits after +27
+      return /^[0-9]{9}$/.test(localNumber);
+    }
+
+    // Check if it starts with 0 (South African local format)
+    if (cleanPhone.startsWith('0')) {
+      // Should have exactly 10 digits total (0 + 9 digits)
+      return /^0[0-9]{9}$/.test(cleanPhone);
+    }
+
+    // Check if it starts with 27 (international without +)
+    if (cleanPhone.startsWith('27')) {
+      const localNumber = cleanPhone.substring(2);
+      // Should have 9 digits after 27
+      return /^[0-9]{9}$/.test(localNumber);
+    }
+
+    // If it doesn't start with 0, 27, or +27, it's invalid
+    return false;
+  };
+
+  // Convert phone number to international format (+27)
+  const convertToInternationalFormat = (phone) => {
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+
+    // If already in +27 format, return as is
+    if (cleanPhone.startsWith('+27')) {
+      return cleanPhone;
+    }
+
+    // If starts with 27 (without +), add the +
+    if (cleanPhone.startsWith('27') && cleanPhone.length === 11) {
+      return '+' + cleanPhone;
+    }
+
+    // If starts with 0, replace with +27
+    if (cleanPhone.startsWith('0') && cleanPhone.length === 10) {
+      return '+27' + cleanPhone.substring(1);
+    }
+
+    // Return original if can't convert (shouldn't happen if validation passed)
+    return phone;
+  };
+
   const handleChange = e => {
-    const { name, value } = e.target;
+    const {name, value} = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value,
@@ -39,9 +92,17 @@ const ManualCreateUserModal = ({
     if (name === 'password' || name === 'confirmPassword') {
       setPasswordError('');
     }
+
+    // Validate phone number in real-time
+    if (name === 'phoneNo') {
+      setPhoneError('');
+    }
   };
 
   const validateForm = () => {
+    // let isValid = true;
+
+    // Validate password
     if (formData.password !== formData.confirmPassword) {
       setPasswordError('Passwords do not match');
       return false;
@@ -50,6 +111,16 @@ const ManualCreateUserModal = ({
       setPasswordError('Password must be at least 6 characters long');
       return false;
     }
+
+    // Validate phone number - required field
+    if (!formData.phoneNo || formData.phoneNo.trim() === '') {
+      setPhoneError('Phone number is required');
+      return false;
+    } else if (!validatePhoneNumber(formData.phoneNo)) {
+      setPhoneError('Please enter a valid South African phone number (e.g., 0826468537, +27826468537, or 27826468537)');
+      return false;
+    }
+
     return true;
   };
   const handleSubmit = async e => {
@@ -60,7 +131,13 @@ const ManualCreateUserModal = ({
     }
 
     try {
-      await onSubmit(formData);
+      // Convert phone number to international format before submitting
+      const formDataWithInternationalPhone = {
+        ...formData,
+        phoneNo: convertToInternationalFormat(formData.phoneNo)
+      };
+
+      await onSubmit(formDataWithInternationalPhone);
       // Reset form after successful submission
       setFormData({
         full_name: '',
@@ -71,6 +148,7 @@ const ManualCreateUserModal = ({
         phoneNo: '',
       });
       setPasswordError('');
+      setPhoneError('');
     } catch (error) {
       console.error('Error in form submission:', error);
       // Don't reset form if there's an error
@@ -87,6 +165,7 @@ const ManualCreateUserModal = ({
       phoneNo: '',
     });
     setPasswordError('');
+    setPhoneError('');
     onClose();
   };
 
@@ -131,6 +210,7 @@ const ManualCreateUserModal = ({
                 value={formData.full_name}
                 onChange={handleChange}
                 className="w-full p-2 border border-border rounded-md bg-background text-foreground focus:ring-primary focus:border-primary"
+                maxLength="50"
                 required
               />
             </div>
@@ -142,20 +222,27 @@ const ManualCreateUserModal = ({
                 value={formData.email}
                 onChange={handleChange}
                 className="w-full p-2 border border-border rounded-md bg-background text-foreground focus:ring-primary focus:border-primary"
+                maxLength="50"
                 required
               />
             </div>
             <div>
               <input type="hidden" name="role" value={preselectedRole} />
-              <label className="block text-sm font-medium mb-1 text-foreground">Phone Number</label>
+              <label className="block text-sm font-medium mb-1 text-foreground">Phone Number *</label>
               <input
                 type="tel"
                 name="phoneNo"
                 value={formData.phoneNo}
                 onChange={handleChange}
-                className="w-full p-2 border border-border rounded-md bg-background text-foreground focus:ring-primary focus:border-primary"
-                placeholder="Optional"
+                className={`w-full p-2 border rounded-md bg-background text-foreground focus:ring-primary focus:border-primary ${phoneError ? 'border-destructive' : 'border-border'
+                  }`}
+                required
               />
+              {phoneError && (
+                <div className="text-sm text-destructive mt-1">
+                  {phoneError}
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1 text-foreground">Password *</label>
@@ -165,6 +252,7 @@ const ManualCreateUserModal = ({
                 value={formData.password}
                 onChange={handleChange}
                 className="w-full p-2 border border-border rounded-md bg-background text-foreground focus:ring-primary focus:border-primary"
+                maxLength="50"
                 required
                 minLength="6"
               />
@@ -179,6 +267,7 @@ const ManualCreateUserModal = ({
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 className="w-full p-2 border border-border rounded-md bg-background text-foreground focus:ring-primary focus:border-primary"
+                maxLength="50"
                 required
                 minLength="6"
               />
