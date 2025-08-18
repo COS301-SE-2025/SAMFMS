@@ -22,7 +22,7 @@ import {
   getAllUpcommingTrip,
 } from '../backend/api/trips';
 import { getVehicles } from '../backend/api/vehicles';
-import { getAllDrivers } from '../backend/api/drivers';
+import { getAllDrivers, getTripPlanningDrivers } from '../backend/api/drivers';
 
 const Trips = () => {
   // Existing state
@@ -372,7 +372,7 @@ const Trips = () => {
   useEffect(() => {
     const loadDrivers = async () => {
       try {
-        const response = await getAllDrivers();
+        const response = await getTripPlanningDrivers();
         console.log('Response received for drivers: ', response);
 
         // Extract drivers from the nested response structure - response.data.data.drivers
