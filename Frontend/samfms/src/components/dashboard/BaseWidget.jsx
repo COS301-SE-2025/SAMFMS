@@ -61,7 +61,7 @@ export const BaseWidget = ({
   if (loading) {
     return (
       <div
-        className={`bg-card border border-border shadow-sm overflow-hidden h-full flex flex-col ${className}`}
+        className={`bg-card shadow-sm overflow-hidden h-full flex flex-col ${className}`}
         role="region"
         aria-label={`${title} - Loading`}
         aria-busy="true"
