@@ -398,7 +398,7 @@ class SimulationService:
             return
         
         # Create and start simulator
-        speed = 50.0  # Default speed since it's not in the trip structure
+        speed = 80.0  # Default speed since it's not in the trip structure
         simulator = VehicleSimulator(trip_id, vehicle_id, route, speed)
         simulator.is_running = True
         
