@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DriverScoreCard from '../components/driver/DriverScoreCard';
 import DriverNotifications from '../components/driver/DriverNotifications';
 import UpcomingTrips from '../components/driver/UpcomingTrips';
@@ -9,6 +10,7 @@ import { getCurrentUser } from '../backend/api/auth';
 import { getDriverEMPID } from '../backend/api/drivers';
 
 const DriverHomePage = () => {
+  const navigate = useNavigate();
   const [hasActiveTrip, setHasActiveTrip] = useState(false);
   const [checkingActiveTrip, setCheckingActiveTrip] = useState(true);
 
@@ -21,7 +23,6 @@ const DriverHomePage = () => {
   const getEmployeeID = async (security_id) => {
     try {
       const response = await getDriverEMPID(security_id);
-      console.log("Response for employee id: ", response);
       const employee_id = response.data.data;
       return employee_id;
     } catch (error) {
@@ -46,15 +47,12 @@ const DriverHomePage = () => {
         console.log('No employee ID found');
         return;
       }
-
-      console.log("Checking for active trips for EMP ID: ", employeeID);
       
       const response = await getDriverActiveTrips(employeeID);
-      console.log("Active trip check response: ", response);
       
       if (response && response.length > 0) {
-        console.log('Active trip found on load, showing ActiveTrip panel');
-        setHasActiveTrip(true);
+        navigate('/trip-navigation');
+        return; // Don't set state since we're navigating away
       } else {
         console.log('No active trips found');
         setHasActiveTrip(false);
@@ -65,7 +63,7 @@ const DriverHomePage = () => {
     } finally {
       setCheckingActiveTrip(false);
     }
-  }, []);
+  }, [navigate]);
 
   // Check for active trips on component mount
   useEffect(() => {
@@ -74,13 +72,11 @@ const DriverHomePage = () => {
 
   // Callback when a trip is started from UpcomingTrips
   const handleTripStarted = useCallback((tripId) => {
-    console.log(`Trip ${tripId} started, showing ActiveTrip panel`);
     setHasActiveTrip(true);
   }, []);
 
   // Callback when a trip is ended from ActiveTrip
   const handleTripEnded = useCallback((tripId) => {
-    console.log(`Trip ${tripId} ended, hiding ActiveTrip panel`);
     setHasActiveTrip(false);
   }, []);
 

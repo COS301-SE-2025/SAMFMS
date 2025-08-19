@@ -33,9 +33,11 @@ async def get_all_users(current_user: dict = Depends(get_current_user_secure)):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions"
-            )
+            )   
+        
         
         users = await UserService.get_all_users()
+        logger.info(f"Users in user_router : {users}")
         return users
     except HTTPException:
         raise

@@ -17,6 +17,7 @@ class UserService:
         """Get all users"""
         try:
             users = await UserRepository.get_all_users()
+            logger.info(f"Users returned in user_service: {users}")
             # Remove sensitive data
             for user in users:
                 user.pop("password_hash", None)
@@ -254,6 +255,7 @@ class UserService:
             security_user = SecurityUser(
                 user_id=user_id,
                 email=user_data.email.lower(),
+                phone=user_data.phoneNo,
                 password_hash=password_hash,
                 role=user_data.role,
                 is_active=is_active_determine,
@@ -272,7 +274,7 @@ class UserService:
             }
             
             # Save to database
-            await UserRepository.create_user(security_user.dict(exclude={"id"}))
+            await UserRepository.create_user(security_user.model_dump(exclude={"id"}))
             
             # Publish message for user creation to other services
             user_created_msg = UserCreatedMessage(

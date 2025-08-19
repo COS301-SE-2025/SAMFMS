@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Clock, User, Car, Navigation, Square, Phone, MessageCircle } from 'lucide-react';
-import { getDriverActiveTrips, updateTrip, finishTrip } from '../../backend/api/trips';
+import { getDriverActiveTrips, finishTrip } from '../../backend/api/trips';
 import { getCurrentUser } from '../../backend/api/auth';
 import { getDriverEMPID, TripFinishedStatus } from '../../backend/api/drivers';
 
@@ -70,7 +70,6 @@ const ActiveTrip = ({ onTripEnded }) => {
   // Fetch active trip
   const fetchActiveTrip = async () => {
     try {
-      setLoading(true);
       setError(null);
       
       const driverId = getCurrentUserId();
@@ -117,7 +116,7 @@ const ActiveTrip = ({ onTripEnded }) => {
         clearInterval(statusCheckInterval);
       }
     };
-  }, []);
+  }, [fetchActiveTrip, statusCheckInterval]);
 
   const formatTripData = trip => {
     if (!trip) return null;

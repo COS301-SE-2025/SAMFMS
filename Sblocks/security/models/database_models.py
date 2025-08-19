@@ -27,6 +27,7 @@ class SecurityUser(BaseModel):
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     user_id: str  # Reference to user in Users Dblock
     email: EmailStr
+    phone: str
     password_hash: str
     role: str = "user"
     is_active: bool = True

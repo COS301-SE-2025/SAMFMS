@@ -8,7 +8,7 @@ import '../components/widgets';
 import '../components/dashboard/dashboard.css';
 
 const DashboardContent = () => {
-  const {state, dispatch, saveDashboardManually} = useDashboard();
+  const {state, saveDashboardManually} = useDashboard();
 
   useEffect(() => {
     // Handle automatic save when leaving the dashboard (but don't exit edit mode)

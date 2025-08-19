@@ -148,7 +148,7 @@ export const getAllPlugins = async () => {
  */
 export const getPluginsWithStatus = async () => {
   try {
-    const res = await fetch("http://localhost:21004/health/healthy-services", {
+    const res = await fetch("http://capstone-samfms.dns.net.za:21004/health/healthy-services", {
       headers: { Accept: "application/json" },
     });
 
