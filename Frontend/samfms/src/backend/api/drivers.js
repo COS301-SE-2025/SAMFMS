@@ -85,9 +85,12 @@ export const getAllDrivers = async (filters = {}) => {
       skip: Number.parseInt(filters.skip || 0), // Ensure integer
     };
 
-    console.log('Sending query params to getAllDrivers:', queryParams);
+
     const response = await httpClient.get(DRIVER_ENDPOINTS.list, {params: queryParams});
-    console.log('Response received from backend:', response);
+
+
+    const response = await httpClient.get(DRIVER_ENDPOINTS.list, { params: queryParams });
+
     return response;
   } catch (error) {
     console.error('Error fetching all drivers:', error);
@@ -285,6 +288,7 @@ export const getDriverEMPID = async security_id => {
 export const TripFinishedStatus = async employee_id => {
   try {
     const response = await httpClient.get(DRIVER_ENDPOINTS.driverASS(employee_id));
+
     
     const vehicle_id = response.data.data[0].vehicle_id;
     

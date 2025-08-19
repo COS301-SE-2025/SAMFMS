@@ -1,7 +1,7 @@
+
 import React, { useState } from 'react';
 import { Button } from '../ui/button';
 import { useAuth } from '../auth/RBACUtils';
-
 const ManualCreateUserModal = ({
   isOpen,
   onClose,

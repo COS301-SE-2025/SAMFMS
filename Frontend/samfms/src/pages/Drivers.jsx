@@ -63,6 +63,7 @@ const Drivers = () => {
       try {
         setLoading(true);
         setError(null);
+
         const params = {};
         if (filters.limit) {
           params.limit = filters.limit; // only include if specified
