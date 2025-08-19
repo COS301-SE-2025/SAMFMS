@@ -178,18 +178,18 @@ export const API_ENDPOINTS = {
       // Trip History Statistics
       HISTORY_STATS: '/trips/analytics/trips/history-stats',
 
-      // Driver analytics with timeframe
-      DRiVERSTATS: '/trips/analytics/drivers/stats',
-      TOTALTRIPSDRIVER: '/trips/analytics/drivers/totaltrips',
-      COMPLETIONRATEDRIVERS: '/trips/analytics/drivers/completionrate',
-      AVGTRIPSPERDAYDRIVERS: '/trips/analytics/drivers/averagedaytrips',
+      // Driver analytics with timeframe in path
+      DRiVERSTATS: timeframe => `/trips/analytics/drivers/stats/${timeframe}`,
+      TOTALTRIPSDRIVER: timeframe => `/trips/analytics/drivers/totaltrips/${timeframe}`,
+      COMPLETIONRATEDRIVERS: timeframe => `/trips/analytics/drivers/completionrate/${timeframe}`,
+      AVGTRIPSPERDAYDRIVERS: timeframe => `/trips/analytics/drivers/averagedaytrips/${timeframe}`,
 
-      // Vehicle analytics with timeframe
-      VehicleSTATS: '/trips/analytics/vehicles/stats',
-      TOTALTRIPSVEHICLES: '/trips/analytics/vehicles/totaltrips',
-      COMPLETIONRATEVEHICLES: '/trips/analytics/vehicles/completionrate',
-      AVGTRIPSPERDAYVEHICLES: '/trips/analytics/vehicles/averagedaytrips',
-      TOTALDISTANCE: '/trips/analytics/vehicles/totaldistance',
+      // Vehicle analytics with timeframe in path
+      VehicleSTATS: timeframe => `/trips/analytics/vehicles/stats/${timeframe}`,
+      TOTALTRIPSVEHICLES: timeframe => `/trips/analytics/vehicles/totaltrips/${timeframe}`,
+      COMPLETIONRATEVEHICLES: timeframe => `/trips/analytics/vehicles/completionrate/${timeframe}`,
+      AVGTRIPSPERDAYVEHICLES: timeframe => `/trips/analytics/vehicles/averagedaytrips/${timeframe}`,
+      TOTALDISTANCE: timeframe => `/trips/analytics/vehicles/totaldistance/${timeframe}`,
     },
   },
 

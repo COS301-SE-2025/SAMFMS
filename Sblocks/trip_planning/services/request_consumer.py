@@ -686,17 +686,24 @@ class ServiceRequestConsumer:
             from services.driver_analytics_service import driver_analytics_service
 
             data = user_context.get("data", {})
+            logger.info(f"Data for driver analytics: {data}")
             endpoint = user_context.get("endpoint", "")
             logger.info(f"[DriverAnalytics] Processing endpoint: {endpoint}")
 
             if method == "GET":
-                # First try to get timeframe from query parameters
-                timeframe = data.get("timeframe", "week")  # Default to week
-                
-                # Extract metric from endpoint path
-                # Format: analytics/drivers/[metric]
+                # Extract timeframe and metric from endpoint path
+                # Format: analytics/drivers/[metric]/[timeframe]
                 path_parts = endpoint.split('/')
-                metric = path_parts[-1] if len(path_parts) >= 3 else None
+                
+                # Default timeframe
+                timeframe = "week"
+                metric = None
+                
+                if len(path_parts) >= 3:
+                    metric = path_parts[2]  # analytics/drivers/[metric]
+                    
+                if len(path_parts) >= 4:
+                    timeframe = path_parts[3]  # analytics/drivers/[metric]/[timeframe]
 
                 logger.info(f"[DriverAnalytics] Using timeframe: {timeframe}, metric: {metric}")
 
@@ -707,29 +714,30 @@ class ServiceRequestConsumer:
                         data={"total": result},
                         message="Total trips retrieved successfully"
                     ).model_dump()
+                    
                 elif metric == "stats":
                     logger.info("Entered driver stats")
                     result = await driver_analytics_service.get_driver_trip_stats(timeframe)
-                    logger.info(f"[DriverAnalytics] response for driver stas; {result}")
+                    logger.info(f"[DriverAnalytics] response for driver stats: {result}")
                     return ResponseBuilder.success(
                         data={"total": result},
-                        message="Total trips retrieved successfully"
+                        message="Driver stats retrieved successfully"
                     ).model_dump()
-                
+
                 elif metric == "completionrate":
                     result = await driver_analytics_service.get_completion_rate(timeframe)
                     return ResponseBuilder.success(
                         data={"rate": result},
                         message="Completion rate retrieved successfully"
                     ).model_dump()
-                
+
                 elif metric == "averagedaytrips":
                     result = await driver_analytics_service.get_average_trips_per_day(timeframe)
                     return ResponseBuilder.success(
                         data={"average": result},
                         message="Average trips per day retrieved successfully"
                     ).model_dump()
-                
+
                 else:
                     raise ValueError(f"Unknown analytics metric: {metric}")
 
@@ -753,12 +761,20 @@ class ServiceRequestConsumer:
             endpoint = user_context.get("endpoint", "")
             logger.info(f"[VehicleAnalytics] Processing endpoint: {endpoint}")
 
-            timeframe = data.get("timeframe", "week")  # Default to week
-                
-            # Extract metric from endpoint path
-            # Format: analytics/vehicles/[metric]
             path_parts = endpoint.split('/')
-            metric = path_parts[-1] if len(path_parts) >= 3 else None
+
+            # Default timeframe
+            timeframe = "week"
+            metric = None
+
+            if len(path_parts) >= 3:
+                metric = path_parts[2]  # "stats" or "totaldistance"
+
+            if len(path_parts) >= 4:
+                timeframe = path_parts[3]  # "week", "month", etc.
+
+            logger.info(f"[VehicleAnalytics] Using timeframe: {timeframe}, metric: {metric}")
+
 
             logger.info(f"[VehicleAnalytics] Using timeframe: {timeframe}, metric: {metric}")
 
