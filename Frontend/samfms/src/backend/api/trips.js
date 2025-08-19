@@ -141,14 +141,14 @@ export const getTripsHistory = async (page = 1, limit = 10) => {
   }
 };
 
-export const getDriverSpecificAnalytics = async (driver_id, timeframe = 'week') => {
+export const getDriverSpecificAnalytics = async (driver_id, timeframe = 'year') => {
   try {
     const driverStatsResponse = await httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.DRIVERSTATS}`, {
       params: { timeframe },
     });
 
     // Extract the data from the nested response structure
-    const allDriversData = driverStatsResponse.data?.data?.data?.total || [];
+    const allDriversData = driverStatsResponse.data?.data?.total || [];
     
     // Filter by specific driver_id
     const driverAnalytics = allDriversData.find(driver => 
