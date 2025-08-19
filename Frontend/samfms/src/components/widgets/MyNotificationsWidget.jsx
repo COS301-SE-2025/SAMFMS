@@ -83,9 +83,9 @@ registerWidget(WIDGET_TYPES.MY_NOTIFICATIONS, MyNotificationsWidget, {
             default: 60,
         },
     },
-    defaultSize: {w: 3, h: 2},
-    minSize: {w: 2, h: 1},
-    maxSize: {w: 4, h: 3},
+    defaultSize: {w: 3, h: 6},
+    minSize: {w: 3, h: 3},
+    maxSize: {w: 8, h: 8},
 });
 
 export default MyNotificationsWidget;
