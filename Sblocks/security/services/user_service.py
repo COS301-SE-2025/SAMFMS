@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional
 import logging
 import uuid
 from datetime import datetime
+from utils.auth_utils import get_role_permissions, ROLES
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ class UserService:
         """Get all users"""
         try:
             users = await UserRepository.get_all_users()
+            logger.info(f"Users returned in user_service: {users}")
             # Remove sensitive data
             for user in users:
                 user.pop("password_hash", None)
@@ -250,13 +252,18 @@ class UserService:
             is_active_determine = True
             
             # Create user in security database
+            role = ROLES.get(user_data.role)
+            role_permissions = get_role_permissions(user_data.role, role["permissions"])
+
             now = datetime.utcnow()
             security_user = SecurityUser(
                 user_id=user_id,
                 email=user_data.email.lower(),
+                phone=user_data.phoneNo,
                 password_hash=password_hash,
                 role=user_data.role,
                 is_active=is_active_determine,
+                permissions=role_permissions,
                 approved=True,
                 full_name=user_data.full_name
             )
@@ -272,7 +279,7 @@ class UserService:
             }
             
             # Save to database
-            await UserRepository.create_user(security_user.dict(exclude={"id"}))
+            await UserRepository.create_user(security_user.model_dump(exclude={"id"}))
             
             # Publish message for user creation to other services
             user_created_msg = UserCreatedMessage(

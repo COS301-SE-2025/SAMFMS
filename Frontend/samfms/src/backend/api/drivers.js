@@ -2,8 +2,8 @@
  * Driver Management API
  * All driver-related API endpoints and functions
  */
-import { httpClient } from '../services/httpClient';
-import { API_ENDPOINTS } from '../../config/apiConfig';
+import {httpClient} from '../services/httpClient';
+import {API_ENDPOINTS} from '../../config/apiConfig';
 
 // Driver API endpoints using centralized configuration
 const DRIVER_ENDPOINTS = {
@@ -18,7 +18,8 @@ const DRIVER_ENDPOINTS = {
   vehicLoct: API_ENDPOINTS.LOCATIONS.GET,
   vehicEndLoc: API_ENDPOINTS.TRIPS.VEHICLETRIP,
   TRIP_PLANNING_LIST: API_ENDPOINTS.DRIVERS.TRIP_PLANNING_LIST,
-  finishtrip: API_ENDPOINTS.TRIPS.FINISHTRIP
+  count: API_ENDPOINTS.DRIVERS.COUNT,
+  finishtrip: API_ENDPOINTS.TRIPS.FINISHTRIP,
 };
 
 /**
@@ -29,7 +30,6 @@ const DRIVER_ENDPOINTS = {
 export const createDriver = async driverData => {
   try {
     const response = await httpClient.post(DRIVER_ENDPOINTS.create, driverData);
-    console.log('Response for create driver: ', response);
     return response;
   } catch (error) {
     console.error('Error creating driver:', error);
@@ -44,7 +44,6 @@ export const createDriver = async driverData => {
  */
 export const getTripPlanningDrivers = async (params = {}) => {
   try {
-    console.log('Fetching drivers from trip planning service...');
 
     // Build query parameters
     const queryParams = {};
@@ -55,19 +54,15 @@ export const getTripPlanningDrivers = async (params = {}) => {
       queryParams.department = params.department;
     }
     if (params.skip !== undefined) {
-      queryParams.skip = parseInt(params.skip) || 0;
+      queryParams.skip = parseInt(params.skip);
     }
     if (params.limit !== undefined) {
-      queryParams.limit = parseInt(params.limit) || 100;
+      queryParams.limit = parseInt(params.limit);
     }
-
-    console.log('Sending query params to trip planning drivers:', queryParams);
 
     const response = await httpClient.get(DRIVER_ENDPOINTS.TRIP_PLANNING_LIST, {
       params: queryParams,
     });
-
-    console.log('Response from trip planning service:', response);
 
     // The trip planning service returns data in a nested structure
     if (response.data && response.data.data) {
@@ -90,9 +85,9 @@ export const getAllDrivers = async (filters = {}) => {
       skip: Number.parseInt(filters.skip || 0), // Ensure integer
     };
 
-    console.log('Sending query params to getAllDrivers:', queryParams);
-    const response = await httpClient.get(DRIVER_ENDPOINTS.list, { params: queryParams });
-    console.log('Response received from backend:', response);
+
+    const response = await httpClient.get(DRIVER_ENDPOINTS.list, {params: queryParams});
+
     return response;
   } catch (error) {
     console.error('Error fetching all drivers:', error);
@@ -108,16 +103,12 @@ export const getAllDrivers = async (filters = {}) => {
  */
 export const getDrivers = async (params = {}) => {
   try {
-    console.log('Fetching drivers using auth/users endpoint...');
 
     // Get all users from the auth service directly
     const allUsers = await httpClient.get('/auth/users');
 
     // Filter for users with 'driver' role
     const drivers = allUsers.filter(user => user.role === 'driver');
-    console.log(drivers);
-
-    console.log(`Found ${drivers.length} drivers out of ${allUsers.length} total users`);
 
     // Apply optional filters if provided
     let filteredDrivers = drivers;
@@ -166,8 +157,6 @@ export const getDriver = async driverId => {
       throw new Error('Driver ID is required');
     }
 
-    console.log(`Fetching driver ${driverId} using auth/users endpoint...`);
-
     // Get all users from the auth service directly
     const allUsers = await httpClient.get('/auth/users');
 
@@ -178,7 +167,6 @@ export const getDriver = async driverId => {
       throw new Error(`Driver with ID ${driverId} not found`);
     }
 
-    console.log(`Found driver: ${driver.full_name}`);
     return driver;
   } catch (error) {
     console.error(`Error fetching driver ${driverId}:`, error);
@@ -235,8 +223,6 @@ export const searchDrivers = async query => {
       throw new Error('Search query is required');
     }
 
-    console.log(`Searching drivers for query: "${query}"`);
-
     // Get all users from the auth service directly
     const allUsers = await httpClient.get('/auth/users');
 
@@ -270,6 +256,16 @@ export const assignVehicle = async data => {
   }
 };
 
+export const getNumberOfDrivers = async (data) => {
+  try {
+    const response = await httpClient.post(DRIVER_ENDPOINTS.count, data);
+    return response;
+  } catch (error) {
+    console.error('Error fetching number of drivers:', error);
+    throw error;
+  }
+};
+
 export const getDriverEMPID = async security_id => {
   try {
     if (!security_id) {
@@ -289,24 +285,22 @@ export const getDriverEMPID = async security_id => {
 export const TripFinishedStatus = async employee_id => {
   try {
     const response = await httpClient.get(DRIVER_ENDPOINTS.driverASS(employee_id));
-    console.log("Response for current driver-vehicle-ass: ", response);
+
     
     const vehicle_id = response.data.data[0].vehicle_id;
-    console.log("Vehicle id: ", vehicle_id);
     
     const current_location_response = await httpClient.get(DRIVER_ENDPOINTS.vehicLoct(vehicle_id));
-    console.log("current location response: ", current_location_response);
     
     const end_location_response = await httpClient.get(DRIVER_ENDPOINTS.vehicEndLoc(vehicle_id));
     console.log("End location response: ", end_location_response);
-    
+
     // Extract coordinates (note: coordinates are [longitude, latitude] in GeoJSON format)
     const current_location = current_location_response.data.data.location.coordinates;
     const end_location = end_location_response.data.data[0].destination.location.coordinates;
-    
+
     console.log("Current location: ", current_location); // [27.985173301345533, -26.09811415363004]
     console.log("End location: ", end_location); // [27.9444444, -26.1336111]
-    
+
     // Calculate distance between two points using Haversine formula
     const distance = calculateDistance(
       current_location[1], // latitude
@@ -314,16 +308,16 @@ export const TripFinishedStatus = async employee_id => {
       end_location[1],     // latitude
       end_location[0]      // longitude
     );
-    
+
     console.log(`Distance to destination: ${distance.toFixed(2)} meters`);
-    
+
     // Consider trip finished if within 100 meters of destination
     const ARRIVAL_THRESHOLD_METERS = 100;
     const hasArrived = distance <= ARRIVAL_THRESHOLD_METERS;
-    
+
     console.log(`Has arrived at destination: ${hasArrived}`);
     return hasArrived;
-    
+
   } catch (error) {
     console.error('Error fetching driver trip status:', error);
     throw error;
@@ -340,15 +334,15 @@ export const TripFinishedStatus = async employee_id => {
  */
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000; // Earth's radius in meters
-  
+
   const φ1 = lat1 * Math.PI / 180; // φ, λ in radians
   const φ2 = lat2 * Math.PI / 180;
   const Δφ = (lat2 - lat1) * Math.PI / 180;
   const Δλ = (lon2 - lon1) * Math.PI / 180;
 
   const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   const distance = R * c; // Distance in meters

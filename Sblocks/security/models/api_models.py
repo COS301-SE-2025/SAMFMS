@@ -166,7 +166,7 @@ class UserResponse(BaseModel):
     email: str
     role: str
     permissions: List[str]
-    phoneNo: Optional[str] = None
+    phone: Optional[str] = None
     details: Dict = {}
     preferences: Dict = {}
     is_active: bool = True

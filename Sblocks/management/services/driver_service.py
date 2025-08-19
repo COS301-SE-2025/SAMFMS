@@ -74,6 +74,8 @@ class DriverService:
             # Ensure pagination params are integers
             skip = int(str(filters.get("skip", 0)).strip())
             limit = int(str(filters.get("limit", 100)).strip())
+            logger.info(f"Skip parameter for drivers: {skip}")
+            logger.info(f"Limit parameter for drivers: {limit}")
 
             # Query DB with validated integers
             all_drivers = await self.driver_repo.find(

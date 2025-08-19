@@ -57,17 +57,6 @@ const PluginHealthWidget = ({ id, config = {} }) => {
     return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
   };
 
-  const getStatusColor = status => {
-    const statusLower = status?.toLowerCase();
-    if (statusLower === 'healthy' || statusLower === 'success' || statusLower === 'ok') {
-      return 'text-green-600 dark:text-green-400';
-    }
-    if (statusLower === 'unhealthy' || statusLower === 'error' || statusLower === 'down') {
-      return 'text-red-600 dark:text-red-400';
-    }
-    return 'text-yellow-600 dark:text-yellow-400';
-  };
-
   return (
     <BaseWidget
       id={id}

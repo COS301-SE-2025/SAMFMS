@@ -6,10 +6,9 @@ const UserTable = ({
   title,
   users,
   loading,
-  showActions = true,
+  showPhone = true,
   showRole = false,
   emptyMessage = 'No users found',
-  actions = [],
   search = '',
   setSearch,
   sort = { field: 'full_name', direction: 'asc' },
@@ -95,7 +94,8 @@ const UserTable = ({
       users.filter(
         user =>
           (user.full_name && user.full_name.toLowerCase().includes(lowerQuery)) ||
-          (user.email && user.email.toLowerCase().includes(lowerQuery))
+          (user.email && user.email.toLowerCase().includes(lowerQuery)) ||
+          (user.phone && user.phone.toLowerCase().includes(lowerQuery))
       )
     );
   };
@@ -165,6 +165,16 @@ const UserTable = ({
                   >
                     Email {getSortIcon('email')}
                   </th>
+                  {showPhone && (
+                    <th
+                      className={`text-left py-3 px-4 ${
+                        onSortChange ? 'cursor-pointer hover:bg-accent/10' : ''
+                      }`}
+                      onClick={() => handleHeaderClick('phone')}
+                    >
+                      Phone {getSortIcon('phone')}
+                    </th>
+                  )}
                   {showRole && (
                     <th
                       className={`text-left py-3 px-4 ${
@@ -175,16 +185,13 @@ const UserTable = ({
                       Role {getSortIcon('role')}
                     </th>
                   )}
-                  {showActions && actions.length > 0 && (
-                    <th className="text-left py-3 px-4">Actions</th>
-                  )}
                 </tr>
               </thead>
               <tbody>
                 {filteredUsers.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={2 + (showRole ? 1 : 0) + (showActions && actions.length > 0 ? 1 : 0)}
+                      colSpan={2 + (showPhone ? 1 : 0) + (showRole ? 1 : 0)}
                       className="px-4 py-8 text-center text-muted-foreground"
                     >
                       {emptyMessage}
@@ -207,27 +214,18 @@ const UserTable = ({
                       <td className="py-3 px-4">
                         <div className="text-sm text-muted-foreground">{user.email}</div>
                       </td>
+                      {showPhone && (
+                        <td className="py-3 px-4">
+                          <div className="text-sm text-muted-foreground">
+                            {user.phone || 'Not provided'}
+                          </div>
+                        </td>
+                      )}
                       {showRole && (
                         <td className="py-3 px-4">
                           <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
                             {user.role?.replace('_', ' ') || 'N/A'}
                           </span>
-                        </td>
-                      )}
-                      {showActions && actions.length > 0 && (
-                        <td className="py-3 px-4" onClick={e => e.stopPropagation()}>
-                          <div className="flex space-x-2">
-                            {actions.map((action, index) => (
-                              <button
-                                key={index}
-                                className={action.className || 'text-primary hover:text-primary/80'}
-                                title={action.title}
-                                onClick={() => action.onClick(user)}
-                              >
-                                {action.icon}
-                              </button>
-                            ))}
-                          </div>
                         </td>
                       )}
                     </tr>

@@ -39,6 +39,10 @@ export const WIDGET_TYPES = Object.freeze({
   LINE_CHART: 'line_chart',
   BAR_CHART: 'bar_chart',
   PIE_CHART: 'pie_chart',
+  DRIVER_TOTAL_COUNT: 'driver_total_count',
+  MY_NOTIFICATIONS: 'my_notifications',
+  DRIVER_GROWTH_LINE_GRAPH: 'driver_growth_line_graph',
+  VEHICLE_STATUS_BAR_CHART: 'vehicle_status_bar_chart',
 });
 
 export const WIDGET_CATEGORIES = Object.freeze({
@@ -49,6 +53,8 @@ export const WIDGET_CATEGORIES = Object.freeze({
   ANALYTICS: 'Analytics',
   CHARTS: 'Charts',
   GENERAL: 'General',
+  DRIVERS: 'Drivers',
+  NOTIFICATIONS: 'Notifications',
 });
 
 // Security validation for widget metadata
@@ -81,21 +87,21 @@ const validateWidgetMetadata = metadata => {
 
   // Validate size constraints
   if (metadata.defaultSize) {
-    const { w, h } = metadata.defaultSize;
+    const {w, h} = metadata.defaultSize;
     if (typeof w !== 'number' || typeof h !== 'number' || w <= 0 || h <= 0 || w > 12 || h > 12) {
       errors.push('Invalid default size - width must be 1-12, height must be 1-12');
     }
   }
 
   if (metadata.minSize) {
-    const { w, h } = metadata.minSize;
+    const {w, h} = metadata.minSize;
     if (typeof w !== 'number' || typeof h !== 'number' || w <= 0 || h <= 0 || w > 12 || h > 12) {
       errors.push('Invalid minimum size - width must be 1-12, height must be 1-12');
     }
   }
 
   if (metadata.maxSize) {
-    const { w, h } = metadata.maxSize;
+    const {w, h} = metadata.maxSize;
     if (typeof w !== 'number' || typeof h !== 'number' || w <= 0 || h <= 0 || w > 12 || h > 12) {
       errors.push('Invalid maximum size - width must be 1-12, height must be 1-12');
     }
@@ -150,9 +156,9 @@ export const registerWidget = (type, component, metadata) => {
     title: metadata?.title || 'Untitled Widget',
     description: metadata?.description || '',
     category: metadata?.category || WIDGET_CATEGORIES.GENERAL,
-    defaultSize: metadata?.defaultSize || { w: 4, h: 3 },
-    minSize: metadata?.minSize || { w: 2, h: 2 },
-    maxSize: metadata?.maxSize || { w: 12, h: 8 },
+    defaultSize: metadata?.defaultSize || {w: 4, h: 3},
+    minSize: metadata?.minSize || {w: 2, h: 2},
+    maxSize: metadata?.maxSize || {w: 12, h: 8},
     configSchema: metadata?.configSchema || {},
     icon: metadata?.icon || null,
     version: metadata?.version || '1.0.0',
@@ -249,7 +255,7 @@ export const validateWidgetInstance = widgetData => {
 
   // Validate size constraints if present
   if (widgetData.size) {
-    const { w, h } = widgetData.size;
+    const {w, h} = widgetData.size;
     if (typeof w !== 'number' || typeof h !== 'number' || w <= 0 || h <= 0 || w > 12 || h > 12) {
       errors.push('Invalid widget size - width must be 1-12, height must be 1-12');
     }
