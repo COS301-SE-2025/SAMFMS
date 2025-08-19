@@ -11,7 +11,7 @@
 // ============================================================================
 
 // Legacy endpoint constants for backward compatibility
-import { API_URL } from './api/auth';
+import {API_URL} from './api/auth';
 
 // Re-export all authentication-related functionality
 export {
@@ -72,6 +72,7 @@ export {
   getDriverPerformanceByIdData,
   getCostAnalyticsData,
   getStatusBreakdownData,
+  getActiveVehicles, // new
 } from './api/analytics';
 
 // Re-export vehicle management functions
@@ -92,6 +93,7 @@ export {
   updateDriver,
   deleteDriver,
   searchDrivers,
+  getNumberOfDrivers // new
 } from './api/drivers';
 
 // Re-export assignment management functions with enhancements
@@ -131,6 +133,10 @@ export {
   addSblock,
   removeSblock,
 } from './api/plugins';
+
+export {
+  getUserNotifications // new
+} from './api/notifications';
 
 export const DRIVER_API = {
   drivers: `${API_URL}/api/vehicles/drivers`,

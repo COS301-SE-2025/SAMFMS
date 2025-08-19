@@ -2,8 +2,8 @@
  * Driver Management API
  * All driver-related API endpoints and functions
  */
-import { httpClient } from '../services/httpClient';
-import { API_ENDPOINTS } from '../../config/apiConfig';
+import {httpClient} from '../services/httpClient';
+import {API_ENDPOINTS} from '../../config/apiConfig';
 
 // Driver API endpoints using centralized configuration
 const DRIVER_ENDPOINTS = {
@@ -18,7 +18,8 @@ const DRIVER_ENDPOINTS = {
   vehicLoct: API_ENDPOINTS.LOCATIONS.GET,
   vehicEndLoc: API_ENDPOINTS.TRIPS.VEHICLETRIP,
   TRIP_PLANNING_LIST: API_ENDPOINTS.DRIVERS.TRIP_PLANNING_LIST,
-  finishtrip: API_ENDPOINTS.TRIPS.FINISHTRIP
+  count: API_ENDPOINTS.DRIVERS.COUNT,
+  finishtrip: API_ENDPOINTS.TRIPS.FINISHTRIP,
 };
 
 /**
@@ -83,6 +84,7 @@ export const getAllDrivers = async (filters = {}) => {
       limit: Number.parseInt(filters.limit || 100), // Ensure integer
       skip: Number.parseInt(filters.skip || 0), // Ensure integer
     };
+
 
     const response = await httpClient.get(DRIVER_ENDPOINTS.list, { params: queryParams });
     return response;
@@ -253,6 +255,16 @@ export const assignVehicle = async data => {
   }
 };
 
+export const getNumberOfDrivers = async (data) => {
+  try {
+    const response = await httpClient.post(DRIVER_ENDPOINTS.count, data);
+    return response;
+  } catch (error) {
+    console.error('Error fetching number of drivers:', error);
+    throw error;
+  }
+};
+
 export const getDriverEMPID = async security_id => {
   try {
     if (!security_id) {
@@ -272,6 +284,7 @@ export const getDriverEMPID = async security_id => {
 export const TripFinishedStatus = async employee_id => {
   try {
     const response = await httpClient.get(DRIVER_ENDPOINTS.driverASS(employee_id));
+
     
     const vehicle_id = response.data.data[0].vehicle_id;
     
@@ -295,7 +308,7 @@ export const TripFinishedStatus = async employee_id => {
     const ARRIVAL_THRESHOLD_METERS = 100;
     const hasArrived = distance <= ARRIVAL_THRESHOLD_METERS;
     return hasArrived;
-    
+
   } catch (error) {
     console.error('Error fetching driver trip status:', error);
     throw error;
@@ -312,15 +325,15 @@ export const TripFinishedStatus = async employee_id => {
  */
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000; // Earth's radius in meters
-  
+
   const φ1 = lat1 * Math.PI / 180; // φ, λ in radians
   const φ2 = lat2 * Math.PI / 180;
   const Δφ = (lat2 - lat1) * Math.PI / 180;
   const Δλ = (lon2 - lon1) * Math.PI / 180;
 
   const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   const distance = R * c; // Distance in meters

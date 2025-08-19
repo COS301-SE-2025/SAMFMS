@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '../components/ui/button';
-import { useNavigate } from 'react-router-dom';
-import { useTheme } from '../contexts/ThemeContext';
+import React, {useState, useEffect} from 'react';
+import {Button} from '../components/ui/button';
+import {useNavigate} from 'react-router-dom';
+import {useTheme} from '../contexts/ThemeContext';
 import {
   login,
   isAuthenticated,
@@ -9,7 +9,7 @@ import {
   clearUserExistenceCache,
   hasRole,
 } from '../backend/API.js';
-import { ROLES } from '../components/auth/RBACUtils';
+import {ROLES} from '../components/auth/RBACUtils';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -26,7 +26,7 @@ const Login = () => {
     password: false,
   });
   const navigate = useNavigate();
-  const { theme } = useTheme();
+  const {theme} = useTheme();
   useEffect(() => {
     // If user is already authenticated, redirect based on role
     if (isAuthenticated()) {
@@ -107,7 +107,7 @@ const Login = () => {
 
   // Handle blur events
   const handleBlur = field => {
-    setTouched({ ...touched, [field]: true });
+    setTouched({...touched, [field]: true});
 
     if (field === 'email') {
       setValidationErrors({
@@ -174,9 +174,9 @@ const Login = () => {
       setTimeout(() => {
         // Redirect based on user role
         if (hasRole(ROLES.DRIVER)) {
-          navigate('/driver-home', { replace: true });
+          navigate('/driver-home', {replace: true});
         } else {
-          navigate('/dashboard', { replace: true });
+          navigate('/dashboard', {replace: true});
         }
       }, 100);
     } catch (err) {
@@ -267,11 +267,10 @@ const Login = () => {
                   onChange={e => handleChange('email', e.target.value)}
                   onBlur={() => handleBlur('email')}
                   required
-                  className={`w-full p-3 border rounded-md bg-primary-50 text-primary-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 ${
-                    validationErrors.email && touched.email
+                  className={`w-full p-3 border rounded-md bg-primary-50 text-primary-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 ${validationErrors.email && touched.email
                       ? 'border-red-500'
                       : 'border-primary-200'
-                  }`}
+                    }`}
                 />
                 {validationErrors.email && touched.email && (
                   <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>
@@ -290,11 +289,10 @@ const Login = () => {
                   onChange={e => handleChange('password', e.target.value)}
                   onBlur={() => handleBlur('password')}
                   required
-                  className={`w-full p-3 border rounded-md bg-primary-50 text-primary-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 ${
-                    validationErrors.password && touched.password
+                  className={`w-full p-3 border rounded-md bg-primary-50 text-primary-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 ${validationErrors.password && touched.password
                       ? 'border-red-500'
                       : 'border-primary-200'
-                  }`}
+                    }`}
                 />
                 {validationErrors.password && touched.password && (
                   <p className="text-red-500 text-xs mt-1">{validationErrors.password}</p>
@@ -332,37 +330,6 @@ const Login = () => {
                   <span className="px-2 bg-white text-primary-700">Or</span>
                 </div>
               </div>
-
-              <Button
-                type="button"
-                className="w-full py-3 flex items-center justify-center gap-2 bg-white hover:bg-gray-100 text-gray-800 border border-gray-300 transform transition-transform duration-300 hover:scale-[1.01] active:scale-[0.98] hover:shadow-md"
-                onClick={() => console.log('Google login clicked')}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 48 48">
-                  <path
-                    fill="#FFC107"
-                    d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12
-                    s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24
-                    s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
-                  />
-                  <path
-                    fill="#FF3D00"
-                    d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039
-                    l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"
-                  />
-                  <path
-                    fill="#4CAF50"
-                    d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36
-                    c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"
-                  />
-                  <path
-                    fill="#1976D2"
-                    d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571
-                    c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"
-                  />
-                </svg>
-                Continue with Google
-              </Button>
             </form>
           </div>
         </div>
