@@ -27,6 +27,7 @@ import Help from './pages/Help';
 import Landing from './pages/Landing';
 import UserManagement from './pages/UserManagement';
 import DriverHomePage from './pages/DriverHomePage';
+import TripNavigation from './pages/TripNavigation';
 
 function App() {
   return (
@@ -77,6 +78,7 @@ function App() {
                     element={<RoleBasedRoute adminComponent={Dashboard} driverComponent={null} />}
                   />
                   <Route path="/driver-home" element={<DriverHomePage />} />
+                  <Route path="/trip-navigation" element={<TripNavigation />} />
                   <Route path="/vehicles" element={<Vehicles />} />{' '}
                   <Route path="/drivers" element={<Drivers />} />
                   <Route path="/tracking" element={<Tracking />} />

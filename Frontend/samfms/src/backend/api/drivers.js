@@ -30,7 +30,6 @@ const DRIVER_ENDPOINTS = {
 export const createDriver = async driverData => {
   try {
     const response = await httpClient.post(DRIVER_ENDPOINTS.create, driverData);
-    console.log('Response for create driver: ', response);
     return response;
   } catch (error) {
     console.error('Error creating driver:', error);
@@ -45,7 +44,6 @@ export const createDriver = async driverData => {
  */
 export const getTripPlanningDrivers = async (params = {}) => {
   try {
-    console.log('Fetching drivers from trip planning service...');
 
     // Build query parameters
     const queryParams = {};
@@ -62,13 +60,9 @@ export const getTripPlanningDrivers = async (params = {}) => {
       queryParams.limit = parseInt(params.limit);
     }
 
-    console.log('Sending query params to trip planning drivers:', queryParams);
-
     const response = await httpClient.get(DRIVER_ENDPOINTS.TRIP_PLANNING_LIST, {
       params: queryParams,
     });
-
-    console.log('Response from trip planning service:', response);
 
     // The trip planning service returns data in a nested structure
     if (response.data && response.data.data) {
@@ -109,16 +103,12 @@ export const getAllDrivers = async (filters = {}) => {
  */
 export const getDrivers = async (params = {}) => {
   try {
-    console.log('Fetching drivers using auth/users endpoint...');
 
     // Get all users from the auth service directly
     const allUsers = await httpClient.get('/auth/users');
 
     // Filter for users with 'driver' role
     const drivers = allUsers.filter(user => user.role === 'driver');
-    console.log(drivers);
-
-    console.log(`Found ${drivers.length} drivers out of ${allUsers.length} total users`);
 
     // Apply optional filters if provided
     let filteredDrivers = drivers;
@@ -167,8 +157,6 @@ export const getDriver = async driverId => {
       throw new Error('Driver ID is required');
     }
 
-    console.log(`Fetching driver ${driverId} using auth/users endpoint...`);
-
     // Get all users from the auth service directly
     const allUsers = await httpClient.get('/auth/users');
 
@@ -179,7 +167,6 @@ export const getDriver = async driverId => {
       throw new Error(`Driver with ID ${driverId} not found`);
     }
 
-    console.log(`Found driver: ${driver.full_name}`);
     return driver;
   } catch (error) {
     console.error(`Error fetching driver ${driverId}:`, error);
@@ -235,8 +222,6 @@ export const searchDrivers = async query => {
     if (!query) {
       throw new Error('Search query is required');
     }
-
-    console.log(`Searching drivers for query: "${query}"`);
 
     // Get all users from the auth service directly
     const allUsers = await httpClient.get('/auth/users');

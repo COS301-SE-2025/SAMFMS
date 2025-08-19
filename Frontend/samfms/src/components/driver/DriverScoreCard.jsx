@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertTriangle, Clock, Loader2 } from 'lucide-react';
 import { getDriverPerformanceById } from '../../backend/api/analytics';
 import { getCurrentUser } from '../../backend/api/auth';
+import { getDriverSpecificAnalytics } from '../../backend/api/trips';
+import { getDriverEMPID } from '../../backend/api/drivers';
 
 const DriverScoreCard = () => {
   const [performanceData, setPerformanceData] = useState(null);
@@ -20,11 +22,11 @@ const DriverScoreCard = () => {
           throw new Error('No authenticated user found');
         }
 
-        // Use user ID as driver ID (this might need adjustment based on your data structure)
-        const driverId = currentUser.id;
+        const driverId = await getDriverEMPID(currentUser.id);
 
         // Fetch driver performance data
         const response = await getDriverPerformanceById(driverId);
+        console.log("Response for driver performace data: ", response);
 
         // Handle both direct data and wrapped response formats
         const data = response.data || response;

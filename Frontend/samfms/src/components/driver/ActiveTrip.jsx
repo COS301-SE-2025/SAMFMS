@@ -70,7 +70,6 @@ const ActiveTrip = ({ onTripEnded }) => {
   // Fetch active trip
   const fetchActiveTrip = async () => {
     try {
-      setLoading(true);
       setError(null);
       
       const driverId = getCurrentUserId();

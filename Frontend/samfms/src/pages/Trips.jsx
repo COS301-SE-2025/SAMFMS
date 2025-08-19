@@ -19,7 +19,7 @@ import {
   getAllUpcommingTrip,
 } from '../backend/api/trips';
 import { getVehicles } from '../backend/api/vehicles';
-import { getAllDrivers, getTripPlanningDrivers } from '../backend/api/drivers';
+import { getTripPlanningDrivers } from '../backend/api/drivers';
 
 const Trips = () => {
   // Existing state
@@ -371,7 +371,7 @@ const Trips = () => {
     const loadDrivers = async () => {
       try {
         const response = await getTripPlanningDrivers();
-        console.log('Response received for drivers: ', response);
+        console.log('Response received for drivers from trip planning: ', response);
 
         // Extract drivers from the trip planning service response
         let driversData = [];

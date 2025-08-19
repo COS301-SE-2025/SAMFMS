@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MapPin, Clock, User, Car, ChevronRight, ChevronDown, ChevronUp, Play, Square } from 'lucide-react';
 import { getUpcomingTrips, updateTrip, finishTrip } from '../../backend/api/trips';
 import { getCurrentUser } from '../../backend/api/auth';
 import { getDriverEMPID, TripFinishedStatus } from '../../backend/api/drivers';
 
 const UpcomingTrips = ({ onTripStarted }) => {
+  const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [upcomingTrips, setUpcomingTrips] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,7 +82,6 @@ const UpcomingTrips = ({ onTripStarted }) => {
 
   const fetchUpcomingTrips = async () => {
     try {
-      setLoading(true);
       const driverId = getCurrentUserId();
       
       if (!driverId) {
@@ -244,6 +245,9 @@ const UpcomingTrips = ({ onTripStarted }) => {
       await fetchUpcomingTrips();
       
       console.log(`Trip ${tripId} started successfully`);
+      
+      // Navigate to trip navigation page
+      navigate('/trip-navigation');
       
     } catch (error) {
       console.error('Error starting trip:', error);
