@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DriverScoreCard from '../components/driver/DriverScoreCard';
 import DriverNotifications from '../components/driver/DriverNotifications';
 import UpcomingTrips from '../components/driver/UpcomingTrips';
@@ -9,6 +10,7 @@ import { getCurrentUser } from '../backend/api/auth';
 import { getDriverEMPID } from '../backend/api/drivers';
 
 const DriverHomePage = () => {
+  const navigate = useNavigate();
   const [hasActiveTrip, setHasActiveTrip] = useState(false);
   const [checkingActiveTrip, setCheckingActiveTrip] = useState(true);
 
@@ -53,8 +55,9 @@ const DriverHomePage = () => {
       console.log("Active trip check response: ", response);
       
       if (response && response.length > 0) {
-        console.log('Active trip found on load, showing ActiveTrip panel');
-        setHasActiveTrip(true);
+        console.log('Active trip found on load, redirecting to trip navigation');
+        navigate('/trip-navigation');
+        return; // Don't set state since we're navigating away
       } else {
         console.log('No active trips found');
         setHasActiveTrip(false);
@@ -65,7 +68,7 @@ const DriverHomePage = () => {
     } finally {
       setCheckingActiveTrip(false);
     }
-  }, []);
+  }, [navigate]);
 
   // Check for active trips on component mount
   useEffect(() => {

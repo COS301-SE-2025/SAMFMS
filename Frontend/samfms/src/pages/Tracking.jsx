@@ -51,12 +51,10 @@ const Tracking = () => {
             };
           });
 
-        setGeofences(transformedGeofences);
         setError(null);
       } catch (err) {
         console.error('Failed to load geofences:', err);
         setError('Failed to load geofences');
-        setGeofences([]);
       } finally {
         setLoading(false);
       }
@@ -71,7 +69,6 @@ const Tracking = () => {
         const response = await listLocations();
         console.log('Response received from Core: ');
         console.log(response);
-        setLocations(response.data?.data || []);
       } catch (err) {
         console.error('Failed to load locations:', err);
       }
