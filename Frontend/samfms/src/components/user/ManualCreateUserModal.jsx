@@ -1,6 +1,6 @@
-import React, {useState} from 'react';
-import {Button} from '../ui/button';
-import {useAuth, ROLES} from '../auth/RBACUtils';
+import React, { useState } from 'react';
+import { Button } from '../ui/button';
+import { useAuth } from '../auth/RBACUtils';
 
 const ManualCreateUserModal = ({
   isOpen,
@@ -9,7 +9,6 @@ const ManualCreateUserModal = ({
   loading,
   preselectedRole = 'driver',
 }) => {
-  const {hasRole} = useAuth();
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',

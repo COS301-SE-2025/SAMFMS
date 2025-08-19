@@ -2,8 +2,6 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { useMap } from 'react-leaflet';
 
-import { getVehiclePolyline } from '../../backend/api/trips';
-
 // Fix for marker icons in React-Leaflet
 L.Marker.prototype.options.icon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',

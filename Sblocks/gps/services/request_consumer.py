@@ -332,12 +332,12 @@ class ServiceRequestConsumer:
                         if locations:
                             for loc in locations:
                                 locations_list.append(loc.model_dump())
-                                vehicles_with_locations.add(loc.vehicle_id)
+                                vehicles_with_locations.add(str(loc.vehicle_id))
                         
                         # Find vehicles without location data
                         if vehicles:
                             for vehicle in vehicles:
-                                vehicle_id = vehicle["_id"]
+                                vehicle_id = str(vehicle["_id"])
                                 
                                 if vehicle_id not in vehicles_with_locations:
                                     # Create default location entry for missing vehicle

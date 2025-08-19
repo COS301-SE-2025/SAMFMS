@@ -1,6 +1,6 @@
-import React, {useState, useEffect, useRef} from 'react';
-import {useAuth, ROLES} from '../components/auth/RBACUtils.jsx';
-import {ChevronLeft, ChevronRight} from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useAuth, ROLES } from '../components/auth/RBACUtils.jsx';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   listUsers,
   updateUserPermissions,
@@ -11,17 +11,17 @@ import {
   createUserManually,
   getDrivers,
 } from '../backend/API.js';
-import {Navigate} from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import UserTable from '../components/user/UserTable.jsx';
 import ManualCreateUserModal from '../components/user/ManualCreateUserModal.jsx';
-import {useNotification} from '../contexts/NotificationContext.jsx';
+import { useNotification } from '../contexts/NotificationContext.jsx';
 import FadeIn from '../components/ui/FadeIn.jsx';
 
-import {createDriver} from '../backend/api/drivers.js';
+import { createDriver, getAllDrivers } from '../backend/api/drivers.js';
 
 const UserManagement = () => {
-  const {hasPermission, hasRole} = useAuth();
-  const {showNotification} = useNotification();
+  const { hasPermission, hasRole } = useAuth();
+  const { showNotification } = useNotification();
   const [adminUsers, setAdminUsers] = useState([]);
   const [managerUsers, setManagerUsers] = useState([]);
   const [driverUsers, setDriverUsers] = useState([]);
@@ -41,6 +41,7 @@ const UserManagement = () => {
     try {
       setLoading(true);
       const usersData = await listUsers();
+      console.log("User Data: ", usersData);
 
       // Filter users by role
       const admins = usersData.filter(user => user.role === ROLES.ADMIN);
@@ -71,20 +72,34 @@ const UserManagement = () => {
     try {
       // Load drivers from the drivers API if user has permission
       if (hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) {
-        const driversData = await getDrivers({limit: 100});
+        const driversData = await getAllDrivers({ limit: 100 });
+        //console.log("Driver data response: ", driversData)
+
+        // Access the drivers array correctly from the nested structure
+        const driversArray = driversData.data.data.drivers;
+
+        // Check if driversArray exists and is an array
+        if (!Array.isArray(driversArray)) {
+          console.error('Drivers data is not an array:', driversArray);
+          return;
+        }
+
         // Transform driver data to match user table format
-        const transformedDrivers = driversData.map(driver => ({
-          id: driver.id || driver._id,
-          full_name: driver.user_info?.full_name || driver.name || 'Unknown',
-          email: driver.user_info?.email || driver.email || 'N/A',
-          phoneNo: driver.user_info?.phoneNo || driver.phone || 'N/A',
-          phone: driver.user_info?.phoneNo || driver.phone || 'N/A',
+        const transformedDrivers = driversArray.map(driver => ({
+          id: driver._id || driver.id,
+          full_name: `${driver.first_name} ${driver.last_name}`,
+          email: driver.email,
+          phone: driver.phone,
           role: 'driver',
           employee_id: driver.employee_id,
           license_number: driver.license_number,
-          department: driver.department,
+          license_class: driver.license_class,
+          license_expiry: driver.license_expiry,
           status: driver.status,
+          security_id: driver.security_id
         }));
+
+        //console.log("Transformed Drivers: ", transformedDrivers)
         setDriverUsers(transformedDrivers);
       }
     } catch (err) {

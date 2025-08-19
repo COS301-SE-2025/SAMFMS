@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus } from 'lucide-react';
-import ActiveTripsPanel from '../components/trips/ActiveTripsPanel';
 import TripsAnalytics from '../components/trips/TripsAnalytics';
-import TripsHistory from '../components/trips/TripsHistory';
 import TripSchedulingModal from '../components/trips/TripSchedulingModal';
 import Notification from '../components/common/Notification';
 import OverviewStatsCards from '../components/trips/OverviewStatsCards';
@@ -16,7 +14,6 @@ import {
   getActiveTrips,
   getDriverAnalytics,
   getVehicleAnalytics,
-  listTrips,
   getAllRecentTrips,
   getTripHistoryStats,
   getAllUpcommingTrip,
@@ -374,7 +371,7 @@ const Trips = () => {
     const loadDrivers = async () => {
       try {
         const response = await getTripPlanningDrivers();
-        console.log('Response received for drivers from trip planning: ', response);
+        console.log('Response received for drivers: ', response);
 
         // Extract drivers from the trip planning service response
         let driversData = [];
@@ -387,7 +384,7 @@ const Trips = () => {
         }
 
         // Filter to count only drivers with "available" status for the stats card
-        const availableDriversCount = driversData.filter(driver => {
+        const availableDriversFiltered = driversData.filter(driver => {
           if (!driver) return false;
           const status = (driver.status || '').toLowerCase();
           return (
@@ -396,8 +393,9 @@ const Trips = () => {
         });
 
         console.log('All drivers from API: ', driversData);
-        console.log('Available drivers after filtering: ', availableDrivers);
-        setDrivers(availableDrivers);
+        console.log('Available drivers after filtering: ', availableDriversFiltered);
+        setDrivers(driversData);
+        setAvailableDriversCount(availableDriversFiltered.length);
       } catch (error) {
         console.error('Error loading drivers from trip planning service:', error);
         setDrivers([]);

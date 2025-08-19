@@ -63,17 +63,20 @@ const Drivers = () => {
       try {
         setLoading(true);
         setError(null);
-        const params = {limit: 100};
+        const params = {};
+        if (filters.limit) {
+          params.limit = filters.limit; // only include if specified
+        }
         if (filters.status) {
-          // Map frontend status format to backend format
-          params.status = filters.status.toLowerCase() === 'active' ? 'active' : 'inactive';
+          params.status = filters.status.toLowerCase() === 'available' ? 'available' : 'unavailable';
         }
         if (filters.department) {
           params.department = filters.department;
         }
 
+
         // Use the new trip planning service endpoint
-        const response = await getTripPlanningDrivers(params);
+        const response = await getTripPlanningDrivers();
         console.log('Full response from trip planning service:', response); // Debug log
 
         // The trip planning service returns { drivers, total, skip, limit, has_more }
@@ -85,9 +88,7 @@ const Drivers = () => {
         }
 
         const transformedDrivers = driversData.map((driver, index) => {
-          console.log(`Transforming driver ${index}:`, driver); // Debug log
           const transformed = transformDriverData(driver);
-          console.log(`Transformed result ${index}:`, transformed); // Debug log
           return transformed;
         });
         console.log('All transformed drivers:', transformedDrivers); // Debug log
@@ -398,34 +399,38 @@ const Drivers = () => {
             </div>
           </div>
 
-          {/* Utilization Rate Card */}
+          {/* Driver Utilization Card */}
           <div className="group bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 border border-orange-200 dark:border-orange-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-orange-600 dark:text-orange-300 mb-2">
-                  Utilization Rate
+                  Driver Utilization
                 </p>
-                <p className="text-3xl font-bold text-orange-900 dark:text-orange-100 transition-colors duration-300">
-                  {(() => {
-                    const totalDrivers = drivers.length;
-                    const unavailableDrivers = drivers.filter(
-                      driver => driver.status?.toLowerCase() === 'unavailable'
-                    ).length;
-
-                    if (totalDrivers === 0) return '0%';
-                    const utilizationRate = Math.round((unavailableDrivers / totalDrivers) * 100);
-                    return `${utilizationRate}%`;
-                  })()}
-                </p>
+                
+                {(() => {
+                  const totalDrivers = drivers.length;
+                  const unavailableDrivers = drivers.filter(driver => 
+                    driver.status?.toLowerCase() === 'unavailable'
+                  ).length;
+                  const utilizationPercentage = totalDrivers > 0 
+                    ? Math.round((unavailableDrivers / totalDrivers) * 100)
+                    : 0;
+                  
+                  return (
+                    <>
+                      <p className="text-3xl font-bold text-orange-900 dark:text-orange-100 transition-colors duration-300">
+                        {utilizationPercentage}%
+                      </p>
+                      <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">
+                        {unavailableDrivers} of {totalDrivers} drivers busy
+                      </p>
+                    </>
+                  );
+                })()}
+                
                 <div className="flex items-center mt-2">
                   <div className="w-2 h-2 bg-orange-500 rounded-full mr-2 animate-pulse"></div>
-                  <p className="text-xs text-orange-600 dark:text-orange-400">
-                    {
-                      drivers.filter(driver => driver.status?.toLowerCase() === 'unavailable')
-                        .length
-                    }{' '}
-                    in use
-                  </p>
+                  <p className="text-xs text-orange-600 dark:text-orange-400">currently on duty</p>
                 </div>
               </div>
               <div className="h-14 w-14 bg-orange-500 dark:bg-orange-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
@@ -439,7 +444,7 @@ const Drivers = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2.5}
-                    d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
                   />
                 </svg>
               </div>

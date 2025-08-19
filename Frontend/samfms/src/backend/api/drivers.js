@@ -56,10 +56,10 @@ export const getTripPlanningDrivers = async (params = {}) => {
       queryParams.department = params.department;
     }
     if (params.skip !== undefined) {
-      queryParams.skip = parseInt(params.skip) || 0;
+      queryParams.skip = parseInt(params.skip);
     }
     if (params.limit !== undefined) {
-      queryParams.limit = parseInt(params.limit) || 100;
+      queryParams.limit = parseInt(params.limit);
     }
 
     console.log('Sending query params to trip planning drivers:', queryParams);

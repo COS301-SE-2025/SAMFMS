@@ -1,14 +1,10 @@
 import React, {useState, useEffect} from 'react';
 import TrackingMapWithSidebar from '../components/tracking/TrackingMapWithSidebar';
-import GeofenceManager from '../components/tracking/GeofenceManager';
-import LocationHistory from '../components/tracking/LocationHistory';
 import {listGeofences} from '../backend/api/geofences';
 import {listLocations} from '../backend/api/locations';
 import FadeIn from '../components/ui/FadeIn';
 
 const Tracking = () => {
-  const [locations, setLocations] = useState([]);
-  const [geofences, setGeofences] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -84,10 +80,6 @@ const Tracking = () => {
     const interval = setInterval(loadLocations, 5000);
     return () => clearInterval(interval);
   }, []);
-
-  const handleGeofenceChange = updatedGeofences => {
-    setGeofences(updatedGeofences);
-  };
 
   if (loading) {
     return (

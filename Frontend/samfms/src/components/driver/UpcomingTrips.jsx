@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Clock, User, Car, ChevronRight, ChevronDown, ChevronUp, Play, Square } from 'lucide-react';
-import { getUpcomingTrips, updateTrip, finishTrip, getDriverActiveTrips } from '../../backend/api/trips';
+import { getUpcomingTrips, updateTrip, finishTrip } from '../../backend/api/trips';
 import { getCurrentUser } from '../../backend/api/auth';
 import { getDriverEMPID, TripFinishedStatus } from '../../backend/api/drivers';
 
@@ -124,7 +124,7 @@ const UpcomingTrips = ({ onTripStarted }) => {
     return () => {
       statusCheckIntervals.forEach(interval => clearInterval(interval));
     };
-  }, []);
+  }, [fetchUpcomingTrips, statusCheckIntervals]);
 
   const formatTripData = trip => {
     return {
@@ -148,7 +148,6 @@ const UpcomingTrips = ({ onTripStarted }) => {
       date: trip.scheduledStartTime
         ? new Date(trip.scheduledStartTime).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0],
-      passenger: trip.passenger_name || 'Unknown Passenger',
       vehicle: {
         model: trip.vehicle_model || 'Unknown Vehicle',
         registration: trip.vehicle_registration || 'Unknown',
@@ -393,12 +392,6 @@ const UpcomingTrips = ({ onTripStarted }) => {
                       <span className="text-muted-foreground truncate">
                         {formattedTrip.startTime}
                         {formattedTrip.endTime && ` - ${formattedTrip.endTime}`}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4 min-w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground truncate">
-                        {formattedTrip.passenger}
                       </span>
                     </div>
                     <div className="flex items-center space-x-2">
