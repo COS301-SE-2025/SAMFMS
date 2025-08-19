@@ -85,7 +85,6 @@ const ActiveTrip = ({ onTripEnded }) => {
   const fetchVehicleLocation = async vehicleId => {
     try {
       const response = await getLocation(vehicleId);
-      console.log(`Vehicle ${vehicleId} location:`, response);
 
       // Handle nested data structure: response.data.data.data
       let locationData = null;
@@ -136,7 +135,6 @@ const ActiveTrip = ({ onTripEnded }) => {
   // Function to fetch vehicle polyline
   const fetchVehiclePolyline = async vehicleId => {
     try {
-      console.log(`Fetching polyline for vehicle ${vehicleId}`);
       const response = await getVehiclePolyline(vehicleId);
 
       if (response && response.data) {
@@ -220,10 +218,8 @@ const ActiveTrip = ({ onTripEnded }) => {
         throw new Error('No employee ID found');
       }
       
-      console.log("Fetching active trip for EMP ID: ", employeeID.data);
       
       const response = await getDriverActiveTrips(employeeID.data);
-      console.log("Active trip response: ", response);
       
       if (response && response.length > 0) {
         const trip = response[0]; // Get the first active trip

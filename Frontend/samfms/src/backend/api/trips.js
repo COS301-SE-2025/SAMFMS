@@ -32,7 +32,6 @@ const TRIPS_ENDPOINTS = {
 
 export const listTrips = async () => {
   try {
-    console.log('Fetching all trips');
     return await httpClient.get(TRIPS_ENDPOINTS.list);
   } catch (error) {
     console.log('Error fetching Trips: ', error);
@@ -95,7 +94,6 @@ export const deleteGeofence = async tripID => {
 export const getDriverActiveTrips = async (driver_id) => {
   try {
     const response = await httpClient.get(TRIPS_ENDPOINTS.DriverActive(driver_id));
-    console.log("Response for active trip: ", response);
     const activeTrip = response.data.data;
 
     return activeTrip;
@@ -110,10 +108,6 @@ export const getActiveTrips = async () => {
   try {
     const response = await httpClient.get(TRIPS_ENDPOINTS.ACTIVE);
 
-    // Debug: Check what the API is actually returning
-    console.log('API Response:', response);
-    console.log('Response data:', response.data);
-
     // Handle the nested response structure
     let tripsArray;
     if (response.data && response.data.data && Array.isArray(response.data.data)) {
@@ -127,7 +121,6 @@ export const getActiveTrips = async () => {
       return { trips: [] }; // Return empty array as fallback
     }
 
-    console.log('Extracted trips array:', tripsArray);
 
     // Return the raw trips data without transformation
     // since components are designed for the real API structure
@@ -270,7 +263,6 @@ export const getVehicleAnalytics = async (timeframe = 'week') => {
 export const getAllUpcommingTrip = async () => {
   try {
     const response = await httpClient.get(TRIPS_ENDPOINTS.allupcomming);
-    console.log('Response for all upcomming trips: ', response);
 
     let trips = [];
 
@@ -281,9 +273,6 @@ export const getAllUpcommingTrip = async () => {
     } else if (Array.isArray(response?.data)) {
       trips = response.data;
     }
-
-    console.log('Extracted trips array:', trips); // Debug log
-    console.log('Number of trips found:', trips.length); // Debug log
 
     // Transform the data to match your frontend expectations
     const transformedTrips = trips.map(trip => ({
@@ -344,10 +333,7 @@ export const getAllUpcommingTrip = async () => {
 // Get upcoming trips for a specific driver
 export const getUpcomingTrips = async driverId => {
   try {
-    console.log(`Fetching upcoming trips for driver: ${driverId}`);
     const response = await httpClient.get(TRIPS_ENDPOINTS.upcommingtrips(driverId));
-    console.log('Response for upcoming trips: ', response);
-
     // Extract the trips data from the nested response structure
     // Based on your log structure: response.data.data is an array
     let trips = [];
@@ -360,8 +346,6 @@ export const getUpcomingTrips = async driverId => {
       trips = response.data;
     }
 
-    console.log('Extracted trips array:', trips); // Debug log
-    console.log('Number of trips found:', trips.length); // Debug log
 
     // Transform the data to match your frontend expectations
     const transformedTrips = trips.map(trip => ({
@@ -424,7 +408,6 @@ export const getUpcomingTrips = async driverId => {
 export const getRecentTrips = async driverId => {
   try {
     const response = await httpClient.get(TRIPS_ENDPOINTS.recenttrips(driverId));
-    console.log('Response for recent trips: ', response);
 
     let trips = [];
 
@@ -435,9 +418,6 @@ export const getRecentTrips = async driverId => {
     } else if (Array.isArray(response?.data)) {
       trips = response.data;
     }
-
-    console.log('Extracted trips array:', trips); // Debug log
-    console.log('Number of trips found:', trips.length); // Debug log
 
     // Transform the data to match your frontend expectations
     const transformedTrips = trips.map(trip => ({
@@ -499,11 +479,9 @@ export const getRecentTrips = async driverId => {
 // Get all recent trips (not driver-specific)
 export const getAllRecentTrips = async (limit = 10, days = 30) => {
   try {
-    console.log(`Fetching all recent trips with limit: ${limit}, days: ${days}`);
     const response = await httpClient.get(
       `${TRIPS_ENDPOINTS.recenttripsall}?limit=${limit}&days=${days}`
     );
-    console.log('Response for all recent trips: ', response);
 
     // Extract the trips data from the nested response structure
     let trips = [];
@@ -515,9 +493,6 @@ export const getAllRecentTrips = async (limit = 10, days = 30) => {
     } else if (Array.isArray(response?.data)) {
       trips = response.data;
     }
-
-    console.log('Extracted trips array:', trips);
-    console.log('Number of trips found:', trips.length);
 
     // Transform the data to match your frontend expectations
     const transformedTrips = trips.map(trip => ({
