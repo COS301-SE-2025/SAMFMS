@@ -47,7 +47,7 @@ Here’s our awesome team behind **Firewall Five**:
   </thead>
   <tbody>
     <tr>
-      <td><img src="https://github.com/StefanJvRCodes.png" width="80"></td>
+      <td><img src="docs/Demo3/images/stefan.jpg" width="80"></td>
       <td><a href="https://github.com/StefanJvRCodes" style="font-size: 18px;">@StefanJvRCodes</a></td>
       <td style="font-size: 18px;">Mr. Stefan Jansen van Rensburg</td>
       <td style="font-size: 18px;">u22550055</td>
@@ -82,7 +82,7 @@ Here’s our awesome team behind **Firewall Five**:
       <td style="font-size: 18px;">Devops, Systems Engineer and Services engineer. Responsible for the maintenance and upkeep of the Github repository.</td>
     </tr>
     <tr>
-      <td><img src="https://github.com/herrie732.png" width="80"></td>
+      <td><img src="docs/Demo3/images/herrie.jpg" width="80"></td>
       <td><a href="https://github.com/herrie732" style="font-size: 18px;">@herrie732</a></td>
       <td style="font-size: 18px;">Mr. Herman Engelbrecht</td>
       <td style="font-size: 18px;">u22512374</td>
