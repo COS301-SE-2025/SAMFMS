@@ -100,17 +100,12 @@ const VehicleStatusBarChartWidget = ({id, config = {}}) => {
                     <span className="text-white font-bold text-2xl">Vehicle Status</span>
                 </div>
                 <div className="flex items-center justify-between w-full">
-                    <div className="flex-1 flex flex-col justify-center">
+                    <div className="flex-1 flex flex-col justify-center pb-8">
                         <BarChartSVG
                             data={[counts.available, counts.unavailable]}
                             labels={["Available", "Unavailable"]}
                             colors={["#4ade80", "#fca5a5"]}
                         />
-                    </div>
-                    <div className="flex-shrink-0">
-                        <div className="w-12 h-12 bg-indigo-200 dark:bg-indigo-800 rounded-full flex items-center justify-center">
-                            <BarChart className="h-6 w-6 text-indigo-600 dark:text-indigo-300" />
-                        </div>
                     </div>
                 </div>
             </div>

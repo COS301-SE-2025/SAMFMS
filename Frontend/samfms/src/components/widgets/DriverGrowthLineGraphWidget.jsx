@@ -5,213 +5,192 @@ import {getNumberOfDrivers} from '../../backend/api/drivers';
 import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
 import {LineChart} from 'lucide-react';
 
-// Simple SVG line graph
-const LineGraphSVG = ({points, width = 220, height = 100, color = '#22c55e'}) => {
-    const [hoveredIdx, setHoveredIdx] = React.useState(null);
-    if (!points || points.length === 0) return <svg width={width} height={height}></svg>;
-    // Filter out points with invalid x or y
-    const validPoints = points.filter(p => p && typeof p.x === 'number' && typeof p.y === 'number' && !isNaN(p.x) && !isNaN(p.y));
-    if (validPoints.length === 0) return <svg width={width} height={height}></svg>;
-    // Normalize points to fit SVG
-    const maxY = Math.max(...validPoints.map(p => p.y), 1);
-    const minY = Math.min(...validPoints.map(p => p.y), 0);
-    const minX = Math.min(...validPoints.map(p => p.x), 0);
-    const maxX = Math.max(...validPoints.map(p => p.x), 1);
-    const pad = 28;
-    const graphW = width - pad * 2;
-    const graphH = height - pad * 2;
-    // Prevent division by zero
-    const xRange = maxX - minX === 0 ? 1 : maxX - minX;
-    const yRange = maxY - minY === 0 ? 1 : maxY - minY;
-    const getX = x => pad + ((x - minX) / xRange) * graphW;
-    const getY = y => height - pad - ((y - minY) / yRange) * graphH;
-    // Format date for x axis
-    const formatDate = d => {
-        const date = new Date(d);
-        return date.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
-    };
-    // X axis ticks (show up to 5 evenly spaced dates)
-    const xTickCount = Math.min(5, validPoints.length);
-    const xTickIndexes = xTickCount > 1 ? Array.from({length: xTickCount}, (_, i) => Math.round(i * (validPoints.length - 1) / (xTickCount - 1))) : [];
-    const xTicks = xTickIndexes.map(idx => validPoints[idx]).filter(Boolean);
-    return (
-        <svg width={width} height={height}>
-            {/* Axes */}
-            <line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad} stroke="#888" />
-            <line x1={pad} y1={pad} x2={pad} y2={height - pad} stroke="#888" />
-            {/* Y axis label */}
-            <text x={pad - 10} y={pad} fontSize="12" fill="#fff" textAnchor="middle" fontWeight="bold" transform={`rotate(-90,${pad - 10},${pad})`}>Number of Drivers</text>
-            {/* X axis label */}
-            <text x={width / 2} y={height - 8} fontSize="12" fill="#fff" textAnchor="middle" fontWeight="bold">Date</text>
-            {/* X axis ticks */}
-            {xTicks.map((p, i) => (
-                p ? <text key={i} x={getX(p.x)} y={height - pad + 14} fontSize="9" fill="#888" textAnchor="middle">{formatDate(p.date)}</text> : null
-            ))}
-            {/* Line and points */}
-            <polyline
-                fill="none"
-                stroke={color}
-                strokeWidth="3"
-                points={validPoints.map(p => `${getX(p.x)},${getY(p.y)}`).join(' ')}
-            />
-            {validPoints.map((p, i) => (
-                <g key={i}>
-                    <circle
-                        cx={getX(p.x)}
-                        cy={getY(p.y)}
-                        r={4}
-                        fill={color}
-                        style={{cursor: 'pointer'}}
-                        onMouseEnter={() => setHoveredIdx(i)}
-                        onMouseLeave={() => setHoveredIdx(null)}
-                    />
-                    {hoveredIdx === i && (
-                        <rect
-                            x={getX(p.x) - 18}
-                            y={getY(p.y) - 30}
-                            width={36}
-                            height={18}
-                            rx={4}
-                            fill="#fff"
-                            stroke="#888"
-                            strokeWidth={0.5}
-                        />
-                    )}
-                    {hoveredIdx === i && (
-                        <text
-                            x={getX(p.x)}
-                            y={getY(p.y) - 18}
-                            fontSize="11"
-                            fill="#222"
-                            textAnchor="middle"
-                            fontWeight="bold"
-                        >
-                            {p.y}
-                        </text>
-                    )}
-                </g>
-            ))}
-        </svg>
-    );
-};
+
 
 const DriverGrowthLineGraphWidget = ({id, config = {}}) => {
-    const [history, setHistory] = useState([]);
+    const [dataPoints, setDataPoints] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [filter, setFilter] = useState('day'); // day, month, year
-    const graphContainerRef = useRef(null);
-    const [graphSize, setGraphSize] = useState({width: 220, height: 100});
+    const [hoveredIndex, setHoveredIndex] = useState(null);
 
     useEffect(() => {
-        const fetchDriverCount = async () => {
+        const fetchData = async () => {
             try {
                 setLoading(true);
                 setError(null);
-                // Fetch all driver count history (no date filter)
-                const response = await getNumberOfDrivers({});
-                // response.data is expected to be an array of objects with _id, number_of_drivers, date
-                const driverHistory = Array.isArray(response?.data?.data)
-                    ? response.data.data
-                    : [];
-                // Map to points for the graph
-                const points = driverHistory.map(item => ({
-                    x: new Date(item.date).getTime(),
-                    y: item.number_of_drivers,
-                    date: item.date,
-                }));
-                setHistory(points);
+                const response = await getNumberOfDrivers();
+                const vehicles = response?.data?.data || [];
+                setDataPoints(
+                    vehicles.map(v => {
+                        // Format date as 'DD/MM'
+                        let formattedDate = '';
+                        if (v.date) {
+                            const d = new Date(v.date);
+                            formattedDate = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+                        }
+                        return {
+                            drivers: v.number_of_drivers ?? 0,
+                            date: formattedDate,
+                        };
+                    })
+                );
             } catch (err) {
-                console.error('Failed to fetch driver count:', err);
                 setError('Failed to load driver growth data');
             } finally {
                 setLoading(false);
             }
         };
-        fetchDriverCount();
+        fetchData();
         const refreshInterval = (config.refreshInterval || 60) * 1000;
-        const interval = setInterval(fetchDriverCount, refreshInterval);
+        const interval = setInterval(fetchData, refreshInterval);
         return () => clearInterval(interval);
     }, [config.refreshInterval]);
 
-    // Responsive graph size
-    useEffect(() => {
-        const handleResize = () => {
-            if (graphContainerRef.current) {
-                const rect = graphContainerRef.current.getBoundingClientRect();
-                setGraphSize({
-                    width: Math.max(220, Math.floor(rect.width)),
-                    height: Math.max(100, Math.floor(rect.height)),
-                });
-            }
-        };
-        handleResize();
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
+    // Graph dimensions
+    const width = 340;
+    const height = 140;
+    const paddingLeft = 32;
+    const paddingRight = 18;
+    const paddingTop = 24;
+    const paddingBottom = 38;
+    const pointRadius = 5;
 
-    // Filter points by day, month, year
-    const filteredHistory = React.useMemo(() => {
-        if (filter === 'day') return history;
-        if (filter === 'month') {
-            // Group by month
-            const map = new Map();
-            history.forEach(p => {
-                const d = new Date(p.date);
-                const key = `${d.getFullYear()}-${d.getMonth()}`;
-                if (!map.has(key) || d.getTime() > map.get(key).x) {
-                    map.set(key, p);
-                }
-            });
-            return Array.from(map.values());
-        }
-        if (filter === 'year') {
-            // Group by year
-            const map = new Map();
-            history.forEach(p => {
-                const d = new Date(p.date);
-                const key = `${d.getFullYear()}`;
-                if (!map.has(key) || d.getTime() > map.get(key).x) {
-                    map.set(key, p);
-                }
-            });
-            return Array.from(map.values());
-        }
-        return history;
-    }, [history, filter]);
+    // Prepare graph data
+    const dates = dataPoints.map(d => d.date);
+    const values = dataPoints.map(d => d.drivers);
+    const minY = Math.min(...values, 0);
+    const maxY = Math.max(...values, 10);
+
+    // X/Y scales
+    const xStep = (width - paddingLeft - paddingRight) / Math.max(dataPoints.length - 1, 1);
+    const yScale = (height - paddingTop - paddingBottom) / (maxY - minY || 1);
+
+    // SVG points
+    const points = dataPoints.map((d, i) => {
+        const x = paddingLeft + i * xStep;
+        const y = height - paddingBottom - (d.drivers - minY) * yScale;
+        return {x, y, value: d.drivers, date: d.date};
+    });
+
+    // Line path
+    const linePath = points
+        .map((p, i) => (i === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`))
+        .join(' ');
 
     return (
         <BaseWidget
             id={id}
-            title={config.title || 'Driver Growth Over Time'}
+            title={config.title || 'Driver Growth'}
             loading={loading}
             error={error}
-            className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900"
+            className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900"
         >
-            <div className="flex flex-col h-full w-full" ref={graphContainerRef}>
-                <div className="flex justify-end mb-2">
-                    <select
-                        value={filter}
-                        onChange={e => setFilter(e.target.value)}
-                        className="border rounded px-2 py-1 text-xs bg-white dark:bg-gray-900"
-                        style={{minWidth: 80}}
-                    >
-                        <option value="day">Day</option>
-                        <option value="month">Month</option>
-                        <option value="year">Year</option>
-                    </select>
+            <div className="flex flex-col items-center w-full">
+                <div className="flex items-center gap-2 mb-1">
+                    <LineChart className="w-5 h-5 text-blue-600 dark:text-blue-300" />
+                    <span className="font-semibold text-blue-800 dark:text-blue-200 text-base">Driver Growth</span>
                 </div>
-                <div className="flex-1 flex flex-col justify-center items-center w-full h-full">
-                    <LineGraphSVG points={filteredHistory} width={graphSize.width} height={graphSize.height} />
+                <div className="w-full flex justify-center items-center">
+                    <svg
+                        width={width}
+                        height={height}
+                        viewBox={`0 0 ${width} ${height}`}
+                        className="block"
+                        style={{maxWidth: '100%', height: 'auto'}}
+                    >
+                        {/* Axes */}
+                        <line x1={paddingLeft} y1={height - paddingBottom} x2={width - paddingRight} y2={height - paddingBottom} stroke="#888" strokeWidth={1} />
+                        <line x1={paddingLeft} y1={paddingTop} x2={paddingLeft} y2={height - paddingBottom} stroke="#888" strokeWidth={1} />
+                        {/* Line */}
+                        <path d={linePath} fill="none" stroke="#2563eb" strokeWidth={2} />
+                        {/* Points */}
+                        {points.map((p, i) => (
+                            <circle
+                                key={i}
+                                cx={p.x}
+                                cy={p.y}
+                                r={pointRadius}
+                                fill={hoveredIndex === i ? '#2563eb' : '#60a5fa'}
+                                stroke="#2563eb"
+                                strokeWidth={hoveredIndex === i ? 2 : 1}
+                                onMouseEnter={() => setHoveredIndex(i)}
+                                onMouseLeave={() => setHoveredIndex(null)}
+                            />
+                        ))}
+                        {/* Hover tooltip: just the number */}
+                        {hoveredIndex !== null && (
+                            <g>
+                                <rect
+                                    x={Math.max(points[hoveredIndex].x - 18, paddingLeft)}
+                                    y={Math.max(points[hoveredIndex].y - 32, paddingTop)}
+                                    width={36}
+                                    height={22}
+                                    rx={5}
+                                    fill="#fff"
+                                    stroke="#2563eb"
+                                    strokeWidth={1}
+                                    opacity={0.95}
+                                />
+                                <text
+                                    x={points[hoveredIndex].x}
+                                    y={Math.max(points[hoveredIndex].y - 16, paddingTop + 12)}
+                                    textAnchor="middle"
+                                    fontSize={14}
+                                    fill="#2563eb"
+                                    fontWeight="bold"
+                                >
+                                    {points[hoveredIndex].value}
+                                </text>
+                            </g>
+                        )}
+                        {/* Date labels below x axis */}
+                        {points.map((p, i) => (
+                            <text
+                                key={i}
+                                x={p.x}
+                                y={height - paddingBottom + 18}
+                                textAnchor="middle"
+                                fontSize={12}
+                                fill="#444"
+                                style={{pointerEvents: 'none'}}
+                            >
+                                {p.date}
+                            </text>
+                        ))}
+                        {/* Axis labels */}
+                        {/* Y axis label */}
+                        <text
+                            x={paddingLeft - 22}
+                            y={height / 2}
+                            textAnchor="middle"
+                            fontSize={12}
+                            fill="#2563eb"
+                            fontWeight="bold"
+                            transform={`rotate(-90,${paddingLeft - 22},${height / 2})`}
+                        >
+                            Number of Drivers
+                        </text>
+                        {/* X axis label */}
+                        <text
+                            x={width / 2}
+                            y={height - 8}
+                            textAnchor="middle"
+                            fontSize={12}
+                            fill="#2563eb"
+                            fontWeight="bold"
+                        >
+                            Date (Day/Month)
+                        </text>
+                    </svg>
                 </div>
             </div>
         </BaseWidget>
     );
 };
 
-registerWidget(WIDGET_TYPES.DRIVER_GROWTH_LINE_GRAPH || 'driver_growth_line_graph', DriverGrowthLineGraphWidget, {
-    title: 'Driver Growth Line Graph',
-    description: 'Shows a line graph of total drivers over time',
+registerWidget(WIDGET_TYPES.DRIVER_GROWTH_LINE_GRAPH, DriverGrowthLineGraphWidget, {
+    title: 'Driver Growth Over Time',
+    description: 'Line graph showing the number of drivers over time',
     category: WIDGET_CATEGORIES.DRIVERS,
     icon: LineChart,
     defaultConfig: {
@@ -228,7 +207,6 @@ registerWidget(WIDGET_TYPES.DRIVER_GROWTH_LINE_GRAPH || 'driver_growth_line_grap
     },
     defaultSize: {w: 4, h: 2},
     minSize: {w: 3, h: 1},
-    maxSize: {w: 6, h: 4},
+    maxSize: {w: 6, h: 3},
 });
-
 export default DriverGrowthLineGraphWidget;
