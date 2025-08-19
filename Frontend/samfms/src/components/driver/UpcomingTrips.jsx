@@ -90,10 +90,8 @@ const UpcomingTrips = ({ onTripStarted }) => {
 
       // FIXED: Await the async function
       const employeeID = await getEmployeeID(driverId);
-      console.log("EMP ID: ", employeeID);
       
       const response = await getUpcomingTrips(employeeID.data);
-      console.log("Response for upcoming trips: ", response);
       
       // FIXED: Access the correct path in the response
       if (response?.data?.trips) {

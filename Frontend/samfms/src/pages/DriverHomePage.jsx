@@ -23,7 +23,6 @@ const DriverHomePage = () => {
   const getEmployeeID = async (security_id) => {
     try {
       const response = await getDriverEMPID(security_id);
-      console.log("Response for employee id: ", response);
       const employee_id = response.data.data;
       return employee_id;
     } catch (error) {
@@ -48,14 +47,10 @@ const DriverHomePage = () => {
         console.log('No employee ID found');
         return;
       }
-
-      console.log("Checking for active trips for EMP ID: ", employeeID);
       
       const response = await getDriverActiveTrips(employeeID);
-      console.log("Active trip check response: ", response);
       
       if (response && response.length > 0) {
-        console.log('Active trip found on load, redirecting to trip navigation');
         navigate('/trip-navigation');
         return; // Don't set state since we're navigating away
       } else {
@@ -77,13 +72,11 @@ const DriverHomePage = () => {
 
   // Callback when a trip is started from UpcomingTrips
   const handleTripStarted = useCallback((tripId) => {
-    console.log(`Trip ${tripId} started, showing ActiveTrip panel`);
     setHasActiveTrip(true);
   }, []);
 
   // Callback when a trip is ended from ActiveTrip
   const handleTripEnded = useCallback((tripId) => {
-    console.log(`Trip ${tripId} ended, hiding ActiveTrip panel`);
     setHasActiveTrip(false);
   }, []);
 

@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { MapPin, Clock, User, Car, Navigation, Square, Phone, MessageCircle } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
-import { Navigation, MapPin, Target, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
-import L from 'leaflet';
-import { getDriverActiveTrips } from '../backend/api/trips';
+import { getDriverActiveTrips, finishTrip } from '../backend/api/trips';
 import { getCurrentUser } from '../backend/api/auth';
-import { getDriverEMPID } from '../backend/api/drivers';
+import { getDriverEMPID, TripFinishedStatus } from '../backend/api/drivers';
+import { getLocation } from '../backend/api/locations';
+import { getVehiclePolyline } from '../backend/api/trips';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -14,121 +17,35 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Custom icons for different markers
-const originIcon = new L.Icon({
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  className: 'origin-marker'
-});
-
-const destinationIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  className: 'destination-marker'
-});
-
-// Current location icon (blue circle)
-const currentLocationIcon = new L.DivIcon({
-  html: '<div style="background-color: #007acc; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,122,204,0.5);"></div>',
-  className: 'current-location-marker',
-  iconSize: [20, 20],
-  iconAnchor: [10, 10]
-});
-
-// Map Center Controller Component - keeps map centered on current location
-const MapCenterController = ({ currentLocation }) => {
+// Map updater component to follow the vehicle
+const MapUpdater = ({ center, bounds = null }) => {
   const map = useMap();
 
   useEffect(() => {
-    if (currentLocation) {
-      // Pan to current location smoothly
-      map.panTo(currentLocation, {
-        animate: true,
-        duration: 1.0
-      });
+    if (bounds && bounds.length > 0) {
+      // Fit bounds to show the entire route
+      map.fitBounds(bounds, { padding: [20, 20] });
+    } else if (center && center[0] && center[1]) {
+      map.setView(center, 16); // Higher zoom for driver follow mode
     }
-  }, [map, currentLocation]);
+  }, [center, bounds, map]);
 
   return null;
 };
 
-// Simple Route Display Component - replaces complex routing machine
-const SimpleRouteDisplay = ({ origin, destination, onRouteFound }) => {
-  const map = useMap();
-  const routeLayerRef = useRef(null);
-  const [routeCalculated, setRouteCalculated] = useState(false);
-
-  useEffect(() => {
-    if (!origin || !destination || !map || routeCalculated) return;
-
-    // Simple straight line route for basic display
-    const createStraightLineRoute = () => {
-      try {
-        // Remove existing route layer
-        if (routeLayerRef.current) {
-          map.removeLayer(routeLayerRef.current);
-        }
-
-        // Create simple polyline between origin and destination
-        routeLayerRef.current = L.polyline([origin, destination], {
-          color: '#007acc',
-          weight: 4,
-          opacity: 0.7,
-          dashArray: '10, 5'
-        }).addTo(map);
-
-        // Calculate approximate distance and duration
-        const distance = map.distance(origin, destination);
-        const approximateDuration = Math.max(distance / 50, 300); // Rough estimate: 50m/s average speed, min 5 minutes
-
-        if (onRouteFound) {
-          onRouteFound({
-            distance: distance,
-            duration: approximateDuration
-          });
-        }
-
-        setRouteCalculated(true);
-        console.log('Simple route displayed');
-      } catch (error) {
-        console.error('Error creating simple route:', error);
-      }
-    };
-
-    createStraightLineRoute();
-
-    return () => {
-      try {
-        if (routeLayerRef.current && map) {
-          map.removeLayer(routeLayerRef.current);
-          routeLayerRef.current = null;
-        }
-      } catch (error) {
-        console.error('Error cleaning up route layer:', error);
-      }
-    };
-  }, [map, origin, destination, onRouteFound]);
-
-  return null;
-};
-
-const TripNavigation = () => {
+const ActiveTrip = ({ onTripEnded }) => {
   const [activeTrip, setActiveTrip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentLocation, setCurrentLocation] = useState(null);
-  const [locationError, setLocationError] = useState(null);
-  const [routeInfo, setRouteInfo] = useState(null);
-  const watchIdRef = useRef(null);
+  const [endingTrip, setEndingTrip] = useState(false);
+  const [canEndTrip, setCanEndTrip] = useState(false);
+  const [statusCheckInterval, setStatusCheckInterval] = useState(null);
   
-  // Default center - Cape Town coordinates
-  const defaultCenter = [-33.9249, 18.4241];
+  // Map-related state
+  const [mapCenter, setMapCenter] = useState([37.7749, -122.4194]);
+  const [mapBounds, setMapBounds] = useState(null);
+  const [vehicleLocation, setVehicleLocation] = useState(null);
+  const [vehiclePolyline, setVehiclePolyline] = useState(null);
 
   // Get current user ID from authentication
   const getCurrentUserId = () => {
@@ -139,378 +56,560 @@ const TripNavigation = () => {
   const getEmployeeID = async (security_id) => {
     try {
       const response = await getDriverEMPID(security_id);
-      console.log("Response for employee id: ", response);
-      return response.data?.data || response.data;
+      const employee_id = response.data;
+      return employee_id;
     } catch (error) {
       console.error("Error fetching employee ID:", error);
       return null;
     }
   };
 
-  // Geolocation tracking
+  // Helper function to get vehicle ID from trip data
+  const getVehicleId = useCallback(trip => {
+    return trip.vehicleId || trip.vehicle_id || trip.id;
+  }, []);
+
+  // Function to check if trip is finished
+  const checkTripFinished = async (employeeId) => {
+    try {
+      const isFinished = await TripFinishedStatus(employeeId);
+      setCanEndTrip(isFinished);
+      return isFinished;
+    } catch (error) {
+      console.error('Error checking trip status:', error);
+      return false;
+    }
+  };
+
+  // Function to fetch vehicle location
+  const fetchVehicleLocation = async vehicleId => {
+    try {
+      const response = await getLocation(vehicleId);
+
+      // Handle nested data structure: response.data.data.data
+      let locationData = null;
+      
+      if (response.data?.data?.data) {
+        // Handle case where data is nested three levels deep
+        locationData = response.data.data.data;
+      } else if (response.data?.data && Array.isArray(response.data.data) && response.data.data.length > 0) {
+        // Handle case where data is an array at second level
+        locationData = response.data.data[0];
+      } else if (response.data?.data) {
+        // Handle case where data is directly at second level
+        locationData = response.data.data;
+      }
+
+      if (locationData) {
+        // Try coordinates from location object first
+        if (locationData.location && locationData.location.coordinates && locationData.location.coordinates.length >= 2) {
+          return {
+            id: vehicleId,
+            position: [locationData.location.coordinates[1], locationData.location.coordinates[0]], // [lat, lng]
+            speed: locationData.speed || null,
+            heading: locationData.heading || null,
+            lastUpdated: new Date(locationData.timestamp || locationData.updated_at),
+          };
+        }
+
+        // Fallback to direct latitude/longitude properties
+        if (locationData.latitude && locationData.longitude) {
+          return {
+            id: vehicleId,
+            position: [locationData.latitude, locationData.longitude],
+            speed: locationData.speed || null,
+            heading: locationData.heading || null,
+            lastUpdated: new Date(locationData.timestamp || locationData.updated_at),
+          };
+        }
+      }
+
+      console.warn(`No valid location data found for vehicle ${vehicleId}`);
+      return null;
+    } catch (error) {
+      console.error(`Error fetching location for vehicle ${vehicleId}:`, error);
+      return null;
+    }
+  };
+
+  // Function to fetch vehicle polyline
+  const fetchVehiclePolyline = async vehicleId => {
+    try {
+      const response = await getVehiclePolyline(vehicleId);
+
+      if (response && response.data) {
+        const polylineData = response.data.data;
+        return polylineData;
+      }
+
+      console.warn(`No valid polyline data found for vehicle ${vehicleId}`);
+      return null;
+    } catch (error) {
+      console.error(`Error fetching polyline for vehicle ${vehicleId}:`, error);
+      return null;
+    }
+  };
+
+  // Function to fetch vehicle data (location and polyline)
+  const fetchVehicleData = useCallback(async () => {
+    if (!activeTrip) return;
+
+    const vehicleId = getVehicleId(activeTrip);
+    if (!vehicleId) return;
+
+    try {
+      const [location, polyline] = await Promise.all([
+        fetchVehicleLocation(vehicleId),
+        fetchVehiclePolyline(vehicleId),
+      ]);
+
+      if (location) {
+        setVehicleLocation(location);
+        // Update map center to follow the vehicle
+        setMapCenter(location.position);
+      }
+
+      if (polyline) {
+        setVehiclePolyline(polyline);
+      }
+    } catch (error) {
+      console.error('Error fetching vehicle data:', error);
+    }
+  }, [activeTrip, getVehicleId]);
+
+  // Start monitoring trip finish status
+  const startStatusMonitoring = async (employeeId) => {
+    // Don't start if already monitoring
+    if (statusCheckInterval) {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      await checkTripFinished(employeeId);
+    }, 500); // Check every 30 seconds
+
+    setStatusCheckInterval(interval);
+    
+    // Also check immediately
+    await checkTripFinished(employeeId);
+  };
+
+  // Stop monitoring trip finish status
+  const stopStatusMonitoring = () => {
+    if (statusCheckInterval) {
+      clearInterval(statusCheckInterval);
+      setStatusCheckInterval(null);
+    }
+    setCanEndTrip(false);
+  };
+
+  // Fetch active trip
+  const fetchActiveTrip = async () => {
+    try {
+      setError(null);
+      
+      const driverId = getCurrentUserId();
+      if (!driverId) {
+        throw new Error('No driver ID found');
+      }
+
+      const employeeID = await getEmployeeID(driverId);
+      if (!employeeID?.data) {
+        throw new Error('No employee ID found');
+      }
+      
+      
+      const response = await getDriverActiveTrips(employeeID.data);
+      
+      if (response && response.length > 0) {
+        const trip = response[0]; // Get the first active trip
+        setActiveTrip(trip);
+        
+        // Start monitoring trip finish status
+        await startStatusMonitoring(employeeID.data);
+      } else {
+        setActiveTrip(null);
+        stopStatusMonitoring();
+      }
+    } catch (err) {
+      console.error('Error fetching active trip:', err);
+      setError(err.message);
+      setActiveTrip(null);
+      stopStatusMonitoring();
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (!navigator.geolocation) {
-      setLocationError('Geolocation is not supported by this browser');
-      return;
-    }
+    fetchActiveTrip();
 
-    // Check if we're on a secure origin
-    const isSecureOrigin = location.protocol === 'https:' || 
-                          location.hostname === 'localhost' || 
-                          location.hostname === '127.0.0.1';
-
-    if (!isSecureOrigin) {
-      console.warn('Geolocation requires HTTPS. Using fallback location.');
-      // Set a fallback location (Cape Town coordinates as example) - no warning display
-      setCurrentLocation(defaultCenter);
-      return;
-    }
-
-    const options = {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 1000
-    };
-
-    const success = (position) => {
-      const { latitude, longitude } = position.coords;
-      console.log('Current location:', { latitude, longitude });
-      setCurrentLocation([latitude, longitude]);
-      setLocationError(null);
-    };
-
-    const error = (err) => {
-      console.error('Geolocation error:', err);
-      
-      // Provide more specific error messages
-      let errorMessage = 'Location access denied';
-      
-      switch(err.code) {
-        case err.PERMISSION_DENIED:
-          errorMessage = 'Location access denied by user';
-          break;
-        case err.POSITION_UNAVAILABLE:
-          errorMessage = 'Location information unavailable';
-          break;
-        case err.TIMEOUT:
-          errorMessage = 'Location request timed out';
-          break;
-        default:
-          errorMessage = `Location error: ${err.message}`;
-          break;
-      }
-      
-      setLocationError(errorMessage);
-      // Use fallback location without showing warning for HTTPS issues
-      if (err.code === err.PERMISSION_DENIED) {
-        setCurrentLocation(defaultCenter);
-      }
-    };
-
-    // Start watching location
-    watchIdRef.current = navigator.geolocation.watchPosition(success, error, options);
-
+    // Cleanup interval on unmount
     return () => {
-      if (watchIdRef.current) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
       }
     };
   }, []);
 
-  // Handle route found callback
-  const handleRouteFound = (routeData) => {
-    console.log('Route data received:', routeData);
-    setRouteInfo(routeData);
-  };
-
-  // Remove the old fetchDirections and generateBasicDirections functions
-  // as they're replaced by Leaflet Routing Machine
-
-  // Fetch active trip data
+  // Fetch vehicle data when active trip changes and poll for updates
   useEffect(() => {
-    const fetchActiveTrip = async (isInitialLoad = false) => {
-      try {
-        if (isInitialLoad) {
-          setLoading(true);
-        }
-        
-        const driverId = getCurrentUserId();
-        
-        if (!driverId) {
-          throw new Error('No driver ID found');
-        }
-
-        const employeeID = await getEmployeeID(driverId);
-        if (!employeeID) {
-          throw new Error('No employee ID found');
-        }
-
-        console.log("Fetching active trip for EMP ID: ", employeeID);
-        
-        const response = await getDriverActiveTrips(employeeID);
-        console.log("Active trip response: ", response);
-        console.log("Response type:", typeof response);
-        console.log("Response is array:", Array.isArray(response));
-        console.log("Response data:", response?.data);
-        console.log("Response length:", response?.length);
-        
-        // Handle different response structures
-        let trips = [];
-        if (Array.isArray(response)) {
-          trips = response;
-        } else if (response?.data && Array.isArray(response.data)) {
-          trips = response.data;
-        } else if (response?.data?.data && Array.isArray(response.data.data)) {
-          trips = response.data.data;
-        } else if (response && typeof response === 'object') {
-          trips = [response]; // Single trip object
-        }
-        
-        console.log("Processed trips:", trips);
-        
-        if (trips && trips.length > 0) {
-          const newTrip = trips[0];
-          console.log("New trip found:", newTrip);
-          console.log("Trip coordinates - Origin:", newTrip?.origin?.location?.coordinates);
-          console.log("Trip coordinates - Destination:", newTrip?.destination?.location?.coordinates);
-          
-          // Only update trip on initial load or if trip changed
-          if (isInitialLoad || !activeTrip || activeTrip.id !== newTrip.id) {
-            console.log('New trip detected or initial load');
-            setActiveTrip(newTrip);
-          } else {
-            // Just update the trip data
-            console.log('Updating existing trip data');
-            setActiveTrip(newTrip);
-          }
-        } else {
-          if (isInitialLoad) {
-            setError('No active trip found');
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching active trip:', err);
-        if (isInitialLoad) {
-          setError(err.message);
-        }
-      } finally {
-        if (isInitialLoad) {
-          setLoading(false);
-        }
-      }
-    };
-
-    // Initial fetch with full loading state
-    fetchActiveTrip(true);
-
-    // Set up interval to fetch every 1000ms (background updates only)
-    const intervalId = setInterval(() => {
-      fetchActiveTrip(false); // Background update without loading state
-    }, 1000);
-
-    // Cleanup interval on component unmount
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, []); // Remove activeTrip from dependency array to prevent unnecessary re-runs
-
-  // Extract coordinates and route info from active trip
-  const getMapData = () => {
-    console.log("getMapData called with activeTrip:", activeTrip);
-    
     if (!activeTrip) {
-      console.log("No activeTrip, using default center");
-      return { center: currentLocation || defaultCenter, zoom: 16 };
+      setVehicleLocation(null);
+      setVehiclePolyline(null);
+      return;
     }
 
-    console.log("ActiveTrip structure:", {
-      origin: activeTrip.origin,
-      destination: activeTrip.destination,
-      originCoords: activeTrip.origin?.location?.coordinates,
-      destCoords: activeTrip.destination?.location?.coordinates
-    });
+    // Initial fetch
+    fetchVehicleData();
 
-    const origin = activeTrip.origin?.location?.coordinates;
-    const destination = activeTrip.destination?.location?.coordinates;
+    // Set up polling every 3 seconds for live updates
+    const dataInterval = setInterval(() => {
+      fetchVehicleData();
+    }, 3000);
 
-    console.log("Extracted coordinates:", { origin, destination });
+    return () => clearInterval(dataInterval);
+  }, [activeTrip, fetchVehicleData]);
 
-    if (origin && destination) {
-      // Convert from [lng, lat] to [lat, lng] for Leaflet
-      const originLatLng = [origin[1], origin[0]];
-      const destinationLatLng = [destination[1], destination[0]];
-      
-      console.log("Converted coordinates:", { originLatLng, destinationLatLng });
-      
-      // Always center on current location if available, otherwise use origin
-      const center = currentLocation || originLatLng;
-      
-      const mapData = {
-        center: center,
-        zoom: 18, // Higher zoom for navigation
-        origin: originLatLng,
-        destination: destinationLatLng,
-        route: activeTrip.route_info?.coordinates?.map(coord => [coord[0], coord[1]]) || []
-      };
-      
-      console.log("Final map data:", mapData);
-      return mapData;
-    }
-
-    console.log("No valid coordinates found, using default");
-    return { center: currentLocation || defaultCenter, zoom: 16 };
-  };
-
-  // Get maneuver icon based on instruction type
-  const getManeuverIcon = (maneuver) => {
-    if (!maneuver) return <Navigation className="w-4 h-4" />;
+  const formatTripData = trip => {
+    if (!trip) return null;
     
-    switch (maneuver.type) {
-      case 'start':
-        return <MapPin className="w-4 h-4 text-green-600" />;
-      case 'arrive':
-        return <MapPin className="w-4 h-4 text-red-600" />;
-      case 'turn-left':
-        return <ChevronLeft className="w-4 h-4" />;
-      case 'turn-right':
-        return <ChevronRight className="w-4 h-4" />;
-      default:
-        return <Navigation className="w-4 h-4" />;
+    return {
+      id: trip.id || trip._id,
+      name: trip.name || 'Active Trip',
+      startLocation: trip.origin?.address || trip.origin?.name || 'Unknown Location',
+      endLocation: trip.destination?.address || trip.destination?.name || 'Unknown Location',
+      startTime: trip.scheduledStartTime
+        ? new Date(trip.scheduledStartTime).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : 'Unknown Time',
+      endTime: trip.scheduledEndTime
+        ? new Date(trip.scheduledEndTime).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : null,
+      actualStartTime: trip.actual_start_time
+        ? new Date(trip.actual_start_time).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : null,
+      passenger: trip.passenger_name || 'Unknown Passenger',
+      passengerPhone: trip.passenger_phone || null,
+      vehicle: {
+        model: trip.vehicle_model || 'Unknown Vehicle',
+        registration: trip.vehicle_registration || 'Unknown',
+      },
+      status: trip.status || 'in-progress',
+      distance: trip.estimatedDistance ? `${trip.estimatedDistance} km` : 'Unknown distance',
+      estimatedDuration: trip.estimated_duration
+        ? `${trip.estimated_duration}m`
+        : 'Unknown duration',
+      // Add position for map display
+      position: trip.destination?.coordinates ? [trip.destination.coordinates[1], trip.destination.coordinates[0]] : null,
+      origin: trip.origin?.coordinates ? [trip.origin.coordinates[1], trip.origin.coordinates[0]] : null,
+      routeCoordinates: trip.routeCoordinates || null,
+    };
+  };
+
+  // Handle ending a trip
+  const handleEndTrip = async () => {
+    if (!activeTrip) return;
+    
+    setEndingTrip(true);
+    
+    try {
+      const now = new Date().toISOString();
+      const data = {
+        "actual_end_time": now,
+        "status": "completed"
+      }
+      
+      const tripId = activeTrip.id || activeTrip._id;
+      console.log("Ending trip id: ", tripId);
+      
+      const response = await finishTrip(tripId, data);
+      console.log("Response for ending trip: ", response);
+      
+      // Stop monitoring
+      stopStatusMonitoring();
+      
+      // Clear active trip
+      setActiveTrip(null);
+      setVehicleLocation(null);
+      setVehiclePolyline(null);
+      
+      // Notify parent component
+      if (onTripEnded) {
+        onTripEnded(tripId);
+      }
+      
+      console.log(`Trip ${tripId} ended successfully`);
+      window.location.href = "http://localhost:21015/driver-home";
+      
+    } catch (error) {
+      console.error('Error ending trip:', error);
+      setError('Failed to end trip. Please try again.');
+    } finally {
+      setEndingTrip(false);
     }
   };
 
-  const mapData = getMapData();
+  // Calculate trip duration
+  const calculateTripDuration = (startTime) => {
+    if (!startTime) return 'Unknown duration';
+    
+    const start = new Date(startTime);
+    const now = new Date();
+    const diffMs = now - start;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    
+    if (diffMins < 60) {
+      return `${diffMins} minutes`;
+    } else {
+      const hours = Math.floor(diffMins / 60);
+      const minutes = diffMins % 60;
+      return `${hours}h ${minutes}m`;
+    }
+  };
 
-  // Debug logging
-  console.log('Component state:', { 
-    activeTrip: !!activeTrip, 
-    loading,
-    error 
-  });
+  // Get the polyline coordinates for the trip
+  const getTripPolyline = () => {
+    if (vehiclePolyline && vehiclePolyline.length > 0) {
+      return vehiclePolyline;
+    }
+    return formattedTrip?.routeCoordinates;
+  };
+
+  // Get origin coordinates for the trip
+  const getTripOrigin = () => {
+    if (vehiclePolyline && vehiclePolyline.length > 0) {
+      return vehiclePolyline[0];
+    }
+    return formattedTrip?.origin;
+  };
 
   if (loading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center">
-        <div className="text-lg">Loading trip navigation...</div>
+      <div className="bg-card rounded-lg shadow-sm border border-border h-full">
+        <div className="py-3 px-3 sm:p-4 border-b border-border">
+          <h3 className="text-base sm:text-lg font-semibold text-foreground">Active Trip</h3>
+        </div>
+        <div className="p-4 sm:p-6 text-center text-muted-foreground">
+          <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+          <p className="text-sm">Loading active trip...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="h-screen w-full flex items-center justify-center">
-        <div className="text-lg text-red-600">Error: {error}</div>
+      <div className="bg-card rounded-lg shadow-sm border border-border h-full">
+        <div className="py-3 px-3 sm:p-4 border-b border-border">
+          <h3 className="text-base sm:text-lg font-semibold text-foreground">Active Trip</h3>
+        </div>
+        <div className="p-4 sm:p-6 text-center text-red-500">
+          <p className="text-sm">Error: {error}</p>
+          <button 
+            onClick={fetchActiveTrip}
+            className="mt-2 px-3 py-1 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="h-screen w-full">
-      {/* Removed location error notification for HTTPS warnings */}
-      
-      <div className="h-full w-full">
-        <MapContainer
-          center={mapData.center}
-          zoom={mapData.zoom}
-          style={{ height: '100%', width: '100%' }}
-          className="z-10"
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          
-          {/* Map Center Controller - keeps map centered on driver */}
-          <MapCenterController currentLocation={currentLocation} />
-          
-          {/* Origin Marker */}
-          {mapData.origin && (
-            <Marker position={mapData.origin} icon={originIcon}>
-              <Popup>
-                <div>
-                  <h3 className="font-semibold">Origin</h3>
-                  <p className="text-sm">{activeTrip?.origin?.name || 'Starting location'}</p>
-                </div>
-              </Popup>
-            </Marker>
-          )}
-          
-          {/* Destination Marker */}
-          {mapData.destination && (
-            <Marker position={mapData.destination} icon={destinationIcon}>
-              <Popup>
-                <div>
-                  <h3 className="font-semibold">Destination</h3>
-                  <p className="text-sm">{activeTrip?.destination?.name || 'Destination location'}</p>
-                </div>
-              </Popup>
-            </Marker>
-          )}
-
-          {/* Current Location Marker */}
-          {currentLocation && (
-            <Marker position={currentLocation} icon={currentLocationIcon}>
-              <Popup>
-                <div>
-                  <h3 className="font-semibold">Your Location</h3>
-                  <p className="text-sm">Current position</p>
-                </div>
-              </Popup>
-            </Marker>
-          )}
-
-          {/* Simple route display instead of complex routing machine */}
-          {mapData.origin && mapData.destination && (
-            <SimpleRouteDisplay
-              origin={mapData.origin}
-              destination={mapData.destination}
-              onRouteFound={handleRouteFound}
-            />
-          )}
-          
-          {/* Fallback Route Polyline (if routing machine fails) */}
-          {!mapData.origin || !mapData.destination ? (
-            mapData.route && mapData.route.length > 0 && (
-              <Polyline
-                positions={mapData.route}
-                color="blue"
-                weight={4}
-                opacity={0.7}
-              />
-            )
-          ) : null}
-        </MapContainer>
+  if (!activeTrip) {
+    return (
+      <div className="bg-card rounded-lg shadow-sm border border-border h-full">
+        <div className="py-3 px-3 sm:p-4 border-b border-border">
+          <h3 className="text-base sm:text-lg font-semibold text-foreground">Active Trip</h3>
+        </div>
+        <div className="p-4 sm:p-6 text-center text-muted-foreground">
+          <Navigation className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No active trip</p>
+          <p className="text-xs mt-1">Start a trip from your upcoming trips</p>
+        </div>
       </div>
-      {/* Trip Info Overlay */}
-      {activeTrip && (
-        <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 max-w-sm z-[1000]">
-          <h2 className="font-semibold text-lg mb-2">{activeTrip.name}</h2>
-          {activeTrip.description && (
-            <p className="text-sm text-gray-600 mb-2">{activeTrip.description}</p>
-          )}
-          <div className="text-sm space-y-1">
-            <div><strong>Distance:</strong> {
-              routeInfo?.distance 
-                ? `${(routeInfo.distance / 1000).toFixed(1)} km`
-                : activeTrip.route_info?.distance
-                  ? `${(activeTrip.route_info.distance / 1000).toFixed(1)} km`
-                  : 'Calculating...'
-            }</div>
-            <div><strong>Est. Duration:</strong> {
-              routeInfo?.duration
-                ? `${Math.round(routeInfo.duration / 60)} min`
-                : activeTrip.route_info?.duration
-                  ? `${Math.round(activeTrip.route_info.duration / 60)} min`
-                  : 'Calculating...'
-            }</div>
-            <div><strong>Started:</strong> {new Date(activeTrip.actual_start_time).toLocaleTimeString()}</div>
+    );
+  }
+
+  const formattedTrip = formatTripData(activeTrip);
+  const polylineCoords = getTripPolyline();
+  const originCoords = getTripOrigin();
+
+  return (
+    <div className="bg-card rounded-lg shadow-sm border border-border h-full flex flex-col">
+      {/* Header */}
+      <div className="py-3 px-3 sm:p-4 border-b border-border flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base sm:text-lg font-semibold text-foreground">Active Trip</h3>
+          <div className="flex items-center space-x-2">
+            <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+              In Progress
+            </span>
+            {vehicleLocation && (
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" title="Live GPS"></div>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Turn-by-Turn Directions Panel - REMOVED */}
+      {/* Map Container */}
+      <div className="flex-1 relative">
+        <MapContainer
+          center={mapCenter}
+          zoom={16}
+          style={{ height: '100%', width: '100%' }}
+          className="rounded-b-lg"
+          zoomControl={true}
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
+          <MapUpdater center={mapCenter} bounds={mapBounds} />
+
+          {/* Route polyline */}
+          {polylineCoords && polylineCoords.length > 0 && (
+            <Polyline
+              positions={polylineCoords}
+              pathOptions={{
+                color: vehiclePolyline ? '#3b82f6' : '#f59e0b',
+                weight: vehiclePolyline ? 5 : 4,
+                opacity: 0.8,
+                dashArray: vehiclePolyline ? '10, 5' : null,
+              }}
+            />
+          )}
+
+          {/* Origin marker */}
+          {originCoords && originCoords[0] !== 0 && originCoords[1] !== 0 && (
+            <Marker
+              position={originCoords}
+              icon={L.divIcon({
+                html: `<div style="background-color: ${
+                  vehiclePolyline ? '#3b82f6' : 'white'
+                }; width: 20px; height: 20px; border-radius: 50%; border: 3px solid #64748b; box-shadow: 0 3px 8px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center;">
+                         <svg width="12" height="12" viewBox="0 0 24 24" fill="${
+                           vehiclePolyline ? 'white' : '#64748b'
+                         }">
+                           <path d="M14.4,6H20V16H13L11,13V21A1,1 0 0,1 10,22H9A1,1 0 0,1 8,21V4A1,1 0 0,1 9,3H10A1,1 0 0,1 11,4V6H14.4L14.4,6Z"/>
+                         </svg>
+                       </div>`,
+                className: 'custom-origin-marker',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10],
+              })}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <h4 className="font-semibold">
+                    {vehiclePolyline ? 'Current Route Start' : 'Original Start'}
+                  </h4>
+                  <p className="text-muted-foreground">{formattedTrip.startLocation}</p>
+                </div>
+              </Popup>
+            </Marker>
+          )}
+
+          {/* Destination marker */}
+          {formattedTrip.position && (
+            <Marker
+              position={formattedTrip.position}
+              icon={L.divIcon({
+                html: `<div style="background-color: #22c55e; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center;">
+                         <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                           <path d="M14.4,6H20V16H13L11,13V21A1,1 0 0,1 10,22H9A1,1 0 0,1 8,21V4A1,1 0 0,1 9,3H10A1,1 0 0,1 11,4V6H14.4L14.4,6Z"/>
+                         </svg>
+                       </div>`,
+                className: 'custom-destination-marker',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12],
+              })}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <h4 className="font-semibold">Destination</h4>
+                  <p className="text-muted-foreground">{formattedTrip.endLocation}</p>
+                </div>
+              </Popup>
+            </Marker>
+          )}
+
+          {/* Live vehicle location marker */}
+          {vehicleLocation && (
+            <Marker
+              position={vehicleLocation.position}
+              icon={L.divIcon({
+                html: `<div style="display: flex; align-items: center; justify-content: center; z-index: 1000; position: relative;">
+                       <svg width="24" height="24" viewBox="0 0 24 24" fill="#3b82f6" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">
+                         <path d="M5,11L6.5,6.5H17.5L19,11M17.5,16A1.5,1.5 0 0,1 16,14.5A1.5,1.5 0 0,1 17.5,13A1.5,1.5 0 0,1 19,14.5A1.5,1.5 0 0,1 17.5,16M6.5,16A1.5,1.5 0 0,1 5,14.5A1.5,1.5 0 0,1 6.5,13A1.5,1.5 0 0,1 8,14.5A1.5,1.5 0 0,1 6.5,16M18.92,6C18.72,5.42 18.16,5 17.5,5H6.5C5.84,5 5.28,5.42 5.08,6L3,12V20A1,1 0 0,0 4,21H5A1,1 0 0,0 6,20V19H18V20A1,1 0 0,0 19,21H20A1,1 0 0,0 21,20V12L18.92,6Z"/>
+                       </svg>
+                     </div>`,
+                className: 'live-vehicle-marker',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12],
+              })}
+              zIndexOffset={1000}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                    Your Vehicle
+                  </h4>
+                  <p className="text-muted-foreground">{formattedTrip.vehicle.model}</p>
+                  {vehicleLocation.speed !== null && (
+                    <p className="text-xs text-muted-foreground">
+                      Speed: {Math.round(vehicleLocation.speed)} km/h
+                    </p>
+                  )}
+                  {vehicleLocation.heading !== null && (
+                    <p className="text-xs text-muted-foreground">
+                      Heading: {Math.round(vehicleLocation.heading)}°
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Last updated: {vehicleLocation.lastUpdated?.toLocaleTimeString() || 'Unknown'}
+                  </p>
+                </div>
+              </Popup>
+            </Marker>
+          )}
+        </MapContainer>
+
+        {/* End Trip Button - Fixed at bottom */}
+        {canEndTrip && (
+          <div className="absolute bottom-4 left-4 right-4 z-[1000]">
+            <button
+              onClick={handleEndTrip}
+              disabled={endingTrip}
+              className="inline-flex items-center space-x-2 px-6 py-3 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 w-full justify-center shadow-lg"
+            >
+              {endingTrip ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  <span>Ending Trip...</span>
+                </>
+              ) : (
+                <>
+                  <Square className="h-4 w-4" />
+                  <span>End Trip</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
-export default TripNavigation;
+export default ActiveTrip;

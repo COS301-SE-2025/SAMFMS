@@ -92,6 +92,20 @@ class TripService:
         except Exception as e:
             logger.error(f"[TripService.get_all_trips] Failed: {e}")
             raise
+    
+    async def get_vehicle_route(self, vehicle_id: str) -> Dict[str,Any]:
+        try:
+            trip = await self.db.trips.find_one(
+                {"vehicle_id": vehicle_id}
+            )
+
+            if trip:
+                route_info = trip["route_info"]
+                return route_info
+            return None
+        except Exception as e:
+            logger.error(f"Error retrieving vehicle route: {e}")
+            raise
 
     async def get_vehicle_location(self, vehicle_id: str) -> VehicleLocation:
         try:
