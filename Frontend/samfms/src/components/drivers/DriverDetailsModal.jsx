@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { X, UserCog, Car, FileText } from 'lucide-react';
+import React, {useState} from 'react';
+import {X, UserCog, Car, FileText} from 'lucide-react';
 import StatusBadge from '../vehicles/StatusBadge';
 
-const DriverDetailsModal = ({ driver, closeDriverDetails, openVehicleAssignmentModal }) => {
+const DriverDetailsModal = ({driver, closeDriverDetails, openVehicleAssignmentModal}) => {
   const [activeTab, setActiveTab] = useState('overview');
 
   const getStatusColor = status => {
@@ -29,33 +29,21 @@ const DriverDetailsModal = ({ driver, closeDriverDetails, openVehicleAssignmentM
         <div className="flex border-b border-border">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 font-medium text-sm ${
-              activeTab === 'overview'
-                ? 'border-b-2 border-primary text-primary'
-                : 'text-muted-foreground'
-            }`}
+            className={`px-4 py-2 font-medium text-sm ${activeTab === 'overview'
+              ? 'border-b-2 border-primary text-primary'
+              : 'text-muted-foreground'
+              }`}
           >
             Overview
           </button>
           <button
             onClick={() => setActiveTab('trips')}
-            className={`px-4 py-2 font-medium text-sm ${
-              activeTab === 'trips'
-                ? 'border-b-2 border-primary text-primary'
-                : 'text-muted-foreground'
-            }`}
+            className={`px-4 py-2 font-medium text-sm ${activeTab === 'trips'
+              ? 'border-b-2 border-primary text-primary'
+              : 'text-muted-foreground'
+              }`}
           >
             Trip History
-          </button>
-          <button
-            onClick={() => setActiveTab('docs')}
-            className={`px-4 py-2 font-medium text-sm ${
-              activeTab === 'docs'
-                ? 'border-b-2 border-primary text-primary'
-                : 'text-muted-foreground'
-            }`}
-          >
-            Documents
           </button>
         </div>
 
@@ -119,64 +107,10 @@ const DriverDetailsModal = ({ driver, closeDriverDetails, openVehicleAssignmentM
                     </div>
                   </div>
                 </div>
-
-                <div className="border border-border rounded-md p-4">
-                  <h4 className="font-medium mb-2 text-sm text-muted-foreground">
-                    Current Assignment
-                  </h4>
-                  {driver.currentVehicle ? (
-                    <div className="flex items-center">
-                      <Car className="mr-2" size={18} />
-                      <div>
-                        <p className="font-medium">
-                          {driver.currentVehicle.make} {driver.currentVehicle.model}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {driver.currentVehicle.id} • {driver.currentVehicle.licensePlate}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center">
-                      <p className="text-muted-foreground">No vehicle currently assigned</p>
-                    </div>
-                  )}
-                </div>
               </div>
 
               <div>
-                <div className="border border-border rounded-md p-4 mb-6">
-                  <h4 className="font-medium mb-2 text-sm text-muted-foreground">
-                    Driver Information
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Department:</span>
-                      <span className="font-medium">{driver.department}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Joining Date:</span>
-                      <span className="font-medium">{driver.joiningDate}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Employee ID:</span>
-                      <span className="font-medium">{driver.employeeId}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Driver Rating:</span>
-                      <span className="font-medium">{driver.rating}/5</span>
-                    </div>
-                  </div>
-                </div>
-
                 <div className="flex flex-col space-y-2">
-                  <button
-                    onClick={openVehicleAssignmentModal}
-                    className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 flex items-center justify-center gap-2"
-                  >
-                    <Car size={18} />
-                    Assign Vehicle
-                  </button>
                   <button className="w-full py-2 px-4 border border-input rounded-md hover:bg-accent hover:text-accent-foreground flex items-center justify-center gap-2">
                     <UserCog size={18} />
                     Edit Driver
@@ -229,70 +163,6 @@ const DriverDetailsModal = ({ driver, closeDriverDetails, openVehicleAssignmentM
                     )}
                   </tbody>
                 </table>
-              </div>
-            </div>
-          )}
-
-          {/* Documents Tab */}
-          {activeTab === 'docs' && (
-            <div>
-              <h3 className="text-xl font-bold mb-4">Driver Documents</h3>
-              <div className="border border-border rounded-md p-4 mb-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-medium">License & Certificates</h4>
-                  <button className="text-sm text-primary">Upload New</button>
-                </div>
-                <div className="space-y-2">
-                  {driver.documents
-                    ?.filter(doc => doc.type === 'license')
-                    ?.map(doc => (
-                      <div
-                        key={doc.id}
-                        className="flex items-center justify-between p-2 border border-border rounded-md"
-                      >
-                        <div className="flex items-center">
-                          <FileText size={18} className="mr-2 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">{doc.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Expires: {doc.expiryDate}
-                            </p>
-                          </div>
-                        </div>
-                        <button className="text-primary text-sm">View</button>
-                      </div>
-                    ))}
-                </div>
-              </div>
-
-              <div className="border border-border rounded-md p-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-medium">Training Records</h4>
-                  <button className="text-sm text-primary">Upload New</button>
-                </div>
-                <div className="space-y-2">
-                  {driver.documents
-                    ?.filter(doc => doc.type === 'training')
-                    ?.map(doc => (
-                      <div
-                        key={doc.id}
-                        className="flex items-center justify-between p-2 border border-border rounded-md"
-                      >
-                        <div className="flex items-center">
-                          <FileText size={18} className="mr-2 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">{doc.name}</p>
-                            <p className="text-xs text-muted-foreground">Completed: {doc.date}</p>
-                          </div>
-                        </div>
-                        <button className="text-primary text-sm">View</button>
-                      </div>
-                    ))}
-                  {(!driver.documents ||
-                    driver.documents.filter(doc => doc.type === 'training').length === 0) && (
-                    <p className="text-muted-foreground text-sm">No training records available</p>
-                  )}
-                </div>
               </div>
             </div>
           )}

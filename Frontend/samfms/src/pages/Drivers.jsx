@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import DriverList from '../components/drivers/DriverList';
 import DriverSearch from '../components/drivers/DriverSearch';
 import DriverActions from '../components/drivers/DriverActions';
@@ -7,7 +7,7 @@ import VehicleAssignmentModal from '../components/drivers/VehicleAssignmentModal
 import AddDriverModal from '../components/drivers/AddDriverModal';
 import EditDriverModal from '../components/drivers/EditDriverModal';
 
-import { deleteDriver, searchDrivers, getTripPlanningDrivers } from '../backend/api/drivers';
+import {deleteDriver, searchDrivers, getTripPlanningDrivers} from '../backend/api/drivers';
 
 const Drivers = () => {
   const [drivers, setDrivers] = useState([]);
@@ -63,6 +63,7 @@ const Drivers = () => {
       try {
         setLoading(true);
         setError(null);
+
         const params = {};
         if (filters.limit) {
           params.limit = filters.limit; // only include if specified
@@ -118,7 +119,7 @@ const Drivers = () => {
           ...(filters.status && {
             status: filters.status.toLowerCase() === 'active' ? 'active' : 'inactive',
           }),
-          ...(filters.department && { department: filters.department }),
+          ...(filters.department && {department: filters.department}),
         });
 
         // The trip planning service returns { drivers, total, skip, limit, has_more }
@@ -237,7 +238,7 @@ const Drivers = () => {
       console.error('Error processing new driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getTripPlanningDrivers({ limit: 100 });
+        const response = await getTripPlanningDrivers({limit: 100});
         const driversData = response?.drivers || [];
         const transformedDrivers = driversData.map(transformDriverData);
         setDrivers(transformedDrivers);
@@ -284,7 +285,7 @@ const Drivers = () => {
       console.error('Error processing updated driver:', error);
       // Refresh the entire list as fallback
       try {
-        const response = await getTripPlanningDrivers({ limit: 100 });
+        const response = await getTripPlanningDrivers({limit: 100});
         const driversData = response?.drivers || [];
         const transformedDrivers = driversData.map(transformDriverData);
         setDrivers(transformedDrivers);
@@ -359,7 +360,7 @@ const Drivers = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2.5}
-                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                    d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0z"
                   />
                 </svg>
               </div>
@@ -392,7 +393,7 @@ const Drivers = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2.5}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z"
                   />
                 </svg>
               </div>

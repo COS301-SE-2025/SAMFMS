@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { generateWidgetId, WIDGET_TYPES, getWidget } from '../utils/widgetRegistry';
+import React, {createContext, useContext, useReducer, useEffect} from 'react';
+import {generateWidgetId, WIDGET_TYPES, getWidget} from '../utils/widgetRegistry';
 import {
   saveDashboardLayout,
   loadDashboardLayout,
@@ -16,38 +16,26 @@ const getDefaultDashboard = () => {
     // First row - 4 small widgets (Fleet Status, System Health, Recent Maintenance, Alerts)
     {
       id: generateWidgetId(),
-      type: WIDGET_TYPES.VEHICLE_STATUS,
-      config: { title: 'Fleet Status' },
+      type: WIDGET_TYPES.TRACKING_MAP,
+      config: {title: 'tracking_map'},
     },
     {
       id: generateWidgetId(),
       type: WIDGET_TYPES.PLUGIN_HEALTH,
-      config: { title: 'System Health' },
+      config: {title: 'System Health'},
     },
     {
       id: generateWidgetId(),
-      type: WIDGET_TYPES.MAINTENANCE_RECORDS,
-      config: { title: 'Recent Maintenance' },
+      type: WIDGET_TYPES.VEHICLE_STATUS_BAR_CHART,
+      config: {title: 'Vehicle Status Bar Chart'},
     },
     {
       id: generateWidgetId(),
-      type: WIDGET_TYPES.MAINTENANCE_ALERTS,
-      config: { title: 'Maintenance Alerts' },
-    },
-
-    // Second row - 2 larger widgets (Maintenance Overview, Cost Analytics)
-    {
-      id: generateWidgetId(),
-      type: WIDGET_TYPES.MAINTENANCE_SUMMARY,
-      config: { title: 'Maintenance Overview' },
-    },
-    {
-      id: generateWidgetId(),
-      type: WIDGET_TYPES.MAINTENANCE_COST_ANALYTICS,
-      config: { title: 'Cost Analytics' },
+      type: WIDGET_TYPES.MY_NOTIFICATIONS,
+      config: {title: 'My Notifications'},
     },
   ];
-  return { widgets, layout: getDefaultLayout(widgets) };
+  return {widgets, layout: getDefaultLayout(widgets)};
 };
 
 // Scale a 12-column width to the canvas 40-column grid
@@ -78,7 +66,7 @@ const getDefaultLayout = widgets => {
       rowHeight = 0;
     }
 
-    layout.push({ i: widget.id, x: cursorX, y: cursorY, w, h });
+    layout.push({i: widget.id, x: cursorX, y: cursorY, w, h});
     cursorX += w;
     rowHeight = Math.max(rowHeight, h);
   });
@@ -97,7 +85,7 @@ const dashboardReducer = (state, action) => {
       const meta = getWidget(widget.type)?.metadata;
       const w = scaleWidthTo40(meta?.defaultSize?.w ?? 4);
       const h = Math.max(1, Math.min(8, Number(meta?.defaultSize?.h ?? 4)));
-      const newLayoutItem = { i: widget.id, x: 0, y: newY, w, h };
+      const newLayoutItem = {i: widget.id, x: 0, y: newY, w, h};
 
       return {
         ...state,
@@ -142,7 +130,7 @@ const dashboardReducer = (state, action) => {
         ...state,
         widgets: state.widgets.map(widget =>
           widget.id === action.payload.id
-            ? { ...widget, config: { ...widget.config, ...action.payload.config } }
+            ? {...widget, config: {...widget.config, ...action.payload.config}}
             : widget
         ),
       };
@@ -176,7 +164,7 @@ const dashboardReducer = (state, action) => {
 //   }));
 // };
 
-export const DashboardProvider = ({ children, dashboardId = 'default' }) => {
+export const DashboardProvider = ({children, dashboardId = 'default'}) => {
   const defaultDashboard = getDefaultDashboard();
   const [state, dispatch] = useReducer(dashboardReducer, {
     widgets: defaultDashboard.widgets,

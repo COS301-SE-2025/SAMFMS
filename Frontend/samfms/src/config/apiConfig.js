@@ -129,6 +129,7 @@ export const API_ENDPOINTS = {
     EMPID: id => `/management/drivers/employee/${id}`,
     // Trip Planning Service - Get All Drivers from drivers collection
     TRIP_PLANNING_LIST: '/trips/drivers',
+    COUNT: '/management/drivers/daily-driver-count' // gets current number of driver users
   },
 
   // Vehicle Assignments
@@ -269,11 +270,17 @@ export const API_ENDPOINTS = {
     // DEPARTMENT_LOCATION: '/management/analytics/department-location',
     REFRESH: '/management/analytics/refresh',
     DELETE: '/management/analytics/delete',
+    ACTIVE: 'management/assignments/active' // Returns active vehicles
   },
 
   // WebSocket
   WEBSOCKET: {
     VEHICLES: '/ws/vehicles',
+  },
+
+  // Notifications
+  NOTIFICATIONS: {
+    MY_NOTIFICATIONS: '/notifications/my-notifications', // Get notifications for current user
   },
 };
 
