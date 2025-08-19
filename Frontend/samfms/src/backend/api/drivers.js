@@ -88,9 +88,6 @@ export const getAllDrivers = async (filters = {}) => {
 
     const response = await httpClient.get(DRIVER_ENDPOINTS.list, {params: queryParams});
 
-
-    const response = await httpClient.get(DRIVER_ENDPOINTS.list, { params: queryParams });
-
     return response;
   } catch (error) {
     console.error('Error fetching all drivers:', error);
