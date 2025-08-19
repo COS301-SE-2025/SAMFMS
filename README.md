@@ -55,7 +55,7 @@ Here’s our awesome team behind **Firewall Five**:
       <td style="font-size: 18px;"><strong>Team lead/ Project manager.</strong>, management of <strong>CI\CD</strong> , Worked on <strong>Daemon.</strong> // Features: storage, CRUD operations, reading and writing files, server creation and user management</td>
     </tr>
     <tr>
-      <td><img src="https://github.com/22590732.png" width="80"></td>
+      <td><img src="docs/Demo3/images/johan.jpeg" width="80"></td>
       <td><a href="https://github.com/22590732" style="font-size: 18px;">@22590732</a></td>
       <td style="font-size: 18px;">Mr Johan Jansen van Rensburg</td>
       <td style="font-size: 18px;">u22590732</td>
@@ -74,7 +74,7 @@ Here’s our awesome team behind **Firewall Five**:
       <td style="font-size: 18px;">Backend Engineer, working on the inner logic and workings of the system. Responsible for MCore development, and development of modular, standalone SBlocks.</td>
     </tr>
     <tr>
-      <td><img src="https://github.com/Mornevanheerden.png" width="80"></td>
+      <td><img src="docs/Demo3/images/morne.jpeg" width="80"></td>
       <td><a href="https://github.com/Mornevanheerden" style="font-size: 18px;">@Mornevanheerden</a></td>
       <td style="font-size: 18px;">Mr. Morné van Heerden</td>
       <td style="font-size: 18px;">u21482153</td>
