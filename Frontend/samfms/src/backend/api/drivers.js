@@ -285,14 +285,11 @@ export const getDriverEMPID = async security_id => {
 export const TripFinishedStatus = async employee_id => {
   try {
     const response = await httpClient.get(DRIVER_ENDPOINTS.driverASS(employee_id));
-    console.log("Response for current driver-vehicle-ass: ", response);
-
+    
     const vehicle_id = response.data.data[0].vehicle_id;
-    console.log("Vehicle id: ", vehicle_id);
-
+    
     const current_location_response = await httpClient.get(DRIVER_ENDPOINTS.vehicLoct(vehicle_id));
-    console.log("current location response: ", current_location_response);
-
+    
     const end_location_response = await httpClient.get(DRIVER_ENDPOINTS.vehicEndLoc(vehicle_id));
     console.log("End location response: ", end_location_response);
 

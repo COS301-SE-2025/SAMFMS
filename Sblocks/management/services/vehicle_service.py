@@ -243,7 +243,7 @@ class VehicleService:
         try:
             # Default pagination if not provided
             if not pagination:
-                pagination = {"skip": 0, "limit": 50}
+                pagination = {"skip": 0, "limit": 1000}
             
             # Build search filter
             search_filter = {
@@ -388,7 +388,7 @@ class VehicleService:
                     department = data.get("department")
                     status = data.get("status") 
                     vehicle_type = data.get("vehicle_type")
-                    pagination = data.get("pagination", {"skip": 0, "limit": 50})
+                    pagination = data.get("pagination", {"skip": 0, "limit": 1000})
                     
                     vehicles = await self.get_vehicles(
                         department=department,

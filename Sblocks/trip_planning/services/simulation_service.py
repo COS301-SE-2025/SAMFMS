@@ -12,6 +12,7 @@ import math
 
 
 from repositories.database import db_manager, db_manager_gps
+from services.trip_service import trip_service
 from events.publisher import event_publisher
 
 logger = logging.getLogger(__name__)
@@ -397,7 +398,7 @@ class SimulationService:
             return
         
         # Create and start simulator
-        speed = 50.0  # Default speed since it's not in the trip structure
+        speed = 80.0  # Default speed since it's not in the trip structure
         simulator = VehicleSimulator(trip_id, vehicle_id, route, speed)
         simulator.is_running = True
         
