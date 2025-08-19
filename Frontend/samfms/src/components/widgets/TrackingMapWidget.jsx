@@ -322,7 +322,7 @@ registerWidget(WIDGET_TYPES.TRACKING_MAP, TrackingMapWidget, {
       default: '400px',
     },
   },
-  defaultSize: {w: 12, h: 8},
+  defaultSize: {w: 12, h: 10},
   minSize: {w: 8, h: 6},
   maxSize: {w: 12, h: 10},
 });

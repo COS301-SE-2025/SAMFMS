@@ -41,7 +41,7 @@ const BarChartSVG = ({data, labels, colors}) => {
                             textAnchor="middle"
                             fontSize="14"
                             fontWeight="bold"
-                            fill="#222"
+                            fill="#fff"
                         >
                             {value}
                         </text>
@@ -105,6 +105,7 @@ const VehicleStatusBarChartWidget = ({id, config = {}}) => {
                             data={[counts.available, counts.unavailable]}
                             labels={["Available", "Unavailable"]}
                             colors={["#4ade80", "#fca5a5"]}
+                            className=""
                         />
                     </div>
                 </div>
