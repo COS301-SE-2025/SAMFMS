@@ -86,7 +86,11 @@ export const getAllDrivers = async (filters = {}) => {
     };
 
 
+    const response = await httpClient.get(DRIVER_ENDPOINTS.list, {params: queryParams});
+
+
     const response = await httpClient.get(DRIVER_ENDPOINTS.list, { params: queryParams });
+
     return response;
   } catch (error) {
     console.error('Error fetching all drivers:', error);
@@ -291,11 +295,15 @@ export const TripFinishedStatus = async employee_id => {
     const current_location_response = await httpClient.get(DRIVER_ENDPOINTS.vehicLoct(vehicle_id));
     
     const end_location_response = await httpClient.get(DRIVER_ENDPOINTS.vehicEndLoc(vehicle_id));
-    
+    console.log("End location response: ", end_location_response);
+
     // Extract coordinates (note: coordinates are [longitude, latitude] in GeoJSON format)
     const current_location = current_location_response.data.data.location.coordinates;
     const end_location = end_location_response.data.data[0].destination.location.coordinates;
-    
+
+    console.log("Current location: ", current_location); // [27.985173301345533, -26.09811415363004]
+    console.log("End location: ", end_location); // [27.9444444, -26.1336111]
+
     // Calculate distance between two points using Haversine formula
     const distance = calculateDistance(
       current_location[1], // latitude
@@ -303,10 +311,14 @@ export const TripFinishedStatus = async employee_id => {
       end_location[1],     // latitude
       end_location[0]      // longitude
     );
-    
+
+    console.log(`Distance to destination: ${distance.toFixed(2)} meters`);
+
     // Consider trip finished if within 100 meters of destination
     const ARRIVAL_THRESHOLD_METERS = 100;
     const hasArrived = distance <= ARRIVAL_THRESHOLD_METERS;
+
+    console.log(`Has arrived at destination: ${hasArrived}`);
     return hasArrived;
 
   } catch (error) {

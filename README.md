@@ -8,9 +8,17 @@
 ## 📚 Documentation  
 | Resource | Link |
 |----------|------|
-| 📄 SRS Document | [Requirements](https://docs.google.com/document/d/1G0PdNyn39kSutfvn8tCN5x-yCHrte0QFu_v2-gYdXPU/edit?usp=sharing) |
-| 📊 Project Board | [Project Board](https://github.com/orgs/COS301-SE-2025/projects/208/views/2)
+| SRS Document + Architecture Document | [Requirements](docs/Demo3/Software%20Requirement%20Specification.pdf) |
+| Project Board | [Project Board](https://github.com/orgs/COS301-SE-2025/projects/208/views/2)|
+| Coding Standards| [Coding Standards](docs/Demo3/Coding_Standards.pdf)|
+|Technical Installation Manual| [Technical Installation](docs/Demo3/Technical_Installation_Guide.pdf)|
+|User Manual|[User Manual]()|
+|Deployment Model|[Deployment Model]()|
+|Service Contracts|[Service Contracts](docs/Demo3/Service%20Contracts-1.pdf)|
+|Branching Strategy|[Branching Strategy](docs/Demo3/Branching_Strategy.pdf)|
 
+
+## Old Documentation
 Demo 1 SRS: [Demo 1 SRS](https://docs.google.com/document/d/1En1Mck7JwaSdKjgyvRhmX5pXqHhVSUlhZhp7XU-f_K4/edit?tab=t.0)
 
 Demo 2 SRS: [Demo 2 SRS](https://docs.google.com/document/d/1G0PdNyn39kSutfvn8tCN5x-yCHrte0QFu_v2-gYdXPU/edit?tab=t.0)
@@ -112,18 +120,3 @@ Here’s our awesome team behind **Firewall Five**:
 [![MongoDB](https://img.shields.io/badge/MongoDB-4DB33D?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 
-**Key Components**:
-
-1. **🔧 MCORE**
-
-- Manages the Fleet Management System
-- Allows adding and removing vehicles and users
-- Facilitates communication between SBlocks and sends information to the UI
-
-2. **🌐 SBlocks**
-
-   - Perform most analytical tasks and add functionality to the system as plugins
-
-3. **🖼️ UI**
-   - Web-based interface for visual fleet management
-# Test deployment

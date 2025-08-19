@@ -108,6 +108,15 @@ class UserRepository:
         except Exception as e:
             logger.error(f"Failed to count users: {e}")
             raise
+
+    @staticmethod
+    async def count_admins() -> int:
+        """Count total users"""
+        try:
+            return await security_users_collection.count_documents({"role":"admin"})
+        except Exception as e:
+            logger.error(f"Failed to count admins: {e}")
+            raise
     
     @staticmethod
     async def get_all_users() -> list:
