@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional
 import logging
 import uuid
 from datetime import datetime
+from utils.auth_utils import get_role_permissions, ROLES
 
 logger = logging.getLogger(__name__)
 
@@ -251,6 +252,9 @@ class UserService:
             is_active_determine = True
             
             # Create user in security database
+            role = ROLES.get(user_data.role)
+            role_permissions = get_role_permissions(user_data.role, role["permissions"])
+
             now = datetime.utcnow()
             security_user = SecurityUser(
                 user_id=user_id,
@@ -259,6 +263,7 @@ class UserService:
                 password_hash=password_hash,
                 role=user_data.role,
                 is_active=is_active_determine,
+                permissions=role_permissions,
                 approved=True,
                 full_name=user_data.full_name
             )
