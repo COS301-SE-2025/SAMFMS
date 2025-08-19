@@ -66,7 +66,7 @@ Here’s our awesome team behind **Firewall Five**:
       </td>
     </tr>
     <tr>
-      <td><img src="https://github.com/Laird-G.png" width="80"></td>
+      <td><img src="docs/Demo3/images/laird.png" width="80"></td>
       <td><a href="https://github.com/Laird-G" style="font-size: 18px;">@Laird-G</a></td>
       <td style="font-size: 18px;">Mr. Laird Glanville</td>
       <td style="font-size: 18px;">u22541332</td>
