@@ -8,7 +8,7 @@
 ## 📚 Documentation  
 | Resource | Link |
 |----------|------|
-| SRS Document | [Requirements](https://docs.google.com/document/d/1G0PdNyn39kSutfvn8tCN5x-yCHrte0QFu_v2-gYdXPU/edit?usp=sharing) |
+| SRS Document + Architecture Document | [Requirements](https://docs.google.com/document/d/1G0PdNyn39kSutfvn8tCN5x-yCHrte0QFu_v2-gYdXPU/edit?usp=sharing) |
 | Project Board | [Project Board](https://github.com/orgs/COS301-SE-2025/projects/208/views/2)|
 | Coding Standards| [Coding Standards]()|
 |Technical Installation Manual| [Technical Installation]()|
