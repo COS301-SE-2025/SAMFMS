@@ -8,13 +8,14 @@
 ## 📚 Documentation  
 | Resource | Link |
 |----------|------|
-| SRS Document + Architecture Document | [Requirements](https://docs.google.com/document/d/1G0PdNyn39kSutfvn8tCN5x-yCHrte0QFu_v2-gYdXPU/edit?usp=sharing) |
+| SRS Document + Architecture Document | [Requirements](docs/Demo3/Software%20Requirement%20Specification.pdf) |
 | Project Board | [Project Board](https://github.com/orgs/COS301-SE-2025/projects/208/views/2)|
 | Coding Standards| [Coding Standards](docs/Demo3/Coding_Standards.pdf)|
-|Technical Installation Manual| [Technical Installation]()|
+|Technical Installation Manual| [Technical Installation](docs/Demo3/Technical_Installation_Guide.pdf)|
 |User Manual|[User Manual]()|
 |Deployment Model|[Deployment Model]()|
-|Service Contracts|[Service Contracts]()|
+|Service Contracts|[Service Contracts](docs/Demo3/Service%20Contracts-1.pdf)|
+|Branching Strategy|[Branching Strategy](docs/Demo3/Branching_Strategy.pdf)|
 
 
 ## Old Documentation
