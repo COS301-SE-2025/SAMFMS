@@ -92,6 +92,7 @@ const MaintenanceSummaryWidget = ({id, config = {}}) => {
       error={error}
     >
       <div className="h-full w-full flex items-center justify-center">
+        <div>Maintenance Summary</div>
         <div className="grid grid-cols-2 grid-rows-2 gap-4 w-full h-full p-4">
           {summaryCards.map((card, index) => (
             <div

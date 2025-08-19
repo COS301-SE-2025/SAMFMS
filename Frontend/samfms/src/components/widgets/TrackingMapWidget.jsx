@@ -204,17 +204,6 @@ const TrackingMapWidget = ({id, config = {}}) => {
 
   const renderMap = () => (
     <div className="flex-1 relative">
-      {/* Burger button (always visible, top-left) - must be outside MapContainer for correct positioning */}
-      <div className="absolute top-4 left-4 z-20">
-        {!sidebarOpen && (
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 bg-white dark:bg-gray-800 rounded-md shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <Menu className="h-5 w-5 text-gray-900 dark:text-gray-100" />
-          </button>
-        )}
-      </div>
       <MapContainer
         center={defaultCenter}
         zoom={defaultZoom}
@@ -225,6 +214,7 @@ const TrackingMapWidget = ({id, config = {}}) => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
+
         {/* Vehicle Markers */}
         <LayerGroup>
           {filteredVehicles.map(vehicle => (
@@ -239,28 +229,12 @@ const TrackingMapWidget = ({id, config = {}}) => {
                   <div className="text-sm text-gray-600">
                     {vehicle.make} {vehicle.model}
                   </div>
-                  <div className="text-sm mt-1">
-                    <div>
-                      Status:{' '}
-                      <span
-                        className={`font-medium ${vehicle.status === 'active' ? 'text-green-600' : 'text-red-600'
-                          }`}
-                      >
-                        {vehicle.status}
-                      </span>
-                    </div>
-                    <div>Speed: {vehicle.speed || 0} km/h</div>
-                    {vehicle.lastUpdate && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        Last update: {new Date(vehicle.lastUpdate).toLocaleTimeString()}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </Popup>
             </Marker>
           ))}
         </LayerGroup>
+
         {/* Geofences */}
         <LayerGroup>
           {Array.isArray(geofences) &&
@@ -275,30 +249,13 @@ const TrackingMapWidget = ({id, config = {}}) => {
                   fillOpacity: 0.1,
                   weight: 2,
                 }}
-              >
-                <Popup>
-                  <div className="p-2">
-                    <div className="font-semibold">{geofence.name}</div>
-                    <div className="text-sm text-gray-600">{geofence.description}</div>
-                    <div className="text-sm mt-1">Radius: {geofence.radius}m</div>
-                  </div>
-                </Popup>
-              </Circle>
+              />
             ))}
         </LayerGroup>
       </MapContainer>
-      {/* Map Controls */}
-      <div className="absolute top-4 right-4 z-10 flex flex-col space-y-2">
-        <button
-          onClick={loadData}
-          className="p-2 bg-white dark:bg-gray-800 rounded-md shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          title="Refresh"
-        >
-          <Navigation className="h-5 w-5" />
-        </button>
-      </div>
     </div>
   );
+
 
   return (
     <BaseWidget
@@ -309,7 +266,17 @@ const TrackingMapWidget = ({id, config = {}}) => {
       className="p-0 overflow-hidden"
       style={{height: config.height || '400px'}}
     >
-      <div className="flex h-full">
+      <div className="flex h-full relative"> {/* Make the flex container relative */}
+        {/* Burger button, always present */}
+        {!sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="absolute top-4 left-20 z-[1000] p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800"
+          >
+            <Menu className="h-5 w-5 text-gray-900 dark:text-gray-100" />
+          </button>
+        )}
+
         {renderSidebar()}
         {renderMap()}
       </div>

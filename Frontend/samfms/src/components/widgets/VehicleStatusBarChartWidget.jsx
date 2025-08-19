@@ -130,9 +130,9 @@ registerWidget(WIDGET_TYPES.VEHICLE_STATUS_BAR_CHART, VehicleStatusBarChartWidge
             default: 60,
         },
     },
-    defaultSize: {w: 4, h: 2},
-    minSize: {w: 3, h: 1},
-    maxSize: {w: 6, h: 4},
+    defaultSize: {w: 3, h: 6},
+    minSize: {w: 3, h: 3},
+    maxSize: {w: 8, h: 8},
 });
 
 export default VehicleStatusBarChartWidget;
