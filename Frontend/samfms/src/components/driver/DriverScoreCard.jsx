@@ -60,20 +60,20 @@ const DriverScoreCard = () => {
   // Use API data if available, otherwise fallback to static data
   const driverScore = performanceData
     ? {
-        tripsCompleted: performanceData.completed_trips || 0,
-        //totalDistance: performanceData.performance?.total_distance || 0,
-        // fuelEfficiency: performanceData.performance?.fuel_efficiency || 0,
-        // overallScore: performanceData.score?.overall_score || 0,
-        // efficiencyScore: performanceData.score?.efficiency_score || 0,
-        // activityScore: performanceData.score?.activity_score || 0,
-        // consistencyScore: performanceData.score?.consistency_score || 0,
-      }
+      tripsCompleted: performanceData.completed_trips || 0,
+      //totalDistance: performanceData.performance?.total_distance || 0,
+      // fuelEfficiency: performanceData.performance?.fuel_efficiency || 0,
+      // overallScore: performanceData.score?.overall_score || 0,
+      // efficiencyScore: performanceData.score?.efficiency_score || 0,
+      // activityScore: performanceData.score?.activity_score || 0,
+      // consistencyScore: performanceData.score?.consistency_score || 0,
+    }
     : {
-        // Fallback static data
-        tripsCompleted: 47,
-        completedTrips: 44,
-        totalTrips: 47,
-      };
+      // Fallback static data
+      tripsCompleted: 47,
+      completedTrips: 44,
+      totalTrips: 47,
+    };
 
   // Calculate metrics based on available data
   let completionRate;
@@ -85,20 +85,21 @@ const DriverScoreCard = () => {
     completionRate = Math.round((performanceData.completed_trips /
       (performanceData.completed_trips + performanceData.cancelled_trips)) * 100)
       || Math.round((driverScore.consistencyScore || 85));
-    
+
+
     // Calculate average trips per day (assuming last 30 days)
-    avgTripsPerDay = Math.round(( (performanceData.completed_trips+performanceData.cancelled_trips)/ 30) * 10) / 10;
-    
+    avgTripsPerDay = Math.round(((performanceData.completed_trips + performanceData.cancelled_trips) / 30) * 10) / 10;
+
     overallScore = Math.round(driverScore.overallScore);
   } else {
     // Use static calculation for fallback
     completionRate = driverScore.totalTrips > 0
-      ? Math.round((driverScore.completedTrips / driverScore.totalTrips) * 100)
+      ? Math.round((performanceData.completed_trips / performanceData.completed_trips + performanceData.cancelled_trips) * 100)
       : 0;
-    
+
     // Assuming trips are spread over 30 days
     avgTripsPerDay = Math.round((driverScore.tripsCompleted / 30) * 10) / 10;
-    
+
     overallScore = Math.max(0, Math.min(100, completionRate * 0.8 + 20));
   }
 

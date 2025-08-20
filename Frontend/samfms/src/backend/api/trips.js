@@ -143,10 +143,11 @@ export const getTripsHistory = async (page = 1, limit = 10) => {
 
 export const getDriverSpecificAnalytics = async (driver_id, timeframe = 'year') => {
   try {
-    const driverStatsResponse = await httpClient.get(`${TRIPS_ENDPOINTS.ANALYTICS.DRIVERSTATS}`, {
-      params: { timeframe },
+    const driverStatsUrl = TRIPS_ENDPOINTS.ANALYTICS.DRIVERSTATS(timeframe);
+    
+    const driverStatsResponse = await httpClient.get(driverStatsUrl, {
+      params: { timeframe }, // You might not need this if timeframe is already in the URL
     });
-
     // Extract the data from the nested response structure
     const allDriversData = driverStatsResponse.data?.data?.total || [];
     
