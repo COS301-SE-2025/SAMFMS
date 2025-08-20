@@ -5,14 +5,14 @@ on:
     branches: 
       - main
       - master
-      - code-cleanup
-      - develop
+      - development
   pull_request:
     types: [closed]
     branches:
       - main
       - master
-      - code-cleanup
+      - development
+      
 
 jobs:
   auto-deploy:

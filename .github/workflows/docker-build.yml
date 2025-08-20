@@ -4,7 +4,7 @@ name: Build and Push to Private Registry
 
 on:
   push:
-    branches: [ main, develop, master ]
+    branches: [ main, development, master ]
   pull_request:
     branches: [ main, master ]
 

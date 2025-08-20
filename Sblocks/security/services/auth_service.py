@@ -154,7 +154,7 @@ class AuthService:
             db_user_data = {
                 "user_id": user_id,
                 "email": user_data["email"],
-                "phone": user_data["phone"],
+                "phone": user_data["phoneNo"],
                 "password_hash": hashed_password,
                 "role": role,
                 "permissions": permissions,

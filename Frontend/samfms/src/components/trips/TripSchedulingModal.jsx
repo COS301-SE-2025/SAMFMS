@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   X,
   MapPin,
@@ -44,9 +44,6 @@ const TripSchedulingModal = ({
   const [showDescription, setShowDescription] = useState(false);
   const [showDriverNotes, setShowDriverNotes] = useState(false);
 
-  // Validation state
-  const [validationErrors, setValidationErrors] = useState({});
-
   // Step navigation functions
   const nextStep = useCallback(() => {
     if (currentStep < totalSteps) {
@@ -60,37 +57,6 @@ const TripSchedulingModal = ({
     }
   }, [currentStep]);
 
-  // Date/Time validation function
-  const validateDateTime = useCallback(() => {
-    const errors = {};
-
-    if (tripForm.startDate && tripForm.endDate && tripForm.startTime && tripForm.endTime) {
-      const startDate = new Date(tripForm.startDate);
-      const endDate = new Date(tripForm.endDate);
-
-      // Check if end date is before start date
-      if (endDate < startDate) {
-        errors.endDate = 'End date cannot be earlier than start date';
-      }
-
-      // If same date, check if start time is before end time
-      if (tripForm.startDate === tripForm.endDate) {
-        const startTime = tripForm.startTime.split(':').map(Number);
-        const endTime = tripForm.endTime.split(':').map(Number);
-
-        const startMinutes = startTime[0] * 60 + startTime[1];
-        const endMinutes = endTime[0] * 60 + endTime[1];
-
-        if (startMinutes >= endMinutes) {
-          errors.endTime = 'End time must be later than start time on the same date';
-        }
-      }
-    }
-
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  }, [tripForm.startDate, tripForm.endDate, tripForm.startTime, tripForm.endTime]);
-
   // Form validation for each step
   const isStepValid = useCallback(
     step => {
@@ -98,7 +64,7 @@ const TripSchedulingModal = ({
         case 1:
           return tripForm.name && tripForm.priority;
         case 2:
-          const hasAllFields = (
+          return (
             tripForm.vehicleId &&
             tripForm.driverId &&
             tripForm.startDate &&
@@ -106,14 +72,13 @@ const TripSchedulingModal = ({
             tripForm.endDate &&
             tripForm.endTime
           );
-          return hasAllFields && validateDateTime();
         case 3:
           return tripForm.startLocation && tripForm.endLocation;
         default:
           return false;
       }
     },
-    [tripForm, validateDateTime]
+    [tripForm]
   );
 
   // Handle keyboard navigation
@@ -164,12 +129,12 @@ const TripSchedulingModal = ({
 
   // Handle location changes from autocomplete
   const handleStartLocationChange = (location, coordinates) => {
-    console.log('Start location changed:', {location, coordinates});
+    console.log('Start location changed:', { location, coordinates });
     onFormChange('startLocation', location);
     if (coordinates) {
       const newMapLocations = {
         ...mapLocations,
-        start: {lat: coordinates.lat, lng: coordinates.lng},
+        start: { lat: coordinates.lat, lng: coordinates.lng },
       };
       console.log('Updated map locations (start):', newMapLocations);
       setMapLocations(newMapLocations);
@@ -177,12 +142,12 @@ const TripSchedulingModal = ({
   };
 
   const handleEndLocationChange = (location, coordinates) => {
-    console.log('End location changed:', {location, coordinates});
+    console.log('End location changed:', { location, coordinates });
     onFormChange('endLocation', location);
     if (coordinates) {
       const newMapLocations = {
         ...mapLocations,
-        end: {lat: coordinates.lat, lng: coordinates.lng},
+        end: { lat: coordinates.lat, lng: coordinates.lng },
       };
       console.log('Updated map locations (end):', newMapLocations);
       setMapLocations(newMapLocations);
@@ -191,13 +156,13 @@ const TripSchedulingModal = ({
 
   // Handle map location selection
   const handleMapStartLocationChange = coords => {
-    const newMapLocations = {...mapLocations, start: coords};
+    const newMapLocations = { ...mapLocations, start: coords };
     setMapLocations(newMapLocations);
     onFormChange('startLocation', `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`);
   };
 
   const handleMapEndLocationChange = coords => {
-    const newMapLocations = {...mapLocations, end: coords};
+    const newMapLocations = { ...mapLocations, end: coords };
     setMapLocations(newMapLocations);
     onFormChange('endLocation', `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`);
   };
@@ -244,26 +209,12 @@ const TripSchedulingModal = ({
   useEffect(() => {
     if (!showModal) {
       setCurrentStep(1);
-      setMapLocations({start: null, end: null, waypoints: []});
+      setMapLocations({ start: null, end: null, waypoints: [] });
       setRouteInfo(null);
       setShowDescription(false);
       setShowDriverNotes(false);
-      setValidationErrors({});
-    } else {
-      // Set default values when modal opens
-      const now = new Date();
-      const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD format
-      const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
-
-      // Only set defaults if the fields are empty
-      if (!tripForm.startDate) {
-        onFormChange('startDate', currentDate);
-      }
-      if (!tripForm.startTime) {
-        onFormChange('startTime', currentTime);
-      }
     }
-  }, [showModal, tripForm.startDate, tripForm.startTime, onFormChange]);
+  }, [showModal]);
 
   // Debug logging for prop values
   useEffect(() => {
@@ -295,9 +246,9 @@ const TripSchedulingModal = ({
   if (!showModal) return null;
 
   const stepTitles = [
-    {title: 'Trip Details', subtitle: 'Name and priority settings', icon: FileText},
-    {title: 'Vehicle & Schedule', subtitle: 'Assign vehicle, driver and timing', icon: Calendar},
-    {title: 'Route Planning', subtitle: 'Set locations and map route', icon: MapPin},
+    { title: 'Trip Details', subtitle: 'Name and priority settings', icon: FileText },
+    { title: 'Vehicle & Schedule', subtitle: 'Assign vehicle, driver and timing', icon: Calendar },
+    { title: 'Route Planning', subtitle: 'Set locations and map route', icon: MapPin },
   ];
 
   return (
@@ -343,7 +294,7 @@ const TripSchedulingModal = ({
             <div className="w-full bg-muted rounded-full h-2">
               <div
                 className="bg-primary h-2 rounded-full transition-all duration-300"
-                style={{width: `${(currentStep / totalSteps) * 100}%`}}
+                style={{ width: `${(currentStep / totalSteps) * 100}%` }}
               ></div>
             </div>
           </div>
@@ -384,19 +335,20 @@ const TripSchedulingModal = ({
                       </label>
                       <div className="grid grid-cols-2 gap-3">
                         {[
-                          {value: 'low', label: 'Low', color: 'green', icon: '🟢'},
-                          {value: 'normal', label: 'Normal', color: 'blue', icon: '🔵'},
-                          {value: 'high', label: 'High', color: 'amber', icon: '🟠'},
-                          {value: 'urgent', label: 'Urgent', color: 'red', icon: '🔴'},
+                          { value: 'low', label: 'Low', color: 'green', icon: '🟢' },
+                          { value: 'normal', label: 'Normal', color: 'blue', icon: '🔵' },
+                          { value: 'high', label: 'High', color: 'amber', icon: '🟠' },
+                          { value: 'urgent', label: 'Urgent', color: 'red', icon: '🔴' },
                         ].map(priority => (
                           <button
                             key={priority.value}
                             type="button"
                             onClick={() => onFormChange('priority', priority.value)}
-                            className={`p-4 rounded-lg border-2 transition-all duration-200 flex items-center gap-3 ${tripForm.priority === priority.value
-                              ? 'border-primary bg-primary/10'
-                              : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                              }`}
+                            className={`p-4 rounded-lg border-2 transition-all duration-200 flex items-center gap-3 ${
+                              tripForm.priority === priority.value
+                                ? 'border-primary bg-primary/10'
+                                : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                            }`}
                           >
                             <span className="text-xl">{priority.icon}</span>
                             <span className="font-medium">{priority.label}</span>
@@ -541,11 +493,7 @@ const TripSchedulingModal = ({
                           <input
                             type="date"
                             value={tripForm.startDate}
-                            onChange={e => {
-                              onFormChange('startDate', e.target.value);
-                              // Trigger validation after a short delay to allow form update
-                              setTimeout(() => validateDateTime(), 0);
-                            }}
+                            onChange={e => onFormChange('startDate', e.target.value)}
                             className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
                             required
                           />
@@ -557,11 +505,7 @@ const TripSchedulingModal = ({
                           <input
                             type="time"
                             value={tripForm.startTime}
-                            onChange={e => {
-                              onFormChange('startTime', e.target.value);
-                              // Trigger validation after a short delay to allow form update
-                              setTimeout(() => validateDateTime(), 0);
-                            }}
+                            onChange={e => onFormChange('startTime', e.target.value)}
                             className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
                             required
                           />
@@ -583,18 +527,10 @@ const TripSchedulingModal = ({
                           <input
                             type="date"
                             value={tripForm.endDate}
-                            onChange={e => {
-                              onFormChange('endDate', e.target.value);
-                              // Trigger validation after a short delay to allow form update
-                              setTimeout(() => validateDateTime(), 0);
-                            }}
-                            className={`w-full border rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50 ${validationErrors.endDate ? 'border-red-500' : 'border-input'
-                              }`}
+                            onChange={e => onFormChange('endDate', e.target.value)}
+                            className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
                             required
                           />
-                          {validationErrors.endDate && (
-                            <p className="text-sm text-red-500">{validationErrors.endDate}</p>
-                          )}
                         </div>
                         <div className="space-y-2">
                           <label className="block text-sm font-medium text-foreground">
@@ -603,18 +539,10 @@ const TripSchedulingModal = ({
                           <input
                             type="time"
                             value={tripForm.endTime}
-                            onChange={e => {
-                              onFormChange('endTime', e.target.value);
-                              // Trigger validation after a short delay to allow form update
-                              setTimeout(() => validateDateTime(), 0);
-                            }}
-                            className={`w-full border rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50 ${validationErrors.endTime ? 'border-red-500' : 'border-input'
-                              }`}
+                            onChange={e => onFormChange('endTime', e.target.value)}
+                            className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
                             required
                           />
-                          {validationErrors.endTime && (
-                            <p className="text-sm text-red-500">{validationErrors.endTime}</p>
-                          )}
                         </div>
                       </div>
                     </div>
