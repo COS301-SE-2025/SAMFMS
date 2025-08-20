@@ -82,8 +82,9 @@ const DriverScoreCard = () => {
 
   if (performanceData) {
     // Use API data - assuming we can derive these from existing data
-    completionRate = Math.round((performanceData.completed_trips/performanceData.completed_trips+performanceData.cancelled_trips)*100)  || 
-      Math.round((driverScore.consistencyScore || 85)); // Using consistency as proxy
+    completionRate = Math.round((performanceData.completed_trips /
+      (performanceData.completed_trips + performanceData.cancelled_trips)) * 100)
+      || Math.round((driverScore.consistencyScore || 85));
     
     // Calculate average trips per day (assuming last 30 days)
     avgTripsPerDay = Math.round(( (performanceData.completed_trips+performanceData.cancelled_trips)/ 30) * 10) / 10;
