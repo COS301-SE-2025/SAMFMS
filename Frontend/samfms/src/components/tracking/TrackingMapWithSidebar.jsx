@@ -28,6 +28,7 @@ import L from 'leaflet';
 import { getVehicles } from '../../backend/api/vehicles';
 import { listGeofences, deleteGeofence } from '../../backend/api/geofences';
 import { listLocations, getVehicleLocation } from '../../backend/api/locations';
+import { getGeofence } from '../../backend/api/geofences';
 import GeofenceManager from './GeofenceManager';
 
 // Fix for marker icons in React-Leaflet
@@ -378,11 +379,20 @@ const TrackingMapWithSidebar = () => {
     setSelectedItem(item);
 
     try {
-      const vehicleData = await getVehicleLocation(item.id); 
-      console.log("Full response:", vehicleData);
+      const geofence = await getGeofence(item.id);
+      console.log("Geofence response: ", geofence)
+      if (geofence === null) {
+        const vehicleData = await getVehicleLocation(item.id);
+        console.log("Full response:", vehicleData);
 
-      const { latitude, longitude } = vehicleData;
-      setMapCenter([latitude, longitude]);
+        const { latitude, longitude } = vehicleData;
+        setMapCenter([latitude, longitude]);
+      } else {
+        const latitude = geofence.geometry.center.latitude;
+        const longitude = geofence.geometry.center.longitude;
+
+        setMapCenter([latitude, longitude]);
+      }
 
     } catch (err) {
       console.error("Failed to fetch vehicle location:", err);

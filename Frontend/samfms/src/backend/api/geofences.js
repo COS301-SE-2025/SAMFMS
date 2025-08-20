@@ -12,9 +12,38 @@ const GEOFENCES_ENDPOINTS = {
 export const listGeofences = async () => {
   try {
     console.log('[Geofences API] Fetching all geofences from:', GEOFENCES_ENDPOINTS.list);
-    return await httpClient.get(GEOFENCES_ENDPOINTS.list);
+    const response =  await httpClient.get(GEOFENCES_ENDPOINTS.list);
+    console.log("Geofences list response: ", response)
+    return response;
   } catch (error) {
     console.error('Error fetching Geofences: ', error);
+    throw error;
+  }
+};
+
+export const getGeofence = async (geofence_id) => {
+  try {
+    console.log(`[Geofences API] Fetching geofence with ID: ${geofence_id}`);
+    
+    // Await the listGeofences call to get the actual data
+    const geofencesResponse = await listGeofences();
+    
+    // Extract the geofences array from the nested response structure
+    const geofences = geofencesResponse?.data?.data || [];
+    
+    // Filter to find the geofence with matching ID
+    const targetGeofence = geofences.find(geofence => geofence.id === geofence_id);
+    
+    if (targetGeofence) {
+      console.log(`Found geofence:`, targetGeofence);
+      return targetGeofence;
+    } else {
+      console.log(`No geofence found with ID: ${geofence_id}`);
+      return null;
+    }
+    
+  } catch (error) {
+    console.error(`Error fetching geofence for ${geofence_id}: `, error);
     throw error;
   }
 };
