@@ -13,7 +13,7 @@
 | Coding Standards| [Coding Standards](docs/Demo3/Coding_Standards.pdf)|
 |Technical Installation Manual| [Technical Installation](docs/Demo3/Technical_Installation_Guide.pdf)|
 |User Manual|[User Manual]()|
-|Deployment Model|[Deployment Model]()|
+|Deployment Model|[Deployment Model](docs/Demo3/Deployment%20Strategy.pdf)|
 |Service Contracts|[Service Contracts](docs/Demo3/Service%20Contracts-1.pdf)|
 |Branching Strategy|[Branching Strategy](docs/Demo3/Branching_Strategy.pdf)|
 
