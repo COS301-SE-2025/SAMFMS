@@ -35,9 +35,21 @@ const DashboardContent = () => {
   }, [state.isEditing, saveDashboardManually]);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen relative">
       <DashboardToolbar />
-      <DashboardCanvas />
+      <div
+        className="absolute inset-0 w-full h-full z-0 opacity-10"
+        style={{
+          backgroundImage: 'url("/logo/logo_icon_dark.svg")',
+          backgroundSize: '200px',
+          backgroundRepeat: 'repeat',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+        }}
+      />
+      <div className="relative z-10">
+        <DashboardCanvas />
+      </div>
     </div>
   );
 };
