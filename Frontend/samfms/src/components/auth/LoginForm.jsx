@@ -140,19 +140,22 @@ const LoginForm = ({ onSuccess, onClose }) => {
         />
       </div>
 
-      <form className="space-y-5" onSubmit={handleSubmit}>
+      <form className="space-y-6" onSubmit={handleSubmit}>
         {error && (
           <div
-            className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+            className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg relative"
             role="alert"
           >
-            <span className="block text-sm">{error}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-red-500">⚠</span>
+              <span className="block text-sm font-medium">{error}</span>
+            </div>
           </div>
         )}
 
         <div className="space-y-2">
-          <label htmlFor="modal-email" className="block text-sm font-medium text-primary-900 dark:text-white">
-            Email
+          <label htmlFor="modal-email" className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+            Email Address
           </label>
           <input
             id="modal-email"
@@ -162,19 +165,22 @@ const LoginForm = ({ onSuccess, onClose }) => {
             onChange={e => handleChange('email', e.target.value)}
             onBlur={() => handleBlur('email')}
             required
-            className={`w-full p-3 border rounded-md bg-primary-50 dark:bg-gray-700 text-primary-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 ${
+            className={`w-full px-4 py-3 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ${
               validationErrors.email && touched.email
-                ? 'border-red-500'
-                : 'border-primary-200 dark:border-gray-600'
+                ? 'border-red-500 ring-2 ring-red-200'
+                : 'border-gray-300 dark:border-gray-600'
             }`}
           />
           {validationErrors.email && touched.email && (
-            <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>
+            <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
+              <span className="w-4 h-4 text-red-500">⚠</span>
+              {validationErrors.email}
+            </p>
           )}
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="modal-password" className="block text-sm font-medium text-primary-900 dark:text-white">
+          <label htmlFor="modal-password" className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
             Password
           </label>
           <input
@@ -185,14 +191,17 @@ const LoginForm = ({ onSuccess, onClose }) => {
             onChange={e => handleChange('password', e.target.value)}
             onBlur={() => handleBlur('password')}
             required
-            className={`w-full p-3 border rounded-md bg-primary-50 dark:bg-gray-700 text-primary-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 ${
+            className={`w-full px-4 py-3 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ${
               validationErrors.password && touched.password
-                ? 'border-red-500'
-                : 'border-primary-200 dark:border-gray-600'
+                ? 'border-red-500 ring-2 ring-red-200'
+                : 'border-gray-300 dark:border-gray-600'
             }`}
           />
           {validationErrors.password && touched.password && (
-            <p className="text-red-500 text-xs mt-1">{validationErrors.password}</p>
+            <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
+              <span className="w-4 h-4 text-red-500">⚠</span>
+              {validationErrors.password}
+            </p>
           )}
         </div>
 
@@ -201,7 +210,7 @@ const LoginForm = ({ onSuccess, onClose }) => {
           <button
             type="button"
             onClick={() => console.log('Forgot password clicked')}
-            className="text-sm text-primary-700 hover:text-primary-800 hover:underline focus:outline-none focus:underline transition-colors duration-200"
+            className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline focus:outline-none focus:underline transition-colors duration-200 font-medium"
           >
             Forgot your password?
           </button>
@@ -212,20 +221,23 @@ const LoginForm = ({ onSuccess, onClose }) => {
             type="button"
             variant="outline"
             onClick={onClose}
-            className="flex-1"
+            className="flex-1 py-3 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
           >
             Cancel
           </Button>
           <Button
             type="submit"
             disabled={loading}
-            className="flex-1 bg-primary-700 hover:bg-primary-800 text-white transform transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg"
-            style={{
-              backgroundImage: 'linear-gradient(to right, #0855b1, #2A91CD, #0855b1)',
-              backgroundSize: '200% auto',
-            }}
+            className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg transform transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Logging in...
+              </div>
+            ) : (
+              'Login to Account'
+            )}
           </Button>
         </div>
       </form>
