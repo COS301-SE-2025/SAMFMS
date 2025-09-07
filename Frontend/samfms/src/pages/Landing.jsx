@@ -92,7 +92,7 @@ const Landing = () => {
     useEffect(() => {
         const interval = setInterval(() => {
             setCurrentHeadingIndex((prevIndex) => (prevIndex + 1) % headings.length);
-        }, 4000); // Change heading every 4 seconds
+        }, 8000); // Change heading every 8 seconds
 
         return () => clearInterval(interval);
     }, [headings.length]);
@@ -148,12 +148,12 @@ const Landing = () => {
                             <img
                                 src="/logo/logo_horisontal_light.svg"
                                 alt="SAMFMS Logo"
-                                className="h-16 transition-all duration-300 dark:hidden logo-pulse"
+                                className="h-16 transition-all duration-300 dark:hidden"
                             />
                             <img
                                 src="/logo/logo_horisontal_dark.svg"
                                 alt="SAMFMS Logo"
-                                className="h-16 transition-all duration-300 hidden dark:block logo-pulse"
+                                className="h-16 transition-all duration-300 hidden dark:block"
                             />
                             <div className='text-sm text-muted-foreground pl-14 mb-4'><p>by Firewall Five</p></div>
                             <div className="w-full">
