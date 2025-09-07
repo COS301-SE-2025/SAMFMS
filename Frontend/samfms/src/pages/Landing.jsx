@@ -1,5 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import {Button} from '../components/ui/button';
+import Modal from '../components/ui/Modal';
+import LoginForm from '../components/auth/LoginForm';
 import {useNavigate} from 'react-router-dom';
 import {
     checkUserExistence,
@@ -31,6 +33,7 @@ const Landing = () => {
     const navigate = useNavigate();
     const [checkingStatus, setCheckingStatus] = useState(true);
     const [hasExistingUsers, setHasExistingUsers] = useState(null);
+    const [showLoginModal, setShowLoginModal] = useState(false);
 
     useEffect(() => {
         // If user is already authenticated, redirect to dashboard
@@ -66,12 +69,21 @@ const Landing = () => {
     }, [navigate]);
 
     const handleGetStarted = () => {
-        // Navigate to login if users exist, otherwise signup
+        // Show login modal if users exist, otherwise navigate to signup
         if (hasExistingUsers) {
-            navigate('/login');
+            setShowLoginModal(true);
         } else {
             navigate('/signup');
         }
+    };
+
+    const handleLoginSuccess = () => {
+        setShowLoginModal(false);
+        // Navigation is handled within the LoginForm component
+    };
+
+    const handleCloseModal = () => {
+        setShowLoginModal(false);
     };
 
     // Display loading state while checking for users
@@ -218,6 +230,18 @@ const Landing = () => {
                     </div>
                 </div>
             </footer>
+
+            {/* Login Modal */}
+            <Modal 
+                isOpen={showLoginModal} 
+                onClose={handleCloseModal}
+                title="Log in to your account"
+            >
+                <LoginForm 
+                    onSuccess={handleLoginSuccess}
+                    onClose={handleCloseModal}
+                />
+            </Modal>
         </div>
     );
 };
