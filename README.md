@@ -12,10 +12,11 @@
 | Project Board | [Project Board](https://github.com/orgs/COS301-SE-2025/projects/208/views/2)|
 | Coding Standards| [Coding Standards](docs/Demo3/Coding_Standards.pdf)|
 |Technical Installation Manual| [Technical Installation](docs/Demo3/Technical_Installation_Guide.pdf)|
-|User Manual|[User Manual]()|
+|User Manual|[User Manual](docs/Demo3/SAMFMS%20User%20Manual.pdf)|
 |Deployment Model|[Deployment Model](docs/Demo3/Deployment%20Strategy.pdf)|
 |Service Contracts|[Service Contracts](docs/Demo3/Service%20Contracts-1.pdf)|
 |Branching Strategy|[Branching Strategy](docs/Demo3/Branching_Strategy.pdf)|
+|Updated Domain Model|[Domain Model](docs/Demo3/images/DomainModel.png)|
 
 
 ## Old Documentation

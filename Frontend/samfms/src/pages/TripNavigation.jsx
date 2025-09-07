@@ -348,7 +348,7 @@ const ActiveTrip = ({ onTripEnded }) => {
       }
       
       console.log(`Trip ${tripId} ended successfully`);
-      window.location.href = "http://localhost:21015/driver-home";
+      window.location.href = "http://capstone-samfms.dns.net.za:21015/driver-home";
       
     } catch (error) {
       console.error('Error ending trip:', error);

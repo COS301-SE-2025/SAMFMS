@@ -73,7 +73,7 @@ const ProtectedRoute = () => {
       mountedRef.current = false;
       clearTimeout(timeoutId); // Cleanup timeout on unmount
     };
-  }, [location.pathname, loading]); // Re-check authentication when route changes or loading state changes
+  }, [location.pathname]); // Only re-check authentication when route changes
 
   if (loading) {
     return (
