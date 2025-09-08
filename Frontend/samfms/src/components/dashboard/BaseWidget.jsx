@@ -1,4 +1,4 @@
-import React, {useState, useCallback} from 'react';
+import React, {useState, useCallback, useEffect} from 'react';
 import {X, GripVertical} from 'lucide-react';
 import {useDashboard} from '../../contexts/DashboardContext';
 
@@ -16,6 +16,13 @@ export const BaseWidget = ({
 }) => {
   const {state, dispatch} = useDashboard();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+
+  // Fade in animation when component mounts
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleRemove = useCallback(() => {
     dispatch({type: 'REMOVE_WIDGET', payload: id});
@@ -61,7 +68,15 @@ export const BaseWidget = ({
   if (loading) {
     return (
       <div
-        className={`bg-card shadow-sm overflow-hidden h-full flex flex-col ${className}`}
+        className={`bg-card shadow-sm overflow-hidden h-full flex flex-col transition-all duration-1000 ease-out will-change-transform ${isVisible
+          ? 'opacity-100 translate-y-0 scale-100'
+          : 'opacity-0 translate-y-8 scale-95'
+          } ${className}`}
+        style={{
+          transform: isVisible ? 'translateY(0) scale(1)' : 'translateY(32px) scale(0.95)',
+          opacity: isVisible ? 1 : 0,
+          transition: 'all 1000ms ease-out'
+        }}
         role="region"
         aria-label={`${title} - Loading`}
         aria-busy="true"
@@ -95,7 +110,12 @@ export const BaseWidget = ({
   if (error) {
     return (
       <div
-        className={`bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-slate-100 dark:border-slate-900 border rounded-xl shadow-lg overflow-hidden h-full flex flex-col ${className}`}
+        className={`bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-slate-100 dark:border-slate-900 border rounded-xl shadow-lg overflow-hidden h-full flex flex-col will-change-transform ${className}`}
+        style={{
+          transform: isVisible ? 'translateY(0) scale(1)' : 'translateY(32px) scale(0.95)',
+          opacity: isVisible ? 1 : 0,
+          transition: 'all 1000ms ease-out'
+        }}
         role="region"
         aria-label={`${title} - Error`}
         aria-describedby={`error-desc-${id}`}
@@ -144,7 +164,12 @@ export const BaseWidget = ({
 
   return (
     <div
-      className={`bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-slate-100 dark:border-slate-900 border rounded-xl shadow-lg overflow-hidden h-full flex flex-col ${className}`}
+      className={`bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border-slate-100 dark:border-slate-900 border rounded-xl shadow-lg overflow-hidden h-full flex flex-col will-change-transform ${className}`}
+      style={{
+        transform: isVisible ? 'translateY(0) scale(1)' : 'translateY(32px) scale(0.95)',
+        opacity: isVisible ? 1 : 0,
+        transition: 'all 1000ms ease-out'
+      }}
       role="region"
       aria-labelledby={`widget-title-${id}`}
       tabIndex={state.isEditing ? 0 : -1}
