@@ -8,6 +8,7 @@ import DriverAssignmentModal from '../components/vehicles/DriverAssignmentModal'
 import AddVehicleModal from '../components/vehicles/AddVehicleModal';
 import EditVehicleModal from '../components/vehicles/EditVehicleModal';
 import Notification from '../components/common/Notification';
+import { Car } from 'lucide-react';
 import {getVehicles, deleteVehicle, searchVehicles} from '../backend/API';
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
@@ -507,12 +508,13 @@ const Vehicles = () => {
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path
+                  {/* <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2.5}
-                    d="M5 7h14l-2 10H7L5 7zM5 7l-1-3H1m15 0h3l2 8M9 20.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm11 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"
-                  />
+                    //d="<Car />"//M5 7h14l-2 10H7L5 7zM5 7l-1-3H1m15 0h3l2 8M9 20.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm11 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z
+                  /> */}
+                  <Car />
                 </svg>
               </div>
             </div>
