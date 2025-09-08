@@ -48,8 +48,6 @@ Frontend/
 docs/
 
 # Test files
-**/test_*.py
-**/tests/
 
 # Logs
 **/logs/
