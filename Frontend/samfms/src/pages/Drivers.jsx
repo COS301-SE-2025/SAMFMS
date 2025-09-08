@@ -6,6 +6,7 @@ import DriverDetailsModal from '../components/drivers/DriverDetailsModal';
 import VehicleAssignmentModal from '../components/drivers/VehicleAssignmentModal';
 import AddDriverModal from '../components/drivers/AddDriverModal';
 import EditDriverModal from '../components/drivers/EditDriverModal';
+import { Users, UserRoundCheck } from 'lucide-react';
 
 import {deleteDriver, searchDrivers, getTripPlanningDrivers} from '../backend/api/drivers';
 
@@ -356,12 +357,7 @@ const Drivers = () => {
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0z"
-                  />
+                  <Users />
                 </svg>
               </div>
             </div>
@@ -441,12 +437,7 @@ const Drivers = () => {
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                  />
+                  <UserRoundCheck />
                 </svg>
               </div>
             </div>
