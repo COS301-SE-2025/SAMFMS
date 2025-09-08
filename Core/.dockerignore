@@ -19,9 +19,7 @@ docs/
 *.pdf
 
 # Test files
-**/tests/
-**/test_*.py
-**/*_test.py
+
 
 # Development files
 .vscode/
