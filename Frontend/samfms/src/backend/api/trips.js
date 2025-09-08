@@ -21,7 +21,7 @@ const TRIPS_ENDPOINTS = {
     TOTALTRIPSDRIVER: API_ENDPOINTS.TRIPS.ANALYTICS.TOTALTRIPSDRIVER,
     COMPLETIONRATEDRIVERS: API_ENDPOINTS.TRIPS.ANALYTICS.COMPLETIONRATEDRIVERS,
     AVGTRIPSPERDAYDRIVERS: API_ENDPOINTS.TRIPS.ANALYTICS.AVGTRIPSPERDAYDRIVERS,
-    
+
     VehicleStats: API_ENDPOINTS.TRIPS.ANALYTICS.VehicleSTATS,
     TotalDistance: API_ENDPOINTS.TRIPS.ANALYTICS.TOTALDISTANCE,
     TOTALTRIPSVEHICLES: API_ENDPOINTS.TRIPS.ANALYTICS.TOTALTRIPSVEHICLES,
@@ -178,13 +178,19 @@ export const getDriverAnalytics = async (timeframe = 'week') => {
   try {
     console.log(`[DriverAnalytics] Fetching data for timeframe: ${timeframe}`);
 
-    // Fetch all metrics in parallel with timeframe in URL path
+    // Call the functions with timeframe parameter to get actual URLs
+    const driverStatsUrl = TRIPS_ENDPOINTS.ANALYTICS.DRIVERSTATS(timeframe);
+    const totalTripsUrl = TRIPS_ENDPOINTS.ANALYTICS.TOTALTRIPSDRIVER(timeframe);
+    const completionRateUrl = TRIPS_ENDPOINTS.ANALYTICS.COMPLETIONRATEDRIVERS(timeframe);
+    const avgTripsUrl = TRIPS_ENDPOINTS.ANALYTICS.AVGTRIPSPERDAYDRIVERS(timeframe);
+
+    // Fetch all metrics in parallel
     const [driverStatsResponse, totalTripsResponse, completionRateResponse, avgTripsResponse] =
       await Promise.all([
-        httpClient.get(TRIPS_ENDPOINTS.ANALYTICS.DRIVERSTATS(timeframe)),
-        httpClient.get(TRIPS_ENDPOINTS.ANALYTICS.TOTALTRIPSDRIVER(timeframe)),
-        httpClient.get(TRIPS_ENDPOINTS.ANALYTICS.COMPLETIONRATEDRIVERS(timeframe)),
-        httpClient.get(TRIPS_ENDPOINTS.ANALYTICS.AVGTRIPSPERDAYDRIVERS(timeframe)),
+        httpClient.get(driverStatsUrl),
+        httpClient.get(totalTripsUrl),
+        httpClient.get(completionRateUrl),
+        httpClient.get(avgTripsUrl),
       ]);
 
     console.log('trips stats response', driverStatsResponse);
@@ -223,10 +229,14 @@ export const getVehicleAnalytics = async (timeframe = 'week') => {
   try {
     console.log(`[VehicleAnalytics] Fetching data for timeframe: ${timeframe}`);
 
-    // Fetch all metrics in parallel with timeframe in URL path
+    // Call the functions with timeframe parameter to get actual URLs
+    const totalDistanceUrl = TRIPS_ENDPOINTS.ANALYTICS.TotalDistance(timeframe);
+    const vehicleStatsUrl = TRIPS_ENDPOINTS.ANALYTICS.VehicleStats(timeframe);
+
+    // Fetch all metrics in parallel
     const [totalDistanceResponse, vehiclestatsResponse] = await Promise.all([
-      httpClient.get(TRIPS_ENDPOINTS.ANALYTICS.TotalDistance(timeframe)),
-      httpClient.get(TRIPS_ENDPOINTS.ANALYTICS.VehicleStats(timeframe)),
+      httpClient.get(totalDistanceUrl),
+      httpClient.get(vehicleStatsUrl),
     ]);
 
     console.log("Total Distance response: ", totalDistanceResponse);
@@ -247,6 +257,7 @@ export const getVehicleAnalytics = async (timeframe = 'week') => {
     throw error;
   }
 };
+
 // Get upcoming all trips
 export const getAllUpcommingTrip = async () => {
   try {
