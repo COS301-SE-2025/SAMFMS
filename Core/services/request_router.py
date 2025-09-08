@@ -15,7 +15,7 @@ import httpx
 from fastapi import HTTPException, status
 
 from rabbitmq.producer import publish_message
-from rabbitmq.admin import create_exchange
+#from rabbitmq.admin import create_exchange
 import aio_pika
 from services.resilience import resilience_manager, request_tracer
 from services.circuit_breaker import circuit_breaker_manager, CircuitBreakerOpenError

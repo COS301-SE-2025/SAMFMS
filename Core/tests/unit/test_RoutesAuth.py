@@ -20,7 +20,7 @@ sys.modules["rabbitmq"] = rabbitmq
 sys.modules["rabbitmq.producer"] = producer
 
 # Import the router under test
-import auth  # the routes/auth.py file
+from routes import auth # the routes/auth.py file
 app = FastAPI()
 app.include_router(auth.router)
 client = TestClient(app)
