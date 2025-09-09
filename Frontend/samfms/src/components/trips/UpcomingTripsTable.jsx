@@ -1,12 +1,27 @@
 import React from 'react';
-import { MapPin, User, Clock, Calendar } from 'lucide-react';
+import {MapPin, User, Clock, Calendar} from 'lucide-react';
 
-const UpcomingTripsTable = ({ upcomingTrips = [] }) => {
+const UpcomingTripsTable = ({upcomingTrips = [], vehicles = []}) => {
+  // Helper function to get vehicle details by ID
+  const getVehicleDetails = (vehicleId) => {
+    if (!vehicleId) return 'Not assigned';
+
+    const vehicle = vehicles.find(v => (v.id || v._id) === vehicleId);
+    if (!vehicle) return `Vehicle ID: ${vehicleId?.slice(-8)}`;
+
+    const parts = [];
+    if (vehicle.license_plate) parts.push(vehicle.license_plate);
+    if (vehicle.make) parts.push(vehicle.make);
+    if (vehicle.model) parts.push(vehicle.model);
+
+    return parts.length > 0 ? parts.join(' - ') : `Vehicle ID: ${vehicleId?.slice(-8)}`;
+  };
+
   // Helper function to format date/time
   const formatDateTime = (dateString) => {
     if (!dateString) return 'Not set';
     const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
   };
 
   // Helper function to format priority
@@ -83,7 +98,7 @@ const UpcomingTripsTable = ({ upcomingTrips = [] }) => {
                 </td>
                 <td className="px-4 py-4">
                   <div>
-                    <div className="font-medium text-foreground">{trip.vehicleId?.slice(-8) || 'Not assigned'}</div>
+                    <div className="font-medium text-foreground">{getVehicleDetails(trip.vehicleId)}</div>
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
                       <User className="h-3 w-3" />
                       {trip.driverAssignment || 'No driver assigned'}
@@ -101,26 +116,24 @@ const UpcomingTripsTable = ({ upcomingTrips = [] }) => {
                 </td>
                 <td className="px-4 py-4">
                   <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      formatPriority(trip.priority) === 'High'
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${formatPriority(trip.priority) === 'High'
                         ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                         : formatPriority(trip.priority) === 'Medium'
-                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                        : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                    }`}
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                          : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                      }`}
                   >
                     {formatPriority(trip.priority)}
                   </span>
                 </td>
                 <td className="px-4 py-4">
                   <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      formatStatus(trip.status) === 'Scheduled'
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${formatStatus(trip.status) === 'Scheduled'
                         ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
                         : formatStatus(trip.status) === 'In Progress'
-                        ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
-                        : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                    }`}
+                          ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
+                          : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                      }`}
                   >
                     {formatStatus(trip.status)}
                   </span>

@@ -95,31 +95,46 @@ const Trips = () => {
 
   // Helper function to transform active trips data for map display
   const transformTripsForMap = trips => {
-    return trips.map(trip => ({
-      id: trip.id,
-      vehicleId: trip.vehicle_id, // Add vehicle ID for location tracking
-      vehicleName: `Vehicle ${trip.vehicle_id || 'Unknown'}`,
-      driver: trip.driver_assignment || 'No driver assigned',
-      destination: trip.destination?.name || 'Unknown destination',
-      position: trip.destination?.location?.coordinates
-        ? [trip.destination.location.coordinates[1], trip.destination.location.coordinates[0]] // [lat, lng]
-        : [0, 0],
-      origin: trip.origin?.location?.coordinates
-        ? [trip.origin.location.coordinates[1], trip.origin.location.coordinates[0]] // [lat, lng]
-        : [0, 0],
-      routeCoordinates: trip.route_info?.coordinates
-        ? trip.route_info.coordinates.map(coord => [coord[0], coord[1]]) // [lat, lng]
-        : [],
-      status:
-        trip.status === 'scheduled'
-          ? 'Loading'
-          : trip.status === 'in_progress'
-            ? 'In Transit'
-            : trip.status === 'completed'
-              ? 'At Destination'
-              : 'Unknown',
-      progress: trip.status === 'completed' ? 100 : trip.status === 'in_progress' ? 50 : 0,
-    }));
+    return trips.map(trip => {
+      // Find the vehicle details using the vehicle_id
+      const vehicle = vehicles.find(v => (v.id || v._id) === trip.vehicle_id);
+
+      // Construct vehicle name from license plate, make, and model
+      let vehicleName = 'Unknown Vehicle';
+      if (vehicle) {
+        const parts = [];
+        if (vehicle.license_plate) parts.push(vehicle.license_plate);
+        if (vehicle.make) parts.push(vehicle.make);
+        if (vehicle.model) parts.push(vehicle.model);
+        vehicleName = parts.length > 0 ? parts.join(' - ') : `Vehicle ID: ${trip.vehicle_id}`;
+      }
+
+      return {
+        id: trip.id,
+        vehicleId: trip.vehicle_id, // Add vehicle ID for location tracking
+        vehicleName: vehicleName,
+        driver: trip.driver_assignment || 'No driver assigned',
+        destination: trip.destination?.name || 'Unknown destination',
+        position: trip.destination?.location?.coordinates
+          ? [trip.destination.location.coordinates[1], trip.destination.location.coordinates[0]] // [lat, lng]
+          : [0, 0],
+        origin: trip.origin?.location?.coordinates
+          ? [trip.origin.location.coordinates[1], trip.origin.location.coordinates[0]] // [lat, lng]
+          : [0, 0],
+        routeCoordinates: trip.route_info?.coordinates
+          ? trip.route_info.coordinates.map(coord => [coord[0], coord[1]]) // [lat, lng]
+          : [],
+        status:
+          trip.status === 'scheduled'
+            ? 'Loading'
+            : trip.status === 'in_progress'
+              ? 'In Transit'
+              : trip.status === 'completed'
+                ? 'At Destination'
+                : 'Unknown',
+        progress: trip.status === 'completed' ? 100 : trip.status === 'in_progress' ? 50 : 0,
+      };
+    });
   };
 
   // Helper function to close notifications
@@ -729,7 +744,7 @@ const Trips = () => {
             onClick={handleScheduleTrip}
           >
             <Plus size={18} />
-            Schedule New Trip
+            New Trip
           </button>
         </div>
 
@@ -799,7 +814,7 @@ const Trips = () => {
                     <span className="ml-2">Loading trips table...</span>
                   </div>
                 ) : (
-                  <UpcomingTripsTable upcomingTrips={upcomingTrips} />
+                  <UpcomingTripsTable upcomingTrips={upcomingTrips} vehicles={vehicles} />
                 )}
               </div>
             </div>
