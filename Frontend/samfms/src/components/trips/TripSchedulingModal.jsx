@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   X,
   MapPin,
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import TripPlanningMap from './TripPlanningMap';
 import LocationAutocomplete from './LocationAutocomplete';
+import SearchableDropdown from '../ui/SearchableDropdown';
 
 const TripSchedulingModal = ({
   showModal,
@@ -43,6 +44,10 @@ const TripSchedulingModal = ({
   // Optional field toggles
   const [showDescription, setShowDescription] = useState(false);
   const [showDriverNotes, setShowDriverNotes] = useState(false);
+
+  // Options for step 2/3 Driver and Vehicle dropdowns
+  const [vehicleOptions, setVehicleOptions] = useState([]);
+  const [driverOptions, setDriverOptions] = useState([]);
 
   // Step navigation functions
   const nextStep = useCallback(() => {
@@ -80,6 +85,28 @@ const TripSchedulingModal = ({
     },
     [tripForm]
   );
+
+  // For the change in Vehicle in step 2/3 Vehicle dropdown
+  useEffect(() => {
+    if (availableVehicles || vehicles) {
+      const formattedVehicles = (availableVehicles || vehicles).map(vehicle => ({
+        value: vehicle._id || vehicle.id,
+        label: `${vehicle.make} ${vehicle.model} - ${vehicle.license_plate || vehicle.licensePlate || vehicle.registration}`
+      }));
+      setVehicleOptions(formattedVehicles);
+    }
+  }, [availableVehicles, vehicles]);
+
+  // For the change in Driver in step 2/3 Driver dropdown
+  useEffect(() => {
+    if (drivers) {
+      const formattedDrivers = drivers.map(driver => ({
+        value: driver.employee_id,
+        label: `${driver.first_name} ${driver.last_name || ''} ${driver.employee_id ? `(${driver.employee_id})` : ''}`
+      }));
+      setDriverOptions(formattedDrivers);
+    }
+  }, [drivers]);
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback(
@@ -129,12 +156,12 @@ const TripSchedulingModal = ({
 
   // Handle location changes from autocomplete
   const handleStartLocationChange = (location, coordinates) => {
-    console.log('Start location changed:', { location, coordinates });
+    console.log('Start location changed:', {location, coordinates});
     onFormChange('startLocation', location);
     if (coordinates) {
       const newMapLocations = {
         ...mapLocations,
-        start: { lat: coordinates.lat, lng: coordinates.lng },
+        start: {lat: coordinates.lat, lng: coordinates.lng},
       };
       console.log('Updated map locations (start):', newMapLocations);
       setMapLocations(newMapLocations);
@@ -142,12 +169,12 @@ const TripSchedulingModal = ({
   };
 
   const handleEndLocationChange = (location, coordinates) => {
-    console.log('End location changed:', { location, coordinates });
+    console.log('End location changed:', {location, coordinates});
     onFormChange('endLocation', location);
     if (coordinates) {
       const newMapLocations = {
         ...mapLocations,
-        end: { lat: coordinates.lat, lng: coordinates.lng },
+        end: {lat: coordinates.lat, lng: coordinates.lng},
       };
       console.log('Updated map locations (end):', newMapLocations);
       setMapLocations(newMapLocations);
@@ -156,13 +183,13 @@ const TripSchedulingModal = ({
 
   // Handle map location selection
   const handleMapStartLocationChange = coords => {
-    const newMapLocations = { ...mapLocations, start: coords };
+    const newMapLocations = {...mapLocations, start: coords};
     setMapLocations(newMapLocations);
     onFormChange('startLocation', `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`);
   };
 
   const handleMapEndLocationChange = coords => {
-    const newMapLocations = { ...mapLocations, end: coords };
+    const newMapLocations = {...mapLocations, end: coords};
     setMapLocations(newMapLocations);
     onFormChange('endLocation', `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`);
   };
@@ -209,7 +236,7 @@ const TripSchedulingModal = ({
   useEffect(() => {
     if (!showModal) {
       setCurrentStep(1);
-      setMapLocations({ start: null, end: null, waypoints: [] });
+      setMapLocations({start: null, end: null, waypoints: []});
       setRouteInfo(null);
       setShowDescription(false);
       setShowDriverNotes(false);
@@ -246,9 +273,9 @@ const TripSchedulingModal = ({
   if (!showModal) return null;
 
   const stepTitles = [
-    { title: 'Trip Details', subtitle: 'Name and priority settings', icon: FileText },
-    { title: 'Vehicle & Schedule', subtitle: 'Assign vehicle, driver and timing', icon: Calendar },
-    { title: 'Route Planning', subtitle: 'Set locations and map route', icon: MapPin },
+    {title: 'Trip Details', subtitle: 'Name and priority settings', icon: FileText},
+    {title: 'Vehicle & Schedule', subtitle: 'Assign vehicle, driver and timing', icon: Calendar},
+    {title: 'Route Planning', subtitle: 'Set locations and map route', icon: MapPin},
   ];
 
   return (
@@ -294,7 +321,7 @@ const TripSchedulingModal = ({
             <div className="w-full bg-muted rounded-full h-2">
               <div
                 className="bg-primary h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(currentStep / totalSteps) * 100}%` }}
+                style={{width: `${(currentStep / totalSteps) * 100}%`}}
               ></div>
             </div>
           </div>
@@ -335,20 +362,19 @@ const TripSchedulingModal = ({
                       </label>
                       <div className="grid grid-cols-2 gap-3">
                         {[
-                          { value: 'low', label: 'Low', color: 'green', icon: '🟢' },
-                          { value: 'normal', label: 'Normal', color: 'blue', icon: '🔵' },
-                          { value: 'high', label: 'High', color: 'amber', icon: '🟠' },
-                          { value: 'urgent', label: 'Urgent', color: 'red', icon: '🔴' },
+                          {value: 'low', label: 'Low', color: 'green', icon: '🟢'},
+                          {value: 'normal', label: 'Normal', color: 'blue', icon: '🔵'},
+                          {value: 'high', label: 'High', color: 'amber', icon: '🟠'},
+                          {value: 'urgent', label: 'Urgent', color: 'red', icon: '🔴'},
                         ].map(priority => (
                           <button
                             key={priority.value}
                             type="button"
                             onClick={() => onFormChange('priority', priority.value)}
-                            className={`p-4 rounded-lg border-2 transition-all duration-200 flex items-center gap-3 ${
-                              tripForm.priority === priority.value
-                                ? 'border-primary bg-primary/10'
-                                : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                            }`}
+                            className={`p-4 rounded-lg border-2 transition-all duration-200 flex items-center gap-3 ${tripForm.priority === priority.value
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                              }`}
                           >
                             <span className="text-xl">{priority.icon}</span>
                             <span className="font-medium">{priority.label}</span>
@@ -429,28 +455,15 @@ const TripSchedulingModal = ({
                       <label className="block text-sm font-medium text-foreground">
                         Select Vehicle <span className="text-red-500">*</span>
                       </label>
-                      <div className="relative">
-                        <Car className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <select
-                          value={tripForm.vehicleId}
-                          onChange={e => onFormChange('vehicleId', e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
-                          required
-                        >
-                          <option value="">Choose a vehicle...</option>
-                          {(availableVehicles || vehicles)?.map(vehicle => (
-                            <option
-                              key={vehicle._id || vehicle.id}
-                              value={vehicle._id || vehicle.id}
-                            >
-                              {vehicle.make} {vehicle.model} -{' '}
-                              {vehicle.license_plate ||
-                                vehicle.licensePlate ||
-                                vehicle.registration}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      <SearchableDropdown
+                        options={vehicleOptions}
+                        value={tripForm.vehicleId}
+                        onChange={(value) => onFormChange('vehicleId', value)}
+                        placeholder="Choose a vehicle..."
+                        searchPlaceholder="Search vehicles..."
+                        icon={Car}
+                        required
+                      />
                     </div>
 
                     {/* Driver Selection */}
@@ -458,23 +471,15 @@ const TripSchedulingModal = ({
                       <label className="block text-sm font-medium text-foreground">
                         Select Driver <span className="text-red-500">*</span>
                       </label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <select
-                          value={tripForm.driverId}
-                          onChange={e => onFormChange('driverId', e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
-                          required
-                        >
-                          <option value="">Choose a driver...</option>
-                          {drivers?.map(driver => (
-                            <option key={driver._id || driver.id} value={driver.employee_id}>
-                              {driver.first_name} {driver.last_name ? driver.last_name : ''}{' '}
-                              {driver.employee_id ? `(${driver.employee_id})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      <SearchableDropdown
+                        options={driverOptions}
+                        value={tripForm.driverId}
+                        onChange={(value) => onFormChange('driverId', value)}
+                        placeholder="Choose a driver..."
+                        searchPlaceholder="Search drivers..."
+                        icon={User}
+                        required
+                      />
                     </div>
                   </div>
 
