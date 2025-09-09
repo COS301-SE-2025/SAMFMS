@@ -108,6 +108,71 @@ const TripSchedulingModal = ({
     }
   }, [drivers]);
 
+  // Initialize default date/time values when step 2 is opened
+  useEffect(() => {
+    if (currentStep === 2 && (!tripForm.startDate || !tripForm.startTime)) {
+      const now = new Date();
+      const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+
+      // Set default values if not already set
+      if (!tripForm.startDate) {
+        onFormChange('startDate', currentDate);
+      }
+      if (!tripForm.startTime) {
+        onFormChange('startTime', currentTime);
+      }
+      if (!tripForm.endDate) {
+        onFormChange('endDate', currentDate);
+      }
+      if (!tripForm.endTime) {
+        // Set end time to 1 hour after start time by default
+        const endTime = new Date();
+        endTime.setHours(endTime.getHours() + 1);
+        const endTimeString = endTime.toTimeString().slice(0, 5);
+        onFormChange('endTime', endTimeString);
+      }
+    }
+  }, [currentStep, tripForm.startDate, tripForm.startTime, tripForm.endDate, tripForm.endTime, onFormChange]);
+
+  // Handle start date change and ensure end date is not less than start date
+  const handleStartDateChange = useCallback((value) => {
+    onFormChange('startDate', value);
+
+    // If end date is set and is less than new start date, update end date
+    if (tripForm.endDate && value > tripForm.endDate) {
+      onFormChange('endDate', value);
+    }
+  }, [onFormChange, tripForm.endDate]);
+
+  // Handle start time change and ensure end time is valid when dates are same
+  const handleStartTimeChange = useCallback((value) => {
+    onFormChange('startTime', value);
+
+    // If start and end dates are the same and end time is less than start time, update end time
+    if (tripForm.startDate === tripForm.endDate && tripForm.endTime && value > tripForm.endTime) {
+      onFormChange('endTime', value);
+    }
+  }, [onFormChange, tripForm.startDate, tripForm.endDate, tripForm.endTime]);
+
+  // Handle end date change and ensure it's not less than start date
+  const handleEndDateChange = useCallback((value) => {
+    // Don't allow end date to be less than start date
+    if (tripForm.startDate && value < tripForm.startDate) {
+      return; // Prevent the change
+    }
+    onFormChange('endDate', value);
+  }, [onFormChange, tripForm.startDate]);
+
+  // Handle end time change and ensure it's valid when dates are same
+  const handleEndTimeChange = useCallback((value) => {
+    // If dates are the same, don't allow end time to be less than start time
+    if (tripForm.startDate === tripForm.endDate && tripForm.startTime && value < tripForm.startTime) {
+      return; // Prevent the change
+    }
+    onFormChange('endTime', value);
+  }, [onFormChange, tripForm.startDate, tripForm.endDate, tripForm.startTime]);
+
   // Handle keyboard navigation
   const handleKeyDown = useCallback(
     e => {
@@ -498,7 +563,8 @@ const TripSchedulingModal = ({
                           <input
                             type="date"
                             value={tripForm.startDate}
-                            onChange={e => onFormChange('startDate', e.target.value)}
+                            onChange={e => handleStartDateChange(e.target.value)}
+                            min={new Date().toISOString().split('T')[0]}
                             className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
                             required
                           />
@@ -510,7 +576,7 @@ const TripSchedulingModal = ({
                           <input
                             type="time"
                             value={tripForm.startTime}
-                            onChange={e => onFormChange('startTime', e.target.value)}
+                            onChange={e => handleStartTimeChange(e.target.value)}
                             className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
                             required
                           />
@@ -532,7 +598,8 @@ const TripSchedulingModal = ({
                           <input
                             type="date"
                             value={tripForm.endDate}
-                            onChange={e => onFormChange('endDate', e.target.value)}
+                            onChange={e => handleEndDateChange(e.target.value)}
+                            min={tripForm.startDate || new Date().toISOString().split('T')[0]}
                             className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
                             required
                           />
@@ -544,7 +611,7 @@ const TripSchedulingModal = ({
                           <input
                             type="time"
                             value={tripForm.endTime}
-                            onChange={e => onFormChange('endTime', e.target.value)}
+                            onChange={e => handleEndTimeChange(e.target.value)}
                             className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
                             required
                           />
