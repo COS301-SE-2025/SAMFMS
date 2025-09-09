@@ -586,8 +586,16 @@ const Trips = () => {
           priority: enhancedTripData.priority || 'normal',
           vehicle_id: enhancedTripData.vehicleId,
           driver_assignment: enhancedTripData.driverId,
-          // Enhanced route information
-          waypoints: enhancedTripData.waypoints || [],
+          // Enhanced route information with properly formatted waypoints
+          waypoints: (enhancedTripData.waypoints || []).map((waypoint, index) => ({
+            name: `Waypoint ${index + 1}`,
+            location: {
+              type: 'Point',
+              coordinates: [waypoint.lng, waypoint.lat],
+              address: `Waypoint ${index + 1}`,
+            },
+            order: index + 3, // Start from 3 since origin is 1, destination is 2
+          })),
           route_info: enhancedTripData.routeInfo || null,
           driver_note: enhancedTripData.driverNotes || enhancedTripData.driverNote || '',
         };
@@ -734,8 +742,8 @@ const Trips = () => {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
                     }`}
                 >
                   {tab.label}
