@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Plus } from 'lucide-react';
+import React, {useState, useEffect, useCallback} from 'react';
+import {Plus} from 'lucide-react';
 import TripsAnalytics from '../components/trips/TripsAnalytics';
 import TripSchedulingModal from '../components/trips/TripSchedulingModal';
 import Notification from '../components/common/Notification';
@@ -18,8 +18,8 @@ import {
   getTripHistoryStats,
   getAllUpcommingTrip,
 } from '../backend/api/trips';
-import { getVehicles } from '../backend/api/vehicles';
-import { getTripPlanningDrivers } from '../backend/api/drivers';
+import {getVehicles} from '../backend/api/vehicles';
+import {getTripPlanningDrivers} from '../backend/api/drivers';
 
 const Trips = () => {
   // Existing state
@@ -77,11 +77,11 @@ const Trips = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'active', label: 'Active' },
-    { id: 'upcoming', label: 'Upcoming' },
-    { id: 'recent', label: 'Recent' },
-    { id: 'analytics', label: 'Analytics' },
+    {id: 'overview', label: 'Overview'},
+    {id: 'active', label: 'Active'},
+    {id: 'upcoming', label: 'Upcoming'},
+    {id: 'recent', label: 'Recent'},
+    {id: 'analytics', label: 'Analytics'},
   ];
 
   // Helper function to show notifications
@@ -114,10 +114,10 @@ const Trips = () => {
         trip.status === 'scheduled'
           ? 'Loading'
           : trip.status === 'in_progress'
-          ? 'In Transit'
-          : trip.status === 'completed'
-          ? 'At Destination'
-          : 'Unknown',
+            ? 'In Transit'
+            : trip.status === 'completed'
+              ? 'At Destination'
+              : 'Unknown',
       progress: trip.status === 'completed' ? 100 : trip.status === 'in_progress' ? 50 : 0,
     }));
   };
@@ -139,7 +139,7 @@ const Trips = () => {
 
       // Extract trips from the response structure - based on actual API response
       let trips = response.data.trips
-      
+
       setUpcomingTrips(trips);
     } catch (error) {
       console.error('Error fetching upcoming trips:', error);
@@ -717,7 +717,7 @@ const Trips = () => {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold animate-fade-in text-foreground">Trip Management</h1>
           <button
-            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition animate-fade-in flex items-center gap-2"
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition animate-fade-in flex items-center gap-2"
             onClick={handleScheduleTrip}
           >
             <Plus size={18} />
@@ -733,11 +733,10 @@ const Trips = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.id
+                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
                       ? 'border-primary text-primary'
                       : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
