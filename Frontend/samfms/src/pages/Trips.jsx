@@ -55,6 +55,16 @@ const Trips = () => {
   const [upcomingTripsLoading, setUpcomingTripsLoading] = useState(false);
   const [recentTripsLoading, setRecentTripsLoading] = useState(false);
 
+  // Pagination state for upcoming trips
+  const [upcomingTripsPage, setUpcomingTripsPage] = useState(1);
+  const [upcomingTripsPerPage, setUpcomingTripsPerPage] = useState(10);
+  const [totalUpcomingTrips, setTotalUpcomingTrips] = useState(0);
+
+  // Pagination state for recent trips
+  const [recentTripsPage, setRecentTripsPage] = useState(1);
+  const [recentTripsPerPage, setRecentTripsPerPage] = useState(10);
+  const [totalRecentTrips, setTotalRecentTrips] = useState(0);
+
   // Trip history statistics state
   const [tripHistoryStats, setTripHistoryStats] = useState({
     total_trips: 0,
@@ -143,6 +153,60 @@ const Trips = () => {
       ...prev,
       isVisible: false,
     }));
+  };
+
+  // Pagination functions for upcoming trips
+  const upcomingTripsTotalPages = Math.ceil(upcomingTrips.length / upcomingTripsPerPage);
+
+  const upcomingTripsGoToNextPage = () => {
+    if (upcomingTripsPage < upcomingTripsTotalPages) {
+      setUpcomingTripsPage(prev => prev + 1);
+    }
+  };
+
+  const upcomingTripsGoToPrevPage = () => {
+    if (upcomingTripsPage > 1) {
+      setUpcomingTripsPage(prev => prev - 1);
+    }
+  };
+
+  const upcomingTripsChangeItemsPerPage = (newItemsPerPage) => {
+    setUpcomingTripsPerPage(newItemsPerPage);
+    setUpcomingTripsPage(1); // Reset to first page
+  };
+
+  // Get paginated upcoming trips
+  const getPaginatedUpcomingTrips = () => {
+    const startIndex = (upcomingTripsPage - 1) * upcomingTripsPerPage;
+    const endIndex = startIndex + upcomingTripsPerPage;
+    return upcomingTrips.slice(startIndex, endIndex);
+  };
+
+  // Pagination functions for recent trips
+  const recentTripsTotalPages = Math.ceil(recentTrips.length / recentTripsPerPage);
+
+  const recentTripsGoToNextPage = () => {
+    if (recentTripsPage < recentTripsTotalPages) {
+      setRecentTripsPage(prev => prev + 1);
+    }
+  };
+
+  const recentTripsGoToPrevPage = () => {
+    if (recentTripsPage > 1) {
+      setRecentTripsPage(prev => prev - 1);
+    }
+  };
+
+  const recentTripsChangeItemsPerPage = (newItemsPerPage) => {
+    setRecentTripsPerPage(newItemsPerPage);
+    setRecentTripsPage(1); // Reset to first page
+  };
+
+  // Get paginated recent trips
+  const getPaginatedRecentTrips = () => {
+    const startIndex = (recentTripsPage - 1) * recentTripsPerPage;
+    const endIndex = startIndex + recentTripsPerPage;
+    return recentTrips.slice(startIndex, endIndex);
   };
 
   // Helper function to fetch all upcoming trips
@@ -814,7 +878,16 @@ const Trips = () => {
                     <span className="ml-2">Loading trips table...</span>
                   </div>
                 ) : (
-                  <UpcomingTripsTable upcomingTrips={upcomingTrips} vehicles={vehicles} />
+                  <UpcomingTripsTable
+                    upcomingTrips={getPaginatedUpcomingTrips()}
+                    vehicles={vehicles}
+                    currentPage={upcomingTripsPage}
+                    totalPages={upcomingTripsTotalPages}
+                    itemsPerPage={upcomingTripsPerPage}
+                    changeItemsPerPage={upcomingTripsChangeItemsPerPage}
+                    goToNextPage={upcomingTripsGoToNextPage}
+                    goToPrevPage={upcomingTripsGoToPrevPage}
+                  />
                 )}
               </div>
             </div>
@@ -847,7 +920,15 @@ const Trips = () => {
                     <span className="ml-2">Loading trips table...</span>
                   </div>
                 ) : (
-                  <RecentTripsTable recentTrips={recentTrips} />
+                  <RecentTripsTable
+                    recentTrips={getPaginatedRecentTrips()}
+                    currentPage={recentTripsPage}
+                    totalPages={recentTripsTotalPages}
+                    itemsPerPage={recentTripsPerPage}
+                    changeItemsPerPage={recentTripsChangeItemsPerPage}
+                    goToNextPage={recentTripsGoToNextPage}
+                    goToPrevPage={recentTripsGoToPrevPage}
+                  />
                 )}
               </div>
             </div>

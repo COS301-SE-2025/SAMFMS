@@ -1,7 +1,17 @@
 import React from 'react';
 import {MapPin, User, Clock, Calendar} from 'lucide-react';
+import Pagination from '../vehicles/Pagination';
 
-const UpcomingTripsTable = ({upcomingTrips = [], vehicles = []}) => {
+const UpcomingTripsTable = ({
+  upcomingTrips = [],
+  vehicles = [],
+  currentPage = 1,
+  totalPages = 1,
+  itemsPerPage = 10,
+  changeItemsPerPage,
+  goToNextPage,
+  goToPrevPage
+}) => {
   // Helper function to get vehicle details by ID
   const getVehicleDetails = (vehicleId) => {
     if (!vehicleId) return 'Not assigned';
@@ -117,10 +127,10 @@ const UpcomingTripsTable = ({upcomingTrips = [], vehicles = []}) => {
                 <td className="px-4 py-4">
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${formatPriority(trip.priority) === 'High'
-                        ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                        : formatPriority(trip.priority) === 'Medium'
-                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                          : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                      ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                      : formatPriority(trip.priority) === 'Medium'
+                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                        : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                       }`}
                   >
                     {formatPriority(trip.priority)}
@@ -129,10 +139,10 @@ const UpcomingTripsTable = ({upcomingTrips = [], vehicles = []}) => {
                 <td className="px-4 py-4">
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${formatStatus(trip.status) === 'Scheduled'
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                        : formatStatus(trip.status) === 'In Progress'
-                          ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
-                          : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                      : formatStatus(trip.status) === 'In Progress'
+                        ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
+                        : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                       }`}
                   >
                     {formatStatus(trip.status)}
@@ -147,6 +157,20 @@ const UpcomingTripsTable = ({upcomingTrips = [], vehicles = []}) => {
         <div className="p-8 text-center text-muted-foreground">
           <MapPin className="h-12 w-12 mx-auto mb-3 opacity-50" />
           <p>No upcoming trips scheduled</p>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {upcomingTrips.length > 0 && (
+        <div className="p-4 border-t border-border">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            changeItemsPerPage={changeItemsPerPage}
+            goToNextPage={goToNextPage}
+            goToPrevPage={goToPrevPage}
+          />
         </div>
       )}
     </div>
