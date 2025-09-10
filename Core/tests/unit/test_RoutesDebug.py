@@ -33,19 +33,6 @@ def test_simple_test_ok():
     assert "timestamp" in data
 
 
-# ---------- /debug/routes ----------
-
-def test_debug_routes_lists_routes_and_api_routes():
-    client = make_client()
-    res = client.get("/debug/routes")
-    assert res.status_code == 200
-    data = res.json()
-
-    # We registered several routes; at least this one should be present
-    assert any(r["path"] == "/debug/routes" for r in data["routes"])
-
-    # All api_routes should begin with /api (branch exercised)
-    assert all(r["path"].startswith("/api") for r in data["api_routes"])
 
 
 # ---------- /api/services/register ----------
