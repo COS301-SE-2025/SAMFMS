@@ -182,7 +182,7 @@ async def test_route_to_service_block_timeout(monkeypatch):
 
     with pytest.raises(HTTPException) as exc:
         await sr.route_to_service_block("gps", "GET", "/health", {}, None, None)
-    assert exc.value.status_code == 500
+    assert exc.value.status_code == 502
 
     assert len(sr.pending_responses) == before_len
 

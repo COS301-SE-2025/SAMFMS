@@ -1,4 +1,3 @@
-# tests/test_routesAuth.py
 import asyncio
 import io
 import sys
@@ -7,7 +6,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-# Stub rabbitmq.producer so "from rabbitmq.producer import publish_message" works.
+
 rabbitmq = types.ModuleType("rabbitmq")
 producer = types.ModuleType("rabbitmq.producer")
 
@@ -19,16 +18,13 @@ rabbitmq.producer = producer
 sys.modules["rabbitmq"] = rabbitmq
 sys.modules["rabbitmq.producer"] = producer
 
-# Import the router under test
-from routes import auth # the routes/auth.py file
+
+from routes import auth 
 app = FastAPI()
 app.include_router(auth.router)
 client = TestClient(app)
 
 
-# ------------------------------
-# Tiny helper response doubles
-# ------------------------------
 class FakeResponse:
     def __init__(self, status_code=200, json_data=None, text="", content=b"{}"):
         self.status_code = status_code
@@ -50,10 +46,6 @@ class RaiseJSON:
     def json(self):
         raise exc_type("boom")
 
-
-# ======================================================================
-# /auth/login
-# ======================================================================
 
 def test_login_error_from_security(monkeypatch):
     def fake_post(url, json, timeout):
