@@ -539,13 +539,18 @@ class ServiceRequestConsumer:
                     if field not in data:
                         raise ValueError(f"'{field}' is required")
                 
-                # Create geofence using simplified format
+                # Normalize geometry to lowercase type
+                geometry_data = data.get("geometry", {})
+                if "type" in geometry_data:
+                    geometry_data["type"] = geometry_data["type"].lower()  # polygon → polygon
+
+                # Pass normalized geometry to geofence creation
                 result = await geofence_service.create_geofence(
                     name=data.get("name"),
                     description=data.get("description"),
                     type=data.get("type", "depot"),
                     status=data.get("status", "active"),
-                    geometry=data.get("geometry")
+                    geometry=geometry_data
                 )
                 
                 if result:
@@ -555,6 +560,7 @@ class ServiceRequestConsumer:
                     ).model_dump()
                 else:
                     raise ValueError("Failed to create geofence")
+
                 
             elif method == "PUT":
                 geofence_id = endpoint.split('/')[-1] if '/' in endpoint else None

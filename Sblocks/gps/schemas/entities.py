@@ -7,9 +7,9 @@ from datetime import datetime
 from enum import Enum
 
 class GeofenceType(str, Enum):
-    CIRCLE = "circle"
-    POLYGON = "polygon"
-    RECTANGLE = "rectangle"
+    CIRCLE = "Circle"
+    POLYGON = "Polygon"
+    RECTANGLE = "Rectangle"
 
 class GeofenceStatus(str, Enum):
     ACTIVE = "active"
@@ -22,6 +22,8 @@ class GeofenceCategory(str, Enum):
     DELIVERY = "delivery"
     RESTRICTED = "restricted"
     EMERGENCY = "emergency"
+    BOUNDARY = "boundary"
+
 
 class GeofenceCenter(BaseModel):
     latitude: float = Field(..., ge=-90, le=90, description="Latitude coordinate")
@@ -29,23 +31,23 @@ class GeofenceCenter(BaseModel):
 
 class GeofenceGeometry(BaseModel):
     type: GeofenceType = Field(..., description="Type of geofence geometry")
-    center: GeofenceCenter = Field(..., description="Center point of the geofence")
-    radius: Optional[int] = Field(default=500, ge=1, description="Radius in meters (for circle type)")
-    points: Optional[List[Dict[str, float]]] = Field(default=None, description="Array of points for polygon/rectangle")
-    
+    coordinates: List[Any] = Field(..., description="GeoJSON coordinates")
+    radius: Optional[int] = Field(None, ge=1, description="Radius for circle type")
+
     @field_validator('radius')
     @classmethod
     def validate_radius_for_circle(cls, v, info):
         if info.data.get('type') == GeofenceType.CIRCLE and v is None:
-            raise ValueError('Radius is required for circle type geofences')
+            raise ValueError("Radius is required for circle type geofences")
         return v
-    
-    @field_validator('points')
+
+    @field_validator('coordinates')
     @classmethod
-    def validate_points_for_polygon(cls, v, info):
+    def validate_coordinates(cls, v, info):
         if info.data.get('type') in [GeofenceType.POLYGON, GeofenceType.RECTANGLE] and not v:
-            raise ValueError('Points are required for polygon/rectangle type geofences')
+            raise ValueError("Coordinates are required for polygon/rectangle geofences")
         return v
+
 
 class Geofence(BaseModel):
     model_config = ConfigDict(
@@ -54,21 +56,17 @@ class Geofence(BaseModel):
     )
 
     id: Optional[str] = Field(default=None, alias="_id")
-    name: str = Field(..., min_length=1, max_length=100, description="Geofence name")
-    description: Optional[str] = Field(default="", max_length=500, description="Geofence description")
-    type: GeofenceCategory = Field(..., description="Category/type of geofence")
-    status: GeofenceStatus = Field(default=GeofenceStatus.ACTIVE, description="Geofence status")
+    name: str
+    description: Optional[str] = ""
+    type: GeofenceCategory
+    status: GeofenceStatus = GeofenceStatus.ACTIVE
+    geometry: GeofenceGeometry
+    geojson_geometry: Optional[Dict[str, Any]] = None
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    is_active: bool = True
 
-    # Keep this for API payloads
-    geometry: GeofenceGeometry = Field(..., description="Geofence geometric definition")
-
-    # Add this for DB storage only
-    geojson_geometry: Optional[Dict[str, Any]] = Field(default=None, description="GeoJSON format for DB queries")
-
-    created_by: Optional[str] = Field(None, description="User who created the geofence")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
-    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
-    is_active: bool = Field(default=True, description="Whether geofence is active")
 
 
 class LocationPoint(BaseModel):
