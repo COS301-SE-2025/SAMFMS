@@ -10,6 +10,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import AccountScreen from '../screens/AccountScreen';
 import HelpScreen from '../screens/HelpScreen';
 import TripDetailsScreen from '../screens/TripDetailsScreen';
+import ActiveTripScreen from '../screens/ActiveTripScreen';
 import SwipeNavigationWrapper from '../components/SwipeNavigationWrapper';
 
 const Tab = createBottomTabNavigator();
@@ -21,6 +22,7 @@ function DashboardStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="DashboardHome" component={DashboardScreen} />
       <Stack.Screen name="TripDetails" component={TripDetailsScreen} />
+      <Stack.Screen name="ActiveTrip" component={ActiveTripScreen} />
     </Stack.Navigator>
   );
 }
