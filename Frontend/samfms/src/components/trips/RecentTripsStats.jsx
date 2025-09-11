@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, MapPin, TrendingUp, Activity } from 'lucide-react';
+import { Clock, MapPin, TrendingUp, Activity, ChartColumnBig, ChartNoAxesColumnIncreasing} from 'lucide-react';
 
 const RecentTripsStats = ({ recentTrips = [], tripHistoryStats = null, loading = false }) => {
   // Debug logging
@@ -39,7 +39,7 @@ const RecentTripsStats = ({ recentTrips = [], tripHistoryStats = null, loading =
       <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border border-green-200 dark:border-green-800 rounded-xl shadow-lg p-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 bg-green-500 rounded-lg flex items-center justify-center">
-            <Activity className="h-5 w-5 text-white" />
+            <ChartColumnBig />
           </div>
           <div>
             <p className="text-sm font-medium text-green-600 dark:text-green-300">
@@ -55,7 +55,7 @@ const RecentTripsStats = ({ recentTrips = [], tripHistoryStats = null, loading =
       <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border border-purple-200 dark:border-purple-800 rounded-xl shadow-lg p-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 bg-purple-500 rounded-lg flex items-center justify-center">
-            <MapPin className="h-5 w-5 text-white" />
+            <ChartNoAxesColumnIncreasing />
           </div>
           <div>
             <p className="text-sm font-medium text-purple-600 dark:text-purple-300">
