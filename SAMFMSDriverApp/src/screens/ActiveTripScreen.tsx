@@ -371,26 +371,45 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         let script = '';
 
         if (location) {
+          // Calculate rotation for both marker and map
+          const vehicleHeading = location.heading || 0;
+          const mapRotation = -vehicleHeading; // Negative to rotate map opposite to vehicle heading
+
           script += `
             if (typeof vehicleMarker !== 'undefined' && vehicleMarker && typeof map !== 'undefined') {
               vehicleMarker.setLatLng([${location.position[0]}, ${location.position[1]}]);
               vehicleMarker.setPopupContent('<b>Vehicle Position</b><br>Speed: ${
                 location.speed || 0
-              } km/h');
+              } km/h<br>Heading: ${location.heading || 0}°');
               
-              // Center and zoom map on vehicle location
+              // Rotate the vehicle marker to show direction of travel
+              if (typeof vehicleMarker.setRotationAngle === 'function') {
+                vehicleMarker.setRotationAngle(${vehicleHeading});
+              } else if (vehicleMarker._icon) {
+                // Fallback: rotate the marker icon using CSS
+                vehicleMarker._icon.style.transform = 'rotate(${vehicleHeading}deg)';
+                vehicleMarker._icon.style.transformOrigin = 'center';
+              }
+              
+              // Center map on vehicle location
               map.setView([${location.position[0]}, ${location.position[1]}], 16, {
                 animate: true,
                 duration: 1.0
               });
               
-              console.log('Updated vehicle position and centered map at:', [${
-                location.position[0]
-              }, ${location.position[1]}]);
+              // Rotate the entire map so vehicle's direction of travel points up
+              const mapElement = document.getElementById('map');
+              if (mapElement) {
+                mapElement.style.transform = 'rotate(${mapRotation}deg)';
+                mapElement.style.transformOrigin = 'center';
+              }
+              
+              console.log('Updated vehicle position, rotated marker to ${vehicleHeading}°, and rotated map to ${mapRotation}°:', [${
+            location.position[0]
+          }, ${location.position[1]}]);
             }
           `;
         }
-
         if (polyline) {
           const polylineString = JSON.stringify(polyline);
           script += `
@@ -421,26 +440,45 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
             let script = '';
 
             if (location) {
+              // Calculate rotation for both marker and map
+              const vehicleHeading = location.heading || 0;
+              const mapRotation = -vehicleHeading; // Negative to rotate map opposite to vehicle heading
+
               script += `
                 if (typeof vehicleMarker !== 'undefined' && vehicleMarker && typeof map !== 'undefined') {
                   vehicleMarker.setLatLng([${location.position[0]}, ${location.position[1]}]);
                   vehicleMarker.setPopupContent('<b>Vehicle Position</b><br>Speed: ${
                     location.speed || 0
-                  } km/h');
+                  } km/h<br>Heading: ${location.heading || 0}°');
                   
-                  // Center and zoom map on vehicle location
+                  // Rotate the vehicle marker to show direction of travel
+                  if (typeof vehicleMarker.setRotationAngle === 'function') {
+                    vehicleMarker.setRotationAngle(${vehicleHeading});
+                  } else if (vehicleMarker._icon) {
+                    // Fallback: rotate the marker icon using CSS
+                    vehicleMarker._icon.style.transform = 'rotate(${vehicleHeading}deg)';
+                    vehicleMarker._icon.style.transformOrigin = 'center';
+                  }
+                  
+                  // Center map on vehicle location
                   map.setView([${location.position[0]}, ${location.position[1]}], 16, {
                     animate: true,
                     duration: 1.0
                   });
                   
-                  console.log('Updated vehicle position and centered map at:', [${
-                    location.position[0]
-                  }, ${location.position[1]}]);
+                  // Rotate the entire map so vehicle's direction of travel points up
+                  const mapElement = document.getElementById('map');
+                  if (mapElement) {
+                    mapElement.style.transform = 'rotate(${mapRotation}deg)';
+                    mapElement.style.transformOrigin = 'center';
+                  }
+                  
+                  console.log('Updated vehicle position, rotated marker to ${vehicleHeading}°, and rotated map to ${mapRotation}°:', [${
+                location.position[0]
+              }, ${location.position[1]}]);
                 }
               `;
             }
-
             if (polyline) {
               const polylineString = JSON.stringify(polyline);
               script += `
@@ -525,13 +563,30 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     <title>Active Trip Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Add Leaflet rotation plugin for proper map orientation -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-rotatedmarker@0.2.0/leaflet.rotatedMarker.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; }
-        #map { height: 100vh; width: 100vw; }
+        body { margin: 0; padding: 0; overflow: hidden; }
+        #mapContainer { 
+            position: relative;
+            width: 100vw; 
+            height: 100vh; 
+            overflow: hidden;
+        }
+        #map { 
+            width: 300vw; 
+            height: 300vh; 
+            position: absolute;
+            left: -100vw;
+            top: -100vh;
+            transition: transform 0.5s ease-out;
+        }
     </style>
 </head>
 <body>
-    <div id="map"></div>
+    <div id="mapContainer">
+        <div id="map"></div>
+    </div>
     <script>
         // Global variables for map elements that need updates
         let map;
@@ -597,10 +652,10 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         });
 
         const vehicleIcon = L.icon({
-            iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#3b82f6"><circle cx="12" cy="12" r="8" stroke="white" stroke-width="3"/><circle cx="12" cy="12" r="4"/></svg>'),
-            iconSize: [24, 24],
-            iconAnchor: [12, 12],
-            popupAnchor: [0, -12]
+            iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#4285F4"><path d="M12 2 L18 12 L12 10 L6 12 Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>'),
+            iconSize: [96, 96],
+            iconAnchor: [48, 48],
+            popupAnchor: [0, -48]
         });
         
         // Add static markers (these don't change)
