@@ -13,6 +13,7 @@ import TripDetailsScreen from '../screens/TripDetailsScreen';
 import ActiveTripScreen from '../screens/ActiveTripScreen';
 import BehaviorMonitoringScreen from '../screens/BehaviorMonitoringScreen';
 import SwipeNavigationWrapper from '../components/SwipeNavigationWrapper';
+import { ActiveTripProvider } from '../contexts/ActiveTripContext';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -75,22 +76,24 @@ export default function MainNavigator() {
 
   return (
     <NavigationContainer>
-      <SwipeNavigationWrapper>
-        <Tab.Navigator
-          screenOptions={({ route }) => ({
-            tabBarIcon: getTabBarIcon(route.name),
-            tabBarActiveTintColor: theme.tabBarActiveTintColor,
-            tabBarInactiveTintColor: theme.tabBarInactiveTintColor,
-            tabBarStyle: theme.tabBarStyle,
-            headerShown: false,
-          })}
-        >
-          <Tab.Screen name="Dashboard" component={DashboardStack} />
-          <Tab.Screen name="Account" component={AccountScreen} />
-          <Tab.Screen name="Settings" component={SettingsScreen} />
-          <Tab.Screen name="Help" component={HelpScreen} />
-        </Tab.Navigator>
-      </SwipeNavigationWrapper>
+      <ActiveTripProvider>
+        <SwipeNavigationWrapper>
+          <Tab.Navigator
+            screenOptions={({ route }) => ({
+              tabBarIcon: getTabBarIcon(route.name),
+              tabBarActiveTintColor: theme.tabBarActiveTintColor,
+              tabBarInactiveTintColor: theme.tabBarInactiveTintColor,
+              tabBarStyle: theme.tabBarStyle,
+              headerShown: false,
+            })}
+          >
+            <Tab.Screen name="Dashboard" component={DashboardStack} />
+            <Tab.Screen name="Account" component={AccountScreen} />
+            <Tab.Screen name="Settings" component={SettingsScreen} />
+            <Tab.Screen name="Help" component={HelpScreen} />
+          </Tab.Navigator>
+        </SwipeNavigationWrapper>
+      </ActiveTripProvider>
     </NavigationContainer>
   );
 }

@@ -28,7 +28,7 @@ import {
   getToken,
   updateTrip,
 } from '../utils/api';
-
+import { useActiveTripContext } from '../contexts/ActiveTripContext';
 const { width } = Dimensions.get('window');
 
 // Header refresh button component defined outside of the main component
@@ -146,6 +146,9 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
 }) => {
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Use ActiveTripContext in the UpcomingTrips component
+  const { checkForActiveTrip } = useActiveTripContext();
 
   useEffect(() => {
     const getEmployeeID = async (security_id: string) => {
@@ -331,25 +334,14 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
         text: 'Start',
         onPress: async () => {
           try {
-            // Update trip status to started
-            const now = new Date().toISOString();
-            const data = {
-              actual_start_time: now,
-              status: 'in-progress',
-            };
-
             console.log('Starting trip ID:', tripId);
-            await updateTrip(tripId, data);
+            await updateTrip(tripId);
             console.log('Trip started successfully');
 
-            onTripStarted?.(tripId);
+            // Trigger active trip check to update context and navigate
+            await checkForActiveTrip();
 
-            // Navigate to active trip screen
-            if (navigation) {
-              navigation.navigate('ActiveTrip');
-            } else {
-              Alert.alert('Trip Started', 'Navigation will be available soon!');
-            }
+            onTripStarted?.(tripId);
           } catch (error) {
             console.error('Error starting trip:', error);
             Alert.alert('Error', 'Failed to start trip. Please try again.');
@@ -637,7 +629,15 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
   const [userData, setUserData] = useState<any>(null);
   const [performanceData, setPerformanceData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [_hasActiveTrip, setHasActiveTrip] = useState(false);
+
+  // Use the ActiveTripContext
+  const {
+    hasActiveTrip,
+    activeTrip,
+    checkForActiveTrip,
+    clearActiveTrip,
+    error: activeTripError,
+  } = useActiveTripContext();
 
   const theme = {
     background: isDarkMode ? '#0f172a' : '#f8fafc',
@@ -861,13 +861,40 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
     });
   }, [navigation, renderRefreshButton]);
 
-  const handleTripStarted = useCallback((_tripId: string) => {
-    setHasActiveTrip(true);
-  }, []);
+  const handleTripStarted = useCallback(
+    (tripId: string) => {
+      console.log('Trip started:', tripId);
+      // Force check for active trip after starting a trip
+      setTimeout(() => {
+        checkForActiveTrip();
+      }, 1000); // Wait 1 second for API to update
+    },
+    [checkForActiveTrip]
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Active Trip Banner */}
+        {hasActiveTrip && activeTrip && (
+          <View style={[styles.activeTripBanner, { backgroundColor: theme.success }]}>
+            <View style={styles.activeTripContent}>
+              <View style={styles.activeTripInfo}>
+                <Text style={[styles.activeTripTitle, { color: '#ffffff' }]}>Active Trip</Text>
+                <Text style={[styles.activeTripName, { color: '#ffffff' }]} numberOfLines={1}>
+                  {activeTrip.name}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.activeTripButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+                onPress={() => navigation?.navigate('ActiveTrip')}
+              >
+                <Text style={[styles.activeTripButtonText, { color: '#ffffff' }]}>View Trip</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Driver Score Card */}
         <DriverScoreCard
           theme={theme}
@@ -913,6 +940,47 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  // Active Trip Banner Styles
+  activeTripBanner: {
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  activeTripContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  activeTripInfo: {
+    flex: 1,
+  },
+  activeTripTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 2,
+  },
+  activeTripName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  activeTripButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  activeTripButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
   },
   // Driver Score Card Styles
   scoreCard: {

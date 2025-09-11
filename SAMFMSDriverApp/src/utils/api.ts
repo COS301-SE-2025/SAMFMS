@@ -236,29 +236,41 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
 // Driver API functions
 export const getDriverEMPID = async (security_id: string) => {
   try {
-    const data = await apiRequest(`/drivers/empid/${security_id}`);
+    console.log(`Attempting to fetch EMP ID for security_id: ${security_id}`);
+    const data = await apiRequest(`/management/drivers/employee/${security_id}`);
+    console.log('Successfully fetched EMP ID:', data);
     return data;
   } catch (error) {
     console.error('Error fetching driver EMP ID:', error);
 
     // Fallback to mock data for development
     console.log('Falling back to mock driver EMP ID');
+    const mockEmpId = `EMP${security_id?.slice(-3) || '001'}`;
+    console.log('Generated mock EMP ID:', mockEmpId);
+
     return {
-      data: `EMP${security_id?.slice(-3) || '001'}`, // Generate a mock employee ID
+      data: mockEmpId, // Generate a mock employee ID
       status: 'success',
+      mock: true, // Flag to indicate this is mock data
     };
   }
 };
 
 export const getDriverActiveTrips = async (driver_id: string) => {
   try {
-    const data = await apiRequest(`/trips/driver-active/${driver_id}`);
+    console.log(`Attempting to fetch active trips for driver_id: ${driver_id}`);
+    const data = await apiRequest(`/trips/trips/active/${driver_id}`);
+    console.log('Successfully fetched active trips:', data);
     return data.data || data;
   } catch (error) {
     console.error('Error fetching active trips:', error);
 
     // Fallback to mock data for development
     console.log('Falling back to mock active trips');
+
+    // Return empty array if no active trips (most common case)
+    // Uncomment the mock trip below for testing active trip functionality
+    /*
     const mockTrip = {
       id: 'mock-trip-1',
       _id: 'mock-trip-1',
@@ -299,9 +311,14 @@ export const getDriverActiveTrips = async (driver_id: string) => {
       vehicle_id: 'vehicle-123',
       vehicleId: 'vehicle-123',
       driver_assignment: driver_id,
+      mock: true, // Flag to indicate this is mock data
     };
 
+    console.log('Generated mock trip:', mockTrip);
     return [mockTrip];
+    */
+
+    return []; // Return empty array when no active trips
   }
 };
 
@@ -386,6 +403,123 @@ export const getUpcomingTrips = async (driver_id: string) => {
   }
 };
 
+// Real-time updates functionality
+export const createRealtimeUpdater = (
+  updateFunction: () => Promise<void>,
+  intervalMs: number = 30000
+) => {
+  let intervalId: ReturnType<typeof setInterval> | null = null;
+
+  const start = () => {
+    if (intervalId) return; // Already running
+
+    intervalId = setInterval(async () => {
+      try {
+        await updateFunction();
+      } catch (error) {
+        console.error('Real-time update error:', error);
+      }
+    }, intervalMs);
+  };
+
+  const stop = () => {
+    if (intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  };
+
+  const isRunning = () => intervalId !== null;
+
+  return { start, stop, isRunning };
+};
+
+// Get recent trips with real-time capability
+export const getRecentTrips = async (driver_id: string) => {
+  try {
+    const data = await apiRequest(`/trips/trips/recent/${driver_id}`);
+    return data;
+  } catch (error) {
+    console.error('Error fetching recent trips:', error);
+
+    // Fallback to mock data for development
+    console.log('Falling back to mock recent trips');
+    const now = new Date();
+    const mockTrips = [
+      {
+        id: 'recent-1',
+        _id: 'recent-1',
+        name: 'Airport Transfer',
+        description: 'Completed airport transfer',
+        origin: {
+          location: {
+            coordinates: [28.2293, -25.7461],
+            type: 'Point',
+          },
+          address: 'Hatfield, Pretoria',
+          name: 'Residential Area',
+        },
+        destination: {
+          location: {
+            coordinates: [28.246, -26.1392],
+            type: 'Point',
+          },
+          address: 'O.R. Tambo International Airport',
+          name: 'OR Tambo Airport',
+        },
+        estimated_distance: 45000,
+        estimated_duration: 45,
+        status: 'completed',
+        scheduled_start_time: new Date(now.getTime() - 2 * 3600000).toISOString(), // 2 hours ago
+        actual_start_time: new Date(now.getTime() - 2 * 3600000).toISOString(),
+        actual_end_time: new Date(now.getTime() - 1 * 3600000).toISOString(), // 1 hour ago
+        priority: 'normal',
+        vehicle_id: 'vehicle-123',
+        driver_assignment: driver_id,
+      },
+      {
+        id: 'recent-2',
+        _id: 'recent-2',
+        name: 'Staff Transport',
+        description: 'Completed staff transport',
+        origin: {
+          location: {
+            coordinates: [28.2335, -25.7545],
+            type: 'Point',
+          },
+          address: 'University of Pretoria, Hatfield Campus',
+          name: 'UP Campus',
+        },
+        destination: {
+          location: {
+            coordinates: [28.24, -25.76],
+            type: 'Point',
+          },
+          address: 'Brooklyn Mall, Pretoria',
+          name: 'Brooklyn Mall',
+        },
+        estimated_distance: 8000,
+        estimated_duration: 20,
+        status: 'completed',
+        scheduled_start_time: new Date(now.getTime() - 6 * 3600000).toISOString(), // 6 hours ago
+        actual_start_time: new Date(now.getTime() - 6 * 3600000).toISOString(),
+        actual_end_time: new Date(now.getTime() - 5.5 * 3600000).toISOString(), // 5.5 hours ago
+        priority: 'normal',
+        vehicle_id: 'vehicle-456',
+        driver_assignment: driver_id,
+      },
+    ];
+
+    return {
+      data: {
+        trips: mockTrips,
+        count: mockTrips.length,
+      },
+      status: 'success',
+    };
+  }
+};
+
 export const finishTrip = async (tripId: string, tripData: any) => {
   try {
     const data = await apiRequest(`/trips/finish/${tripId}`, {
@@ -410,12 +544,78 @@ export const finishTrip = async (tripId: string, tripData: any) => {
   }
 };
 
-export const updateTrip = async (tripId: string, tripData: any) => {
+export const pauseTrip = async (tripId: string) => {
   try {
-    const data = await apiRequest(`/trips/${tripId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(tripData),
+    const data = await apiRequest(`/trips/trips/${tripId}/pause`, {
+      method: 'POST',
     });
+    return data;
+  } catch (error) {
+    console.error('Error pausing trip:', error);
+
+    // Fallback to mock success for development
+    console.log('Falling back to mock pause trip success');
+    return {
+      data: {
+        id: tripId,
+        status: 'paused',
+        message: 'Trip paused successfully (mock)',
+      },
+      status: 'success',
+    };
+  }
+};
+
+export const resumeTrip = async (tripId: string) => {
+  try {
+    const data = await apiRequest(`/trips/trips/${tripId}/resume`, {
+      method: 'POST',
+    });
+    return data;
+  } catch (error) {
+    console.error('Error resuming trip:', error);
+
+    // Fallback to mock success for development
+    console.log('Falling back to mock resume trip success');
+    return {
+      data: {
+        id: tripId,
+        status: 'in_progress',
+        message: 'Trip resumed successfully (mock)',
+      },
+      status: 'success',
+    };
+  }
+};
+
+export const cancelTrip = async (tripId: string) => {
+  try {
+    const data = await apiRequest(`/trips/trips/${tripId}/cancel`, {
+      method: 'POST',
+    });
+    return data;
+  } catch (error) {
+    console.error('Error canceling trip:', error);
+
+    // Fallback to mock success for development
+    console.log('Falling back to mock cancel trip success');
+    return {
+      data: {
+        id: tripId,
+        status: 'cancelled',
+        message: 'Trip cancelled successfully (mock)',
+      },
+      status: 'success',
+    };
+  }
+};
+
+export const updateTrip = async (tripId: string) => {
+  try {
+    const data = await apiRequest(`/trips/trips/${tripId}/start`, {
+      method: 'POST',
+    });
+    console.log('Trip update response:', data);
     return data;
   } catch (error) {
     console.error('Error updating trip:', error);
@@ -425,7 +625,6 @@ export const updateTrip = async (tripId: string, tripData: any) => {
     return {
       data: {
         id: tripId,
-        ...tripData,
         message: 'Trip updated successfully (mock)',
       },
       status: 'success',
@@ -449,7 +648,7 @@ export const TripFinishedStatus = async (employeeId: string) => {
 
 export const getLocation = async (vehicleId: string) => {
   try {
-    const data = await apiRequest(`/vehicles/location/${vehicleId}`);
+    const data = await apiRequest(`/gps/locations/vehicle/${vehicleId}`);
     return data;
   } catch (error) {
     console.error('Error fetching vehicle location:', error);
@@ -473,7 +672,8 @@ export const getLocation = async (vehicleId: string) => {
 
 export const getVehiclePolyline = async (vehicleId: string) => {
   try {
-    const data = await apiRequest(`/vehicles/polyline/${vehicleId}`);
+    const data = await apiRequest(`/trips/trips/polyline/${vehicleId}`);
+    console.log('Vehicle polyline data:', data);
     return data;
   } catch (error) {
     console.error('Error fetching vehicle polyline:', error);
