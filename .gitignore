@@ -43,3 +43,14 @@ htmlcov/
 env
 traccar/logs/tracker-server.log
 traccar/logs/tracker-server.log
+Core/.coverage
+Core/.coverage
+Core/coverage-reports/coverage.xml
+test-results/pytest.xml
+.gitignore
+Core/.coverage
+Core/test-results/pytest.xml
+test-results/pytest.xml
+Core/.coverage
+test-results/pytest.xml
+Core/.coverage
