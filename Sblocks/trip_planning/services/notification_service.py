@@ -199,7 +199,7 @@ class NotificationService:
                 title="Trip Started",
                 message=f"Trip '{trip.name}' has started",
                 trip_id=trip.id,
-                driver_id=trip.driver_assignment.driver_id if trip.driver_assignment else None,
+                driver_id=trip.driver_assignment if trip.driver_assignment else None,
                 channels=["push", "email"]
             )
             
@@ -219,7 +219,7 @@ class NotificationService:
                 title="Trip Completed",
                 message=f"Trip '{trip.name}' has been completed successfully",
                 trip_id=trip.id,
-                driver_id=trip.driver_assignment.driver_id if trip.driver_assignment else None,
+                driver_id=trip.driver_assignment if trip.driver_assignment else None,
                 channels=["push", "email"]
             )
             
@@ -239,7 +239,7 @@ class NotificationService:
                 title="Trip Delayed",
                 message=f"Trip '{trip.name}' is delayed by {delay_minutes} minutes",
                 trip_id=trip.id,
-                driver_id=trip.driver_assignment.driver_id if trip.driver_assignment else None,
+                driver_id=trip.driver_assignment if trip.driver_assignment else None,
                 data={"delay_minutes": delay_minutes},
                 channels=["push", "email", "sms"]
             )
@@ -281,7 +281,7 @@ class NotificationService:
                 title="Route Changed",
                 message=f"Route for trip '{trip.name}' has been updated. Reason: {reason}",
                 trip_id=trip.id,
-                driver_id=trip.driver_assignment.driver_id if trip.driver_assignment else None,
+                driver_id=trip.driver_assignment if trip.driver_assignment else None,
                 data={"reason": reason},
                 channels=["push"]
             )
@@ -423,7 +423,7 @@ class NotificationService:
         recipients = [trip.created_by]
         
         if trip.driver_assignment:
-            recipients.append(trip.driver_assignment.driver_id)
+            recipients.append(trip.driver_assignment)
         
         # Would also include managers, fleet operators, etc.
         

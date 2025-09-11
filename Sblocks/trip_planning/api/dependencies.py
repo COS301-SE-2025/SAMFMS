@@ -55,7 +55,7 @@ async def validate_trip_access(trip_id: str, current_user: str = Depends(get_cur
     # This would implement proper access control
     # For now, allow access if user is creator or assigned driver
     if (trip.created_by != current_user and 
-        (not trip.driver_assignment or trip.driver_assignment.driver_id != current_user)):
+        (not trip.driver_assignment or trip.driver_assignment != current_user)):
         raise HTTPException(status_code=403, detail="Access denied")
     
     return trip

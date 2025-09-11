@@ -36,6 +36,13 @@ class TripService:
                     logger.warning("[TripService.create_trip] Invalid schedule: end <= start")
                     raise ValueError("End time must be after start time")
 
+            # Validate vehicle availability
+            logger.debug(f"[TripService.create_trip] Validating vehicle availability for vehicle_id={request.vehicle_id}")
+            is_available = await self._check_vehicle_availability(request.vehicle_id, request.scheduled_start_time, request.scheduled_end_time)
+            if not is_available:
+                logger.warning(f"[TripService.create_trip] Vehicle {request.vehicle_id} is not available for the requested time slot")
+                raise ValueError(f"Vehicle {request.vehicle_id} is not available for the requested time period")
+
             # Create trip entity
             trip_data = request.dict(exclude_unset=True)
             
@@ -189,45 +196,6 @@ class TripService:
             logger.error(f"[TripService.get_vehicle_polyline] Failed to get polyline for vehicle {vehicle_id}: {e}")
             raise
     
-    async def cancel_trip(self, trip_id: str, reason: str = "cancelled"):
-        """Cancel a trip and move it to history (for external cancellation handling)"""
-        try:
-            # Get the original trip document
-            trip_doc = await db_manager.trips.find_one({"_id": ObjectId(trip_id)})
-            
-            if not trip_doc:
-                logger.error(f"Trip {trip_id} not found in trips collection")
-                return False
-            
-            # Add cancellation information
-            cancellation_time = datetime.utcnow()
-            trip_doc.update({
-                "actual_end_time": cancellation_time,
-                "status": "cancelled",
-                "completion_reason": "cancelled",
-                "cancellation_reason": reason,
-                "moved_to_history_at": cancellation_time
-            })
-            
-            # Insert into trip_history collection
-            await db_manager.trip_history.insert_one(trip_doc)
-            logger.info(f"Trip {trip_id} moved to trip_history with status 'cancelled'")
-            
-            # Remove from active trips collection
-            await db_manager.trips.delete_one({"_id": ObjectId(trip_id)})
-            
-            # Stop simulation if running
-            if trip_id in self.active_simulators:
-                self.active_simulators[trip_id].is_running = False
-                del self.active_simulators[trip_id]
-                logger.info(f"Stopped simulation for cancelled trip {trip_id}")
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to cancel trip {trip_id}: {e}")
-            return False
-    
     async def get_active_trips(self, driver_id: str = None) -> List[Trip]:
         """
         Return all active trips (current time >= scheduled_start_time and not completed/canceled),
@@ -286,7 +254,8 @@ class TripService:
     async def update_trip(
         self,
         trip_id: str,
-        request: UpdateTripRequest
+        request: UpdateTripRequest,
+        updated_by: str
     ) -> Optional[Trip]:
         """Update an existing trip"""
         try:
@@ -331,7 +300,7 @@ class TripService:
             logger.error(f"Failed to update trip {trip_id}: {e}")
             raise
     
-    async def delete_trip(self, trip_id: str) -> bool:
+    async def delete_trip(self, trip_id: str, deleted_by: str) -> bool:
         """Delete a trip"""
         try:
             # Get trip before deletion for event
@@ -473,21 +442,20 @@ class TripService:
         except Exception as e:
             logger.error(f"Failed to start trip {trip_id}: {e}")
             raise
-    
-    async def complete_trip(self, trip_id: str, completed_by: str) -> Optional[Trip]:
-        """Complete a trip"""
+
+    async def pause_trip(self, trip_id: str, paused_by: str) -> Optional[Trip]:
+        """Pause a trip"""
         try:
             trip = await self.get_trip_by_id(trip_id)
             if not trip:
                 return None
             
             if trip.status != TripStatus.IN_PROGRESS:
-                raise ValueError(f"Trip is not in progress (current: {trip.status})")
+                raise ValueError(f"Trip is not in progress status (current: {trip.status})")
             
             # Update trip status
             update_data = {
-                "status": TripStatus.COMPLETED,
-                "actual_end_time": datetime.utcnow(),
+                "status": TripStatus.PAUSED,
                 "updated_at": datetime.utcnow()
             }
             
@@ -499,14 +467,148 @@ class TripService:
             # Get updated trip
             updated_trip = await self.get_trip_by_id(trip_id)
             
-            # Calculate analytics
-            await self._calculate_trip_analytics(updated_trip)
+            # Publish event
+            await event_publisher.publish_trip_updated(updated_trip, trip)
+            
+            logger.info(f"Paused trip {trip_id}")
+            return updated_trip
+            
+        except Exception as e:
+            logger.error(f"Failed to pause trip {trip_id}: {e}")
+            raise
+
+    async def resume_trip(self, trip_id: str, resumed_by: str) -> Optional[Trip]:
+        """Resume a paused trip"""
+        try:
+            trip = await self.get_trip_by_id(trip_id)
+            if not trip:
+                return None
+            
+            if trip.status != TripStatus.PAUSED:
+                raise ValueError(f"Trip is not in paused status (current: {trip.status})")
+            
+            # Update trip status
+            update_data = {
+                "status": TripStatus.IN_PROGRESS,
+                "updated_at": datetime.utcnow()
+            }
+            
+            await self.db.trips.update_one(
+                {"_id": ObjectId(trip_id)},
+                {"$set": update_data}
+            )
+            
+            # Get updated trip
+            updated_trip = await self.get_trip_by_id(trip_id)
             
             # Publish event
-            await event_publisher.publish_trip_completed(updated_trip)
+            await event_publisher.publish_trip_updated(updated_trip, trip)
+            
+            logger.info(f"Resumed trip {trip_id}")
+            return updated_trip
+            
+        except Exception as e:
+            logger.error(f"Failed to resume trip {trip_id}: {e}")
+            raise
+
+    async def cancel_trip(self, trip_id: str, cancelled_by: str, reason: str = "cancelled") -> Optional[Trip]:
+        """Cancel a trip and move it to history"""
+        try:
+            trip = await self.get_trip_by_id(trip_id)
+            if not trip:
+                return None
+            
+            if trip.status in [TripStatus.COMPLETED, TripStatus.CANCELLED]:
+                raise ValueError(f"Trip is already in final status (current: {trip.status})")
+            
+            # Get the original trip document
+            trip_doc = await self.db.trips.find_one({"_id": ObjectId(trip_id)})
+            
+            if not trip_doc:
+                logger.error(f"Trip {trip_id} not found in trips collection")
+                return None
+            
+            # Add cancellation information
+            cancellation_time = datetime.utcnow()
+            trip_doc.update({
+                "actual_end_time": cancellation_time,
+                "status": TripStatus.CANCELLED.value,
+                "completion_reason": "cancelled",
+                "cancellation_reason": reason,
+                "moved_to_history_at": cancellation_time,
+                "cancelled_by": cancelled_by,
+                "updated_at": cancellation_time
+            })
+            
+            # Insert into trip_history collection
+            await self.db.trip_history.insert_one(trip_doc)
+            logger.info(f"Trip {trip_id} moved to trip_history with status 'cancelled'")
+            
+            # Remove from active trips collection
+            await self.db.trips.delete_one({"_id": ObjectId(trip_id)})
+            
+            # Create trip object for event publishing
+            trip_doc["_id"] = str(trip_doc["_id"])
+            cancelled_trip = Trip(**trip_doc)
+            
+            # Publish event
+            await event_publisher.publish_trip_updated(cancelled_trip, trip)
+            
+            logger.info(f"Cancelled trip {trip_id}")
+            return cancelled_trip
+            
+        except Exception as e:
+            logger.error(f"Failed to cancel trip {trip_id}: {e}")
+            raise
+    
+    async def complete_trip(self, trip_id: str, completed_by: str) -> Optional[Trip]:
+        """Complete a trip and move it to history"""
+        try:
+            trip = await self.get_trip_by_id(trip_id)
+            if not trip:
+                return None
+            
+            if trip.status != TripStatus.IN_PROGRESS:
+                raise ValueError(f"Trip is not in progress (current: {trip.status})")
+            
+            # Get the original trip document
+            trip_doc = await self.db.trips.find_one({"_id": ObjectId(trip_id)})
+            
+            if not trip_doc:
+                logger.error(f"Trip {trip_id} not found in trips collection")
+                return None
+            
+            # Add completion information
+            completion_time = datetime.utcnow()
+            trip_doc.update({
+                "status": TripStatus.COMPLETED.value,
+                "actual_end_time": completion_time,
+                "completion_reason": "completed",
+                "completed_by": completed_by,
+                "moved_to_history_at": completion_time,
+                "updated_at": completion_time
+            })
+            
+            # Calculate analytics before moving to history
+            completed_trip_temp = Trip(**{**trip_doc, "_id": str(trip_doc["_id"])})
+            await self._calculate_trip_analytics(completed_trip_temp)
+            
+            # Insert into trip_history collection
+            await self.db.trip_history.insert_one(trip_doc)
+            logger.info(f"Trip {trip_id} moved to trip_history with status 'completed'")
+            
+            # Remove from active trips collection
+            await self.db.trips.delete_one({"_id": ObjectId(trip_id)})
+            
+            # Create trip object for event publishing
+            trip_doc["_id"] = str(trip_doc["_id"])
+            completed_trip = Trip(**trip_doc)
+            
+            # Publish event
+            await event_publisher.publish_trip_completed(completed_trip)
             
             logger.info(f"Completed trip {trip_id}")
-            return updated_trip
+            return completed_trip
             
         except Exception as e:
             logger.error(f"Failed to complete trip {trip_id}: {e}")
@@ -580,6 +682,7 @@ class TripService:
             
             query = {
                 "driver_assignment": driver_id,
+                "status": TripStatus.SCHEDULED.value,
                 "scheduled_start_time": {"$gte": now},
                 "actual_start_time": {"$in": [None, ""]}  # null or empty string
             }
@@ -668,6 +771,132 @@ class TripService:
             
         except Exception as e:
             logger.error(f"[TripService.get_all_recent_trips] Error: {e}")
+            raise
+
+    async def _check_vehicle_availability(self, vehicle_id: str, start_time: datetime, end_time: Optional[datetime]) -> bool:
+        """Check if a vehicle is available for the given time period"""
+        try:
+            logger.info(f"[TripService._check_vehicle_availability] Checking availability for vehicle {vehicle_id} from {start_time} to {end_time}")
+            
+            # Build query to find conflicting trips
+            query = {
+                "vehicle_id": vehicle_id,
+                "status": {"$in": [
+                    TripStatus.SCHEDULED.value,
+                    TripStatus.IN_PROGRESS.value,
+                    TripStatus.PAUSED.value
+                ]}
+            }
+            
+            # Check for time conflicts
+            if end_time:
+                # Check for overlap: new trip starts before existing ends AND new trip ends after existing starts
+                time_conflict_query = {
+                    "$and": [
+                        {"scheduled_start_time": {"$lt": end_time}},
+                        {
+                            "$or": [
+                                {"scheduled_end_time": {"$gt": start_time}},
+                                {"scheduled_end_time": None}  # Handle trips without end time
+                            ]
+                        }
+                    ]
+                }
+                query.update(time_conflict_query)
+            else:
+                # If no end time provided, check if vehicle has any future trips
+                query["scheduled_start_time"] = {"$gte": start_time}
+            
+            logger.debug(f"[TripService._check_vehicle_availability] Query: {query}")
+            
+            # Check if any conflicting trips exist
+            conflicting_trip = await self.db.trips.find_one(query)
+            
+            if conflicting_trip:
+                logger.warning(f"[TripService._check_vehicle_availability] Vehicle {vehicle_id} has conflicting trip: {conflicting_trip['_id']}")
+                return False
+            
+            logger.info(f"[TripService._check_vehicle_availability] Vehicle {vehicle_id} is available")
+            return True
+            
+        except Exception as e:
+            logger.error(f"[TripService._check_vehicle_availability] Error checking vehicle availability: {e}")
+            # Default to unavailable on error for safety
+            return False
+
+    async def mark_missed_trips(self) -> int:
+        """Mark trips as missed and move them to history"""
+        logger.info("[TripService.mark_missed_trips] Checking for missed trips")
+        try:
+            now = datetime.utcnow()
+            missed_count = 0
+            
+            # Find trips that should be marked as missed
+            # 1. Scheduled trips that are 30+ minutes past their scheduled start time
+            # 2. Scheduled trips that are past their scheduled end time
+            query = {
+                "status": TripStatus.SCHEDULED.value,
+                "actual_start_time": {"$in": [None, ""]},  # Not started yet
+                "$or": [
+                    {
+                        # 30 minutes past scheduled start time
+                        "scheduled_start_time": {"$lte": now - timedelta(minutes=30)}
+                    },
+                    {
+                        # Past scheduled end time (if it exists)
+                        "scheduled_end_time": {
+                            "$ne": None,
+                            "$lte": now
+                        }
+                    }
+                ]
+            }
+            
+            logger.debug(f"[TripService.mark_missed_trips] Query: {query}")
+            
+            # Find all trips that meet the criteria
+            missed_trips_cursor = self.db.trips.find(query)
+            
+            async for trip_doc in missed_trips_cursor:
+                try:
+                    trip_id = str(trip_doc["_id"])
+                    logger.info(f"[TripService.mark_missed_trips] Marking trip {trip_id} as missed")
+                    
+                    # Add missed trip information
+                    missed_time = now
+                    trip_doc.update({
+                        "status": TripStatus.MISSED.value,
+                        "actual_end_time": missed_time,
+                        "completion_reason": "missed",
+                        "moved_to_history_at": missed_time,
+                        "updated_at": missed_time
+                    })
+                    
+                    # Insert into trip_history collection
+                    await self.db.trip_history.insert_one(trip_doc)
+                    logger.info(f"Trip {trip_id} moved to trip_history with status 'missed'")
+                    
+                    # Remove from active trips collection
+                    await self.db.trips.delete_one({"_id": trip_doc["_id"]})
+                    
+                    # Create trip object for event publishing
+                    trip_doc["_id"] = str(trip_doc["_id"])
+                    missed_trip = Trip(**trip_doc)
+                    
+                    # Publish event
+                    await event_publisher.publish_trip_updated(missed_trip, None)
+                    
+                    missed_count += 1
+                    
+                except Exception as e:
+                    logger.error(f"[TripService.mark_missed_trips] Failed to mark trip {trip_doc.get('_id')} as missed: {e}")
+                    continue
+            
+            logger.info(f"[TripService.mark_missed_trips] Marked {missed_count} trips as missed")
+            return missed_count
+            
+        except Exception as e:
+            logger.error(f"[TripService.mark_missed_trips] Error: {e}")
             raise
 
 

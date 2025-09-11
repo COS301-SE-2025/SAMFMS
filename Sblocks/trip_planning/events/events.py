@@ -126,7 +126,7 @@ class TripStartedEvent(BaseEvent):
                 "name": trip.name,
                 "actual_start_time": trip.actual_start_time.isoformat() if trip.actual_start_time else None,
                 "scheduled_start_time": trip.scheduled_start_time.isoformat(),
-                "driver_id": trip.driver_assignment.driver_id if trip.driver_assignment else None,
+                "driver_id": trip.driver_assignment if trip.driver_assignment else None,
                 "vehicle_id": trip.vehicle_id,
                 "origin": trip.origin.dict(),
                 "destination": trip.destination.dict()
@@ -151,7 +151,7 @@ class TripCompletedEvent(BaseEvent):
                 "actual_end_time": trip.actual_end_time.isoformat() if trip.actual_end_time else None,
                 "actual_start_time": trip.actual_start_time.isoformat() if trip.actual_start_time else None,
                 "duration_minutes": duration,
-                "driver_id": trip.driver_assignment.driver_id if trip.driver_assignment else None,
+                "driver_id": trip.driver_assignment if trip.driver_assignment else None,
                 "vehicle_id": trip.vehicle_id
             }
         )
@@ -170,7 +170,7 @@ class TripDelayedEvent(BaseEvent):
                 "delay_minutes": delay_minutes,
                 "reason": reason,
                 "scheduled_start_time": trip.scheduled_start_time.isoformat(),
-                "driver_id": trip.driver_assignment.driver_id if trip.driver_assignment else None
+                "driver_id": trip.driver_assignment if trip.driver_assignment else None
             }
         )
 

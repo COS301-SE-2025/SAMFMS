@@ -41,6 +41,7 @@ from schemas.responses import ResponseBuilder
 
 # Import the simulation service
 from services.simulation_service import simulation_service
+from services.missed_trip_scheduler import missed_trip_scheduler
 
 # Setup logging
 logging.basicConfig(
@@ -205,6 +206,14 @@ async def lifespan(app: FastAPI):
         # Start the simulation service
         await simulation_service.start_simulation_service()
 
+        # Start the missed trip scheduler
+        logger.info("Starting missed trip scheduler...")
+        try:
+            await missed_trip_scheduler.start()
+            logger.info("Missed trip scheduler started successfully")
+        except Exception as e:
+            logger.error(f"Failed to start missed trip scheduler: {e}")
+
         logger.info("Trips Service Startup Completed Successfully")
         
         yield
@@ -217,6 +226,14 @@ async def lifespan(app: FastAPI):
         # Cleanup on shutdown
         logger.info("Trips Service Shutting Down...")
         try:
+            # Stop the missed trip scheduler
+            logger.info("Stopping missed trip scheduler...")
+            try:
+                await missed_trip_scheduler.stop()
+                logger.info("Missed trip scheduler stopped")
+            except Exception as e:
+                logger.warning(f"Error stopping missed trip scheduler: {e}")
+
             # Publish service stopped event
             try:
                 await event_publisher.publish_service_stopped(

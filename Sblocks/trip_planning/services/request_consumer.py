@@ -489,10 +489,10 @@ class ServiceRequestConsumer:
                     raise ValueError(f"Unknown endpoint: {endpoint.split('/')[-1] if '/' in endpoint else endpoint}")
 
             elif method == "POST":
-                if not data:
-                    raise ValueError("Request data is required for POST operation")
-
                 if "create" in endpoint:
+                    if not data:
+                        raise ValueError("Request data is required for POST operation")
+                    
                     logger.info(f"[_handle_trips_request] Preparing CreateTripRequest and calling trip_service.create_trip()")
                     from schemas.requests import CreateTripRequest
                     trip_request = CreateTripRequest(**data)
@@ -524,7 +524,102 @@ class ServiceRequestConsumer:
                         data=trip.model_dump(),
                         message="Trip created successfully"
                     ).model_dump()
+                
+                elif "start" in endpoint:
+                    # Handle trip start - no request data needed
+                    trip_id = endpoint.split('/')[-2] if '/' in endpoint else None  # Get trip_id from path like trips/{trip_id}/start
+                    if not trip_id:
+                        raise ValueError("Trip ID is required for start operation")
+                    
+                    logger.info(f"[_handle_trips_request] Starting trip {trip_id}")
+                    started_by = user_context.get("user_id", "system")
+                    started_trip = await trip_service.start_trip(trip_id, started_by)
+                    
+                    if not started_trip:
+                        raise ValueError("Trip not found or could not be started")
+                    
+                    return ResponseBuilder.success(
+                        data=started_trip.model_dump(),
+                        message="Trip started successfully"
+                    ).model_dump()
+                
+                elif "pause" in endpoint:
+                    # Handle trip pause - no request data needed
+                    trip_id = endpoint.split('/')[-2] if '/' in endpoint else None
+                    if not trip_id:
+                        raise ValueError("Trip ID is required for pause operation")
+                    
+                    logger.info(f"[_handle_trips_request] Pausing trip {trip_id}")
+                    paused_by = user_context.get("user_id", "system")
+                    paused_trip = await trip_service.pause_trip(trip_id, paused_by)
+                    
+                    if not paused_trip:
+                        raise ValueError("Trip not found or could not be paused")
+                    
+                    return ResponseBuilder.success(
+                        data=paused_trip.model_dump(),
+                        message="Trip paused successfully"
+                    ).model_dump()
+                
+                elif "resume" in endpoint:
+                    # Handle trip resume - no request data needed
+                    trip_id = endpoint.split('/')[-2] if '/' in endpoint else None
+                    if not trip_id:
+                        raise ValueError("Trip ID is required for resume operation")
+                    
+                    logger.info(f"[_handle_trips_request] Resuming trip {trip_id}")
+                    resumed_by = user_context.get("user_id", "system")
+                    resumed_trip = await trip_service.resume_trip(trip_id, resumed_by)
+                    
+                    if not resumed_trip:
+                        raise ValueError("Trip not found or could not be resumed")
+                    
+                    return ResponseBuilder.success(
+                        data=resumed_trip.model_dump(),
+                        message="Trip resumed successfully"
+                    ).model_dump()
+                
+                elif "cancel" in endpoint:
+                    # Handle trip cancel - optional reason in request data
+                    trip_id = endpoint.split('/')[-2] if '/' in endpoint else None
+                    if not trip_id:
+                        raise ValueError("Trip ID is required for cancel operation")
+                    
+                    logger.info(f"[_handle_trips_request] Cancelling trip {trip_id}")
+                    cancelled_by = user_context.get("user_id", "system")
+                    reason = data.get("reason", "Cancelled via service request") if data else "Cancelled via service request"
+                    cancelled_trip = await trip_service.cancel_trip(trip_id, cancelled_by, reason)
+                    
+                    if not cancelled_trip:
+                        raise ValueError("Trip not found or could not be cancelled")
+                    
+                    return ResponseBuilder.success(
+                        data=cancelled_trip.model_dump(),
+                        message="Trip cancelled successfully and moved to history"
+                    ).model_dump()
+                
+                elif "complete" in endpoint:
+                    # Handle trip complete - no request data needed
+                    trip_id = endpoint.split('/')[-2] if '/' in endpoint else None
+                    if not trip_id:
+                        raise ValueError("Trip ID is required for complete operation")
+                    
+                    logger.info(f"[_handle_trips_request] Completing trip {trip_id}")
+                    completed_by = user_context.get("user_id", "system")
+                    completed_trip = await trip_service.complete_trip(trip_id, completed_by)
+                    
+                    if not completed_trip:
+                        raise ValueError("Trip not found or could not be completed")
+                    
+                    return ResponseBuilder.success(
+                        data=completed_trip.model_dump(),
+                        message="Trip completed successfully and moved to history"
+                    ).model_dump()
+                
                 elif "completed" in endpoint:
+                    if not data:
+                        raise ValueError("Request data is required for POST operation")
+                    
                     from services.trip_service import trip_service
                     trip_id = endpoint.split('/')[-1] if '/' in endpoint else None
                     trip_by_id = await trip_service.get_trip_by_id(trip_id)
@@ -549,14 +644,14 @@ class ServiceRequestConsumer:
                     updated_trip = await trip_service.update_trip(trip.id, UpdateTripRequest(**{
                         "actual_end_time": finish_trip_request.actual_end_time,
                         "status": finish_trip_request.status
-                    }))
+                    }), user_context.get("user_id", "system"))
                     # store the updated trip in trip_history collection
                     from schemas.entities import Trip
                     from services.trip_history_service import trip_history_service
                     result = await trip_history_service.add_trip(updated_trip)
                     logger.info(f"Result from history trip: (name={result.name}, id={result.id}, driver_assignment={result.driver_assignment})")
                     # remove trip from active trips and activate driver and vehicle again
-                    deletedTrip = await trip_service.delete_trip(trip.id)
+                    deletedTrip = await trip_service.delete_trip(trip.id, user_context.get("user_id", "system"))
                     if(deletedTrip):
                         logger.info("Deleted trip successfully")
                     # driver part
@@ -585,6 +680,7 @@ class ServiceRequestConsumer:
         
                 else:
                     raise ValueError(f"Unknown endpoint: {endpoint}")
+                    
             elif method == "PUT":
                 trip_id = endpoint.split('/')[-1] if '/' in endpoint else None
                 if not trip_id:
@@ -597,7 +693,8 @@ class ServiceRequestConsumer:
 
                 result = await trip_service.update_trip(
                     trip_id=trip_id,
-                    request=update_request
+                    request=update_request,
+                    updated_by=user_context.get("user_id", "system")
                 )
 
                 return ResponseBuilder.success(
@@ -611,7 +708,7 @@ class ServiceRequestConsumer:
                     raise ValueError("Trip ID is required for DELETE operation")
                 
                 # Delete trip
-                result = await trip_service.delete_trip(trip_id)
+                result = await trip_service.delete_trip(trip_id, user_context.get("user_id", "system"))
 
                 return ResponseBuilder.success(
                     data={"deleted":  result, "trip_id": trip_id},
