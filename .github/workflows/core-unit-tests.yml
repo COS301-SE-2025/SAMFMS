@@ -1,0 +1,55 @@
+name: Core Unit Tests
+
+on:
+  push:
+    branches: [main, development]
+    paths:
+      - 'Core/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main, development]
+    paths:
+      - 'Core/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Core   # operate inside /Core
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: Core/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run unit tests (quiet) with coverage, no files
+        env:
+          # suppress warnings everywhere
+          PYTHONWARNINGS: ignore
+          # avoid writing .pyc files (__pycache__)
+          PYTHONDONTWRITEBYTECODE: '1'
+          # stop pytest from creating .pytest_cache
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+          # allow pytest-cov while autoload is disabled
+          PYTEST_ADDOPTS: -p pytest_cov
+          # prevent coverage.py from writing a .coverage data file
+          COVERAGE_FILE: /dev/null
+        run: |
+          pytest tests/unit \
+            -q --disable-warnings \
+            -p no:warnings -p no:cacheprovider \
+            --cov=. --cov-report=term
