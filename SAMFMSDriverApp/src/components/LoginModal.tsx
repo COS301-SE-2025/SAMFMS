@@ -100,19 +100,16 @@ const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose, onSuccess }) 
     try {
       await login(email, password);
 
-      // Show success message
-      Alert.alert('Success', 'Login successful!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            setEmail('');
-            setPassword('');
-            setErrors({ email: '', password: '' });
-            setTouched({ email: false, password: false });
-            onSuccess();
-          },
-        },
-      ]);
+      // Skip success message and go directly to dashboard
+      setEmail('');
+      setPassword('');
+      setErrors({ email: '', password: '' });
+      setTouched({ email: false, password: false });
+
+      // Don't turn off loading here as we'll show the loading screen
+      onSuccess();
+      // Keep loading true to avoid flickering between spinners
+      return;
     } catch (error) {
       Alert.alert('Login Failed', (error as Error).message);
     } finally {

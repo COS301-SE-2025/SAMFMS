@@ -99,7 +99,7 @@ export default function HelpScreen() {
   };
 
   const openPhone = () => {
-    Linking.openURL('tel:+15551234567');
+    Linking.openURL('tel:+27118876543'); // Updated to the correct phone number
   };
 
   const openUserGuide = () => {
@@ -194,26 +194,7 @@ export default function HelpScreen() {
           </View>
         </View>
 
-        {/* Emergency Contact */}
-        <View style={[styles.section, styles.lastSection]}>
-          <View
-            style={[styles.emergencyCard, { backgroundColor: '#fef2f2', borderColor: '#fecaca' }]}
-          >
-            <View style={styles.emergencyContent}>
-              <Text style={[styles.emergencyTitle, { color: '#dc2626' }]}>Emergency Contact</Text>
-              <Text style={[styles.emergencySubtitle, { color: '#7f1d1d' }]}>
-                For immediate assistance or emergencies, call:
-              </Text>
-              <TouchableOpacity
-                style={styles.emergencyButton}
-                onPress={() => Linking.openURL('tel:911')}
-              >
-                <Phone size={20} color="#ffffff" />
-                <Text style={styles.emergencyButtonText}>Emergency: 911</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+        {/* Emergency Contact section removed */}
       </ScrollView>
     </SafeAreaView>
   );
@@ -302,37 +283,5 @@ const styles = StyleSheet.create({
     marginTop: 12,
     lineHeight: 20,
   },
-  emergencyCard: {
-    marginHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
-  },
-  emergencyContent: {
-    alignItems: 'center',
-  },
-  emergencyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  emergencySubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  emergencyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#dc2626',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  emergencyButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
+  // Emergency styles removed
 });

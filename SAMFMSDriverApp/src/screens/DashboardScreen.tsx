@@ -11,10 +11,48 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MapPin, Clock, Play, CheckCircle, Eye, AlertCircle } from 'lucide-react-native';
-import { getUserData, API_URL, getToken, updateTrip } from '../utils/api';
+import {
+  MapPin,
+  Clock,
+  Play,
+  CheckCircle,
+  Eye,
+  AlertCircle,
+  Activity,
+  RefreshCw,
+} from 'lucide-react-native';
+import {
+  getUserData,
+  setUserData as saveUserData,
+  API_URL,
+  getToken,
+  updateTrip,
+} from '../utils/api';
 
 const { width } = Dimensions.get('window');
+
+// Header refresh button component defined outside of the main component
+interface HeaderRefreshButtonProps {
+  onPress: () => void;
+  isLoading: boolean;
+  accentColor: string;
+}
+
+// Define a style object for the HeaderRefreshButton
+const headerRefreshStyles = StyleSheet.create({
+  button: {
+    marginRight: 16,
+  },
+});
+
+const HeaderRefreshButton = (props: HeaderRefreshButtonProps) => {
+  const { onPress, isLoading, accentColor } = props;
+  return (
+    <TouchableOpacity onPress={onPress} style={headerRefreshStyles.button} disabled={isLoading}>
+      <RefreshCw size={20} color={accentColor} opacity={isLoading ? 0.5 : 1} />
+    </TouchableOpacity>
+  );
+};
 
 // Driver Score Card Component
 interface DriverScoreCardProps {
@@ -66,13 +104,9 @@ const DriverScoreCard: React.FC<DriverScoreCardProps> = ({
               {userData?.full_name || 'Driver'}
             </Text>
             <Text style={[styles.driverRole, { color: theme.textSecondary }]}>
-              Professional Driver
+              ID: {userData?.employee_id || userData?.employeeId || 'Unknown'}
             </Text>
           </View>
-        </View>
-        <View style={styles.statusBadge}>
-          <View style={styles.statusDot} />
-          <Text style={[styles.statusText, { color: theme.textSecondary }]}>Active</Text>
         </View>
       </View>
 
@@ -433,9 +467,7 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
                     onPress={() => handleViewTrip(trip)}
                   >
                     <Eye size={14} color="#ffffff" />
-                    <Text style={[styles.viewButtonText, { color: '#ffffff' }]}>
-                      {trip.buttonText || 'View'}
-                    </Text>
+                    <Text style={styles.viewButtonText}>{trip.buttonText || 'View'}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -573,23 +605,29 @@ const RecentTrips: React.FC<RecentTripsProps> = ({ theme, userData }) => {
         <Clock size={20} color={theme.accent} />
       </View>
 
-      {recentTrips.map(trip => (
-        <View key={trip.id} style={[styles.recentTripItem, { borderBottomColor: theme.border }]}>
-          <View style={styles.recentTripInfo}>
-            <Text style={[styles.recentTripRoute, { color: theme.text }]}>{trip.route}</Text>
-            <Text style={[styles.recentTripDate, { color: theme.textSecondary }]}>{trip.date}</Text>
-          </View>
-          <View style={styles.recentTripRight}>
-            <Text style={[styles.recentTripDistance, { color: theme.textSecondary }]}>
-              {trip.distance}
-            </Text>
-            <View style={[styles.statusBadgeSmall, { backgroundColor: theme.accent + '20' }]}>
-              <CheckCircle size={12} color={theme.accent} />
-              <Text style={[styles.statusBadgeText, { color: theme.accent }]}>Done</Text>
+      {recentTrips.length > 0 ? (
+        recentTrips.map(trip => (
+          <View key={trip.id} style={[styles.recentTripItem, { borderBottomColor: theme.border }]}>
+            <View style={styles.recentTripInfo}>
+              <Text style={[styles.recentTripRoute, { color: theme.text }]}>{trip.route}</Text>
+              <Text style={[styles.recentTripDate, { color: theme.textSecondary }]}>
+                {trip.date}
+              </Text>
+            </View>
+            <View style={styles.recentTripRight}>
+              <Text style={[styles.recentTripDistance, { color: theme.textSecondary }]}>
+                {trip.distance}
+              </Text>
+              <View style={[styles.statusBadgeSmall, { backgroundColor: theme.accent + '20' }]}>
+                <CheckCircle size={12} color={theme.accent} />
+                <Text style={[styles.statusBadgeText, { color: theme.accent }]}>Done</Text>
+              </View>
             </View>
           </View>
-        </View>
-      ))}
+        ))
+      ) : (
+        <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No recent trips</Text>
+      )}
     </View>
   );
 };
@@ -613,7 +651,7 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
     error: '#ef4444',
   };
 
-  const getEmployeeID = async (security_id: string) => {
+  const getEmployeeID = useCallback(async (security_id: string) => {
     try {
       const token = await getToken();
       if (!token) return null;
@@ -628,19 +666,32 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
       if (response.ok) {
         const data = await response.json();
         console.log('Employee ID API response (main):', data);
-        // Based on API response: {"status":"success","data":{"status":"success","data":"EMP139",...}}
-        return data.data?.data || data.data;
+        // Handle nested structure: {"status":"success","data":{"data":"EMP139"}}
+        if (data.status === 'success') {
+          if (data.data && typeof data.data === 'object' && data.data.data) {
+            console.log('Employee ID (data.data.data):', data.data.data);
+            // Don't modify userData directly here - we'll update it properly in the calling function
+            return data.data.data;
+          } else if (data.data && typeof data.data === 'string') {
+            console.log('Employee ID (data.data string):', data.data);
+            return data.data;
+          }
+        }
+        return null;
       }
     } catch (error) {
       console.error('Error fetching employee ID:', error);
     }
     return null;
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchUserData = useCallback(async () => {
     try {
+      // First load data from storage
       const localUserData = await getUserData();
       if (localUserData) {
+        console.log('Local userData:', localUserData);
         setUserData(localUserData);
       }
 
@@ -656,7 +707,35 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
 
         if (response.ok) {
           const apiUserData = await response.json();
+          console.log('API userData:', apiUserData);
+
+          // Preserve existing employee ID if present
+          if (localUserData?.employee_id) {
+            apiUserData.employee_id = localUserData.employee_id;
+          } else if (localUserData?.employeeId) {
+            apiUserData.employee_id = localUserData.employeeId;
+          }
+
+          // If we have user ID, fetch the employee ID if not already present
+          if (apiUserData?.id && !apiUserData.employee_id) {
+            console.log('Fetching employee ID for user:', apiUserData.id);
+            const employeeId = await getEmployeeID(apiUserData.id);
+            if (employeeId) {
+              // Add employee_id to userData
+              apiUserData.employee_id = employeeId;
+              apiUserData.employeeId = employeeId; // Also set with alternate property name for compatibility
+
+              // Save updated user data with employee ID
+              await saveUserData(apiUserData);
+              console.log('Saved user data with employee ID:', employeeId);
+            }
+          }
+
           setUserData(apiUserData);
+          console.log(
+            'Updated userData with employee ID:',
+            apiUserData.employee_id || apiUserData.employeeId || 'Not found'
+          );
         }
       }
     } catch (error) {
@@ -664,6 +743,7 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchPerformanceData = useCallback(async () => {
@@ -671,17 +751,40 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
       const token = await getToken();
       if (!token || !userData?.id) return;
 
-      // Get employee ID first
-      const employeeId = await getEmployeeID(userData.id);
+      // Get the employee ID from userData first, if available
+      let employeeId = userData.employee_id || userData.employeeId;
+
+      // If not available, fetch it from the API
       if (!employeeId) {
-        console.log('No employee ID found');
+        console.log('No employee ID in userData, fetching from API');
+        employeeId = await getEmployeeID(userData.id);
+
+        if (employeeId) {
+          // Update userData with the employee ID
+          const updatedUserData = {
+            ...userData,
+            employee_id: employeeId,
+            employeeId: employeeId, // For compatibility
+          };
+          setUserData(updatedUserData);
+
+          // Also persist this update
+          await saveUserData(updatedUserData);
+          console.log('Saved updated user data with employee ID:', employeeId);
+        }
+      }
+
+      if (!employeeId) {
+        console.log('No employee ID found after attempts');
         setPerformanceData(null);
         return;
       }
 
+      console.log('Using employee ID for performance data fetch:', employeeId);
+
       // Fetch driver-specific analytics from management service
       const response = await fetch(
-        `${API_URL}/management/analytics/driver-performance/${employeeId.data}`,
+        `${API_URL}/management/analytics/driver-performance/${employeeId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -715,17 +818,48 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
       console.error('Error fetching performance data:', error);
       setPerformanceData(null);
     }
-  }, [userData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  useEffect(() => {
-    fetchUserData();
-  }, [fetchUserData]);
-
-  useEffect(() => {
-    if (userData?.id) {
-      fetchPerformanceData();
+  // Manual refresh function
+  const refreshDashboard = useCallback(async () => {
+    setLoading(true);
+    try {
+      await fetchUserData();
+      if (userData?.id) {
+        await fetchPerformanceData();
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setLoading(false);
     }
-  }, [fetchPerformanceData, userData?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Create a memoized function to render the refresh button
+  const renderRefreshButton = useCallback(() => {
+    return (
+      <HeaderRefreshButton
+        onPress={refreshDashboard}
+        isLoading={loading}
+        accentColor={theme.accent}
+      />
+    );
+  }, [refreshDashboard, loading, theme.accent]);
+
+  // Load data only once on component mount
+  useEffect(() => {
+    refreshDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Add refresh button to header
+  useEffect(() => {
+    navigation?.setOptions({
+      headerRight: renderRefreshButton,
+    });
+  }, [navigation, renderRefreshButton]);
 
   const handleTripStarted = useCallback((_tripId: string) => {
     setHasActiveTrip(true);
@@ -741,6 +875,19 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
           performanceData={performanceData}
           loading={loading}
         />
+
+        {/* Behavior Monitoring Button */}
+        <View
+          style={[styles.behaviorMonitoringContainer, { backgroundColor: theme.cardBackground }]}
+        >
+          <TouchableOpacity
+            style={[styles.behaviorMonitoringButton, { backgroundColor: theme.accent }]}
+            onPress={() => navigation?.navigate('BehaviorMonitoring')}
+          >
+            <Activity size={24} color="#ffffff" />
+            <Text style={styles.behaviorMonitoringText}>Behavior Monitoring</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Main Content */}
         <View style={styles.tripsContainer}>
@@ -1018,6 +1165,7 @@ const styles = StyleSheet.create({
   viewButtonText: {
     fontSize: 12,
     fontWeight: '600',
+    color: '#ffffff',
   },
   // Legacy styles for compatibility
   tripRoute: {
@@ -1088,5 +1236,30 @@ const styles = StyleSheet.create({
   tripsContainer: {
     padding: 20,
     gap: 20,
+  },
+  // Behavior Monitoring Styles
+  behaviorMonitoringContainer: {
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  behaviorMonitoringButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    gap: 10,
+  },
+  behaviorMonitoringText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

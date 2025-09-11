@@ -15,29 +15,57 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   Animated,
+  Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import SamfmsLogo from './src/components/SamfmsLogo';
 import LoginModal from './src/components/LoginModal';
+import LoadingScreen from './src/components/LoadingScreen';
 import MainNavigator from './src/navigation/MainNavigator';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
-
-const { width } = Dimensions.get('window');
+import { BehaviorMonitoringProvider } from './src/contexts/BehaviorMonitoringContext';
+import NotificationService from './src/services/NotificationService';
+import { requestAppPermissions } from './src/utils/PermissionUtils';
 
 function AppContent() {
   const isDarkMode = useColorScheme() === 'dark';
   const { isLoggedIn, login } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
-  if (isLoggedIn) {
+  // Add loading handler
+  const handleLoginSuccess = () => {
+    setIsLoading(true);
+    // Show loading screen for 1.5 seconds for better UX
+    setTimeout(() => {
+      login();
+      setIsLoading(false);
+    }, 1500);
+  };
+
+  if (isLoading) {
     return (
       <SafeAreaProvider>
         <StatusBar
           barStyle={isDarkMode ? 'light-content' : 'dark-content'}
           backgroundColor={isDarkMode ? '#0f172a' : '#f8fafc'}
         />
-        <MainNavigator />
+        <LoadingScreen message="Preparing your dashboard..." />
+      </SafeAreaProvider>
+    );
+  }
+
+  if (isLoggedIn) {
+    return (
+      <SafeAreaProvider>
+        <BehaviorMonitoringProvider>
+          <StatusBar
+            barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+            backgroundColor={isDarkMode ? '#0f172a' : '#f8fafc'}
+          />
+          <MainNavigator />
+        </BehaviorMonitoringProvider>
       </SafeAreaProvider>
     );
   }
@@ -48,12 +76,70 @@ function AppContent() {
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={isDarkMode ? '#0f172a' : '#f8fafc'}
       />
-      <SAMFMSLanding onLoginSuccess={login} />
+      <SAMFMSLanding onLoginSuccess={handleLoginSuccess} />
     </SafeAreaProvider>
   );
 }
 
 function App() {
+  const [permissionsGranted, setPermissionsGranted] = useState(false);
+  const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
+
+  // Request permissions and initialize notification service
+  React.useEffect(() => {
+    const setupApp = async () => {
+      try {
+        // Configure notification service
+        NotificationService.configure();
+
+        // Request permissions
+        const permissionResult = await requestAppPermissions();
+        console.log('Permission request results:', permissionResult);
+
+        if (permissionResult.allGranted) {
+          setPermissionsGranted(true);
+        } else {
+          setShowPermissionPrompt(true);
+        }
+      } catch (error) {
+        console.error('Error setting up app:', error);
+        setShowPermissionPrompt(true);
+      }
+    };
+
+    setupApp();
+  }, []);
+
+  // Show permission prompt dialog
+  useEffect(() => {
+    if (showPermissionPrompt) {
+      Alert.alert(
+        'Permissions Required',
+        'SAMFMS Driver App needs location, vibration, and notification permissions to function properly.',
+        [
+          {
+            text: 'Open Settings',
+            onPress: () => Linking.openSettings(),
+          },
+          {
+            text: 'Continue Anyway',
+            onPress: () => setPermissionsGranted(true),
+            style: 'cancel',
+          },
+        ]
+      );
+    }
+  }, [showPermissionPrompt]);
+
+  // If permissions aren't determined yet, show a loading screen
+  if (!permissionsGranted && !showPermissionPrompt) {
+    return (
+      <SafeAreaProvider>
+        <LoadingScreen message="Checking permissions..." />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <AuthProvider>
       <AppContent />
@@ -73,29 +159,6 @@ function SAMFMSLanding({ onLoginSuccess }: { onLoginSuccess: () => void }) {
     'Optimize Vehicle Operations',
     'Track Assets in Real-time',
     'Streamline Operations',
-  ];
-
-  const features = [
-    {
-      icon: '🚗',
-      title: 'Vehicle Tracking',
-      description: 'Real-time GPS tracking and route optimization',
-    },
-    {
-      icon: '🛡️',
-      title: 'Security & Safety',
-      description: 'Advanced security features and driver monitoring',
-    },
-    {
-      icon: '📊',
-      title: 'Analytics & Reports',
-      description: 'Comprehensive analytics for data-driven decisions',
-    },
-    {
-      icon: '⚡',
-      title: 'Smart Automation',
-      description: 'Automated maintenance and intelligent alerts',
-    },
   ];
 
   useEffect(() => {
@@ -173,67 +236,6 @@ function SAMFMSLanding({ onLoginSuccess }: { onLoginSuccess: () => void }) {
             <TouchableOpacity style={[styles.secondaryButton, { borderColor: theme.border }]}>
               <Text style={[styles.secondaryButtonText, { color: theme.text }]}>🔗 GitHub</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Features Grid */}
-        <View style={styles.featuresSection}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Key Features</Text>
-
-          <View style={styles.featuresGrid}>
-            {features.map((feature, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.featureCard,
-                  {
-                    backgroundColor: theme.cardBackground,
-                    borderColor: theme.border,
-                  },
-                ]}
-              >
-                <Text style={styles.featureIcon}>{feature.icon}</Text>
-                <Text style={[styles.featureTitle, { color: theme.text }]}>{feature.title}</Text>
-                <Text style={[styles.featureDescription, { color: theme.textSecondary }]}>
-                  {feature.description}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Stats Section */}
-        <View style={styles.statsSection}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Why Choose SAMFMS?</Text>
-
-          <View style={styles.statsGrid}>
-            <View
-              style={[
-                styles.statCard,
-                { backgroundColor: theme.cardBackground, borderColor: theme.border },
-              ]}
-            >
-              <Text style={[styles.statNumber, { color: theme.accent }]}>99.9%</Text>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Uptime</Text>
-            </View>
-            <View
-              style={[
-                styles.statCard,
-                { backgroundColor: theme.cardBackground, borderColor: theme.border },
-              ]}
-            >
-              <Text style={[styles.statNumber, { color: theme.accent }]}>Real-time</Text>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Tracking</Text>
-            </View>
-            <View
-              style={[
-                styles.statCard,
-                { backgroundColor: theme.cardBackground, borderColor: theme.border },
-              ]}
-            >
-              <Text style={[styles.statNumber, { color: theme.accent }]}>24/7</Text>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Support</Text>
-            </View>
           </View>
         </View>
 
@@ -338,79 +340,6 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 14,
     fontWeight: '500',
-  },
-  featuresSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 40,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  featuresGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 15,
-  },
-  featureCard: {
-    width: (width - 55) / 2,
-    padding: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  featureIcon: {
-    fontSize: 32,
-    marginBottom: 12,
-  },
-  featureTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  featureDescription: {
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  statsSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 40,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 15,
-  },
-  statCard: {
-    flex: 1,
-    padding: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    textAlign: 'center',
   },
   footer: {
     paddingHorizontal: 20,

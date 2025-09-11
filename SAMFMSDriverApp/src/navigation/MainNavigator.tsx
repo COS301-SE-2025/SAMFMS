@@ -11,6 +11,7 @@ import AccountScreen from '../screens/AccountScreen';
 import HelpScreen from '../screens/HelpScreen';
 import TripDetailsScreen from '../screens/TripDetailsScreen';
 import ActiveTripScreen from '../screens/ActiveTripScreen';
+import BehaviorMonitoringScreen from '../screens/BehaviorMonitoringScreen';
 import SwipeNavigationWrapper from '../components/SwipeNavigationWrapper';
 
 const Tab = createBottomTabNavigator();
@@ -23,6 +24,7 @@ function DashboardStack() {
       <Stack.Screen name="DashboardHome" component={DashboardScreen} />
       <Stack.Screen name="TripDetails" component={TripDetailsScreen} />
       <Stack.Screen name="ActiveTrip" component={ActiveTripScreen} />
+      <Stack.Screen name="BehaviorMonitoring" component={BehaviorMonitoringScreen} />
     </Stack.Navigator>
   );
 }

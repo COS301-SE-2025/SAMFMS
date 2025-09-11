@@ -9,16 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  Bell,
-  Moon,
-  Sun,
-  LogOut,
-  Info,
-  MessageSquare,
-  Star,
-  ChevronRight,
-} from 'lucide-react-native';
+import { Bell, Moon, Sun, ChevronRight } from 'lucide-react-native';
 
 interface SettingItemProps {
   icon: any;
@@ -140,49 +131,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Support Section */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>SUPPORT</Text>
-          <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
-            <SettingItem
-              icon={MessageSquare}
-              title="Contact Support"
-              subtitle="Get help with your account"
-              theme={theme}
-              onPress={() => console.log('Contact Support pressed')}
-              showChevron
-            />
-            <SettingItem
-              icon={Star}
-              title="Rate App"
-              subtitle="Help us improve by rating the app"
-              theme={theme}
-              onPress={() => console.log('Rate App pressed')}
-              showChevron
-            />
-            <SettingItem
-              icon={Info}
-              title="About"
-              subtitle="App version and information"
-              theme={theme}
-              onPress={() => console.log('About pressed')}
-              showChevron
-            />
-          </View>
-        </View>
-
-        {/* Account Actions */}
-        <View style={[styles.section, styles.lastSection]}>
-          <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
-            <SettingItem
-              icon={LogOut}
-              title="Sign Out"
-              theme={theme}
-              onPress={() => console.log('Sign Out pressed')}
-              showChevron
-            />
-          </View>
-        </View>
+        {/* Removed Support Section and Sign Out button */}
       </ScrollView>
     </SafeAreaView>
   );
