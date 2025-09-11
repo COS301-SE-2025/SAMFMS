@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: Core   # operate inside /Core
+        working-directory: Core
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,20 +36,16 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov
 
-      - name: Run unit tests (quiet) with coverage, no files
+      - name: Run unit tests (quiet) with coverage (no repo files)
         env:
-          # suppress warnings everywhere
+          # Hide warnings completely
           PYTHONWARNINGS: ignore
-          # avoid writing .pyc files (__pycache__)
+          # Avoid __pycache__ in workspace
           PYTHONDONTWRITEBYTECODE: '1'
-          # stop pytest from creating .pytest_cache
-          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
-          # allow pytest-cov while autoload is disabled
-          PYTEST_ADDOPTS: -p pytest_cov
-          # prevent coverage.py from writing a .coverage data file
-          COVERAGE_FILE: /dev/null
+          # Put coverage data in the runner's temp dir (not in the repo)
+          COVERAGE_FILE: ${{ runner.temp }}/.coverage
         run: |
           pytest tests/unit \
-            -q --disable-warnings \
-            -p no:warnings -p no:cacheprovider \
+            -q --disable-warnings --maxfail=1 \
+            -p no:cacheprovider \
             --cov=. --cov-report=term
