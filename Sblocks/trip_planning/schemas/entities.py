@@ -31,6 +31,8 @@ class TripStatus(str, Enum):
     COMPLETED = "completed"
     CANCELLED = "cancelled"
     DELAYED = "delayed"
+    INACTIVE = "inactive"
+    PAUSED = "paused"
 
 
 class TripPriority(str, Enum):
