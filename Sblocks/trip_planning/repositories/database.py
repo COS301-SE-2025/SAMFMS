@@ -124,7 +124,7 @@ class DatabaseManager:
             await self.trips.create_index("status")
             await self.trips.create_index("scheduled_start_time")
             await self.trips.create_index("created_by")
-            await self.trips.create_index("driver_assignment.driver_id")
+            await self.trips.create_index("driver_assignment")
             await self.trips.create_index("vehicle_id")
             await self.trips.create_index([("scheduled_start_time", 1), ("status", 1)])
             
@@ -159,7 +159,7 @@ class DatabaseManager:
             await self.trips.create_index([
                 ("status", 1), 
                 ("scheduled_start_time", 1), 
-                ("driver_assignment.driver_id", 1)
+                ("driver_assignment", 1)
             ])
             
             logger.info("Database indexes created successfully")

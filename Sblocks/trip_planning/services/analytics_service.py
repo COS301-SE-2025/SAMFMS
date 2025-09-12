@@ -507,17 +507,17 @@ class AnalyticsService:
                 query["scheduled_start_time"] = date_query
             
             if driver_ids:
-                query["driver_assignment.driver_id"] = {"$in": driver_ids}
+                query["driver_assignment"] = {"$in": driver_ids}
             else:
                 # Get all drivers with trips in the period
-                query["driver_assignment.driver_id"] = {"$exists": True}
+                query["driver_assignment"] = {"$exists": True}
             
             # Aggregate by driver
             pipeline = [
                 {"$match": query},
                 {
                     "$group": {
-                        "_id": "$driver_assignment.driver_id",
+                        "_id": "$driver_assignment",
                         "total_trips": {"$sum": 1},
                         "completed_trips": {
                             "$sum": {"$cond": [{"$eq": ["$status", "completed"]}, 1, 0]}
@@ -662,7 +662,7 @@ class AnalyticsService:
         
         # Entity filters
         if request.driver_ids:
-            query["driver_assignment.driver_id"] = {"$in": request.driver_ids}
+            query["driver_assignment"] = {"$in": request.driver_ids}
         
         if request.vehicle_ids:
             query["vehicle_id"] = {"$in": request.vehicle_ids}
@@ -787,7 +787,7 @@ class AnalyticsService:
             {"$match": query},
             {
                 "$group": {
-                    "_id": "$driver_assignment.driver_id",
+                    "_id": "$driver_assignment",
                     "trip_count": {"$sum": 1},
                     "completed_trips": {
                         "$sum": {"$cond": [{"$eq": ["$status", "completed"]}, 1, 0]}

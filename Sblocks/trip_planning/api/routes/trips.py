@@ -171,7 +171,7 @@ async def complete_trip(
     current_user: str = Depends(get_current_user),
     trip: Trip = Depends(validate_trip_access)
 ):
-    """Complete a trip"""
+    """Complete a trip and move it to history"""
     try:
         completed_trip = await trip_service.complete_trip(trip_id, current_user)
         
@@ -180,7 +180,7 @@ async def complete_trip(
         
         return ResponseBuilder.success(
             data={"trip": completed_trip.dict()},
-            message="Trip completed successfully"
+            message="Trip completed successfully and moved to history"
         )
     
     except ValueError as e:
@@ -212,28 +212,80 @@ async def start_trip(
         raise HTTPException(status_code=500, detail="Failed to start trip")
 
 
-@router.post("/{trip_id}/play", response_model=Dict[str, Any])
-async def start_trip(
+
+@router.post("/{trip_id}/pause", response_model=Dict[str, Any])
+async def pause_trip(
     trip_id: str,
     current_user: str = Depends(get_current_user),
     trip: Trip = Depends(validate_trip_access)
 ):
-    """Start a trip"""
+
+    """Pause a trip"""
     try:
-        started_trip = await trip_service.start_trip(trip_id, current_user)
+        paused_trip = await trip_service.pause_trip(trip_id, current_user)
         
-        if not started_trip:
+        if not paused_trip:
             raise HTTPException(status_code=404, detail="Trip not found")
         
         return ResponseBuilder.success(
-            data={"trip": started_trip.dict()},
-            message="Trip started successfully"
+            data={"trip": paused_trip.dict()},
+            message="Trip paused successfully"
         )
     
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to start trip")
+
+        raise HTTPException(status_code=500, detail="Failed to pause trip")
+
+
+@router.post("/{trip_id}/resume", response_model=Dict[str, Any])
+async def resume_trip(
+    trip_id: str,
+    current_user: str = Depends(get_current_user),
+    trip: Trip = Depends(validate_trip_access)
+):
+    """Resume a paused trip"""
+    try:
+        resumed_trip = await trip_service.resume_trip(trip_id, current_user)
+        
+        if not resumed_trip:
+            raise HTTPException(status_code=404, detail="Trip not found")
+        
+        return ResponseBuilder.success(
+            data={"trip": resumed_trip.dict()},
+            message="Trip resumed successfully"
+        )
+    
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to resume trip")
+
+
+@router.post("/{trip_id}/cancel", response_model=Dict[str, Any])
+async def cancel_trip(
+    trip_id: str,
+    reason: Optional[str] = Body("User requested cancellation", embed=True),
+    current_user: str = Depends(get_current_user),
+    trip: Trip = Depends(validate_trip_access)
+):
+    """Cancel a trip and move it to history"""
+    try:
+        cancelled_trip = await trip_service.cancel_trip(trip_id, current_user, reason)
+        
+        if not cancelled_trip:
+            raise HTTPException(status_code=404, detail="Trip not found")
+        
+        return ResponseBuilder.success(
+            data={"trip": cancelled_trip.dict()},
+            message="Trip cancelled successfully and moved to history"
+        )
+    
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to cancel trip")
 
 @router.post("/{trip_id}/optimize-route", response_model=Dict[str, Any])
 async def optimize_trip_route(

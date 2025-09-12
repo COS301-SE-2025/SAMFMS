@@ -193,7 +193,7 @@ class DriverService:
         try:
             # Find conflicting trips
             conflicting_trips = await self.db.trips.find({
-                "driver_assignment.driver_id": driver_id,
+                "driver_assignment": driver_id,
                 "status": {"$in": [TripStatus.SCHEDULED, TripStatus.IN_PROGRESS]},
                 "$or": [
                     {
@@ -242,7 +242,7 @@ class DriverService:
                 if not is_available:
                     # Get conflicting trips
                     conflicting_trips = await self.db.trips.find({
-                        "driver_assignment.driver_id": driver_id,
+                        "driver_assignment": driver_id,
                         "status": {"$in": [TripStatus.SCHEDULED, TripStatus.IN_PROGRESS]},
                         "$or": [
                             {
@@ -370,7 +370,7 @@ class DriverService:
         try:
             # Find the earliest end time of conflicting trips
             conflicting_trips = await self.db.trips.find({
-                "driver_assignment.driver_id": driver_id,
+                "driver_assignment": driver_id,
                 "status": {"$in": [TripStatus.SCHEDULED, TripStatus.IN_PROGRESS]},
                 "scheduled_start_time": {"$gte": after_time}
             }).sort("scheduled_end_time", 1).to_list(length=1)

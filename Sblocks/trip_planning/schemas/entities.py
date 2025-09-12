@@ -28,11 +28,11 @@ class TripStatus(str, Enum):
     """Trip status enumeration"""
     SCHEDULED = "scheduled"
     IN_PROGRESS = "in_progress"
+    PAUSED = "paused"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
     DELAYED = "delayed"
-    INACTIVE = "inactive"
-    PAUSED = "paused"
+    MISSED = "missed"
 
 
 class TripPriority(str, Enum):
