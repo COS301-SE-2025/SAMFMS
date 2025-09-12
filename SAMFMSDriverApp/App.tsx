@@ -25,8 +25,6 @@ import LoginModal from './src/components/LoginModal';
 import LoadingScreen from './src/components/LoadingScreen';
 import MainNavigator from './src/navigation/MainNavigator';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
-import { BehaviorMonitoringProvider } from './src/contexts/BehaviorMonitoringContext';
-import NotificationService from './src/services/NotificationService';
 import { requestAppPermissions } from './src/utils/PermissionUtils';
 
 function AppContent() {
@@ -59,13 +57,11 @@ function AppContent() {
   if (isLoggedIn) {
     return (
       <SafeAreaProvider>
-        <BehaviorMonitoringProvider>
-          <StatusBar
-            barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-            backgroundColor={isDarkMode ? '#0f172a' : '#f8fafc'}
-          />
-          <MainNavigator />
-        </BehaviorMonitoringProvider>
+        <StatusBar
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+          backgroundColor={isDarkMode ? '#0f172a' : '#f8fafc'}
+        />
+        <MainNavigator />
       </SafeAreaProvider>
     );
   }
@@ -89,9 +85,6 @@ function App() {
   React.useEffect(() => {
     const setupApp = async () => {
       try {
-        // Configure notification service
-        NotificationService.configure();
-
         // Request permissions
         const permissionResult = await requestAppPermissions();
         console.log('Permission request results:', permissionResult);

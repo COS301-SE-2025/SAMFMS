@@ -400,9 +400,14 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ route, navigation
               // Try different distance field possibilities
               const tripAny = trip as any;
 
-              // Check for estimated_distance (number in meters)
+              // Check for route_info.distance first (this is in meters)
+              if (trip.route_info?.distance && typeof trip.route_info.distance === 'number') {
+                return Math.round(trip.route_info.distance / 1000) + ' km';
+              }
+
+              // Check for estimated_distance (this is already in km)
               if (trip.estimated_distance && typeof trip.estimated_distance === 'number') {
-                return (trip.estimated_distance / 1000).toFixed(1) + ' km';
+                return Math.round(trip.estimated_distance) + ' km';
               }
 
               // Check for distance field (could be string or number)
@@ -415,10 +420,10 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ route, navigation
                   // If it's a string number, convert it
                   const numDistance = parseFloat(tripAny.distance);
                   if (!isNaN(numDistance)) {
-                    return (numDistance / 1000).toFixed(1) + ' km';
+                    return Math.round(numDistance) + ' km';
                   }
                 } else if (typeof tripAny.distance === 'number') {
-                  return (tripAny.distance / 1000).toFixed(1) + ' km';
+                  return Math.round(tripAny.distance) + ' km';
                 }
               }
 
@@ -429,7 +434,7 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ route, navigation
                     ? tripAny.total_distance
                     : parseFloat(tripAny.total_distance);
                 if (!isNaN(dist)) {
-                  return (dist / 1000).toFixed(1) + ' km';
+                  return Math.round(dist) + ' km';
                 }
               }
 
@@ -495,6 +500,18 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ route, navigation
           ${routeLine.map(coord => `[${coord.latitude}, ${coord.longitude}]`).join(',\n          ')}
         ];
         
+        // Get waypoints data if available
+        const waypoints = ${JSON.stringify(
+          trip.waypoints?.map((waypoint: any) => ({
+            id: waypoint.id,
+            coordinates: waypoint.location?.coordinates
+              ? [waypoint.location.coordinates[1], waypoint.location.coordinates[0]]
+              : null,
+            name: waypoint.name || `Waypoint ${waypoint.order || ''}`,
+            order: waypoint.order || 0,
+          })) || []
+        )};
+        
         // Get location names and truncate at first comma
         const pickupFullName = "${
           trip.origin && trip.origin.name
@@ -540,9 +557,26 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ route, navigation
             popupAnchor: [0, -30]
         });
         
+        const waypointIcon = L.icon({
+            iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>'),
+            iconSize: [25, 25],
+            iconAnchor: [12, 25],
+            popupAnchor: [0, -25]
+        });
+        
         // Update markers with custom icons
         startMarker.setIcon(blueIcon);
         endMarker.setIcon(greenIcon);
+        
+        // Add waypoint markers
+        const waypointMarkers = [];
+        waypoints.forEach((waypoint, index) => {
+            if (waypoint.coordinates && waypoint.coordinates.length === 2) {
+                const waypointMarker = L.marker(waypoint.coordinates, { icon: waypointIcon }).addTo(map)
+                    .bindPopup('<b>Waypoint:</b><br>' + waypoint.name);
+                waypointMarkers.push(waypointMarker);
+            }
+        });
         
         // Add priority indicator in top right corner
         const priorityText = "${
@@ -587,8 +621,9 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ route, navigation
                 opacity: 0.8
             }).addTo(map);
             
-            // Fit map to show entire route with tighter bounds
-            const group = new L.featureGroup([startMarker, endMarker, polyline]);
+            // Fit map to show entire route with tighter bounds including waypoints
+            const allMarkers = [startMarker, endMarker, ...waypointMarkers];
+            const group = new L.featureGroup([...allMarkers, polyline]);
             const bounds = group.getBounds();
             
             // Use adequate padding to ensure both markers are clearly visible
@@ -597,8 +632,9 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ route, navigation
                 // Removed maxZoom to allow automatic zoom calculation
             });
         } else {
-            // If no route, fit to markers with appropriate zoom
-            const group = new L.featureGroup([startMarker, endMarker]);
+            // If no route, fit to markers with appropriate zoom including waypoints
+            const allMarkers = [startMarker, endMarker, ...waypointMarkers];
+            const group = new L.featureGroup(allMarkers);
             const bounds = group.getBounds();
             
             // Calculate distance between points to determine appropriate zoom
@@ -617,9 +653,9 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ route, navigation
             // Force refresh of map size and re-fit bounds for better display
             map.invalidateSize();
             
-            // Re-fit to ensure optimal zoom after map is fully loaded
+            // Re-fit to ensure optimal zoom after map is fully loaded including waypoints
             if (routeCoordinates.length > 0) {
-                const allElements = [startMarker, endMarker];
+                const allElements = [startMarker, endMarker, ...waypointMarkers];
                 if (map.hasLayer(L.polyline(routeCoordinates))) {
                     allElements.push(L.polyline(routeCoordinates));
                 }

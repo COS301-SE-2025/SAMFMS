@@ -190,63 +190,6 @@ const styles = StyleSheet.create({
   loadingSpinnerWhite: {
     borderColor: 'white',
   },
-  // Simplified Trip Schedule Card Styles
-  tripScheduleCard: {
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    alignItems: 'stretch',
-    padding: 20,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  scheduleInfo: {
-    flex: 1,
-    paddingRight: 0,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-    paddingHorizontal: 4,
-  },
-  timeLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    width: 50,
-    textAlign: 'left',
-  },
-  timeValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    flex: 1,
-    textAlign: 'right',
-    letterSpacing: 0.3,
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginLeft: 8,
-  },
 });
 
 const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
@@ -551,6 +494,17 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         ]
       : [37.6197, -122.3875];
 
+    // Get waypoints data if available
+    const waypoints =
+      activeTrip?.waypoints?.map((waypoint: any) => ({
+        id: waypoint.id,
+        coordinates: waypoint.location?.coordinates
+          ? [waypoint.location.coordinates[1], waypoint.location.coordinates[0]]
+          : null,
+        name: waypoint.name || `Waypoint ${waypoint.order || ''}`,
+        order: waypoint.order || 0,
+      })) || [];
+
     const initialVehiclePos = pickup; // Start at pickup, will be updated via postMessage
     const initialPolylineCoords = [pickup, destination]; // Basic route, will be updated via postMessage
 
@@ -625,6 +579,9 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         let vehiclePosition = [${initialVehiclePos[0]}, ${initialVehiclePos[1]}];
         let routeCoordinates = ${JSON.stringify(initialPolylineCoords)};
         
+        // Get waypoints data if available
+        const waypoints = ${JSON.stringify(waypoints)};
+        
         // Get location names and truncate at first comma
         const pickupFullName = "${
           activeTrip?.origin?.name || activeTrip?.origin?.address || 'Pickup Location'
@@ -658,6 +615,13 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
             popupAnchor: [0, -48]
         });
         
+        const waypointIcon = L.icon({
+            iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>'),
+            iconSize: [25, 25],
+            iconAnchor: [12, 25],
+            popupAnchor: [0, -25]
+        });
+        
         // Add static markers (these don't change)
         const startMarker = L.marker(pickup, { icon: blueIcon }).addTo(map)
             .bindPopup('<b>From:</b><br>' + pickupName);
@@ -668,6 +632,16 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         // Add initial vehicle marker (this will be updated)
         vehicleMarker = L.marker(vehiclePosition, { icon: vehicleIcon }).addTo(map)
             .bindPopup('<b>Vehicle Position</b><br>Speed: 0 km/h'); // Initial speed, will be updated via postMessage
+        
+        // Add waypoint markers
+        const waypointMarkers = [];
+        waypoints.forEach((waypoint, index) => {
+            if (waypoint.coordinates && waypoint.coordinates.length === 2) {
+                const waypointMarker = L.marker(waypoint.coordinates, { icon: waypointIcon }).addTo(map)
+                    .bindPopup('<b>Waypoint:</b><br>' + waypoint.name);
+                waypointMarkers.push(waypointMarker);
+            }
+        });
         
         // Add priority indicator in top right corner
         const priorityText = "${
@@ -723,8 +697,9 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
                 opacity: 0.8
             }).addTo(map);
             
-            // Fit map to show entire route with tighter bounds
-            const group = new L.featureGroup([startMarker, endMarker, vehicleMarker, routePolyline]);
+            // Fit map to show entire route with tighter bounds including waypoints
+            const allMarkers = [startMarker, endMarker, vehicleMarker, ...waypointMarkers];
+            const group = new L.featureGroup([...allMarkers, routePolyline]);
             const bounds = group.getBounds();
             
             // Use adequate padding to ensure all markers are clearly visible
@@ -732,8 +707,9 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
                 padding: [80, 80] // Generous padding to ensure all locations are visible
             });
         } else {
-            // If no route, fit to markers with appropriate zoom
-            const group = new L.featureGroup([startMarker, endMarker, vehicleMarker]);
+            // If no route, fit to markers with appropriate zoom including waypoints
+            const allMarkers = [startMarker, endMarker, vehicleMarker, ...waypointMarkers];
+            const group = new L.featureGroup(allMarkers);
             const bounds = group.getBounds();
             
             // Always use generous padding to ensure all markers are visible
@@ -783,9 +759,9 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
             // Force refresh of map size and re-fit bounds for better display
             map.invalidateSize();
             
-            // Re-fit to ensure optimal zoom after map is fully loaded
+            // Re-fit to ensure optimal zoom after map is fully loaded including waypoints
             if (routeCoordinates.length > 0) {
-                const allElements = [startMarker, endMarker, vehicleMarker];
+                const allElements = [startMarker, endMarker, vehicleMarker, ...waypointMarkers];
                 const group = new L.featureGroup(allElements);
                 map.fitBounds(group.getBounds(), {
                     padding: [80, 80] // Good padding in delayed fit
@@ -1181,41 +1157,6 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
               )}
             </TouchableOpacity>
           )}
-        </View>
-      </View>
-
-      {/* Simplified Trip Schedule Card */}
-      <View
-        style={[
-          styles.tripScheduleCard,
-          {
-            backgroundColor: theme.cardBackground,
-            shadowColor: theme.shadow,
-            borderColor: theme.border,
-          },
-        ]}
-      >
-        <View style={styles.scheduleInfo}>
-          <View style={styles.timeRow}>
-            <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>From:</Text>
-            <Text style={[styles.timeValue, { color: theme.text }]} numberOfLines={1}>
-              {activeTrip.origin?.name || activeTrip.origin?.address || 'Unknown'}
-            </Text>
-          </View>
-          <View style={styles.timeRow}>
-            <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>To:</Text>
-            <Text style={[styles.timeValue, { color: theme.text }]} numberOfLines={1}>
-              {activeTrip.destination?.name || activeTrip.destination?.address || 'Unknown'}
-            </Text>
-          </View>
-          <View style={styles.timeRow}>
-            <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>Status:</Text>
-            <View style={styles.statusContainer}>
-              <View style={[styles.statusDot, { backgroundColor: theme.success }]} />
-              <Text style={[styles.statusText, { color: theme.success }]}>In Progress</Text>
-              <View style={[styles.liveDot, { backgroundColor: theme.danger }]} />
-            </View>
-          </View>
         </View>
       </View>
     </SafeAreaView>

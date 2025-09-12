@@ -18,7 +18,6 @@ import {
   CheckCircle,
   Eye,
   AlertCircle,
-  Activity,
   RefreshCw,
 } from 'lucide-react-native';
 import {
@@ -175,15 +174,20 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
       return null;
     };
 
-    const fetchUpcomingTrips = async () => {
+    const fetchUpcomingTrips = async (isInitialLoad = false) => {
       try {
-        setLoading(true);
+        // Only show loading indicator on initial load to prevent flickering
+        if (isInitialLoad) {
+          setLoading(true);
+        }
         const driverId = userData?.id;
 
         if (!driverId) {
           console.log('No driver ID found');
           setTrips([]);
-          setLoading(false);
+          if (isInitialLoad) {
+            setLoading(false);
+          }
           return;
         }
 
@@ -191,14 +195,18 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
         if (!employeeID) {
           console.log('No employee ID found');
           setTrips([]);
-          setLoading(false);
+          if (isInitialLoad) {
+            setLoading(false);
+          }
           return;
         }
 
         const token = await getToken();
         if (!token) {
           setTrips([]);
-          setLoading(false);
+          if (isInitialLoad) {
+            setLoading(false);
+          }
           return;
         }
 
@@ -318,12 +326,27 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
         console.error('Error fetching trips:', error);
         setTrips([]);
       } finally {
-        setLoading(false);
+        if (isInitialLoad) {
+          setLoading(false);
+        }
       }
     };
 
+    // Initial fetch when userData is available
     if (userData?.id) {
-      fetchUpcomingTrips();
+      fetchUpcomingTrips(true); // Pass true for initial load
+
+      // Set up interval to check for upcoming trips changes every 2 seconds
+      const interval = setInterval(() => {
+        if (userData?.id) {
+          fetchUpcomingTrips(false); // Pass false for subsequent loads
+        }
+      }, 2000);
+
+      // Cleanup interval on component unmount or when userData changes
+      return () => {
+        clearInterval(interval);
+      };
     }
   }, [userData?.id]);
 
@@ -903,20 +926,7 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
           loading={loading}
         />
 
-        {/* Behavior Monitoring Button */}
-        <View
-          style={[styles.behaviorMonitoringContainer, { backgroundColor: theme.cardBackground }]}
-        >
-          <TouchableOpacity
-            style={[styles.behaviorMonitoringButton, { backgroundColor: theme.accent }]}
-            onPress={() => navigation?.navigate('BehaviorMonitoring')}
-          >
-            <Activity size={24} color="#ffffff" />
-            <Text style={styles.behaviorMonitoringText}>Behavior Monitoring</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Main Content */}
+        {/* Main Content */
         <View style={styles.tripsContainer}>
           {/* Upcoming Trips */}
           <UpcomingTrips
@@ -929,6 +939,7 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
           {/* Recent Trips */}
           <RecentTrips theme={theme} userData={userData} />
         </View>
+        }
       </ScrollView>
     </SafeAreaView>
   );
@@ -1304,30 +1315,5 @@ const styles = StyleSheet.create({
   tripsContainer: {
     padding: 20,
     gap: 20,
-  },
-  // Behavior Monitoring Styles
-  behaviorMonitoringContainer: {
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  behaviorMonitoringButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    gap: 10,
-  },
-  behaviorMonitoringText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
