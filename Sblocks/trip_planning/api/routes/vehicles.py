@@ -8,7 +8,7 @@ from datetime import datetime
 
 from schemas.responses import ResponseBuilder
 from services.vehicle_service import vehicle_service
-from api.dependencies import get_current_user
+from api.dependencies import get_current_user_legacy as get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

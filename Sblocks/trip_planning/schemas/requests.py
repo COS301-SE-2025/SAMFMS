@@ -1,7 +1,7 @@
 """
 Request schemas for Trip Planning service
 """
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
@@ -10,10 +10,6 @@ from .entities import (
     LocationPoint, Address, Waypoint, TripConstraint, RouteInfo
 )
 
-
-from pydantic import BaseModel, Field, validator
-from typing import List, Dict, Any, Optional
-from datetime import datetime
 
 class CreateTripRequest(BaseModel):
     """Request to create a new trip"""
@@ -236,3 +232,12 @@ class TripProgressRequest(BaseModel):
     status: Optional[TripStatus] = None
     estimated_arrival: Optional[datetime] = None
     notes: Optional[str] = Field(None, max_length=500)
+
+
+class DriverPingRequest(BaseModel):
+    """Request from driver's phone ping"""
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat() + 'Z'})
+    
+    trip_id: str = Field(..., description="Trip ID that driver is currently on")
+    location: LocationPoint = Field(..., description="Driver's current location")
+    timestamp: Optional[datetime] = Field(default_factory=datetime.utcnow, description="Ping timestamp")

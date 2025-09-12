@@ -1,15 +1,97 @@
 """
 API dependencies and utilities
 """
-from fastapi import HTTPException, Depends, Header
-from typing import Optional
+import logging
+import time
+import uuid
+from fastapi import HTTPException, Depends, Header, Request, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import Optional, Dict, Any
 
 from schemas.entities import Trip
 from services.trip_service import trip_service
 
+logger = logging.getLogger(__name__)
 
-async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
-    """Extract current user from authorization header"""
+# Security scheme
+security = HTTPBearer()
+
+
+class RequestTimer:
+    """Context manager for timing requests"""
+    
+    def __init__(self):
+        self.start_time = None
+        self.execution_time_ms = None
+    
+    def __enter__(self):
+        self.start_time = time.time()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.start_time:
+            self.execution_time_ms = (time.time() - self.start_time) * 1000
+
+
+async def get_request_id(request: Request) -> str:
+    """Get or generate request ID for tracing"""
+    request_id = request.headers.get("X-Request-ID")
+    if not request_id:
+        request_id = str(uuid.uuid4())
+    return request_id
+
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
+    """
+    Extract user information from JWT token
+    This is a simplified version - in production, you'd validate the JWT properly
+    """
+    try:
+        # In a real implementation, you would:
+        # 1. Decode and validate the JWT token
+        # 2. Extract user information
+        # 3. Check token expiration
+        # 4. Verify token signature
+        
+        # For now, return a mock user (replace with actual JWT validation)
+        mock_user = {
+            "user_id": "user123",
+            "username": "testuser",
+            "email": "test@example.com",
+            "permissions": ["trips:read", "trips:write", "trips:ping"],
+            "is_admin": False
+        }
+        
+        return mock_user
+        
+    except Exception as e:
+        logger.error(f"Error validating token: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+def require_permission(permission: str):
+    """Dependency to check if user has required permission"""
+    async def check_permission(current_user: Dict[str, Any] = Depends(get_current_user)):
+        user_permissions = current_user.get("permissions", [])
+        
+        # Check if user has the required permission or is admin
+        if permission not in user_permissions and not current_user.get("is_admin", False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Insufficient permissions. Required: {permission}"
+            )
+        
+        return current_user
+    
+    return check_permission
+
+
+async def get_current_user_legacy(authorization: Optional[str] = Header(None)) -> str:
+    """Legacy function - Extract current user from authorization header"""
     # This would integrate with actual authentication service
     # For now, return a mock user
     if not authorization:
@@ -22,6 +104,11 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> str:
         return "user_123"  # Mock user ID
     
     raise HTTPException(status_code=401, detail="Invalid authorization format")
+
+
+async def get_current_user_id(current_user: Dict[str, Any] = Depends(get_current_user)) -> str:
+    """Helper function to get just the user ID for backward compatibility"""
+    return current_user.get("user_id")
 
 
 async def get_current_user_secure(authorization: Optional[str] = Header(None)) -> dict:
@@ -44,7 +131,7 @@ async def get_current_user_secure(authorization: Optional[str] = Header(None)) -
     raise HTTPException(status_code=401, detail="Invalid authorization format")
 
 
-async def validate_trip_access(trip_id: str, current_user: str = Depends(get_current_user)) -> Trip:
+async def validate_trip_access(trip_id: str, current_user: Dict[str, Any] = Depends(get_current_user)) -> Trip:
     """Validate that user has access to the trip"""
     trip = await trip_service.get_trip_by_id(trip_id)
     
@@ -54,8 +141,9 @@ async def validate_trip_access(trip_id: str, current_user: str = Depends(get_cur
     # Check if user has access to this trip
     # This would implement proper access control
     # For now, allow access if user is creator or assigned driver
-    if (trip.created_by != current_user and 
-        (not trip.driver_assignment or trip.driver_assignment != current_user)):
+    user_id = current_user.get("user_id")
+    if (trip.created_by != user_id and 
+        (not trip.driver_assignment or trip.driver_assignment != user_id)):
         raise HTTPException(status_code=403, detail="Access denied")
     
     return trip

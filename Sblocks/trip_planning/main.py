@@ -28,6 +28,7 @@ from api.routes.drivers import router as drivers_router
 from api.routes.trips import router as trips_router
 from api.routes.vehicles import router as vehicles_router
 from api.routes.notifications import router as notifications_router
+from api.routes.driver_ping import router as driver_ping_router
 
 # Import middleware and exception handlers
 from middleware import (
@@ -321,6 +322,7 @@ app.include_router(trips_router, tags=["trips"])
 app.include_router(drivers_router, prefix="/drivers", tags=["drivers"])
 app.include_router(vehicles_router, prefix="/vehicles", tags=["vehicles"])
 app.include_router(notifications_router, tags=["notifications"])
+app.include_router(driver_ping_router, prefix="/api", tags=["driver-ping"])
 
 @app.get("/")
 async def root():

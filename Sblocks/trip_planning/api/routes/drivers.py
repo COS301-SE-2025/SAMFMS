@@ -10,7 +10,7 @@ from schemas.requests import AssignDriverRequest, DriverAvailabilityRequest
 from schemas.responses import ResponseBuilder
 from schemas.entities import Trip
 from services.driver_service import driver_service
-from api.dependencies import get_current_user, validate_trip_access
+from api.dependencies import get_current_user_legacy as get_current_user, validate_trip_access
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

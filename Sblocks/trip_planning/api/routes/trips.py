@@ -15,7 +15,7 @@ from schemas.responses import (
 from schemas.entities import Trip, TripStatus
 from services.trip_service import trip_service
 from services.constraint_service import constraint_service
-from api.dependencies import get_current_user, validate_trip_access
+from api.dependencies import get_current_user_legacy as get_current_user, validate_trip_access
 
 router = APIRouter()
 
