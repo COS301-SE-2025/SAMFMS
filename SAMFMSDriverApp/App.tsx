@@ -10,7 +10,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   StatusBar,
   StyleSheet,
-  useColorScheme,
   View,
   Text,
   ScrollView,
@@ -25,10 +24,11 @@ import LoginModal from './src/components/LoginModal';
 import LoadingScreen from './src/components/LoadingScreen';
 import MainNavigator from './src/navigation/MainNavigator';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { requestAppPermissions } from './src/utils/PermissionUtils';
 
 function AppContent() {
-  const isDarkMode = useColorScheme() === 'dark';
+  const { theme, isDarkMode } = useTheme();
   const { isLoggedIn, login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -47,7 +47,7 @@ function AppContent() {
       <SafeAreaProvider>
         <StatusBar
           barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-          backgroundColor={isDarkMode ? '#0f172a' : '#f8fafc'}
+          backgroundColor={theme.background}
         />
         <LoadingScreen message="Preparing your dashboard..." />
       </SafeAreaProvider>
@@ -59,7 +59,7 @@ function AppContent() {
       <SafeAreaProvider>
         <StatusBar
           barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-          backgroundColor={isDarkMode ? '#0f172a' : '#f8fafc'}
+          backgroundColor={theme.background}
         />
         <MainNavigator />
       </SafeAreaProvider>
@@ -70,7 +70,7 @@ function AppContent() {
     <SafeAreaProvider>
       <StatusBar
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={isDarkMode ? '#0f172a' : '#f8fafc'}
+        backgroundColor={theme.background}
       />
       <SAMFMSLanding onLoginSuccess={handleLoginSuccess} />
     </SafeAreaProvider>
@@ -134,15 +134,17 @@ function App() {
   }
 
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
 function SAMFMSLanding({ onLoginSuccess }: { onLoginSuccess: () => void }) {
   const safeAreaInsets = useSafeAreaInsets();
-  const isDarkMode = useColorScheme() === 'dark';
+  const { theme } = useTheme();
   const [currentSlogan, setCurrentSlogan] = useState(0);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const fadeAnim = useMemo(() => new Animated.Value(1), []);
@@ -174,16 +176,6 @@ function SAMFMSLanding({ onLoginSuccess }: { onLoginSuccess: () => void }) {
 
     return () => clearInterval(interval);
   }, [fadeAnim, slogans.length]);
-
-  const theme = {
-    background: isDarkMode ? '#0f172a' : '#f8fafc',
-    cardBackground: isDarkMode ? '#1e293b' : '#ffffff',
-    text: isDarkMode ? '#f1f5f9' : '#1e293b',
-    textSecondary: isDarkMode ? '#94a3b8' : '#64748b',
-    accent: '#3b82f6',
-    accentHover: '#2563eb',
-    border: isDarkMode ? '#334155' : '#e2e8f0',
-  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>

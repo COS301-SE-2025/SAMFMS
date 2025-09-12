@@ -7,11 +7,11 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  useColorScheme,
 } from 'react-native';
 import Modal from 'react-native-modal';
 import { login } from '../utils/api';
 import SamfmsLogo from './SamfmsLogo';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface LoginModalProps {
   visible: boolean;
@@ -26,18 +26,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose, onSuccess }) 
   const [errors, setErrors] = useState({ email: '', password: '' });
   const [touched, setTouched] = useState({ email: false, password: false });
 
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const theme = {
-    background: isDarkMode ? '#1e293b' : '#ffffff',
-    text: isDarkMode ? '#f1f5f9' : '#1e293b',
-    textSecondary: isDarkMode ? '#94a3b8' : '#64748b',
-    accent: '#3b82f6',
-    border: isDarkMode ? '#334155' : '#e2e8f0',
-    inputBackground: isDarkMode ? '#0f172a' : '#f8fafc',
-    errorColor: '#ef4444',
-    successColor: '#10b981',
-  };
+  const { theme } = useTheme();
 
   const validateEmail = (emailValue: string): string => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -162,7 +151,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose, onSuccess }) 
               styles.input,
               {
                 backgroundColor: theme.inputBackground,
-                borderColor: errors.email && touched.email ? theme.errorColor : theme.border,
+                borderColor: errors.email && touched.email ? theme.danger : theme.border,
                 color: theme.text,
               },
             ]}
@@ -176,7 +165,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose, onSuccess }) 
             autoCorrect={false}
           />
           {errors.email && touched.email && (
-            <Text style={[styles.errorText, { color: theme.errorColor }]}>⚠ {errors.email}</Text>
+            <Text style={[styles.errorText, { color: theme.danger }]}>⚠ {errors.email}</Text>
           )}
         </View>
 
@@ -188,7 +177,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose, onSuccess }) 
               styles.input,
               {
                 backgroundColor: theme.inputBackground,
-                borderColor: errors.password && touched.password ? theme.errorColor : theme.border,
+                borderColor: errors.password && touched.password ? theme.danger : theme.border,
                 color: theme.text,
               },
             ]}
@@ -202,7 +191,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose, onSuccess }) 
             autoCorrect={false}
           />
           {errors.password && touched.password && (
-            <Text style={[styles.errorText, { color: theme.errorColor }]}>⚠ {errors.password}</Text>
+            <Text style={[styles.errorText, { color: theme.danger }]}>⚠ {errors.password}</Text>
           )}
         </View>
 

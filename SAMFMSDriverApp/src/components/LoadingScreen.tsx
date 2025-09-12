@@ -1,19 +1,14 @@
 import React from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import SamfmsLogo from './SamfmsLogo';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface LoadingScreenProps {
   message?: string;
 }
 
 const LoadingScreen: React.FC<LoadingScreenProps> = ({ message = 'Loading...' }) => {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const theme = {
-    background: isDarkMode ? '#0f172a' : '#f8fafc',
-    text: isDarkMode ? '#f1f5f9' : '#1e293b',
-    accent: '#3b82f6',
-  };
+  const { theme } = useTheme();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>

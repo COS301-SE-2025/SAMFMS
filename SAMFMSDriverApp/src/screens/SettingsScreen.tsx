@@ -1,15 +1,8 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  Switch,
-  useColorScheme,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, Moon, Sun, ChevronRight } from 'lucide-react-native';
+import { Bell, Moon, Sun, ChevronRight, Monitor } from 'lucide-react-native';
+import { useTheme, ThemeMode } from '../contexts/ThemeContext';
 
 interface SettingItemProps {
   icon: any;
@@ -63,17 +56,40 @@ const SettingItem: React.FC<SettingItemProps> = ({
 );
 
 export default function SettingsScreen() {
-  const isDarkMode = useColorScheme() === 'dark';
+  const { theme, themeMode, setThemeMode } = useTheme();
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = React.useState(isDarkMode);
 
-  const theme = {
-    background: isDarkMode ? '#0f172a' : '#f8fafc',
-    cardBackground: isDarkMode ? '#1e293b' : '#ffffff',
-    text: isDarkMode ? '#f1f5f9' : '#1e293b',
-    textSecondary: isDarkMode ? '#94a3b8' : '#64748b',
-    accent: '#3b82f6',
-    border: isDarkMode ? '#334155' : '#e2e8f0',
+  const getThemeIcon = () => {
+    switch (themeMode) {
+      case 'dark':
+        return Moon;
+      case 'light':
+        return Sun;
+      case 'system':
+        return Monitor;
+      default:
+        return Sun;
+    }
+  };
+
+  const getThemeLabel = () => {
+    switch (themeMode) {
+      case 'dark':
+        return 'Dark mode';
+      case 'light':
+        return 'Light mode';
+      case 'system':
+        return 'Follow system';
+      default:
+        return 'Light mode';
+    }
+  };
+
+  const toggleTheme = () => {
+    const modes: ThemeMode[] = ['light', 'dark', 'system'];
+    const currentIndex = modes.indexOf(themeMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    setThemeMode(modes[nextIndex]);
   };
 
   return (
@@ -115,18 +131,12 @@ export default function SettingsScreen() {
           <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>APPEARANCE</Text>
           <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
             <SettingItem
-              icon={isDarkMode ? Moon : Sun}
+              icon={getThemeIcon()}
               title="Theme"
-              subtitle={isDarkMode ? 'Dark mode' : 'Light mode'}
+              subtitle={getThemeLabel()}
               theme={theme}
-              rightElement={
-                <Switch
-                  value={darkModeEnabled}
-                  onValueChange={setDarkModeEnabled}
-                  trackColor={{ false: '#94a3b8', true: '#3b82f6' }}
-                  thumbColor={darkModeEnabled ? '#ffffff' : '#f4f4f5'}
-                />
-              }
+              onPress={toggleTheme}
+              showChevron={true}
             />
           </View>
         </View>

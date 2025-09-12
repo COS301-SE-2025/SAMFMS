@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Home, Settings, User, HelpCircle } from 'lucide-react-native';
-import { useColorScheme } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -46,14 +46,14 @@ const HelpIcon = ({ color, size }: { color: string; size: number }) => (
 );
 
 export default function MainNavigator() {
-  const isDarkMode = useColorScheme() === 'dark';
+  const { theme } = useTheme();
 
-  const theme = {
-    tabBarActiveTintColor: '#3b82f6',
-    tabBarInactiveTintColor: isDarkMode ? '#94a3b8' : '#64748b',
+  const tabBarTheme = {
+    tabBarActiveTintColor: theme.accent,
+    tabBarInactiveTintColor: theme.textSecondary,
     tabBarStyle: {
-      backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
-      borderTopColor: isDarkMode ? '#334155' : '#e2e8f0',
+      backgroundColor: theme.cardBackground,
+      borderTopColor: theme.border,
     },
   };
 
@@ -79,9 +79,9 @@ export default function MainNavigator() {
           <Tab.Navigator
             screenOptions={({ route }) => ({
               tabBarIcon: getTabBarIcon(route.name),
-              tabBarActiveTintColor: theme.tabBarActiveTintColor,
-              tabBarInactiveTintColor: theme.tabBarInactiveTintColor,
-              tabBarStyle: theme.tabBarStyle,
+              tabBarActiveTintColor: tabBarTheme.tabBarActiveTintColor,
+              tabBarInactiveTintColor: tabBarTheme.tabBarInactiveTintColor,
+              tabBarStyle: tabBarTheme.tabBarStyle,
               headerShown: false,
             })}
           >

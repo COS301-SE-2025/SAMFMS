@@ -1,15 +1,8 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  useColorScheme,
-  StyleSheet,
-  Linking,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Phone, Mail, FileText, ChevronRight } from 'lucide-react-native';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface HelpItemProps {
   icon: any;
@@ -83,16 +76,7 @@ const FAQItem: React.FC<FAQItemProps> = ({ question, answer, theme }) => {
 };
 
 export default function HelpScreen() {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const theme = {
-    background: isDarkMode ? '#0f172a' : '#f8fafc',
-    cardBackground: isDarkMode ? '#1e293b' : '#ffffff',
-    text: isDarkMode ? '#f1f5f9' : '#1e293b',
-    textSecondary: isDarkMode ? '#94a3b8' : '#64748b',
-    accent: '#3b82f6',
-    border: isDarkMode ? '#334155' : '#e2e8f0',
-  };
+  const { theme } = useTheme();
 
   const openEmail = () => {
     Linking.openURL('mailto:support@samfms.com');

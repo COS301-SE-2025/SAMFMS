@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  useColorScheme,
   StyleSheet,
   TextInput,
   Alert,
@@ -14,9 +13,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { User, Phone, Mail, Award, Edit3, Save, X, LogOut } from 'lucide-react-native';
 import { getUserData, setUserData as saveUserData, API_URL, getToken, logout } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function AccountScreen() {
-  const isDarkMode = useColorScheme() === 'dark';
+  const { theme } = useTheme();
   const { logout: authLogout } = useAuth();
 
   const [userData, setUserData] = useState({
@@ -38,17 +38,6 @@ export default function AccountScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-
-  const theme = {
-    background: isDarkMode ? '#0f172a' : '#f8fafc',
-    cardBackground: isDarkMode ? '#1e293b' : '#ffffff',
-    text: isDarkMode ? '#f1f5f9' : '#1e293b',
-    textSecondary: isDarkMode ? '#94a3b8' : '#64748b',
-    accent: '#3b82f6',
-    border: isDarkMode ? '#334155' : '#e2e8f0',
-    success: '#10b981',
-    error: '#ef4444',
-  };
 
   useEffect(() => {
     fetchUserData();
@@ -402,10 +391,10 @@ export default function AccountScreen() {
           <View
             style={[
               styles.errorContainer,
-              { backgroundColor: theme.error + '20', borderColor: theme.error },
+              { backgroundColor: theme.danger + '20', borderColor: theme.danger },
             ]}
           >
-            <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
+            <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
           </View>
         ) : null}
 
@@ -541,7 +530,7 @@ export default function AccountScreen() {
           <TouchableOpacity
             style={[
               styles.logoutButton,
-              { backgroundColor: theme.error, borderColor: theme.error },
+              { backgroundColor: theme.danger, borderColor: theme.danger },
             ]}
             onPress={handleLogout}
           >

@@ -4,22 +4,13 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  useColorScheme,
   StyleSheet,
   Dimensions,
   ActivityIndicator,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  MapPin,
-  Clock,
-  Play,
-  CheckCircle,
-  Eye,
-  AlertCircle,
-  RefreshCw,
-} from 'lucide-react-native';
+import { MapPin, Clock, Play, CheckCircle, Eye, AlertCircle, RefreshCw } from 'lucide-react-native';
 import {
   getUserData,
   setUserData as saveUserData,
@@ -28,6 +19,7 @@ import {
   updateTrip,
 } from '../utils/api';
 import { useActiveTripContext } from '../contexts/ActiveTripContext';
+import { useTheme } from '../contexts/ThemeContext';
 const { width } = Dimensions.get('window');
 
 // Header refresh button component defined outside of the main component
@@ -59,6 +51,7 @@ interface DriverScoreCardProps {
   userData: any;
   performanceData: any;
   loading: boolean;
+  onRefreshUserData: () => void;
 }
 
 const DriverScoreCard: React.FC<DriverScoreCardProps> = ({
@@ -66,6 +59,7 @@ const DriverScoreCard: React.FC<DriverScoreCardProps> = ({
   userData,
   performanceData,
   loading,
+  onRefreshUserData,
 }) => {
   if (loading) {
     return (
@@ -106,6 +100,12 @@ const DriverScoreCard: React.FC<DriverScoreCardProps> = ({
               ID: {userData?.employee_id || userData?.employeeId || 'Unknown'}
             </Text>
           </View>
+          <TouchableOpacity
+            onPress={onRefreshUserData}
+            style={[styles.refreshButton, { backgroundColor: theme.accent + '20' }]}
+          >
+            <RefreshCw size={16} color={theme.accent} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -648,7 +648,7 @@ const RecentTrips: React.FC<RecentTripsProps> = ({ theme, userData }) => {
 };
 
 export default function DashboardScreen({ navigation }: { navigation?: any }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const { theme } = useTheme();
   const [userData, setUserData] = useState<any>(null);
   const [performanceData, setPerformanceData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -662,23 +662,15 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
     error: activeTripError,
   } = useActiveTripContext();
 
-  const theme = {
-    background: isDarkMode ? '#0f172a' : '#f8fafc',
-    cardBackground: isDarkMode ? '#1e293b' : '#ffffff',
-    text: isDarkMode ? '#f1f5f9' : '#1e293b',
-    textSecondary: isDarkMode ? '#94a3b8' : '#64748b',
-    accent: '#3b82f6',
-    border: isDarkMode ? '#334155' : '#e2e8f0',
-    success: '#10b981',
-    warning: '#f59e0b',
-    error: '#ef4444',
-  };
-
   const getEmployeeID = useCallback(async (security_id: string) => {
     try {
       const token = await getToken();
-      if (!token) return null;
+      if (!token) {
+        console.log('No token available for employee ID fetch');
+        return null;
+      }
 
+      console.log('Fetching employee ID for security_id:', security_id);
       const response = await fetch(`${API_URL}/management/drivers/employee/${security_id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -688,19 +680,40 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Employee ID API response (main):', data);
-        // Handle nested structure: {"status":"success","data":{"data":"EMP139"}}
-        if (data.status === 'success') {
+        console.log('Employee ID API response (full):', JSON.stringify(data, null, 2));
+
+        // Handle various response formats
+        if (data.status === 'success' || data.success) {
+          // Try different possible data structures - prioritize the exact structure from API response
+          let employeeId = null;
+
+          // Handle the exact structure from your API response: {data: {data: "EMP139"}}
           if (data.data && typeof data.data === 'object' && data.data.data) {
-            console.log('Employee ID (data.data.data):', data.data.data);
-            // Don't modify userData directly here - we'll update it properly in the calling function
-            return data.data.data;
+            employeeId = data.data.data;
+            console.log('Employee ID found at data.data.data:', employeeId);
           } else if (data.data && typeof data.data === 'string') {
-            console.log('Employee ID (data.data string):', data.data);
-            return data.data;
+            employeeId = data.data;
+            console.log('Employee ID found at data.data:', employeeId);
+          } else if (data.employee_id) {
+            employeeId = data.employee_id;
+            console.log('Employee ID found at employee_id:', employeeId);
+          } else if (data.employeeId) {
+            employeeId = data.employeeId;
+            console.log('Employee ID found at employeeId:', employeeId);
           }
+
+          if (employeeId && employeeId.trim && employeeId.trim() !== '') {
+            const cleanEmployeeId = typeof employeeId === 'string' ? employeeId.trim() : employeeId;
+            console.log('Successfully retrieved employee ID:', cleanEmployeeId);
+            return cleanEmployeeId;
+          } else {
+            console.log('Employee ID not found in successful response, full response:', data);
+          }
+        } else {
+          console.log('API response indicates failure:', data.message || 'Unknown error');
         }
-        return null;
+      } else {
+        console.log('Employee ID API response not ok:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error fetching employee ID:', error);
@@ -741,9 +754,11 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
 
           // If we have user ID, fetch the employee ID if not already present
           if (apiUserData?.id && !apiUserData.employee_id) {
-            console.log('Fetching employee ID for user:', apiUserData.id);
+            console.log('No employee ID found, fetching for user ID:', apiUserData.id);
             const employeeId = await getEmployeeID(apiUserData.id);
             if (employeeId) {
+              console.log('Successfully fetched employee ID:', employeeId);
+              console.log('Type of employeeId:', typeof employeeId);
               // Add employee_id to userData
               apiUserData.employee_id = employeeId;
               apiUserData.employeeId = employeeId; // Also set with alternate property name for compatibility
@@ -751,13 +766,31 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
               // Save updated user data with employee ID
               await saveUserData(apiUserData);
               console.log('Saved user data with employee ID:', employeeId);
+              console.log(
+                'Full apiUserData after setting employee ID:',
+                JSON.stringify(apiUserData, null, 2)
+              );
+            } else {
+              console.log('Failed to fetch employee ID for user:', apiUserData.id);
             }
+          } else if (apiUserData.employee_id) {
+            console.log('Employee ID already present:', apiUserData.employee_id);
+          } else {
+            console.log(
+              'No user ID available to fetch employee ID, apiUserData.id:',
+              apiUserData?.id
+            );
           }
 
           setUserData(apiUserData);
           console.log(
-            'Updated userData with employee ID:',
-            apiUserData.employee_id || apiUserData.employeeId || 'Not found'
+            'Final userData employee ID check:',
+            'employee_id:',
+            apiUserData.employee_id,
+            'employeeId:',
+            apiUserData.employeeId,
+            'Display value:',
+            apiUserData?.employee_id || apiUserData?.employeeId || 'Unknown'
           );
         }
       }
@@ -924,21 +957,23 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
           userData={userData}
           performanceData={performanceData}
           loading={loading}
+          onRefreshUserData={fetchUserData}
         />
 
-        {/* Main Content */
-        <View style={styles.tripsContainer}>
-          {/* Upcoming Trips */}
-          <UpcomingTrips
-            theme={theme}
-            onTripStarted={handleTripStarted}
-            userData={userData}
-            navigation={navigation}
-          />
+        {
+          /* Main Content */
+          <View style={styles.tripsContainer}>
+            {/* Upcoming Trips */}
+            <UpcomingTrips
+              theme={theme}
+              onTripStarted={handleTripStarted}
+              userData={userData}
+              navigation={navigation}
+            />
 
-          {/* Recent Trips */}
-          <RecentTrips theme={theme} userData={userData} />
-        </View>
+            {/* Recent Trips */}
+            <RecentTrips theme={theme} userData={userData} />
+          </View>
         }
       </ScrollView>
     </SafeAreaView>
@@ -1037,6 +1072,14 @@ const styles = StyleSheet.create({
   driverRole: {
     fontSize: 14,
     marginTop: 2,
+  },
+  refreshButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
   statusBadge: {
     flexDirection: 'row',

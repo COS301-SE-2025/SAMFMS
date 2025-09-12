@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import { WebView } from 'react-native-webview';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Location {
   coordinates: [number, number];
@@ -95,21 +96,7 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ route, navigation
   console.log('DEBUG - trip.estimated_distance:', trip.estimated_distance);
   console.log('DEBUG - trip.distance:', (trip as any).distance);
 
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const theme = {
-    background: isDarkMode ? '#0f0f23' : '#f8fafc',
-    cardBackground: isDarkMode ? '#1a1a2e' : '#ffffff',
-    headerGradient: isDarkMode ? ['#1a1a2e', '#16213e'] : ['#ffffff', '#f1f5f9'],
-    text: isDarkMode ? '#f1f5f9' : '#1e293b',
-    textSecondary: isDarkMode ? '#94a3b8' : '#64748b',
-    border: isDarkMode ? '#334155' : '#e2e8f0',
-    accent: '#6366f1',
-    accentLight: '#818cf8',
-    success: '#10b981',
-    warning: '#f59e0b',
-    shadow: isDarkMode ? '#000000' : '#64748b',
-  };
+  const { theme } = useTheme();
 
   // Extract coordinates from API data with fallbacks
   const pickup = React.useMemo(() => {

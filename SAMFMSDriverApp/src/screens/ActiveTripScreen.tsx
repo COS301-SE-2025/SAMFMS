@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Navigation, Square, Pause, Play, X } from 'lucide-react-native';
 import { WebView } from 'react-native-webview';
@@ -12,6 +12,7 @@ import {
   cancelTrip,
 } from '../utils/api';
 import { useActiveTripContext } from '../contexts/ActiveTripContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface VehicleLocation {
   id: string;
@@ -68,6 +69,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginTop: 2,
+  },
+  headerPriority: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    textAlign: 'center',
+    minWidth: 60,
   },
   headerRight: {
     width: 40,
@@ -214,20 +225,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
   const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
   const webViewLoadAttempts = useRef(0);
 
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const theme = {
-    background: isDarkMode ? '#0f0f23' : '#f8fafc',
-    cardBackground: isDarkMode ? '#1a1a2e' : '#ffffff',
-    text: isDarkMode ? '#f1f5f9' : '#1e293b',
-    textSecondary: isDarkMode ? '#94a3b8' : '#64748b',
-    border: isDarkMode ? '#334155' : '#e2e8f0',
-    accent: '#6366f1',
-    success: '#10b981',
-    warning: '#f59e0b',
-    danger: '#dc2626',
-    shadow: isDarkMode ? '#000000' : '#64748b',
-  };
+  const { theme } = useTheme();
 
   const fetchVehicleLocation = useCallback(
     async (vehicleId: string): Promise<VehicleLocation | null> => {
@@ -554,10 +552,16 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
             minZoom: 3,   // Allow zooming out very far for context
             maxZoom: 18,  // Allow detailed zoom
             zoomControl: true,
-            rotate: true, // Enable map rotation
-            bearing: 0,   // Initial rotation angle
-            touchRotate: true, // Enable rotation via touch gestures
-            rotateControl: true // Show rotation control
+            dragging: false,        // Disable panning/dragging
+            touchZoom: true,        // Allow zoom via touch gestures
+            doubleClickZoom: true,  // Allow double-click zoom
+            scrollWheelZoom: true,  // Allow scroll wheel zoom
+            boxZoom: false,         // Disable box zoom
+            keyboard: false,        // Disable keyboard controls
+            rotate: false,          // Disable map rotation
+            bearing: 0,             // Initial rotation angle
+            touchRotate: false,     // Disable rotation via touch gestures
+            rotateControl: false    // Hide rotation control
         });
         
         // Add OpenStreetMap tile layer
@@ -1043,6 +1047,28 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
           <Text style={[styles.headerTitle, { color: theme.text }]}>
             {activeTrip.name || 'Active Trip'}
           </Text>
+          {activeTrip.priority && (
+            <Text
+              style={[
+                styles.headerPriority,
+                {
+                  color: theme.background,
+                  backgroundColor:
+                    activeTrip.priority.toLowerCase() === 'low'
+                      ? theme.success
+                      : activeTrip.priority.toLowerCase() === 'normal'
+                      ? theme.info
+                      : activeTrip.priority.toLowerCase() === 'high'
+                      ? theme.warning
+                      : activeTrip.priority.toLowerCase() === 'urgent'
+                      ? theme.danger
+                      : theme.info,
+                },
+              ]}
+            >
+              {activeTrip.priority.charAt(0).toUpperCase() + activeTrip.priority.slice(1)}
+            </Text>
+          )}
           <Text style={[styles.headerDistance, { color: theme.success }]}>
             {activeTrip.estimated_distance
               ? (activeTrip.estimated_distance / 1000).toFixed(1) + ' km'
@@ -1092,7 +1118,15 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
             disabled={pausingTrip}
             style={[
               styles.controlButton,
-              { backgroundColor: pausingTrip ? theme.warning + '60' : theme.warning },
+              {
+                backgroundColor: pausingTrip
+                  ? isPaused
+                    ? theme.success + '60'
+                    : theme.accent + '60'
+                  : isPaused
+                  ? theme.success
+                  : theme.accent,
+              },
             ]}
           >
             {pausingTrip ? (
