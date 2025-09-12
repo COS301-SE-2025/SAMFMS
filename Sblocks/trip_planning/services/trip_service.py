@@ -195,7 +195,7 @@ class TripService:
         except Exception as e:
             logger.error(f"[TripService.get_vehicle_polyline] Failed to get polyline for vehicle {vehicle_id}: {e}")
             raise
-    
+
     async def get_active_trips(self, driver_id: str = None) -> List[Trip]:
         """
         Return all active trips (current time >= scheduled_start_time and not completed/canceled),

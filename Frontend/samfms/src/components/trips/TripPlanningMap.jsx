@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import React, {useState} from 'react';
+import {MapContainer, TileLayer, Marker, Popup, useMapEvents} from 'react-leaflet';
 import L from 'leaflet';
 import RoutingMachine from './RoutingMachine';
 
@@ -11,25 +11,30 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
 });
 
-// Custom icons for different marker types
-const createCustomIcon = color => {
-  return new L.DivIcon({
-    className: 'custom-div-icon',
-    html: `<div style="background-color: ${color}; width: 25px; height: 25px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;"></div>`,
-    iconSize: [25, 25],
-    iconAnchor: [12.5, 12.5],
-    popupAnchor: [0, -12.5],
+// Custom icons for different marker types - fixed to avoid DOM position issues
+const createCustomIcon = (color, label) => {
+  return L.divIcon({
+    className: 'custom-trip-marker',
+    html: `<div class="trip-marker-circle" style="background-color: ${color}; width: 30px; height: 30px; border-radius: 50%; border: 4px solid white; box-shadow: 0 0 15px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px; line-height: 1;">${label || ''}</div>`,
+    iconSize: [38, 38],
+    iconAnchor: [19, 19],
+    popupAnchor: [0, -19],
   });
 };
 
-const startIcon = createCustomIcon('#22c55e'); // Green
-const endIcon = createCustomIcon('#ef4444'); // Red
-const waypointIcon = createCustomIcon('#3b82f6'); // Blue
+const startIcon = createCustomIcon('#22c55e', 'S'); // Green with S
+const endIcon = createCustomIcon('#ef4444', 'E'); // Red with E
 
 // Component to handle map clicks
-const MapEventHandler = ({ onLocationSelect, mode }) => {
+const MapEventHandler = ({onLocationSelect, mode}) => {
   useMapEvents({
     click: e => {
+      // Prevent any default behaviors that might cause expansion
+      if (e.originalEvent) {
+        e.originalEvent.preventDefault();
+        e.originalEvent.stopPropagation();
+      }
+
       if (mode === 'select') {
         onLocationSelect({
           lat: e.latlng.lat,
@@ -94,45 +99,47 @@ const TripPlanningMap = ({
 
   return (
     <div className={`bg-card rounded-lg border border-border overflow-hidden ${className}`}>
-      {/* Map Controls */}
+      {/* Selection Controls Section */}
       <div className="p-4 bg-muted/20 border-b border-border">
-        <div className="flex flex-wrap items-center gap-2 mb-3">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-2 text-sm">
             <span className="font-medium">Select:</span>
             <button
+              type="button"
               onClick={() => setSelectionType('start')}
-              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                selectionType === 'start'
-                  ? 'bg-green-100 text-green-800 border border-green-300'
-                  : 'bg-background border border-input hover:bg-accent'
-              }`}
+              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${selectionType === 'start'
+                ? 'bg-green-100 text-green-800 border border-green-300'
+                : 'bg-background border border-input hover:bg-accent'
+                }`}
             >
               Start Point
             </button>
             <button
+              type="button"
               onClick={() => setSelectionType('end')}
-              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                selectionType === 'end'
-                  ? 'bg-red-100 text-red-800 border border-red-300'
-                  : 'bg-background border border-input hover:bg-accent'
-              }`}
+              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${selectionType === 'end'
+                ? 'bg-red-100 text-red-800 border border-red-300'
+                : 'bg-background border border-input hover:bg-accent'
+                }`}
             >
               End Point
             </button>
             <button
+              type="button"
               onClick={() => setSelectionType('waypoint')}
-              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                selectionType === 'waypoint'
-                  ? 'bg-blue-100 text-blue-800 border border-blue-300'
-                  : 'bg-background border border-input hover:bg-accent'
-              }`}
+              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${selectionType === 'waypoint'
+                ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                : 'bg-background border border-input hover:bg-accent'
+                }`}
             >
               Add Waypoint
             </button>
           </div>
         </div>
+      </div>
 
-        {/* Location Status */}
+      {/* Location Status Section */}
+      <div className="px-4 py-2 bg-muted/10 border-b border-border">
         <div className="flex flex-wrap items-center gap-4 text-xs">
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 bg-green-500 rounded-full"></div>
@@ -153,113 +160,157 @@ const TripPlanningMap = ({
             </div>
           )}
         </div>
-
-        {/* Waypoints List */}
-        {waypoints.length > 0 && (
-          <div className="mt-2">
-            <div className="text-xs text-muted-foreground mb-1">Waypoints:</div>
-            <div className="flex flex-wrap gap-2">
-              {waypoints.map((waypoint, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs"
-                >
-                  <span>#{index + 1}</span>
-                  <button
-                    onClick={() => removeWaypoint(index)}
-                    className="text-red-500 hover:text-red-700 ml-1"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Map */}
-      <div className="h-96 relative">
-        {routeCalculating && (
-          <div className="absolute top-2 right-2 z-[1000] bg-blue-500 text-white px-3 py-1 rounded-md text-sm font-medium shadow-lg">
-            <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-              Calculating route...
-            </div>
+      {/* Waypoints List Section */}
+      {waypoints.length > 0 && (
+        <div className="px-4 py-2 bg-muted/5 border-b border-border">
+          <div className="text-xs text-muted-foreground mb-1">Waypoints:</div>
+          <div className="flex flex-wrap gap-2">
+            {waypoints.map((waypoint, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs"
+              >
+                <span>#{index + 1}</span>
+                <button
+                  type="button"
+                  onClick={() => removeWaypoint(index)}
+                  className="text-red-500 hover:text-red-700 ml-1"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
           </div>
-        )}
-        <MapContainer
-          center={getMapCenter()}
-          zoom={12}
-          className="w-full h-full"
-          key={`${startLocation?.lat}-${startLocation?.lng}-${endLocation?.lat}-${endLocation?.lng}`}
+        </div>
+      )}
+
+      {/* Map Container - Isolated to prevent expansion */}
+      <div className="relative" style={{height: '384px', minHeight: '384px', maxHeight: '384px'}}>
+        <div
+          className="h-96 relative overflow-hidden bg-gray-100"
+          style={{
+            height: '384px',
+            minHeight: '384px',
+            maxHeight: '384px',
+            width: '100%',
+            minWidth: '100%',
+            maxWidth: '100%',
+            position: 'relative',
+            contain: 'layout size'
+          }}
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-
-          {/* Map event handler for clicking */}
-          <MapEventHandler onLocationSelect={handleLocationSelect} mode={mode} />
-
-          {/* Routing machine for route calculation and display */}
-          <RoutingMachine
-            startLocation={startLocation}
-            endLocation={endLocation}
-            waypoints={waypoints}
-            onRouteCalculated={onRouteCalculated}
-            isCalculating={routeCalculating}
-            setIsCalculating={setRouteCalculating}
-          />
-
-          {/* Start location marker */}
-          {startLocation && (
-            <Marker position={[startLocation.lat, startLocation.lng]} icon={startIcon}>
-              <Popup>
-                <div className="text-sm">
-                  <div className="font-medium text-green-700">Start Location</div>
-                  <div className="text-xs text-gray-600">
-                    {startLocation.lat.toFixed(6)}, {startLocation.lng.toFixed(6)}
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
+          {routeCalculating && (
+            <div className="absolute top-2 right-2 z-[1000] bg-blue-500 text-white px-3 py-1 rounded-md text-sm font-medium shadow-lg">
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                Calculating route...
+              </div>
+            </div>
           )}
+          <MapContainer
+            center={getMapCenter()}
+            zoom={12}
+            className="w-full h-full trip-planning-map-container"
+            style={{
+              width: '100%',
+              height: '100%',
+              position: 'relative',
+              zIndex: 1,
+              maxWidth: '100%',
+              maxHeight: '100%'
+            }}
+            zoomControl={true}
+            scrollWheelZoom={true}
+            doubleClickZoom={false}
+            dragging={true}
+            boxZoom={false}
+            keyboard={false}
+            touchZoom={true}
+            attributionControl={false}
+            key="trip-planning-map-static"
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
 
-          {/* End location marker */}
-          {endLocation && (
-            <Marker position={[endLocation.lat, endLocation.lng]} icon={endIcon}>
-              <Popup>
-                <div className="text-sm">
-                  <div className="font-medium text-red-700">End Location</div>
-                  <div className="text-xs text-gray-600">
-                    {endLocation.lat.toFixed(6)}, {endLocation.lng.toFixed(6)}
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          )}
+            {/* Map event handler for clicking */}
+            <MapEventHandler onLocationSelect={handleLocationSelect} mode={mode} />
 
-          {/* Waypoint markers */}
-          {waypoints.map((waypoint, index) => (
-            <Marker key={index} position={[waypoint.lat, waypoint.lng]} icon={waypointIcon}>
-              <Popup>
-                <div className="text-sm">
-                  <div className="font-medium text-blue-700">Waypoint #{index + 1}</div>
-                  <div className="text-xs text-gray-600">
-                    {waypoint.lat.toFixed(6)}, {waypoint.lng.toFixed(6)}
+            {/* Routing machine for route calculation and display */}
+            <RoutingMachine
+              startLocation={startLocation}
+              endLocation={endLocation}
+              waypoints={waypoints}
+              onRouteCalculated={onRouteCalculated}
+              isCalculating={routeCalculating}
+              setIsCalculating={setRouteCalculating}
+            />
+
+            {/* Start location marker */}
+            {startLocation && (
+              <Marker
+                key={`start-${startLocation.lat}-${startLocation.lng}`}
+                position={[startLocation.lat, startLocation.lng]}
+                icon={startIcon}
+              >
+                <Popup>
+                  <div className="text-sm">
+                    <div className="font-medium text-green-700">Start Location</div>
+                    <div className="text-xs text-gray-600">
+                      {startLocation.lat.toFixed(6)}, {startLocation.lng.toFixed(6)}
+                    </div>
                   </div>
-                  <button
-                    onClick={() => removeWaypoint(index)}
-                    className="mt-1 px-2 py-1 bg-red-100 text-red-700 text-xs rounded hover:bg-red-200"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-        </MapContainer>
+                </Popup>
+              </Marker>
+            )}
+
+            {/* End location marker */}
+            {endLocation && (
+              <Marker
+                key={`end-${endLocation.lat}-${endLocation.lng}`}
+                position={[endLocation.lat, endLocation.lng]}
+                icon={endIcon}
+              >
+                <Popup>
+                  <div className="text-sm">
+                    <div className="font-medium text-red-700">End Location</div>
+                    <div className="text-xs text-gray-600">
+                      {endLocation.lat.toFixed(6)}, {endLocation.lng.toFixed(6)}
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            )}
+
+            {/* Waypoint markers */}
+            {waypoints.map((waypoint, index) => (
+              <Marker
+                key={`waypoint-${index}-${waypoint.lat}-${waypoint.lng}`}
+                position={[waypoint.lat, waypoint.lng]}
+                icon={createCustomIcon('#3b82f6', (index + 1).toString())}
+              >
+                <Popup>
+                  <div className="text-sm">
+                    <div className="font-medium text-blue-700">Waypoint #{index + 1}</div>
+                    <div className="text-xs text-gray-600">
+                      {waypoint.lat.toFixed(6)}, {waypoint.lng.toFixed(6)}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeWaypoint(index)}
+                      className="mt-1 px-2 py-1 bg-red-100 text-red-700 text-xs rounded hover:bg-red-200"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
+        </div>
       </div>
     </div>
   );
