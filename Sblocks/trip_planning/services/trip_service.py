@@ -227,6 +227,74 @@ class TripService:
         except Exception as e:
             logger.error(f"Failed to cancel trip {trip_id}: {e}")
             return False
+        
+
+    async def pause_trip(self, trip_id: str, reason: str = "conditions for trip not currently doable"):
+        """pause active trip"""
+        try:
+            # Get the original trip document
+            trip_doc = await db_manager.trips.find_one({"_id": ObjectId(trip_id)})
+            
+            if not trip_doc:
+                logger.error(f"Trip {trip_id} not found in trips collection")
+                return False
+            
+            trip_status = trip_doc["status"]
+            if trip_status != "in_progress":
+                logger.error(f"Trip {trip_id} not in progress, cannot pause")
+                return False
+
+            
+            # Add pause information
+            pause_time = datetime.utcnow()
+            trip_doc.update({
+                "status": "paused"
+            })
+        
+            
+            
+            # Stop simulation if running
+            if trip_id in self.active_simulators:
+                self.active_simulators[trip_id].is_running = False
+                del self.active_simulators[trip_id]
+                logger.info(f"Stopped simulation for cancelled trip {trip_id}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to cancel trip {trip_id}: {e}")
+            return False
+        
+
+    async def play_trip(self, trip_id: str, reason: str = "conditions for trip back to doable"):
+        """Cancel a trip and move it to history (for external cancellation handling)"""
+        try:
+            # Get the original trip document
+            trip_doc = await db_manager.trips.find_one({"_id": ObjectId(trip_id)})
+            
+            if not trip_doc:
+                logger.error(f"Trip {trip_id} not found in trips collection")
+                return False
+            
+
+            trip_status = trip_doc["status"]
+            if trip_status != "paused":
+                logger.error(f"Trip {trip_id} not paused, cannot play")
+                return False
+            
+
+            trip_doc.update({
+                "status": "in_progress"
+            })
+            
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to cancel trip {trip_id}: {e}")
+            return False
+    
+
     
     async def get_active_trips(self, driver_id: str = None) -> List[Trip]:
         """
