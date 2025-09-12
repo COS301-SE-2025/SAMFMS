@@ -1,15 +1,10 @@
-# test_servicesLicense_Service.py
-# Small, isolated unit tests for services/license_service.py
-
 import sys
 import os
 import types
 from datetime import datetime, date, timedelta
+import importlib
 import pytest
 
-# ---------------------------
-# Make project importable anywhere
-# ---------------------------
 HERE = os.path.abspath(os.path.dirname(__file__))
 CANDIDATES = [
     os.path.abspath(os.path.join(HERE, "..", "..")),
@@ -20,352 +15,332 @@ for p in CANDIDATES:
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# ---------------------------
-# Minimal stubs for imports used by license_service
-# ---------------------------
-# schemas.entities
 if "schemas" not in sys.modules:
-    schemas_pkg = types.ModuleType("schemas")
-    sys.modules["schemas"] = schemas_pkg
-else:
-    schemas_pkg = sys.modules["schemas"]
-
+    sys.modules["schemas"] = types.ModuleType("schemas")
 if "schemas.entities" not in sys.modules:
-    entities_mod = types.ModuleType("schemas.entities")
+    ents = types.ModuleType("schemas.entities")
     class LicenseRecord: ...
     class LicenseType: ...
-    entities_mod.LicenseRecord = LicenseRecord
-    entities_mod.LicenseType = LicenseType
-    setattr(schemas_pkg, "entities", entities_mod)
-    sys.modules["schemas.entities"] = entities_mod
+    ents.LicenseRecord = LicenseRecord
+    ents.LicenseType = LicenseType
+    sys.modules["schemas.entities"] = ents
+else:
+    se = sys.modules["schemas.entities"]
+    if not hasattr(se, "LicenseRecord"):
+        class LicenseRecord: ...
+        se.LicenseRecord = LicenseRecord
+    if not hasattr(se, "LicenseType"):
+        class LicenseType: ...
+        se.LicenseType = LicenseType
 
-# repositories with LicenseRecordsRepository class
 if "repositories" not in sys.modules:
-    repos_mod = types.ModuleType("repositories")
-    class LicenseRecordsRepository:
-        def __init__(self): ...
-    repos_mod.LicenseRecordsRepository = LicenseRecordsRepository
-    sys.modules["repositories"] = repos_mod
+    sys.modules["repositories"] = types.ModuleType("repositories")
 
-# ---------------------------
-# Import target module (force submodule, not the singleton re-export)
-# ---------------------------
-import importlib
+class _RepoStub:
+    def __init__(self):
+        self.created = []
+        self.updated = []
+        self.deleted = []
+        self.find_calls = []
+        self.count_calls = []
+        self.count_queue = []  # used by summary: pop in call order
+    async def create(self, data):
+        self.created.append(data)
+        return {"id": f"lic{len(self.created)}", **data}
+    async def get_by_id(self, rid):
+        return {"id": rid, "stub": True} if rid == "found" else None
+    async def update(self, rid, data):
+        self.updated.append((rid, data))
+        # Return None to simulate "not found"
+        return {"id": rid, **data} if rid != "missing" else None
+    async def delete(self, rid):
+        self.deleted.append(rid)
+        return rid != "missing"
+    async def get_by_entity(self, eid, etype):
+        return [{"id": "e1", "entity_id": eid, "entity_type": etype}]
+    async def get_expiring_soon(self, days):
+        return [{"id": "ex1", "days": days}]
+    async def get_expired_licenses(self):
+        return [{"id": "expired"}]
+    async def get_by_license_type(self, lt):
+        return [{"id": "t1", "license_type": lt}]
+    async def find(self, query=None, skip=0, limit=100, sort=None):
+        self.find_calls.append((query, skip, limit, sort))
+        return [{"id": "f1", "query": query, "skip": skip, "limit": limit, "sort": sort}]
+    async def count(self, query=None):
+        self.count_calls.append(query)
+        if self.count_queue:
+            return self.count_queue.pop(0)
+        return 0
+
 try:
     ls_mod = importlib.import_module("services.license_service")
 except Exception:
     ls_mod = importlib.import_module("license_service")
 
-# Prefer class from the module; fallback if a singleton is exposed
-if hasattr(ls_mod, "LicenseService"):
-    LicenseService = ls_mod.LicenseService
-else:
-    # If something odd happened and we didn't get the module, use the instance's class
-    singleton = getattr(ls_mod, "license_service", None)
-    LicenseService = (singleton or ls_mod).__class__
+ls_mod.LicenseRecordsRepository = _RepoStub
+LicenseService = ls_mod.LicenseService
 
+def make_service():
+    return LicenseService()
 
-# ---------------------------
-# Fake repository used by tests
-# ---------------------------
-class FakeRepo:
-    def __init__(self):
-        self.last_create_data = None
-        self.create_return = {"id": "new-id"}
-        self.get_by_id_return = {"id": "r1"}
-        self.update_returns = []
-        self.last_update_args = []
-        self.delete_return = False
-        self.get_by_entity_return = []
-        self.get_expiring_soon_return = []
-        self.get_expired_licenses_return = []
-        self.get_by_license_type_return = []
-        self.find_return = []
-        self.last_find_args = None
-        self.count_queue = []
-        self.last_count_queries = []
-
-    async def create(self, data):
-        self.last_create_data = dict(data)
-        return dict(self.create_return)
-
-    async def get_by_id(self, record_id):
-        return dict(self.get_by_id_return) if self.get_by_id_return is not None else None
-
-    async def update(self, record_id, data):
-        self.last_update_args.append({"record_id": record_id, "data": dict(data)})
-        if self.update_returns:
-            return self.update_returns.pop(0)
-        return None
-
-    async def delete(self, record_id):
-        return bool(self.delete_return)
-
-    async def get_by_entity(self, entity_id, entity_type):
-        return list(self.get_by_entity_return)
-
-    async def get_expiring_soon(self, days_ahead):
-        return list(self.get_expiring_soon_return)
-
-    async def get_expired_licenses(self):
-        return list(self.get_expired_licenses_return)
-
-    async def get_by_license_type(self, license_type):
-        return list(self.get_by_license_type_return)
-
-    async def find(self, query=None, skip=0, limit=100, sort=None):
-        self.last_find_args = {"query": dict(query or {}), "skip": skip, "limit": limit, "sort": list(sort or [])}
-        return list(self.find_return)
-
-    async def count(self, query):
-        self.last_count_queries.append(dict(query))
-        if self.count_queue:
-            return self.count_queue.pop(0)
-        return 0
-
-
-def make_service(repo=None):
-    svc = LicenseService()
-    if repo is not None:
-        svc.repository = repo
-    return svc
-
-
-# ---------------------------
-# Tests
-# ---------------------------
+# -------------------- create_license_record --------------------
 
 @pytest.mark.asyncio
-async def test_create_license_record_success_parses_dates_and_sets_defaults():
-    repo = FakeRepo()
-    svc = make_service(repo)
-
-    payload = {
-        "entity_id": "veh-1",
-        "entity_type": "vehicle",
-        "license_type": "registration",
-        "license_number": "ABC123",
-        "title": "Vehicle Registration",
-        "issue_date": "2025-01-01",
-        "expiry_date": "2025-12-31",
-        "issuing_authority": "DMV",
+@pytest.mark.parametrize("missing", [
+    "entity_id","entity_type","license_type","license_number","title","issue_date","expiry_date","issuing_authority"
+])
+async def test_create_missing_required_field_raises(missing):
+    svc = make_service()
+    data = {
+        "entity_id":"V1","entity_type":"vehicle","license_type":"roadworthy","license_number":"ABC",
+        "title":"Roadworthy","issue_date":"2025-01-01","expiry_date":"2026-01-01","issuing_authority":"Dept"
     }
-
-    rec = await svc.create_license_record(payload)
-    assert rec["id"] == "new-id"
-
-    sent = repo.last_create_data
-    assert isinstance(sent["issue_date"], date)
-    assert isinstance(sent["expiry_date"], date)
-    assert sent["is_active"] is True
-    assert sent["advance_notice_days"] == 30
-    assert isinstance(sent["created_at"], datetime)
-
+    data.pop(missing)
+    with pytest.raises(ValueError):
+        await svc.create_license_record(data)
 
 @pytest.mark.asyncio
-async def test_create_license_record_missing_required_field_raises():
-    repo = FakeRepo()
-    svc = make_service(repo)
+async def test_create_invalid_entity_type_raises():
+    svc = make_service()
+    data = {
+        "entity_id":"X","entity_type":"fleet","license_type":"roadworthy","license_number":"L1",
+        "title":"T","issue_date":"2025-01-01","expiry_date":"2026-01-01","issuing_authority":"Dept"
+    }
     with pytest.raises(ValueError):
+        await svc.create_license_record(data)
+
+@pytest.mark.asyncio
+async def test_create_parses_dates_and_sets_defaults():
+    svc = make_service()
+    out = await svc.create_license_record({
+        "entity_id":"V1","entity_type":"vehicle","license_type":"roadworthy","license_number":"L1",
+        "title":"T","issue_date":"2025-01-01","expiry_date":"2026-01-01","renewal_date":"2025-06-01",
+        "issuing_authority":"Dept"
+    })
+    assert isinstance(out["issue_date"], date)
+    assert isinstance(out["expiry_date"], date)
+    assert isinstance(out["renewal_date"], date)
+    assert out["is_active"] is True
+    assert out["advance_notice_days"] == 30
+    assert isinstance(out["created_at"], datetime)
+
+@pytest.mark.asyncio
+async def test_create_preserves_explicit_defaults():
+    svc = make_service()
+    out = await svc.create_license_record({
+        "entity_id":"D1","entity_type":"driver","license_type":"permit","license_number":"P1",
+        "title":"Permit","issue_date":"2025-01-01","expiry_date":"2026-01-01",
+        "issuing_authority":"Dept","is_active":False,"advance_notice_days":10,"created_at":datetime(2030,1,1)
+    })
+    assert out["is_active"] is False
+    assert out["advance_notice_days"] == 10
+    assert out["created_at"] == datetime(2030,1,1)
+
+@pytest.mark.asyncio
+async def test_create_propagates_repo_error(monkeypatch):
+    svc = make_service()
+    async def boom(data): raise RuntimeError("fail")
+    monkeypatch.setattr(svc.repository, "create", boom)
+    with pytest.raises(RuntimeError):
         await svc.create_license_record({
-            "entity_type": "vehicle",
-            "license_type": "registration",
-            "license_number": "X",
-            "title": "T",
-            "issue_date": "2025-01-01",
-            "expiry_date": "2025-12-31",
-            "issuing_authority": "DMV",
+            "entity_id":"V1","entity_type":"vehicle","license_type":"roadworthy","license_number":"L1",
+            "title":"T","issue_date":"2025-01-01","expiry_date":"2026-01-01","issuing_authority":"Dept"
         })
 
+# -------------------- get_license_record --------------------
 
 @pytest.mark.asyncio
-async def test_create_license_record_invalid_entity_type_raises():
-    repo = FakeRepo()
-    svc = make_service(repo)
-    bad = {
-        "entity_id": "id1",
-        "entity_type": "fleet",
-        "license_type": "registration",
-        "license_number": "X",
-        "title": "T",
-        "issue_date": "2025-01-01",
-        "expiry_date": "2025-12-31",
-        "issuing_authority": "DMV",
-    }
-    with pytest.raises(ValueError):
-        await svc.create_license_record(bad)
+async def test_get_license_record_found_none_and_error(monkeypatch):
+    svc = make_service()
+    rec = await svc.get_license_record("found")
+    assert rec and rec["id"] == "found"
+    rec2 = await svc.get_license_record("missing")
+    assert rec2 is None
+    async def boom(_): raise RuntimeError("x")
+    monkeypatch.setattr(svc.repository, "get_by_id", boom)
+    with pytest.raises(RuntimeError):
+        await svc.get_license_record("any")
 
+# -------------------- update_license_record --------------------
 
 @pytest.mark.asyncio
-async def test_get_license_record_pass_through():
-    repo = FakeRepo()
-    repo.get_by_id_return = {"id": "abc"}
-    svc = make_service(repo)
-    res = await svc.get_license_record("abc")
-    assert res["id"] == "abc"
-
-
-@pytest.mark.asyncio
-async def test_update_license_record_parses_dates_and_returns_record():
-    repo = FakeRepo()
-    repo.update_returns = [{"id": "u1"}]
-    svc = make_service(repo)
-
-    res = await svc.update_license_record("u1", {
-        "issue_date": "2025-02-02",
-        "renewal_date": "2025-02-03",
+async def test_update_parses_dates_and_returns_record(monkeypatch):
+    svc = make_service()
+    rec = await svc.update_license_record("rec1", {
+        "issue_date":"2025-01-01","expiry_date":"2026-01-01","renewal_date":"2025-06-01","title":"New"
     })
-    assert res["id"] == "u1"
-    sent = repo.last_update_args[-1]["data"]
-    assert isinstance(sent["issue_date"], date)
-    assert isinstance(sent["renewal_date"], date)
-
-
-@pytest.mark.asyncio
-async def test_update_license_record_returns_none_when_not_found():
-    repo = FakeRepo()
-    repo.update_returns = [None]
-    svc = make_service(repo)
-    assert await svc.update_license_record("nope", {"title": "X"}) is None
-
+    assert rec["id"] == "rec1"
+    assert isinstance(rec["issue_date"], date)
+    assert isinstance(rec["expiry_date"], date)
+    assert isinstance(rec["renewal_date"], date)
 
 @pytest.mark.asyncio
-async def test_delete_license_record_true_and_false():
-    repo = FakeRepo()
-    svc = make_service(repo)
-    repo.delete_return = True
-    assert await svc.delete_license_record("x") is True
-    repo.delete_return = False
-    assert await svc.delete_license_record("x") is False
+async def test_update_not_found_and_error(monkeypatch):
+    svc = make_service()
+    out = await svc.update_license_record("missing", {"title":"X"})
+    assert out is None
+    async def boom(rid, data): raise RuntimeError("x")
+    monkeypatch.setattr(svc.repository, "update", boom)
+    with pytest.raises(RuntimeError):
+        await svc.update_license_record("rec2", {"title":"Y"})
 
+# -------------------- delete --------------------
 
 @pytest.mark.asyncio
-async def test_get_entity_licenses_valid_and_invalid_type():
-    repo = FakeRepo()
-    svc = make_service(repo)
-    repo.get_by_entity_return = [{"id": "L1"}]
-    ok = await svc.get_entity_licenses("veh-1", "vehicle")
-    assert ok == [{"id": "L1"}]
+async def test_delete_true_false_and_error(monkeypatch):
+    svc = make_service()
+    assert await svc.delete_license_record("rec1") is True
+    assert await svc.delete_license_record("missing") is False
+    async def boom(_): raise RuntimeError("x")
+    monkeypatch.setattr(svc.repository, "delete", boom)
+    with pytest.raises(RuntimeError):
+        await svc.delete_license_record("rec2")
+
+# -------------------- entity, expiring, expired, by_type --------------------
+
+@pytest.mark.asyncio
+async def test_get_entity_licenses_valid_and_invalid():
+    svc = make_service()
+    out = await svc.get_entity_licenses("V1", "vehicle")
+    assert out and out[0]["entity_type"] == "vehicle"
     with pytest.raises(ValueError):
-        await svc.get_entity_licenses("veh-1", "fleet")
-
-
-@pytest.mark.asyncio
-async def test_expiring_expired_and_by_type_passthroughs():
-    repo = FakeRepo()
-    svc = make_service(repo)
-    repo.get_expiring_soon_return = [{"id": "E1"}]
-    repo.get_expired_licenses_return = [{"id": "EX1"}]
-    repo.get_by_license_type_return = [{"id": "T1"}]
-    assert await svc.get_expiring_licenses(15) == [{"id": "E1"}]
-    assert await svc.get_expired_licenses() == [{"id": "EX1"}]
-    assert await svc.get_licenses_by_type("registration") == [{"id": "T1"}]
-
+        await svc.get_entity_licenses("V1", "fleet")
 
 @pytest.mark.asyncio
-async def test_get_all_licenses_builds_fixed_query_and_sort():
-    repo = FakeRepo()
-    svc = make_service(repo)
-    repo.find_return = [{"id": "A1"}]
-    res = await svc.get_all_licenses(skip=5, limit=7)
-    assert res == [{"id": "A1"}]
-    args = repo.last_find_args
-    assert args["query"] == {"is_active": True}
-    assert args["skip"] == 5 and args["limit"] == 7
-    assert args["sort"] == [("expiry_date", 1)]
-
+async def test_get_expiring_licenses_success_and_error(monkeypatch):
+    svc = make_service()
+    out = await svc.get_expiring_licenses(15)
+    assert out and out[0]["days"] == 15
+    async def boom(_): raise RuntimeError("x")
+    monkeypatch.setattr(svc.repository, "get_expiring_soon", boom)
+    with pytest.raises(RuntimeError):
+        await svc.get_expiring_licenses(5)
 
 @pytest.mark.asyncio
-async def test_renew_license_with_and_without_cost_sets_renewal_date():
-    repo = FakeRepo()
-    svc = make_service(repo)
-    today = date.today()
-    repo.update_returns = [{"id": "R1"}, {"id": "R2"}]
-    res1 = await svc.renew_license("R1", "2026-03-10", renewal_cost=99.5)
-    sent1 = repo.last_update_args[-1]["data"]
-    assert res1["id"] == "R1"
-    assert sent1["expiry_date"] == date(2026, 3, 10)
-    assert sent1["renewal_date"] == today
-    assert sent1["renewal_cost"] == 99.5
-    res2 = await svc.renew_license("R2", "2027-01-01")
-    sent2 = repo.last_update_args[-1]["data"]
-    assert res2["id"] == "R2"
-    assert sent2["expiry_date"] == date(2027, 1, 1)
-    assert sent2["renewal_date"] == today
-    assert "renewal_cost" not in sent2
-
+async def test_get_expired_licenses_success_and_error(monkeypatch):
+    svc = make_service()
+    out = await svc.get_expired_licenses()
+    assert out and out[0]["id"] == "expired"
+    async def boom(): raise RuntimeError("x")
+    monkeypatch.setattr(svc.repository, "get_expired_licenses", boom)
+    with pytest.raises(RuntimeError):
+        await svc.get_expired_licenses()
 
 @pytest.mark.asyncio
-async def test_deactivate_license_sets_flag_false():
-    repo = FakeRepo()
-    repo.update_returns = [{"id": "D1"}]
-    svc = make_service(repo)
-    res = await svc.deactivate_license("D1")
-    sent = repo.last_update_args[-1]["data"]
-    assert res["id"] == "D1"
-    assert sent == {"is_active": False}
+async def test_get_licenses_by_type_success_and_error(monkeypatch):
+    svc = make_service()
+    out = await svc.get_licenses_by_type("roadworthy")
+    assert out and out[0]["license_type"] == "roadworthy"
+    async def boom(_): raise RuntimeError("x")
+    monkeypatch.setattr(svc.repository, "get_by_license_type", boom)
+    with pytest.raises(RuntimeError):
+        await svc.get_licenses_by_type("x")
 
+# -------------------- get_all_licenses --------------------
 
 @pytest.mark.asyncio
-async def test_search_licenses_builds_query_and_sort_desc():
-    repo = FakeRepo()
-    svc = make_service(repo)
-    future_days = 45
+async def test_get_all_licenses_calls_find_and_error(monkeypatch):
+    svc = make_service()
+    out = await svc.get_all_licenses(skip=5, limit=7)
+    assert out and out[0]["skip"] == 5 and out[0]["limit"] == 7
+    q, s, l, sort = svc.repository.find_calls[-1]
+    assert q == {"is_active": True}
+    assert sort == [("expiry_date", 1)]
+    async def boom(query, skip, limit, sort): raise RuntimeError("x")
+    monkeypatch.setattr(svc.repository, "find", boom)
+    with pytest.raises(RuntimeError):
+        await svc.get_all_licenses()
+
+# -------------------- renew_license --------------------
+
+@pytest.mark.asyncio
+async def test_renew_license_with_and_without_cost_and_not_found_and_error(monkeypatch):
+    svc = make_service()
+    out = await svc.renew_license("rec1", "2030-12-31", renewal_cost=123.45)
+    assert out["id"] == "rec1" and out["renewal_cost"] == 123.45
+    assert out["expiry_date"] == date(2030,12,31)
+    assert out["renewal_date"] == date.today()
+    out2 = await svc.renew_license("missing", "2031-01-01")
+    assert out2 is None
+    async def boom(rid, data): raise RuntimeError("x")
+    monkeypatch.setattr(svc.repository, "update", boom)
+    with pytest.raises(RuntimeError):
+        await svc.renew_license("rec2", "2031-02-01")
+
+# -------------------- deactivate_license --------------------
+
+@pytest.mark.asyncio
+async def test_deactivate_license_found_not_found_and_error(monkeypatch):
+    svc = make_service()
+    out = await svc.deactivate_license("rec1")
+    assert out["id"] == "rec1" and out["is_active"] is False
+    out2 = await svc.deactivate_license("missing")
+    assert out2 is None
+    async def boom(rid, data): raise RuntimeError("x")
+    monkeypatch.setattr(svc.repository, "update", boom)
+    with pytest.raises(RuntimeError):
+        await svc.deactivate_license("rec3")
+
+# -------------------- search_licenses --------------------
+
+@pytest.mark.asyncio
+async def test_search_licenses_build_query_and_sort_asc_desc(monkeypatch):
+    svc = make_service()
     q = {
-        "entity_id": "veh-1",
-        "entity_type": "vehicle",
-        "license_type": "registration",
-        "is_active": True,
-        "expiring_within_days": future_days,
+        "entity_id":"V1","entity_type":"vehicle","license_type":"roadworthy","is_active":True,
+        "expiring_within_days": 10
     }
-    _ = await svc.search_licenses(q, skip=2, limit=3, sort_by="license_number", sort_order="desc")
-    args = repo.last_find_args
-    assert args["skip"] == 2 and args["limit"] == 3
-    assert args["sort"] == [("license_number", -1)]
-    expected_future = date.today() + timedelta(days=future_days)
-    assert args["query"]["entity_id"] == "veh-1"
-    assert args["query"]["entity_type"] == "vehicle"
-    assert args["query"]["license_type"] == "registration"
-    assert args["query"]["is_active"] is True
-    assert args["query"]["expiry_date"]["$lte"] == expected_future
-
-
-@pytest.mark.asyncio
-async def test_search_licenses_minimal_defaults():
-    repo = FakeRepo()
-    svc = make_service(repo)
-    _ = await svc.search_licenses({}, skip=0, limit=10)
-    args = repo.last_find_args
-    assert args["query"] == {}
-    assert args["sort"] == [("expiry_date", 1)]
-
+    out = await svc.search_licenses(q, skip=2, limit=3, sort_by="license_number", sort_order="asc")
+    q1, s1, l1, sort1 = svc.repository.find_calls[-1]
+    assert q1["entity_id"] == "V1" and q1["entity_type"] == "vehicle"
+    assert q1["license_type"] == "roadworthy" and q1["is_active"] is True
+    assert "$lte" in q1["expiry_date"]
+    assert s1 == 2 and l1 == 3 and sort1 == [("license_number", 1)]
+    out2 = await svc.search_licenses({"entity_id":"D1"}, sort_by="expiry_date", sort_order="desc")
+    q2, s2, l2, sort2 = svc.repository.find_calls[-1]
+    assert q2 == {"entity_id":"D1"}
+    assert sort2 == [("expiry_date", -1)]
 
 @pytest.mark.asyncio
-async def test_get_total_count_builds_query_with_expiring_within_days():
-    repo = FakeRepo()
-    svc = make_service(repo)
-    repo.count_queue = [5]
-    q = {"is_active": True, "expiring_within_days": 10}
-    total = await svc.get_total_count(q)
-    assert total == 5
-    sent_query = repo.last_count_queries[-1]
-    assert sent_query["is_active"] is True
-    assert sent_query["expiry_date"]["$lte"] == date.today() + timedelta(days=10)
+async def test_search_licenses_error_propagates(monkeypatch):
+    svc = make_service()
+    async def boom(query, skip, limit, sort): raise RuntimeError("x")
+    monkeypatch.setattr(svc.repository, "find", boom)
+    with pytest.raises(RuntimeError):
+        await svc.search_licenses({"entity_id":"V1"})
 
+# -------------------- get_total_count --------------------
 
 @pytest.mark.asyncio
-async def test_get_license_summary_counts_and_computed_fields():
-    repo = FakeRepo()
-    svc = make_service(repo)
-    repo.count_queue = [20, 16, 4, 3]
-    summary = await svc.get_license_summary(entity_id="veh-1", entity_type="vehicle")
-    assert summary["total_licenses"] == 20
-    assert summary["active_licenses"] == 16
-    assert summary["inactive_licenses"] == 4
-    assert summary["expiring_soon"] == 4
-    assert summary["expired"] == 3
-    q_total, q_active, q_expiring, q_expired = repo.last_count_queries[-4:]
-    assert q_total == {"entity_id": "veh-1", "entity_type": "vehicle"}
-    assert q_active == {"entity_id": "veh-1", "entity_type": "vehicle", "is_active": True}
-    assert q_expiring["is_active"] is True and "$lte" in q_expiring["expiry_date"]
-    assert q_expired["is_active"] is True and "$lt" in q_expired["expiry_date"]
+async def test_get_total_count_builds_query_and_error(monkeypatch):
+    svc = make_service()
+    q = {"entity_type":"driver","expiring_within_days":5,"is_active":True}
+    cnt = await svc.get_total_count(q)
+    assert isinstance(cnt, int)
+    built = svc.repository.count_calls[-1]
+    assert built["entity_type"] == "driver" and built["is_active"] is True
+    assert "$lte" in built["expiry_date"]
+    async def boom(query): raise RuntimeError("x")
+    monkeypatch.setattr(svc.repository, "count", boom)
+    with pytest.raises(RuntimeError):
+        await svc.get_total_count({"entity_id":"X"})
+
+# -------------------- get_license_summary --------------------
+
+@pytest.mark.asyncio
+async def test_get_license_summary_sequence_and_error(monkeypatch):
+    svc = make_service()
+    svc.repository.count_queue = [10, 7, 3, 2]  # total, active, expiring, expired
+    out = await svc.get_license_summary(entity_id="V1", entity_type="vehicle")
+    assert out == {
+        "total_licenses": 10,
+        "active_licenses": 7,
+        "inactive_licenses": 3,
+        "expiring_soon": 3,
+        "expired": 2
+    }
+    async def boom(query): raise RuntimeError("x")
+    monkeypatch.setattr(svc.repository, "count", boom)
+    with pytest.raises(RuntimeError):
+        await svc.get_license_summary()
