@@ -1,8 +1,3 @@
-# test_servicesRequest_Consumer.py
-# Fully isolated, fast unit tests for services/request_consumer.py
-# - No broker/DB calls (everything monkeypatched per-test)
-# - One tiny, logical test per branch
-
 import sys
 import os
 import json
@@ -13,9 +8,6 @@ from datetime import datetime, timezone
 
 import pytest
 
-# --------------------------------------------------------------------------
-# Import module under test
-# --------------------------------------------------------------------------
 HERE = os.path.abspath(os.path.dirname(__file__))
 CANDIDATES = [
     os.path.abspath(os.path.join(HERE, "..", "..")),
@@ -33,10 +25,6 @@ except Exception:
 
 ServiceRequestConsumer = rc_mod.ServiceRequestConsumer
 
-
-# --------------------------------------------------------------------------
-# Small Fakes used in multiple tests
-# --------------------------------------------------------------------------
 class FakeExchange:
     def __init__(self, name="responses"):
         self.name = name
@@ -112,7 +100,6 @@ def patch_connect_to_fake(monkeypatch):
     elif hasattr(rc_mod, "connect_robust"):
         monkeypatch.setattr(rc_mod, "connect_robust", _connect, raising=True)
     else:
-        # Fallback: ensure an aio_pika namespace exists and patch there
         if not hasattr(rc_mod, "aio_pika"):
             rc_mod.aio_pika = types.SimpleNamespace()
         monkeypatch.setattr(rc_mod.aio_pika, "connect_robust", _connect, raising=True)
@@ -132,7 +119,6 @@ def patch_message_types(monkeypatch):
         monkeypatch.setattr(rc_mod.aio_pika, "Message", FakeMessage, raising=True)
         monkeypatch.setattr(rc_mod.aio_pika, "DeliveryMode", FakeDeliveryMode, raising=True)
     else:
-        # Fallback if module directly imported Message/DeliveryMode (unlikely here)
         if hasattr(rc_mod, "Message"):
             monkeypatch.setattr(rc_mod, "Message", FakeMessage, raising=True)
         if hasattr(rc_mod, "DeliveryMode"):
@@ -144,23 +130,19 @@ def install_db_manager_stub(admin_obj):
     repositories.database so `from repositories.database import db_manager`
     resolves to our stub.
     """
-    # repositories package
+
     if "repositories" not in sys.modules:
         sys.modules["repositories"] = types.ModuleType("repositories")
-    # repositories.database package
+
     if "repositories.database" not in sys.modules:
         sys.modules["repositories.database"] = types.ModuleType("repositories.database")
-    # repositories.database.db_manager module
+
     dbm = types.ModuleType("repositories.database.db_manager")
     dbm.client = types.SimpleNamespace(admin=admin_obj)
     sys.modules["repositories.database.db_manager"] = dbm
-    # expose as attribute on repositories.database
+
     setattr(sys.modules["repositories.database"], "db_manager", dbm)
 
-
-# --------------------------------------------------------------------------
-# Constructor sanity
-# --------------------------------------------------------------------------
 def test_constructor_sets_names_and_cache_defaults():
     svc = ServiceRequestConsumer()
     cfg = rc_mod.RabbitMQConfig()
@@ -170,10 +152,6 @@ def test_constructor_sets_names_and_cache_defaults():
     assert svc._db_status_cache["status"] is None
     assert svc._db_status_cache["cache_ttl"] == 30.0
 
-
-# --------------------------------------------------------------------------
-# connect() branches
-# --------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_connect_success(monkeypatch):
     patch_connect_to_fake(monkeypatch)
@@ -181,10 +159,8 @@ async def test_connect_success(monkeypatch):
     ok = await svc.connect()
     assert ok is True
     assert isinstance(svc.connection, FakeConnection)
-    # exchanges created
     assert svc.exchange.name == rc_mod.RabbitMQConfig().EXCHANGE_NAMES["requests"]
     assert svc.response_exchange.name == rc_mod.RabbitMQConfig().EXCHANGE_NAMES["responses"]
-    # queue declared
     assert svc.queue.name == rc_mod.RabbitMQConfig().QUEUE_NAMES["maintenance"]
 
 @pytest.mark.asyncio
@@ -194,10 +170,6 @@ async def test_connect_raises_on_failure(monkeypatch):
     with pytest.raises(RuntimeError):
         await svc.connect()
 
-
-# --------------------------------------------------------------------------
-# _setup_response_connection() branches
-# --------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_setup_response_connection_creates_when_missing(monkeypatch):
     patch_connect_to_fake(monkeypatch)
@@ -229,10 +201,6 @@ async def test_setup_response_connection_propagates_error(monkeypatch):
     with pytest.raises(RuntimeError):
         await svc._setup_response_connection()
 
-
-# --------------------------------------------------------------------------
-# setup_queues()
-# --------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_setup_queues_returns_existing_queue(monkeypatch):
     patch_connect_to_fake(monkeypatch)
@@ -241,13 +209,9 @@ async def test_setup_queues_returns_existing_queue(monkeypatch):
     q = await svc.setup_queues()
     assert q is svc.queue
 
-
-# --------------------------------------------------------------------------
-# start_consuming() branches
-# --------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_start_consuming_connects_if_closed(monkeypatch):
-    # Provide a fake connect that sets a queue with a consume that records the call
+
     svc = ServiceRequestConsumer()
     svc.connection = types.SimpleNamespace(is_closed=True)
 
@@ -263,7 +227,7 @@ async def test_start_consuming_connects_if_closed(monkeypatch):
             return "tag"
         self.queue.consume = consume
 
-    # Patch the instance's connect method only for this test
+
     orig = ServiceRequestConsumer.connect
     try:
         object.__setattr__(svc, "connect", fake_connect.__get__(svc, ServiceRequestConsumer))
@@ -285,14 +249,9 @@ async def test_start_consuming_propagates_consume_error(monkeypatch):
     with pytest.raises(RuntimeError):
         await svc.start_consuming()
 
-
-# --------------------------------------------------------------------------
-# stop_consuming() and disconnect() branches
-# --------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_stop_consuming_closes_open_connections():
     svc = ServiceRequestConsumer()
-    # Give it open connections without calling real connect
     class Closeable(FakeConnection):
         pass
     svc.connection = Closeable()
@@ -315,19 +274,14 @@ async def test_disconnect_skips_when_already_closed():
     assert svc._response_connection.closed_calls == 0
 
 
-# --------------------------------------------------------------------------
-# handle_request() branches
-# --------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_handle_request_success_sends_success_response(monkeypatch):
     svc = ServiceRequestConsumer()
 
-    # Pass through wait_for immediately
     async def passthrough(coro, timeout):
         return await coro
     monkeypatch.setattr(asyncio, "wait_for", passthrough, raising=True)
 
-    # Capture outgoing response
     sent = {}
     async def fake_send(corr_id, payload):
         sent["cid"] = corr_id
@@ -403,10 +357,6 @@ async def test_handle_request_bad_json_no_correlation_id_means_no_send(monkeypat
     await svc.handle_request(msg)
     assert calls["n"] == 0
 
-
-# --------------------------------------------------------------------------
-# _route_request() validations + routing branches
-# --------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_route_validations_raise_value_error():
     svc = ServiceRequestConsumer()
@@ -453,10 +403,6 @@ async def test_route_unknown_endpoint_raises():
     with pytest.raises(ValueError):
         await svc._route_request("GET", {}, "unknown/path")
 
-
-# --------------------------------------------------------------------------
-# _send_response() and _send_error_response() branches
-# --------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_send_response_publishes_success_message(monkeypatch):
     patch_message_types(monkeypatch)
@@ -485,23 +431,16 @@ async def test_send_error_response_swallows_publish_error(monkeypatch):
     patch_message_types(monkeypatch)
     svc = ServiceRequestConsumer()
     svc.response_exchange = FakeExchange("responses")
-    # happy path
     await svc._send_error_response("id", "boom")
     assert len(svc.response_exchange.published) >= 1
-    # force publish error; should not raise
     svc.response_exchange.raise_on_publish = True
     await svc._send_error_response("id2", "oops")
 
-
-# --------------------------------------------------------------------------
-# _check_database_connectivity() caching branches
-# --------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_db_check_uses_fresh_cache_true(monkeypatch):
     svc = ServiceRequestConsumer()
     svc._db_status_cache.update({"status": True, "last_check": 1000.0, "cache_ttl": 30.0})
     monkeypatch.setattr(rc_mod.time, "time", lambda: 1010.0, raising=True)  # within TTL
-    # Install a stub db_manager (should NOT be called due to cache)
     class Admin:
         def __init__(self): self.calls = 0
         async def command(self, cmd): self.calls += 1; return {"ok": 1}
@@ -513,8 +452,7 @@ async def test_db_check_uses_fresh_cache_true(monkeypatch):
 async def test_db_check_uses_fresh_cache_false(monkeypatch):
     svc = ServiceRequestConsumer()
     svc._db_status_cache.update({"status": False, "last_check": 1000.0, "cache_ttl": 30.0})
-    monkeypatch.setattr(rc_mod.time, "time", lambda: 1010.0, raising=True)  # within TTL
-    # This should return the cached False without any ping
+    monkeypatch.setattr(rc_mod.time, "time", lambda: 1010.0, raising=True) 
     class Admin:
         def __init__(self): self.calls = 0
         async def command(self, cmd): self.calls += 1; return {"ok": 1}
@@ -526,7 +464,7 @@ async def test_db_check_uses_fresh_cache_false(monkeypatch):
 async def test_db_check_expired_cache_success(monkeypatch):
     svc = ServiceRequestConsumer()
     svc._db_status_cache.update({"status": None, "last_check": 0.0, "cache_ttl": 30.0})
-    monkeypatch.setattr(rc_mod.time, "time", lambda: 2000.0, raising=True)  # force expiry
+    monkeypatch.setattr(rc_mod.time, "time", lambda: 2000.0, raising=True)  
     class Admin:
         def __init__(self): self.calls = 0
         async def command(self, cmd): self.calls += 1; return {"ok": 1}
@@ -536,13 +474,13 @@ async def test_db_check_expired_cache_success(monkeypatch):
     assert ok is True
     assert svc._db_status_cache["status"] is True
     assert svc._db_status_cache["last_check"] == 2000.0
-    assert admin.calls == 1  # ping called once
+    assert admin.calls == 1 
 
 @pytest.mark.asyncio
 async def test_db_check_expired_cache_failure(monkeypatch):
     svc = ServiceRequestConsumer()
     svc._db_status_cache.update({"status": None, "last_check": 0.0, "cache_ttl": 30.0})
-    monkeypatch.setattr(rc_mod.time, "time", lambda: 3000.0, raising=True)  # force expiry
+    monkeypatch.setattr(rc_mod.time, "time", lambda: 3000.0, raising=True)  
     class Admin:
         def __init__(self): self.calls = 0
         async def command(self, cmd):
@@ -554,4 +492,4 @@ async def test_db_check_expired_cache_failure(monkeypatch):
     assert ok is False
     assert svc._db_status_cache["status"] is False
     assert svc._db_status_cache["last_check"] == 3000.0
-    assert admin.calls == 1  # ping called once
+    assert admin.calls == 1  

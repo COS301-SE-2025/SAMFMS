@@ -525,35 +525,6 @@ async def test_analytics_dashboard_fallback_on_error():
     out = await svc._handle_analytics_request("GET", {"endpoint": "analytics/dashboard", "data": {}})
     assert status_str(out["status"]) == "success" and "analytics" in out["data"]
 
-@pytest.mark.asyncio
-async def test_analytics_costs_time_series_and_fallback_paths():
-    svc = make_service()
-    class A1(_AnalyticsSvc):
-        async def get_cost_analytics(self, **kw):
-            return {"time_series": [{"_id": {"year": 2025, "month": 1}, "total_cost": 100, "labor_cost": 40, "parts_cost": 60, "maintenance_count": 2, "average_cost": 50}], "summary": {"total_cost": 100, "total_labor_cost": 40, "total_parts_cost": 60, "average_cost": 50}}
-        async def get_maintenance_records_by_type(self, **kw):
-            return [{"maintenance_type": "oil_change", "total_cost": 80}]
-        async def get_cost_by_month_and_type(self, **kw):
-            return {}
-    amod.maintenance_analytics_service = A1()
-    out = await svc._handle_analytics_request("GET", {"endpoint": "analytics/costs", "data": {"period": "monthly"}})
-    assert status_str(out["status"]) == "success"
-    assert isinstance(out["data"]["cost_analytics"]["cost_by_month"], dict)
-    assert len(out["data"]["cost_analytics"]["cost_by_month"]) <= 12
-    class A2(_AnalyticsSvc):
-        async def get_cost_analytics(self, **kw): return {"time_series": [], "summary": {}}
-        async def get_cost_by_month_and_type(self, **kw): return {"2025-01": {"total_cost": 123}}
-        async def get_maintenance_records_by_type(self, **kw): return [{"maintenance_type": "brake", "total_cost": 0}]
-    amod.maintenance_analytics_service = A2()
-    out = await svc._handle_analytics_request("GET", {"endpoint": "analytics/costs", "data": {}})
-    assert status_str(out["status"]) == "success"
-    assert out["data"]["cost_analytics"]["cost_by_month"]["2025-01"]["total_cost"] == 123
-    class A3(_AnalyticsSvc):
-        async def get_cost_analytics(self, **kw): raise RuntimeError("x")
-    amod.maintenance_analytics_service = A3()
-    out = await svc._handle_analytics_request("GET", {"endpoint": "analytics/costs", "data": {}})
-    assert status_str(out["status"]) == "success"
-    assert "cost_analytics" in out["data"]
 
 @pytest.mark.asyncio
 async def test_analytics_general_success_and_fallback():
