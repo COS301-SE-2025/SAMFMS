@@ -174,6 +174,14 @@ class DatabaseManager:
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.trips
+    
+    @property
+    def trips_scheduled(self):
+        """Get Scheduled trips collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.trips_scheduled
+
     @property
     def trip_history(self):
         """Get trip history"""

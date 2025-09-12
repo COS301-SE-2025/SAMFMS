@@ -163,6 +163,7 @@ export const API_ENDPOINTS = {
   TRIPS: {
     LIST: '/trips/trips',
     CREATE: '/trips/trips/create',
+    SCHEDULED: '/trips/trips/scheduled',
     UPDATE: id => `/trips/trips/${id}`,
     DELETE: id => `/trips/trips/${id}`,
     ACTIVE: '/trips/trips/active/all',

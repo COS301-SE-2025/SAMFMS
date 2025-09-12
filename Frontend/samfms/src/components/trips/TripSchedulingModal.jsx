@@ -13,6 +13,9 @@ import {
   ChevronLeft,
   ChevronUp,
   Flag,
+  CalendarClock,
+  Truck,
+  Timer,
 } from 'lucide-react';
 import TripPlanningMap from './TripPlanningMap';
 import LocationAutocomplete from './LocationAutocomplete';
@@ -28,9 +31,21 @@ const TripSchedulingModal = ({
   isSubmitting,
   availableVehicles,
 }) => {
-  // Step management
-  const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 3;
+  // Trip type state
+  const [tripType, setTripType] = useState(''); // '' initially to force selection
+
+  // Step management - adjusted based on trip type
+  const [currentStep, setCurrentStep] = useState(0); // Start at 0 for trip type selection
+  const getTotalSteps = () => {
+    switch (tripType) {
+      case 'normal':
+        return 4; // Type selection + 3 normal steps
+      case 'scheduled':
+        return 3; // Type selection + 2 scheduled steps
+      default:
+        return 1;
+    }
+  };
 
   // Map state
   const [mapLocations, setMapLocations] = useState({
@@ -46,39 +61,59 @@ const TripSchedulingModal = ({
 
   // Step navigation functions
   const nextStep = useCallback(() => {
-    if (currentStep < totalSteps) {
+    const totalSteps = getTotalSteps();
+    if (currentStep < totalSteps - 1) {
       setCurrentStep(currentStep + 1);
     }
-  }, [currentStep, totalSteps]);
+  }, [currentStep, tripType]);
 
   const prevStep = useCallback(() => {
-    if (currentStep > 1) {
+    if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
     }
   }, [currentStep]);
 
-  // Form validation for each step
+  // Form validation for each step based on trip type
   const isStepValid = useCallback(
     step => {
-      switch (step) {
-        case 1:
-          return tripForm.name && tripForm.priority;
-        case 2:
-          return (
-            tripForm.vehicleId &&
-            tripForm.driverId &&
-            tripForm.startDate &&
-            tripForm.startTime &&
-            tripForm.endDate &&
-            tripForm.endTime
-          );
-        case 3:
-          return tripForm.startLocation && tripForm.endLocation;
-        default:
-          return false;
+      if (step === 0) return tripType !== ''; // Trip type selection
+
+      if (tripType === 'normal') {
+        switch (step) {
+          case 1:
+            return tripForm.name && tripForm.priority;
+          case 2:
+            return (
+              tripForm.vehicleId &&
+              tripForm.driverId &&
+              tripForm.startDate &&
+              tripForm.startTime &&
+              tripForm.endDate &&
+              tripForm.endTime
+            );
+          case 3:
+            return tripForm.startLocation && tripForm.endLocation;
+          default:
+            return false;
+        }
+      } else if (tripType === 'scheduled') {
+        switch (step) {
+          case 1:
+            return (
+              tripForm.name &&
+              tripForm.priority &&
+              tripForm.startTimeWindow &&
+              tripForm.endTimeWindow
+            );
+          case 2:
+            return tripForm.startLocation && tripForm.endLocation;
+          default:
+            return false;
+        }
       }
+      return false;
     },
-    [tripForm]
+    [tripForm, tripType]
   );
 
   // Handle keyboard navigation
@@ -86,13 +121,15 @@ const TripSchedulingModal = ({
     e => {
       if (e.key === 'Enter' && !isSubmitting) {
         e.preventDefault();
+        const totalSteps = getTotalSteps();
 
-        if (currentStep < totalSteps && isStepValid(currentStep)) {
+        if (currentStep < totalSteps - 1 && isStepValid(currentStep)) {
           nextStep();
-        } else if (currentStep === totalSteps && isStepValid(currentStep)) {
+        } else if (currentStep === totalSteps - 1 && isStepValid(currentStep)) {
           // Submit the form
           const enhancedTripData = {
             ...tripForm,
+            tripType,
             routeInfo,
             waypoints: mapLocations.waypoints,
             coordinates: {
@@ -107,13 +144,14 @@ const TripSchedulingModal = ({
     [
       currentStep,
       isSubmitting,
-      totalSteps,
       tripForm,
+      tripType,
       routeInfo,
       mapLocations,
       onSubmit,
       nextStep,
       isStepValid,
+      getTotalSteps,
     ]
   );
 
@@ -193,9 +231,10 @@ const TripSchedulingModal = ({
     e.preventDefault();
     const enhancedTripData = {
       ...tripForm,
+      tripType,
       routeInfo,
-      polyline: routeInfo?.polyline || null, // Include raw polyline for backend
-      decodedPolyline: routeInfo?.coordinates || null, // Include decoded coordinates
+      polyline: routeInfo?.polyline || null,
+      decodedPolyline: routeInfo?.coordinates || null,
       waypoints: mapLocations.waypoints,
       coordinates: {
         start: mapLocations.start,
@@ -208,7 +247,8 @@ const TripSchedulingModal = ({
   // Reset when modal closes
   useEffect(() => {
     if (!showModal) {
-      setCurrentStep(1);
+      setCurrentStep(0);
+      setTripType('');
       setMapLocations({ start: null, end: null, waypoints: [] });
       setRouteInfo(null);
       setShowDescription(false);
@@ -218,38 +258,33 @@ const TripSchedulingModal = ({
 
   // Debug logging for prop values
   useEffect(() => {
-    console.log('TripSchedulingModal props received:');
-    console.log('availableVehicles:', availableVehicles);
-    console.log('vehicles:', vehicles);
-    console.log('drivers:', drivers);
-  }, [availableVehicles, vehicles, drivers]);
-
-  // Debug logging for vehicles and drivers
-  useEffect(() => {
-    console.log('TripSchedulingModal - Received props:');
-    console.log('- vehicles:', vehicles);
-    console.log('- drivers:', drivers);
-    console.log('- availableVehicles:', availableVehicles);
-  }, [vehicles, drivers, availableVehicles]);
-
-  // Debug logging for props
-  useEffect(() => {
-    console.log('TripSchedulingModal props:', {
-      availableVehicles: availableVehicles?.length || 0,
-      vehicles: vehicles?.length || 0,
-      drivers: drivers?.length || 0,
-      availableVehiclesData: availableVehicles,
-      driversData: drivers,
-    });
   }, [availableVehicles, vehicles, drivers]);
 
   if (!showModal) return null;
 
-  const stepTitles = [
-    { title: 'Trip Details', subtitle: 'Name and priority settings', icon: FileText },
-    { title: 'Vehicle & Schedule', subtitle: 'Assign vehicle, driver and timing', icon: Calendar },
-    { title: 'Route Planning', subtitle: 'Set locations and map route', icon: MapPin },
-  ];
+  // Step titles based on trip type
+  const getStepTitles = () => {
+    const baseStep = { title: 'Trip Type', subtitle: 'Choose normal or scheduled trip', icon: CalendarClock };
+
+    if (tripType === 'normal') {
+      return [
+        baseStep,
+        { title: 'Trip Details', subtitle: 'Name and priority settings', icon: FileText },
+        { title: 'Vehicle & Schedule', subtitle: 'Assign vehicle, driver and timing', icon: Calendar },
+        { title: 'Route Planning', subtitle: 'Set locations and map route', icon: MapPin },
+      ];
+    } else if (tripType === 'scheduled') {
+      return [
+        baseStep,
+        { title: 'Trip Details', subtitle: 'Name, priority and time windows', icon: FileText },
+        { title: 'Route Planning', subtitle: 'Set locations and map route', icon: MapPin },
+      ];
+    }
+    return [baseStep];
+  };
+
+  const stepTitles = getStepTitles();
+  const totalSteps = getTotalSteps();
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
@@ -259,16 +294,16 @@ const TripSchedulingModal = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                {React.createElement(stepTitles[currentStep - 1].icon, {
+                {React.createElement(stepTitles[currentStep]?.icon || CalendarClock, {
                   className: 'w-5 h-5 text-primary',
                 })}
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-foreground">
-                  {stepTitles[currentStep - 1].title}
+                  {stepTitles[currentStep]?.title || 'Trip Scheduling'}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  {stepTitles[currentStep - 1].subtitle}
+                  {stepTitles[currentStep]?.subtitle || 'Configure your trip'}
                 </p>
               </div>
             </div>
@@ -285,16 +320,16 @@ const TripSchedulingModal = ({
           <div className="mt-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-muted-foreground">
-                Step {currentStep} of {totalSteps}
+                Step {currentStep + 1} of {totalSteps}
               </span>
               <span className="text-xs text-muted-foreground">
-                {Math.round((currentStep / totalSteps) * 100)}%
+                {Math.round(((currentStep + 1) / totalSteps) * 100)}%
               </span>
             </div>
             <div className="w-full bg-muted rounded-full h-2">
               <div
                 className="bg-primary h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(currentStep / totalSteps) * 100}%` }}
+                style={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
               ></div>
             </div>
           </div>
@@ -303,7 +338,99 @@ const TripSchedulingModal = ({
         <div className="overflow-y-auto max-h-[calc(95vh-140px)]">
           <div className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Step 1: Trip Details */}
+              {/* Step 0: Trip Type Selection */}
+              {currentStep === 0 && (
+                <div className="space-y-8">
+                  <div className="text-center space-y-4">
+                    <h3 className="text-xl font-semibold text-foreground">
+                      What type of trip would you like to create?
+                    </h3>
+                    <p className="text-muted-foreground">
+                      Choose between a normal trip with immediate scheduling or a scheduled trip for future planning.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Normal Trip Option */}
+                    <button
+                      type="button"
+                      onClick={() => setTripType('normal')}
+                      className={`p-6 rounded-xl border-2 transition-all duration-200 text-left hover:shadow-lg ${tripType === 'normal'
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                        }`}
+                    >
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                          <Truck className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-semibold text-foreground">Normal Trip</h4>
+                          <p className="text-sm text-muted-foreground">Immediate scheduling</p>
+                        </div>
+                      </div>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          Complete vehicle and driver assignment
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          Specific start and end times
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          Route planning and optimization
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          Driver notes and instructions
+                        </li>
+                      </ul>
+                    </button>
+
+                    {/* Scheduled Trip Option */}
+                    <button
+                      type="button"
+                      onClick={() => setTripType('scheduled')}
+                      className={`p-6 rounded-xl border-2 transition-all duration-200 text-left hover:shadow-lg ${tripType === 'scheduled'
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                        }`}
+                    >
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                          <Timer className="w-6 h-6 text-purple-600" />
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-semibold text-foreground">Scheduled Trip</h4>
+                          <p className="text-sm text-muted-foreground">Future planning</p>
+                        </div>
+                      </div>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          Flexible time windows
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          Route planning without driver assignment
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          Perfect for advance planning
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          Assign drivers later when ready
+                        </li>
+                      </ul>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 1: Trip Details (Both Types) */}
               {currentStep === 1 && (
                 <div className="space-y-8">
                   <div className="space-y-6">
@@ -317,7 +444,7 @@ const TripSchedulingModal = ({
                           type="text"
                           value={tripForm.name}
                           onChange={e => onFormChange('name', e.target.value.slice(0, 25))}
-                          placeholder="e.g., Morning Delivery Route"
+                          placeholder={`e.g., ${tripType === 'scheduled' ? 'Weekly Supply Run' : 'Morning Delivery Route'}`}
                           maxLength={25}
                           className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
                           required
@@ -344,11 +471,10 @@ const TripSchedulingModal = ({
                             key={priority.value}
                             type="button"
                             onClick={() => onFormChange('priority', priority.value)}
-                            className={`p-4 rounded-lg border-2 transition-all duration-200 flex items-center gap-3 ${
-                              tripForm.priority === priority.value
+                            className={`p-4 rounded-lg border-2 transition-all duration-200 flex items-center gap-3 ${tripForm.priority === priority.value
                                 ? 'border-primary bg-primary/10'
                                 : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                            }`}
+                              }`}
                           >
                             <span className="text-xl">{priority.icon}</span>
                             <span className="font-medium">{priority.label}</span>
@@ -356,6 +482,45 @@ const TripSchedulingModal = ({
                         ))}
                       </div>
                     </div>
+
+                    {/* Time Windows for Scheduled Trips */}
+                    {tripType === 'scheduled' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Start Time Window */}
+                        <div className="space-y-3">
+                          <label className="block text-sm font-medium text-foreground">
+                            Start Time Window <span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative">
+                            <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-600" />
+                            <input
+                              type="datetime-local"
+                              value={tripForm.startTimeWindow}
+                              onChange={e => onFormChange('startTimeWindow', e.target.value)}
+                              className="w-full pl-10 pr-4 py-3 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        {/* End Time Window */}
+                        <div className="space-y-3">
+                          <label className="block text-sm font-medium text-foreground">
+                            End Time Window <span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative">
+                            <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-red-600" />
+                            <input
+                              type="datetime-local"
+                              value={tripForm.endTimeWindow}
+                              onChange={e => onFormChange('endTimeWindow', e.target.value)}
+                              className="w-full pl-10 pr-4 py-3 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
+                              required
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Optional Description */}
                     <div className="space-y-2">
@@ -380,48 +545,50 @@ const TripSchedulingModal = ({
                         <textarea
                           value={tripForm.description}
                           onChange={e => onFormChange('description', e.target.value)}
-                          placeholder="Add any additional details about this trip..."
+                          placeholder={`Add any additional details about this ${tripType} trip...`}
                           rows={4}
                           className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50 resize-none"
                         />
                       )}
                     </div>
 
-                    {/* Optional Driver Notes */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-sm font-medium text-foreground">
-                          Driver Notes
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setShowDriverNotes(!showDriverNotes)}
-                          className="text-primary text-sm hover:underline flex items-center gap-1"
-                        >
-                          {showDriverNotes ? 'Hide' : 'Add'} Notes
-                          {showDriverNotes ? (
-                            <ChevronUp className="w-4 h-4" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4" />
-                          )}
-                        </button>
+                    {/* Optional Driver Notes - Only for normal trips */}
+                    {tripType === 'normal' && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-sm font-medium text-foreground">
+                            Driver Notes
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setShowDriverNotes(!showDriverNotes)}
+                            className="text-primary text-sm hover:underline flex items-center gap-1"
+                          >
+                            {showDriverNotes ? 'Hide' : 'Add'} Notes
+                            {showDriverNotes ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                        {showDriverNotes && (
+                          <textarea
+                            value={tripForm.driverNotes}
+                            onChange={e => onFormChange('driverNotes', e.target.value)}
+                            placeholder="Special instructions for the driver..."
+                            rows={3}
+                            className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50 resize-none"
+                          />
+                        )}
                       </div>
-                      {showDriverNotes && (
-                        <textarea
-                          value={tripForm.driverNotes}
-                          onChange={e => onFormChange('driverNotes', e.target.value)}
-                          placeholder="Special instructions for the driver..."
-                          rows={3}
-                          className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50 resize-none"
-                        />
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Step 2: Vehicle & Schedule */}
-              {currentStep === 2 && (
+              {/* Step 2: Vehicle & Schedule (Normal only) */}
+              {currentStep === 2 && tripType === 'normal' && (
                 <div className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Vehicle Selection */}
@@ -549,9 +716,8 @@ const TripSchedulingModal = ({
                   </div>
                 </div>
               )}
-
-              {/* Step 3: Route Planning */}
-              {currentStep === 3 && (
+              {/* Route Planning Step (Final step for both trip types) */}
+              {((currentStep === 3 && tripType === 'normal') || (currentStep === 2 && tripType === 'scheduled')) && (
                 <div className="space-y-6">
                   {/* Location Inputs */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -629,6 +795,16 @@ const TripSchedulingModal = ({
                         </div>
                       </div>
                     )}
+
+                    {/* Trip Type Indicator */}
+                    {tripType === 'scheduled' && (
+                      <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+                        <div className="flex items-center gap-2 text-sm text-purple-700 dark:text-purple-300">
+                          <Timer className="w-4 h-4" />
+                          This is a scheduled trip - driver assignment will be done later
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -638,7 +814,7 @@ const TripSchedulingModal = ({
                 <button
                   type="button"
                   onClick={prevStep}
-                  disabled={currentStep === 1}
+                  disabled={currentStep === 0}
                   className="px-6 py-3 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -646,7 +822,7 @@ const TripSchedulingModal = ({
                 </button>
 
                 <div className="flex items-center gap-3">
-                  {currentStep < totalSteps ? (
+                  {currentStep < totalSteps - 1 ? (
                     <button
                       type="button"
                       onClick={nextStep}
@@ -665,12 +841,12 @@ const TripSchedulingModal = ({
                       {isSubmitting ? (
                         <>
                           <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                          Creating Trip...
+                          Creating {tripType === 'scheduled' ? 'Scheduled ' : ''}Trip...
                         </>
                       ) : (
                         <>
                           <CheckCircle className="w-4 h-4" />
-                          Create Trip
+                          Create {tripType === 'scheduled' ? 'Scheduled ' : ''}Trip
                         </>
                       )}
                     </button>

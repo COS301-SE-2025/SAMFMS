@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 from bson import ObjectId
 
 from repositories.database import db_manager, db_manager_gps
-from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation
-from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest
+from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation, ScheduledTrip
+from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest, ScheduledTripRequest
 from events.publisher import event_publisher
 
 logger = logging.getLogger(__name__)
@@ -20,6 +20,45 @@ class TripService:
     def __init__(self):
         self.db = db_manager
         self.db_gps = db_manager_gps
+    
+    async def create_scheduled_trip(
+        self,
+        request: ScheduledTripRequest,
+        created_by: str
+    ) -> ScheduledTrip:
+        """Create a new scheduled trip"""
+        try:
+            if request.end_time_window:
+                if request.end_time_window <= request.start_time_window:
+                    logger.warning("[TripService.create_schduled_trip] Invalid schedule: end <= start")
+                    raise ValueError("End time must be after start time")
+                
+            trip_data = request.model_dump(exclude_unset=True)
+
+            if request.route_info:
+                trip_data["estimated_distance"] = request.route_info.distance / 1000
+                # Convert duration from seconds to minutes for estimated_duration
+                trip_data["estimated_duration"] = request.route_info.duration / 60
+                logger.debug(f"[TripService.create_trip] Extracted from route_info: distance={trip_data['estimated_distance']}km, duration={trip_data['estimated_duration']}min")
+
+            trip_data.update({
+                "created_by": created_by,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "status": TripStatus.SCHEDULED
+            })
+
+            result = await self.db.trips_scheduled.insert_one(trip_data)
+
+            trip = await self.get_trip_by_id_scheduled(str(result.inserted_id))
+            if not trip:
+                logger.error(f"[TripService.create_scheduled] Failed to retrieve trip after insert (ID={result.inserted_id})")
+                raise RuntimeError("Failed to retrieve created trip")
+            
+            return trip
+        except Exception as e:
+            logger.error(f"[TripService.create_trip_scheduled] Failed: {e}")
+            raise
 
     async def create_trip(
         self, 
@@ -277,6 +316,19 @@ class TripService:
             if trip_doc:
                 trip_doc["_id"] = str(trip_doc["_id"])
                 return Trip(**trip_doc)
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get trip {trip_id}: {e}")
+            raise
+    
+    async def get_trip_by_id_scheduled(self, trip_id: str) -> Optional[ScheduledTrip]:
+        """Get trip by ID"""
+        try:
+            trip_doc = await self.db.trips_scheduled.find_one({"_id": ObjectId(trip_id)})
+            if trip_doc:
+                trip_doc["_id"] = str(trip_doc["_id"])
+                return ScheduledTrip(**trip_doc)
             return None
             
         except Exception as e:

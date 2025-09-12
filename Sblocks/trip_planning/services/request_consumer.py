@@ -491,8 +491,21 @@ class ServiceRequestConsumer:
             elif method == "POST":
                 if not data:
                     raise ValueError("Request data is required for POST operation")
+                if "scheduled" in endpoint:
+                    logger.info(f"Preparing schedule trip request")
+                    from schemas.requests import ScheduledTripRequest
+                    scheduled_request = ScheduledTripRequest(**data)
+                    created_by = user_context.get("user_id", "system")
 
-                if "create" in endpoint:
+                    scheduled_trip = await trip_service.create_scheduled_trip(scheduled_request,created_by)
+                    trip_id = scheduled_trip.id
+
+                    return ResponseBuilder.success(
+                        data=scheduled_trip.model_dump(),
+                        message="Scheduled Trip created successfully"
+                    ).model_dump()
+
+                elif "create" in endpoint:
                     logger.info(f"[_handle_trips_request] Preparing CreateTripRequest and calling trip_service.create_trip()")
                     from schemas.requests import CreateTripRequest
                     trip_request = CreateTripRequest(**data)

@@ -4,6 +4,7 @@ import { API_ENDPOINTS } from '../../config/apiConfig';
 const TRIPS_ENDPOINTS = {
   list: API_ENDPOINTS.TRIPS.LIST,
   create: API_ENDPOINTS.TRIPS.CREATE,
+  scheduled: API_ENDPOINTS.TRIPS.SCHEDULED,
   update: API_ENDPOINTS.TRIPS.UPDATE,
   delete: API_ENDPOINTS.TRIPS.DELETE,
   ACTIVE: API_ENDPOINTS.TRIPS.ACTIVE,
@@ -48,6 +49,18 @@ export const createTrip = async tripData => {
     throw error;
   }
 };
+
+export const createScheduledTrip = async tripData => {
+  try {
+    console.log('Creating trip. Payload: ', tripData);
+    const response = await httpClient.post(TRIPS_ENDPOINTS.scheduled, tripData);
+    console.log("Response from backend: ", response);
+    return response;
+  } catch (error){
+    console.log('Error creating scheduled trip: ', error);
+    throw error;
+  }
+}
 
 export const updateTrip = async (tripID, tripData) => {
   try {
