@@ -88,6 +88,40 @@ async def unassign_driver_from_trip(
         raise HTTPException(status_code=500, detail="Failed to unassign driver")
 
 
+@router.get("/{driver_id}/availability", response_model=Dict[str, Any])
+async def check_single_driver_availability(
+    driver_id: str,
+    start_time: datetime = Query(..., description="Start of time period"),
+    end_time: datetime = Query(..., description="End of time period"),
+    current_user: str = Depends(get_current_user)
+):
+    """Check if a specific driver is available in a given timeframe"""
+    try:
+        if end_time <= start_time:
+            raise HTTPException(status_code=400, detail="End time must be after start time")
+        
+        # Check driver availability using the existing service method
+        is_available = await driver_service.check_driver_availability(
+            driver_id, start_time, end_time
+        )
+        
+        return ResponseBuilder.success(
+            data={
+                "driver_id": driver_id,
+                "is_available": is_available,
+                "start_time": start_time,
+                "end_time": end_time
+            },
+            message=f"Driver availability checked successfully"
+        )
+    
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error checking driver {driver_id} availability: {e}")
+        raise HTTPException(status_code=500, detail="Failed to check driver availability")
+
+
 @router.get("/availability", response_model=Dict[str, Any])
 async def check_driver_availability(
     start_time: datetime = Query(..., description="Start of time period"),
@@ -117,6 +151,64 @@ async def check_driver_availability(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to check driver availability")
+
+
+@router.get("/available", response_model=Dict[str, Any])
+async def get_available_drivers(
+    start_time: datetime = Query(..., description="Start of time period"),
+    end_time: datetime = Query(..., description="End of time period"),
+    current_user: str = Depends(get_current_user)
+):
+    """Get all drivers that are available within a given timeframe"""
+    try:
+        if end_time <= start_time:
+            raise HTTPException(status_code=400, detail="End time must be after start time")
+        
+        # Get all drivers from the management database
+        all_drivers_result = await driver_service.get_all_drivers()
+        all_drivers = all_drivers_result.get("drivers", [])
+        
+        available_drivers = []
+        
+        # Check each driver's availability
+        for driver in all_drivers:
+            driver_id = driver.get("employee_id")
+            if not driver_id:
+                continue
+                
+            # Check if driver is available during the timeframe
+            is_available = await driver_service.check_driver_availability(
+                driver_id, start_time, end_time
+            )
+            
+            if is_available:
+                available_drivers.append({
+                    **driver,
+                    "is_available": True,
+                    "checked_timeframe": {
+                        "start_time": start_time,
+                        "end_time": end_time
+                    }
+                })
+        
+        return ResponseBuilder.success(
+            data={
+                "available_drivers": available_drivers,
+                "total_available": len(available_drivers),
+                "total_checked": len(all_drivers),
+                "timeframe": {
+                    "start_time": start_time,
+                    "end_time": end_time
+                }
+            },
+            message=f"Found {len(available_drivers)} available drivers out of {len(all_drivers)} total drivers"
+        )
+    
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error getting available drivers: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get available drivers")
 
 
 @router.get("/{driver_id}/assignments", response_model=Dict[str, Any])

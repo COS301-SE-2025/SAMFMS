@@ -9,6 +9,7 @@ const SearchableDropdown = ({
     searchPlaceholder = "Search...",
     icon: Icon,
     required = false,
+    disabled = false,
     className = ""
 }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -48,8 +49,9 @@ const SearchableDropdown = ({
         <div className={`relative ${className}`} ref={dropdownRef}>
             <button
                 type="button"
-                className={`w-full pl-10 pr-10 py-3 border border-input rounded-lg bg-background text-foreground text-left focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50 flex items-center justify-between ${!value ? 'text-muted-foreground' : ''}`}
-                onClick={() => setIsOpen(!isOpen)}
+                className={`w-full pl-10 pr-10 py-3 border border-input rounded-lg bg-background text-foreground text-left focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50 flex items-center justify-between ${!value ? 'text-muted-foreground' : ''} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={() => !disabled && setIsOpen(!isOpen)}
+                disabled={disabled}
             >
                 <div className="flex items-center truncate">
                     {Icon && <Icon className="absolute left-3 w-5 h-5 text-muted-foreground" />}
@@ -58,7 +60,7 @@ const SearchableDropdown = ({
                 <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            {isOpen && (
+            {isOpen && !disabled && (
                 <div className="absolute z-10 w-full mt-1 bg-background border border-border rounded-lg shadow-lg overflow-hidden">
                     {/* Search input */}
                     <div className="relative p-2 border-b border-border">

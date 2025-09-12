@@ -17,6 +17,7 @@ import {
 import TripPlanningMap from './TripPlanningMap';
 import LocationAutocomplete from './LocationAutocomplete';
 import SearchableDropdown from '../ui/SearchableDropdown';
+import { getAvailableDrivers, getAvailableVehicles } from '../../backend/api/trips';
 
 const TripSchedulingModal = ({
   showModal,
@@ -48,6 +49,8 @@ const TripSchedulingModal = ({
   // Options for step 2/3 Driver and Vehicle dropdowns
   const [vehicleOptions, setVehicleOptions] = useState([]);
   const [driverOptions, setDriverOptions] = useState([]);
+  const [loadingDrivers, setLoadingDrivers] = useState(false);
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
 
   // Step navigation functions
   const nextStep = useCallback(() => {
@@ -67,15 +70,11 @@ const TripSchedulingModal = ({
     step => {
       switch (step) {
         case 1:
-          return tripForm.name && tripForm.priority;
+          return tripForm.name && tripForm.priority && tripForm.startDate && tripForm.startTime && tripForm.endDate && tripForm.endTime;
         case 2:
           return (
             tripForm.vehicleId &&
-            tripForm.driverId &&
-            tripForm.startDate &&
-            tripForm.startTime &&
-            tripForm.endDate &&
-            tripForm.endTime
+            tripForm.driverId
           );
         case 3:
           return tripForm.startLocation && tripForm.endLocation;
@@ -97,6 +96,63 @@ const TripSchedulingModal = ({
     }
   }, [availableVehicles, vehicles]);
 
+  // Function to fetch available vehicles based on time range
+  const fetchAvailableVehicles = useCallback(async () => {
+    if (!tripForm.startDate || !tripForm.startTime || !tripForm.endDate || !tripForm.endTime) {
+      return;
+    }
+
+    const startDateTime = `${tripForm.startDate}T${tripForm.startTime}:00`;
+    const endDateTime = `${tripForm.endDate}T${tripForm.endTime}:00`;
+
+    console.log('Fetching available vehicles for timeframe:', { startDateTime, endDateTime });
+
+    setLoadingVehicles(true);
+    try {
+      const response = await getAvailableVehicles(startDateTime, endDateTime);
+      console.log('Raw vehicle API response:', response);
+      
+      // Handle the nested response structure: response.data.data.vehicles
+      let availableVehiclesList = [];
+      if (response && response.data && response.data.data && response.data.data.vehicles) {
+        availableVehiclesList = response.data.data.vehicles;
+      } else if (response && response.data && response.data.vehicles) {
+        availableVehiclesList = response.data.vehicles;
+      }
+      
+      if (availableVehiclesList && availableVehiclesList.length > 0) {
+        // Format available vehicles for the dropdown
+        const formattedAvailableVehicles = availableVehiclesList.map(vehicle => ({
+          value: vehicle._id,
+          label: `${vehicle.make} ${vehicle.model} - ${vehicle.license_plate || vehicle.licensePlate || vehicle.registration_number}`
+        }));
+        
+        setVehicleOptions(formattedAvailableVehicles);
+        console.log('Updated vehicle options with available vehicles:', formattedAvailableVehicles);
+        
+        // Clear selected vehicle if it's no longer available
+        if (tripForm.vehicleId && !availableVehiclesList.find(v => v._id === tripForm.vehicleId)) {
+          onFormChange('vehicleId', '');
+        }
+      } else {
+        console.warn('No vehicles data in response:', response);
+        setVehicleOptions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching available vehicles:', error);
+      // Fallback to all vehicles if API fails
+      if (vehicles) {
+        const formattedVehicles = vehicles.map(vehicle => ({
+          value: vehicle._id || vehicle.id,
+          label: `${vehicle.make} ${vehicle.model} - ${vehicle.license_plate || vehicle.licensePlate || vehicle.registration}`
+        }));
+        setVehicleOptions(formattedVehicles);
+      }
+    } finally {
+      setLoadingVehicles(false);
+    }
+  }, [tripForm.startDate, tripForm.startTime, tripForm.endDate, tripForm.endTime, tripForm.vehicleId, vehicles, onFormChange]);
+
   // For the change in Driver in step 2/3 Driver dropdown
   useEffect(() => {
     if (drivers) {
@@ -108,9 +164,76 @@ const TripSchedulingModal = ({
     }
   }, [drivers]);
 
-  // Initialize default date/time values when step 2 is opened
+  // Function to fetch available drivers based on time range
+  const fetchAvailableDrivers = useCallback(async () => {
+    if (!tripForm.startDate || !tripForm.startTime || !tripForm.endDate || !tripForm.endTime) {
+      return;
+    }
+
+    const startDateTime = `${tripForm.startDate}T${tripForm.startTime}:00`;
+    const endDateTime = `${tripForm.endDate}T${tripForm.endTime}:00`;
+
+    console.log('Fetching available drivers for timeframe:', { startDateTime, endDateTime });
+
+    setLoadingDrivers(true);
+    try {
+      const response = await getAvailableDrivers(startDateTime, endDateTime);
+      console.log('Raw driver API response:', response);
+      
+      // Handle the nested response structure: response.data.data.available_drivers
+      let availableDriversList = [];
+      if (response && response.data && response.data.data && response.data.data.available_drivers) {
+        availableDriversList = response.data.data.available_drivers;
+      } else if (response && response.data && response.data.available_drivers) {
+        availableDriversList = response.data.available_drivers;
+      }
+      
+      if (availableDriversList && availableDriversList.length > 0) {
+        // Format available drivers for the dropdown
+        const formattedAvailableDrivers = availableDriversList.map(driver => ({
+          value: driver.employee_id,
+          label: `${driver.first_name} ${driver.last_name || ''} ${driver.employee_id ? `(${driver.employee_id})` : ''}`
+        }));
+        
+        setDriverOptions(formattedAvailableDrivers);
+        console.log('Updated driver options with available drivers:', formattedAvailableDrivers);
+        
+        // Clear selected driver if they're no longer available
+        if (tripForm.driverId && !availableDriversList.find(d => d.employee_id === tripForm.driverId)) {
+          onFormChange('driverId', '');
+        }
+      } else {
+        console.warn('No drivers data in response:', response);
+        setDriverOptions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching available drivers:', error);
+      // Fallback to all drivers if API fails
+      if (drivers) {
+        const formattedDrivers = drivers.map(driver => ({
+          value: driver.employee_id,
+          label: `${driver.first_name} ${driver.last_name || ''} ${driver.employee_id ? `(${driver.employee_id})` : ''}`
+        }));
+        setDriverOptions(formattedDrivers);
+      }
+    } finally {
+      setLoadingDrivers(false);
+    }
+  }, [tripForm.startDate, tripForm.startTime, tripForm.endDate, tripForm.endTime, tripForm.driverId, drivers, onFormChange]);
+
+  // Fetch available drivers when date/time changes and we have complete timeframe
   useEffect(() => {
-    if (currentStep === 2 && (!tripForm.startDate || !tripForm.startTime)) {
+    const timeoutId = setTimeout(() => {
+      fetchAvailableDrivers();
+      fetchAvailableVehicles();
+    }, 500); // Debounce the API call
+
+    return () => clearTimeout(timeoutId);
+  }, [fetchAvailableDrivers, fetchAvailableVehicles]);
+
+  // Initialize default date/time values when step 1 is opened
+  useEffect(() => {
+    if (currentStep === 1 && (!tripForm.startDate || !tripForm.startTime)) {
       const now = new Date();
       const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD format
       const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
@@ -338,8 +461,8 @@ const TripSchedulingModal = ({
   if (!showModal) return null;
 
   const stepTitles = [
-    {title: 'Trip Details', subtitle: 'Name and priority settings', icon: FileText},
-    {title: 'Vehicle & Schedule', subtitle: 'Assign vehicle, driver and timing', icon: Calendar},
+    {title: 'Trip Details & Schedule', subtitle: 'Name, priority, and timing', icon: FileText},
+    {title: 'Vehicle & Driver', subtitle: 'Assign vehicle and available driver', icon: Calendar},
     {title: 'Route Planning', subtitle: 'Set locations and map route', icon: MapPin},
   ];
 
@@ -507,11 +630,91 @@ const TripSchedulingModal = ({
                         />
                       )}
                     </div>
+
+                    {/* Scheduled Date & Time */}
+                    <div className="space-y-4">
+                      <h4 className="flex items-center gap-2 text-lg font-medium text-foreground">
+                        <Calendar className="w-5 h-5 text-primary" />
+                        Trip Schedule
+                      </h4>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Start Date & Time */}
+                        <div className="space-y-4">
+                          <h5 className="flex items-center gap-2 text-base font-medium text-foreground">
+                            <Clock className="w-4 h-4 text-green-600" />
+                            Start Time <span className="text-red-500">*</span>
+                          </h5>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium text-foreground">
+                                Date
+                              </label>
+                              <input
+                                type="date"
+                                value={tripForm.startDate}
+                                onChange={e => handleStartDateChange(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]}
+                                className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
+                                required
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium text-foreground">
+                                Time
+                              </label>
+                              <input
+                                type="time"
+                                value={tripForm.startTime}
+                                onChange={e => handleStartTimeChange(e.target.value)}
+                                className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
+                                required
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* End Date & Time */}
+                        <div className="space-y-4">
+                          <h5 className="flex items-center gap-2 text-base font-medium text-foreground">
+                            <Clock className="w-4 h-4 text-red-600" />
+                            End Time <span className="text-red-500">*</span>
+                          </h5>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium text-foreground">
+                                Date
+                              </label>
+                              <input
+                                type="date"
+                                value={tripForm.endDate}
+                                onChange={e => handleEndDateChange(e.target.value)}
+                                min={tripForm.startDate || new Date().toISOString().split('T')[0]}
+                                className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
+                                required
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium text-foreground">
+                                Time
+                              </label>
+                              <input
+                                type="time"
+                                value={tripForm.endTime}
+                                onChange={e => handleEndTimeChange(e.target.value)}
+                                className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
+                                required
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Step 2: Vehicle & Schedule */}
+              {/* Step 2: Vehicle & Driver Selection */}
               {currentStep === 2 && (
                 <div className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -520,15 +723,32 @@ const TripSchedulingModal = ({
                       <label className="block text-sm font-medium text-foreground">
                         Select Vehicle <span className="text-red-500">*</span>
                       </label>
+                      {loadingVehicles && (
+                        <div className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                          Loading available vehicles...
+                        </div>
+                      )}
+                      {!loadingVehicles && vehicleOptions.length === 0 && tripForm.startDate && tripForm.startTime && tripForm.endDate && tripForm.endTime && (
+                        <div className="text-sm text-amber-600 mb-2">
+                          No vehicles available for the selected time period. Please adjust your schedule.
+                        </div>
+                      )}
                       <SearchableDropdown
                         options={vehicleOptions}
                         value={tripForm.vehicleId}
                         onChange={(value) => onFormChange('vehicleId', value)}
-                        placeholder="Choose a vehicle..."
+                        placeholder={loadingVehicles ? "Loading vehicles..." : "Choose a vehicle..."}
                         searchPlaceholder="Search vehicles..."
                         icon={Car}
                         required
+                        disabled={loadingVehicles}
                       />
+                      {!loadingVehicles && vehicleOptions.length > 0 && (
+                        <div className="text-sm text-green-600">
+                          {vehicleOptions.length} vehicle{vehicleOptions.length > 1 ? 's' : ''} available for your selected time period
+                        </div>
+                      )}
                     </div>
 
                     {/* Driver Selection */}
@@ -536,89 +756,56 @@ const TripSchedulingModal = ({
                       <label className="block text-sm font-medium text-foreground">
                         Select Driver <span className="text-red-500">*</span>
                       </label>
+                      {loadingDrivers && (
+                        <div className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                          Loading available drivers...
+                        </div>
+                      )}
+                      {!loadingDrivers && driverOptions.length === 0 && tripForm.startDate && tripForm.startTime && tripForm.endDate && tripForm.endTime && (
+                        <div className="text-sm text-amber-600 mb-2">
+                          No drivers available for the selected time period. Please adjust your schedule.
+                        </div>
+                      )}
                       <SearchableDropdown
                         options={driverOptions}
                         value={tripForm.driverId}
                         onChange={(value) => onFormChange('driverId', value)}
-                        placeholder="Choose a driver..."
+                        placeholder={loadingDrivers ? "Loading drivers..." : "Choose a driver..."}
                         searchPlaceholder="Search drivers..."
                         icon={User}
                         required
+                        disabled={loadingDrivers}
                       />
+                      {!loadingDrivers && driverOptions.length > 0 && (
+                        <div className="text-sm text-green-600">
+                          {driverOptions.length} driver{driverOptions.length > 1 ? 's' : ''} available for your selected time period
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Start Date & Time */}
-                    <div className="space-y-4">
-                      <h4 className="flex items-center gap-2 text-lg font-medium text-foreground">
-                        <Clock className="w-5 h-5 text-green-600" />
-                        Start Time
+                  {/* Trip Schedule Summary */}
+                  {tripForm.startDate && tripForm.startTime && tripForm.endDate && tripForm.endTime && (
+                    <div className="bg-muted/30 rounded-lg p-4">
+                      <h4 className="flex items-center gap-2 text-base font-medium text-foreground mb-3">
+                        <Calendar className="w-4 h-4 text-primary" />
+                        Scheduled Time
                       </h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-foreground">
-                            Date <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="date"
-                            value={tripForm.startDate}
-                            onChange={e => handleStartDateChange(e.target.value)}
-                            min={new Date().toISOString().split('T')[0]}
-                            className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
-                            required
-                          />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-green-600" />
+                          <span className="font-medium">Start:</span>
+                          <span>{tripForm.startDate} at {tripForm.startTime}</span>
                         </div>
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-foreground">
-                            Time <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="time"
-                            value={tripForm.startTime}
-                            onChange={e => handleStartTimeChange(e.target.value)}
-                            className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
-                            required
-                          />
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-red-600" />
+                          <span className="font-medium">End:</span>
+                          <span>{tripForm.endDate} at {tripForm.endTime}</span>
                         </div>
                       </div>
                     </div>
-
-                    {/* End Date & Time */}
-                    <div className="space-y-4">
-                      <h4 className="flex items-center gap-2 text-lg font-medium text-foreground">
-                        <Clock className="w-5 h-5 text-red-600" />
-                        End Time
-                      </h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-foreground">
-                            Date <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="date"
-                            value={tripForm.endDate}
-                            onChange={e => handleEndDateChange(e.target.value)}
-                            min={tripForm.startDate || new Date().toISOString().split('T')[0]}
-                            className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-foreground">
-                            Time <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="time"
-                            value={tripForm.endTime}
-                            onChange={e => handleEndTimeChange(e.target.value)}
-                            className="w-full border border-input rounded-lg px-4 py-3 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               )}
 

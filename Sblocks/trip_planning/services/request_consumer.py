@@ -246,6 +246,9 @@ class ServiceRequestConsumer:
             elif endpoint == "drivers" or endpoint.startswith("drivers/"):
                 logger.info(f"[_route_request] Routing to _handle_drivers_request()")
                 return await self._handle_drivers_request(method, user_context)
+            elif endpoint == "vehicles" or endpoint.startswith("vehicles/"):
+                logger.info(f"[_route_request] Routing to _handle_vehicles_request()")
+                return await self._handle_vehicles_request(method, user_context)
             elif "notifications" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_notifications_request()")
                 return await self._handle_notifications_request(method, user_context)
@@ -502,19 +505,10 @@ class ServiceRequestConsumer:
                     trip = await trip_service.create_trip(trip_request, created_by)
                     trip_id = trip.id
 
-                    # Update driver and vehicle collections to make them unavailable
-                    # driver part
-                    from services.driver_service import driver_service
-                    driver_id = trip.driver_assignment
-                    await driver_service.deactivateDriver(driver_id)
-                    
-                    # vehicle part
-                    from services.vehicle_service import vehicle_service
-                    vehicle_id = trip.vehicle_id
-                    await vehicle_service.deactiveVehicle(vehicle_id) 
-
                     # Create a record in vehicle_assignments
                     from services.vehicle_assignments_services import vehicle_assignment_service
+                    vehicle_id = trip.vehicle_id
+                    driver_id = trip.driver_assignment
                     assignment = await vehicle_assignment_service.createAssignment(trip_id, vehicle_id, driver_id)  
                     
                     logger.info(f"Assignment created successfully: {assignment}")
@@ -739,7 +733,7 @@ class ServiceRequestConsumer:
                 logger.info(f"[_handle_drivers_request] Processing GET /drivers request")
                 
                 # Extract query parameters from the request data
-                query_params = user_context.get("params", {}) or user_context.get("query_params", {})
+                query_params = data or user_context.get("params", {}) or user_context.get("query_params", {})
                 
                 # Get parameters with defaults
                 status = query_params.get("status")
@@ -762,6 +756,85 @@ class ServiceRequestConsumer:
                     message=f"Retrieved {len(result['drivers'])} drivers successfully"
                 ).model_dump()
                 
+            elif method == "GET" and endpoint == "drivers/available":
+                # Handle GET /drivers/available - get available drivers for timeframe
+                logger.info(f"[_handle_drivers_request] Processing GET /drivers/available request")
+                
+                # Extract query parameters
+                query_params = data or user_context.get("params", {}) or user_context.get("query_params", {})
+                
+                start_time_str = query_params.get("start_time")
+                end_time_str = query_params.get("end_time")
+                
+                if not start_time_str or not end_time_str:
+                    return ResponseBuilder.error(
+                        error="ValidationError",
+                        message="start_time and end_time parameters are required"
+                    ).model_dump()
+                
+                try:
+                    from datetime import datetime
+                    start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+                    end_time = datetime.fromisoformat(end_time_str.replace('Z', '+00:00'))
+                    
+                    if end_time <= start_time:
+                        return ResponseBuilder.error(
+                            error="ValidationError",
+                            message="End time must be after start time"
+                        ).model_dump()
+                    
+                    # Get all drivers from the management database
+                    all_drivers_result = await driver_service.get_all_drivers()
+                    all_drivers = all_drivers_result.get("drivers", [])
+                    
+                    available_drivers = []
+                    
+                    # Check each driver's availability
+                    for driver in all_drivers:
+                        driver_id = driver.get("employee_id")
+                        if not driver_id:
+                            continue
+                            
+                        # Check if driver is available during the timeframe
+                        is_available = await driver_service.check_driver_availability(
+                            driver_id, start_time, end_time
+                        )
+                        
+                        if is_available:
+                            available_drivers.append({
+                                **driver,
+                                "is_available": True,
+                                "checked_timeframe": {
+                                    "start_time": start_time,
+                                    "end_time": end_time
+                                }
+                            })
+                    
+                    return ResponseBuilder.success(
+                        data={
+                            "available_drivers": available_drivers,
+                            "total_available": len(available_drivers),
+                            "total_checked": len(all_drivers),
+                            "timeframe": {
+                                "start_time": start_time,
+                                "end_time": end_time
+                            }
+                        },
+                        message=f"Found {len(available_drivers)} available drivers out of {len(all_drivers)} total drivers"
+                    ).model_dump()
+                    
+                except ValueError as e:
+                    return ResponseBuilder.error(
+                        error="ValidationError",
+                        message=f"Invalid datetime format: {str(e)}"
+                    ).model_dump()
+                except Exception as e:
+                    logger.error(f"[_handle_drivers_request] Error checking availability: {e}")
+                    return ResponseBuilder.error(
+                        error="AvailabilityCheckError",
+                        message=f"Failed to check driver availability: {str(e)}"
+                    ).model_dump()
+                
             else:
                 logger.warning(f"[_handle_drivers_request] Unsupported method/endpoint: {method} {endpoint}")
                 return ResponseBuilder.error(
@@ -774,6 +847,114 @@ class ServiceRequestConsumer:
             return ResponseBuilder.error(
                 error="DriversRequestError",
                 message=f"Failed to process drivers request: {str(e)}"
+            ).model_dump()
+
+    async def _handle_vehicles_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle vehicles-related requests"""
+        try:
+            from services.vehicle_service import vehicle_service
+            from schemas.responses import ResponseBuilder
+            
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            logger.info(f"[_handle_vehicles_request] Endpoint: '{endpoint}', Method: '{method}', Data: {data}")
+            
+            if method == "GET" and endpoint == "vehicles":
+                # Handle GET /vehicles - get all vehicles from vehicles collection
+                logger.info(f"[_handle_vehicles_request] Processing GET /vehicles request")
+                
+                # Extract query parameters from the request data
+                query_params = data or user_context.get("params", {}) or user_context.get("query_params", {})
+                
+                # Get parameters with defaults
+                status = query_params.get("status")
+                skip = int(query_params.get("skip", 0))
+                limit = int(query_params.get("limit", 1000))
+                
+                logger.info(f"[_handle_vehicles_request] Query params: status={status}, skip={skip}, limit={limit}")
+                
+                # Call the vehicle service method
+                result = await vehicle_service.get_all_vehicles(
+                    status=status,
+                    skip=skip,
+                    limit=limit
+                )
+                
+                return ResponseBuilder.success(
+                    data=result,
+                    message=f"Retrieved {len(result['vehicles'])} vehicles successfully"
+                ).model_dump()
+                
+            elif method == "GET" and endpoint == "vehicles/available":
+                # Handle GET /vehicles/available - get available vehicles for timeframe
+                logger.info(f"[_handle_vehicles_request] Processing GET /vehicles/available request")
+                
+                # Extract query parameters
+                query_params = data or user_context.get("params", {}) or user_context.get("query_params", {})
+                
+                start_time_str = query_params.get("start_time")
+                end_time_str = query_params.get("end_time")
+                skip = int(query_params.get("skip", 0))
+                limit = int(query_params.get("limit", 100))
+                
+                if not start_time_str or not end_time_str:
+                    return ResponseBuilder.error(
+                        error="ValidationError",
+                        message="start_time and end_time parameters are required"
+                    ).model_dump()
+                
+                try:
+                    from datetime import datetime
+                    start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+                    end_time = datetime.fromisoformat(end_time_str.replace('Z', '+00:00'))
+                    
+                    if end_time <= start_time:
+                        return ResponseBuilder.error(
+                            error="ValidationError",
+                            message="End time must be after start time"
+                        ).model_dump()
+                    
+                    # Get available vehicles using the vehicle service
+                    result = await vehicle_service.get_available_vehicles(
+                        start_time, end_time, skip, limit
+                    )
+                    
+                    return ResponseBuilder.success(
+                        data={
+                            "vehicles": result["vehicles"],
+                            "total_available": result["total_available"],
+                            "total_checked": result["total_checked"],
+                            "skip": result["skip"],
+                            "limit": result["limit"],
+                            "timeframe": result["timeframe"]
+                        },
+                        message=f"Retrieved {len(result['vehicles'])} available vehicles successfully"
+                    ).model_dump()
+                    
+                except ValueError as e:
+                    return ResponseBuilder.error(
+                        error="ValidationError",
+                        message=f"Invalid datetime format: {str(e)}"
+                    ).model_dump()
+                except Exception as e:
+                    logger.error(f"[_handle_vehicles_request] Error checking availability: {e}")
+                    return ResponseBuilder.error(
+                        error="AvailabilityCheckError",
+                        message=f"Failed to check vehicle availability: {str(e)}"
+                    ).model_dump()
+                
+            else:
+                logger.warning(f"[_handle_vehicles_request] Unsupported method/endpoint: {method} {endpoint}")
+                return ResponseBuilder.error(
+                    error="UnsupportedEndpoint", 
+                    message=f"Endpoint {method} {endpoint} not supported"
+                ).model_dump()
+                
+        except Exception as e:
+            logger.error(f"[_handle_vehicles_request] Exception: {e}")
+            return ResponseBuilder.error(
+                error="VehiclesRequestError",
+                message=f"Failed to process vehicles request: {str(e)}"
             ).model_dump()
 
     async def _handle_driver_analytics_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
