@@ -277,6 +277,12 @@ class ServiceRequestConsumer:
             logger.info(f"[DEBUG] Full endpoint analysis: endpoint='{endpoint}', method='{method}'")
 
             if method == "GET":
+                if "smarttrips" in endpoint:
+                    # get all the current schduled trips
+                    from services.trip_service import trip_service
+                    scheduled_trips = trip_service.get_scheduled_trips()
+                    from services.smart_trip_planning_service import smart_trip_service
+                    
                 if "vehicle" in endpoint:
                     vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
                     logger.info(f"Vehicle ID extracted for trip: {vehicle_id}")
@@ -495,10 +501,23 @@ class ServiceRequestConsumer:
                     raise ValueError(f"Unknown endpoint: {endpoint.split('/')[-1] if '/' in endpoint else endpoint}")
 
             elif method == "POST":
-                if "create" in endpoint:
-                    if not data:
-                        raise ValueError("Request data is required for POST operation")
-                    
+                if not data:
+                    raise ValueError("Request data is required for POST operation")
+                if "scheduled" in endpoint:
+                    logger.info(f"Preparing schedule trip request")
+                    from schemas.requests import ScheduledTripRequest
+                    scheduled_request = ScheduledTripRequest(**data)
+                    created_by = user_context.get("user_id", "system")
+
+                    scheduled_trip = await trip_service.create_scheduled_trip(scheduled_request,created_by)
+                    trip_id = scheduled_trip.id
+
+                    return ResponseBuilder.success(
+                        data=scheduled_trip.model_dump(),
+                        message="Scheduled Trip created successfully"
+                    ).model_dump()
+
+                elif "create" in endpoint:
                     logger.info(f"[_handle_trips_request] Preparing CreateTripRequest and calling trip_service.create_trip()")
                     from schemas.requests import CreateTripRequest
                     trip_request = CreateTripRequest(**data)

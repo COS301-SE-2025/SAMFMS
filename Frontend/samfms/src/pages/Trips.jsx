@@ -9,8 +9,10 @@ import UpcomingTripsStats from '../components/trips/UpcomingTripsStats';
 import UpcomingTripsTable from '../components/trips/UpcomingTripsTable';
 import RecentTripsStats from '../components/trips/RecentTripsStats';
 import RecentTripsTable from '../components/trips/RecentTripsTable';
+import SmartTripSuggestions from '../components/trips/SmartTripSuggestions';
 import {
   createTrip,
+  createScheduledTrip,
   getActiveTrips,
   getDriverAnalytics,
   getVehicleAnalytics,
@@ -551,71 +553,8 @@ const Trips = () => {
       [field]: value,
     }));
   };
-  const formatTripData = () => {
-    const startDateTime = `${tripForm.scheduledStartDate}T${tripForm.scheduledStartTime}:00Z`;
-    const endDateTime = `${tripForm.scheduledEndDate}T${tripForm.scheduledEndTime}:00Z`;
-
-    return {
-      name: tripForm.name,
-      description: tripForm.description,
-      scheduled_start_time: startDateTime,
-      scheduled_end_time: endDateTime,
-      origin: {
-        location: {
-          type: 'Point',
-          coordinates: [locationCoords.start?.lng, locationCoords.start?.lat],
-        },
-        name: tripForm.startLocation,
-        order: 0,
-      },
-      destination: {
-        location: {
-          type: 'Point',
-          coordinates: [locationCoords.end?.lng, locationCoords.end?.lat],
-        },
-        name: tripForm.endLocation,
-        order: 99,
-      },
-      waypoints: [], // Can be extended later for intermediate stops
-      priority: tripForm.priority,
-      vehicle_id: tripForm.vehicleId,
-      driver_assignment: tripForm.driverId,
-      constraints: [], // Time window constraints removed as per requirements
-      custom_fields: {
-        driver_note: tripForm.driverNote,
-      },
-    };
-  };
 
   const handleSubmitTrip = async enhancedTripData => {
-    // If called from form event, prevent default and use old logic
-    if (enhancedTripData && enhancedTripData.preventDefault) {
-      enhancedTripData.preventDefault();
-
-      // Validate required fields for old form
-      if (
-        !tripForm.name ||
-        !tripForm.vehicleId ||
-        !tripForm.startLocation ||
-        !tripForm.endLocation ||
-        !tripForm.scheduledStartDate ||
-        !tripForm.scheduledStartTime ||
-        !tripForm.scheduledEndDate ||
-        !tripForm.scheduledEndTime
-      ) {
-        showNotification('Please fill in all required fields', 'error');
-        return;
-      }
-
-      if (!locationCoords.start || !locationCoords.end) {
-        showNotification('Please select valid locations from the dropdown suggestions', 'error');
-        return;
-      }
-
-      // Use old data format
-      enhancedTripData = null;
-    }
-
     setIsSubmitting(true);
 
     try {
@@ -679,17 +618,21 @@ const Trips = () => {
           driver_note: enhancedTripData.driverNotes || enhancedTripData.driverNote || '',
         };
       } else {
-        // Fallback to existing format method
-        tripData = formatTripData();
+        const startDateTime = `${enhancedTripData.startDate}T${enhancedTripData.startTime}:00Z`;
+        const endDateTime = `${enhancedTripData.endDate}T${enhancedTripData.endTime}:00Z`;
+        tripData.scheduled_start_time = startDateTime;
+        tripData.scheduled_end_time = endDateTime;
+        tripData.vehicle_id = enhancedTripData.vehicleId;
+        tripData.driver_assignment = enhancedTripData.driverId;
+        tripData.custom_fields = {
+          driver_note: enhancedTripData.driverNotes || '',
+        };
+        tripData.constraints = [];
       }
 
       console.log('Creating trip with data:', tripData);
 
-      // Validate the trip data before sending
-      if (!tripData.scheduled_start_time || !tripData.scheduled_end_time) {
-        throw new Error('Start and end times are required');
-      }
-
+      // Common validations
       if (!tripData.origin?.location || !tripData.destination?.location) {
         throw new Error('Start and end locations are required');
       }
@@ -716,15 +659,26 @@ const Trips = () => {
         throw new Error('Invalid end location coordinates');
       }
 
-      if (!tripData.vehicle_id || !tripData.driver_assignment) {
-        throw new Error('Vehicle and driver selection are required');
+      // Type-specific validations
+      if (isScheduled) {
+        if (!tripData.start_time_window || !tripData.end_time_window) {
+          throw new Error('Time windows are required');
+        }
+      } else {
+        if (!tripData.scheduled_start_time || !tripData.scheduled_end_time) {
+          throw new Error('Start and end times are required');
+        }
+        if (!tripData.vehicle_id || !tripData.driver_assignment) {
+          throw new Error('Vehicle and driver selection are required');
+        }
       }
 
-      const response = await createTrip(tripData);
+      const response = isScheduled ? await createScheduledTrip(tripData) : await createTrip(tripData);
       console.log('Trip created successfully:', response);
 
       if (response.data.status === 'success') {
         showNotification('Trip scheduled successfully!', 'success');
+        fetchUpcomingTrips(); // Refresh upcoming trips list
       } else {
         showNotification(`Failed to create trip: ${response.data.message}`, 'error');
       }
@@ -740,7 +694,6 @@ const Trips = () => {
   // More permissive filtering to include vehicles with different status formats
   const availableVehicles = vehicles.filter(v => {
     // Check if vehicle exists and has a valid structure
-    console.log('Entered available vehicle, ', v);
     if (!v) return false;
 
     // More inclusive filtering logic - accept available, operational, and inactive vehicles
@@ -842,9 +795,30 @@ const Trips = () => {
                 availableVehicles={availableVehicles.length}
                 availableDrivers={availableDriversCount}
               />
+
+              {/* Smart Trip Suggestions - NEW ADDITION */}
+              <div className="animate-fade-in animate-delay-100">
+                <SmartTripSuggestions
+                  onAccept={(suggestionId) => {
+                    // Handle suggestion acceptance
+                    console.log('Accepted suggestion:', suggestionId);
+                    // Optionally refresh upcoming trips or show notification
+                    fetchUpcomingTrips();
+                    showNotification('Trip suggestion accepted successfully!', 'success');
+                  }}
+                  onDecline={(suggestionId) => {
+                    // Handle suggestion decline
+                    console.log('Declined suggestion:', suggestionId);
+                    showNotification('Trip suggestion declined', 'info');
+                  }}
+                  onRefresh={() => {
+                    // Handle refresh - could trigger a general refresh of trip data
+                    console.log('Smart suggestions refreshed');
+                  }}
+                />
+              </div>
             </div>
           )}
-
           {/* Active Tab */}
           {activeTab === 'active' && (
             <div className="space-y-6 animate-fade-in">

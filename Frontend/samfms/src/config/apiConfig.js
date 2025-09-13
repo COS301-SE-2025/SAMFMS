@@ -163,6 +163,7 @@ export const API_ENDPOINTS = {
   TRIPS: {
     LIST: '/trips/trips',
     CREATE: '/trips/trips/create',
+    SCHEDULED: '/trips/trips/scheduled',
     UPDATE: id => `/trips/trips/${id}`,
     DELETE: id => `/trips/trips/${id}`,
     ACTIVE: '/trips/trips/active/all',
@@ -175,6 +176,8 @@ export const API_ENDPOINTS = {
     RECENTTRIPSALL: '/trips/recent',
     VEHICLEPOLYLINE: id => `/trips/trips/polyline/${id}`,
     VEHICLETRIP: id => `/trips/trips/vehicle/${id}`,
+    GETSMARTTRIPS: 'trips/trips/smarttrips',
+    
     
     // Driver Availability Endpoints
     AVAILABLE_DRIVERS: '/trips/drivers/available',

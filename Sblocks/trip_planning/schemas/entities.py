@@ -165,6 +165,26 @@ class Trip(BaseModel):
     class Config:
         populate_by_name = True
 
+class ScheduledTrip(BaseModel):
+    """Scheduled trip entity"""
+    id: Optional[str] = Field(None, alias="_id", description="Trip ID")
+    name: str = Field(..., description="Trip name/title")
+    description: Optional[str] = None
+
+    start_time_window: datetime = Field(..., description="When the trip should start")
+    end_time_window: datetime = Field(..., description="When the trip should end")
+
+    # Route
+    origin: Waypoint = Field(..., description="Starting point")
+    destination: Waypoint = Field(..., description="End point")
+    waypoints: List[Waypoint] = Field(default_factory=list, description="Intermediate stops")
+    route_info: Optional[RouteInfo] = Field(None, description="Route information including distance, duration, and coordinates")
+    
+    # Trip details
+    priority: TripPriority = Field(..., description="Trip priority")
+    status: TripStatus = Field(default=TripStatus.SCHEDULED)
+
+
 
 class TripAnalytics(BaseModel):
     """Trip analytics data"""

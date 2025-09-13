@@ -4,6 +4,7 @@ import { API_ENDPOINTS } from '../../config/apiConfig';
 const TRIPS_ENDPOINTS = {
   list: API_ENDPOINTS.TRIPS.LIST,
   create: API_ENDPOINTS.TRIPS.CREATE,
+  scheduled: API_ENDPOINTS.TRIPS.SCHEDULED,
   update: API_ENDPOINTS.TRIPS.UPDATE,
   delete: API_ENDPOINTS.TRIPS.DELETE,
   ACTIVE: API_ENDPOINTS.TRIPS.ACTIVE,
@@ -19,6 +20,7 @@ const TRIPS_ENDPOINTS = {
   checkDriverAvailability: API_ENDPOINTS.TRIPS.CHECK_DRIVER_AVAILABILITY,
   availableVehicles: API_ENDPOINTS.TRIPS.AVAILABLE_VEHICLES,
   checkVehicleAvailability: API_ENDPOINTS.TRIPS.CHECK_VEHICLE_AVAILABILITY,
+  getSmartTrips: API_ENDPOINTS.TRIPS.GETSMARTTRIPS,
   ANALYTICS: {
     HISTORY_STATS: API_ENDPOINTS.TRIPS.ANALYTICS.HISTORY_STATS,
     DRIVERSTATS: API_ENDPOINTS.TRIPS.ANALYTICS.DRiVERSTATS,
@@ -52,6 +54,18 @@ export const createTrip = async tripData => {
     throw error;
   }
 };
+
+export const createScheduledTrip = async tripData => {
+  try {
+    console.log('Creating trip. Payload: ', tripData);
+    const response = await httpClient.post(TRIPS_ENDPOINTS.scheduled, tripData);
+    console.log("Response from backend: ", response);
+    return response;
+  } catch (error){
+    console.log('Error creating scheduled trip: ', error);
+    throw error;
+  }
+}
 
 export const updateTrip = async (tripID, tripData) => {
   try {
@@ -682,4 +696,27 @@ export const checkVehicleAvailability = async (vehicleId, startTime, endTime) =>
     console.error(`Error checking vehicle ${vehicleId} availability:`, error);
     throw error;
   }
+};
+
+// Get AI-generated smart trip suggestions
+export const getSmartTripSuggestions = async () => {
+  // Implementation for fetching smart suggestions
+  try {
+    const response = httpClient.get(TRIPS_ENDPOINTS.get);
+    console.log("Response for smart trips", response)
+    return response;
+  } catch (error){
+    console.error("Error fetching smart trips");
+    throw error
+  }
+};
+
+// Accept a smart trip suggestion
+export const acceptSmartTripSuggestion = async (suggestionId) => {
+  // Implementation for accepting a suggestion
+};
+
+// Decline a smart trip suggestion  
+export const declineSmartTripSuggestion = async (suggestionId) => {
+  // Implementation for declining a suggestion
 };
