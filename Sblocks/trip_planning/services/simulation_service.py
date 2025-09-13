@@ -44,6 +44,8 @@ class VehicleSimulator:
         self.start_time = datetime.utcnow()
         self.distance_traveled = 0.0
         self.last_location = None
+        # Note: When current_position reaches 1.0 (destination), simulation stops
+        # but trip remains active until manually completed by driver
     
     def pause(self):
         """Pause the simulation"""
@@ -146,8 +148,9 @@ class VehicleSimulator:
             return True
             
         if self.current_position >= 1.0:
+            # Stop simulation but don't complete the trip - let driver complete manually
             self.is_running = False
-            logger.info(f"Trip {self.trip_id} simulation reached destination - stopping updates")
+            logger.info(f"Trip {self.trip_id} simulation reached destination - stopping location updates. Trip remains active for manual completion.")
             return False
         
         # Calculate how far we should have moved in 2 seconds
@@ -378,7 +381,17 @@ class SimulationService:
             logger.warning(f"Trip {trip_id} has no vehicle_id")
             return
         
+        # Check if trip is already manually completed
+        if trip.get("actual_end_time") or trip.get("status") == "completed":
+            logger.info(f"Trip {trip_id} is already completed, skipping simulation")
+            return
+        
         if trip_id in self.active_simulators:
+            # Check if the existing simulator has reached the destination
+            simulator = self.active_simulators[trip_id]
+            if simulator.current_position >= 1.0 and not simulator.is_running:
+                logger.info(f"Trip {trip_id} simulation already reached destination, not restarting")
+                return
             #logger.info(f"Trip {trip_id} already being simulated")
             return
         
@@ -513,18 +526,14 @@ class SimulationService:
     
     async def update_all_simulations(self):
         """Update all active simulations"""
-        completed_trips = []
-        
         for trip_id, simulator in self.active_simulators.items():
             if simulator.is_running:
                 success = await simulator.update_position()
                 if not success:
-                    completed_trips.append(trip_id)
+                    # Simulation stopped (reached destination) but keep simulator to track state
+                    logger.info(f"Simulation for trip {trip_id} stopped at destination - awaiting manual completion")
         
-        # Remove completed simulations
-        for trip_id in completed_trips:
-            del self.active_simulators[trip_id]
-            logger.info(f"Completed simulation for trip {trip_id}")
+        # Note: We don't remove simulators that reached destination to prevent restarting
     
     async def pause_trip_simulation(self, trip_id: str):
         """Pause simulation for a specific trip"""
@@ -550,6 +559,14 @@ class SimulationService:
             logger.info(f"Stopped and removed simulation for trip {trip_id}")
         else:
             logger.warning(f"Cannot stop simulation - trip {trip_id} not found in active simulators")
+    
+    async def cleanup_completed_trip_simulation(self, trip_id: str):
+        """Clean up simulation for a manually completed trip"""
+        if trip_id in self.active_simulators:
+            del self.active_simulators[trip_id]
+            logger.info(f"Cleaned up simulation for manually completed trip {trip_id}")
+        else:
+            logger.warning(f"Cannot cleanup simulation - trip {trip_id} not found in active simulators")
     
     
     
