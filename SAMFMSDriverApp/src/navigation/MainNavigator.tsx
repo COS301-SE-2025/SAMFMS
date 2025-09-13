@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Home, Settings, User, HelpCircle } from 'lucide-react-native';
 import { useTheme } from '../contexts/ThemeContext';
+import { useActiveTripContext } from '../contexts/ActiveTripContext';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -45,16 +46,20 @@ const HelpIcon = ({ color, size }: { color: string; size: number }) => (
   <HelpCircle color={color} size={size} />
 );
 
-export default function MainNavigator() {
+// Main tab navigator component that can access ActiveTripContext
+function TabNavigator() {
   const { theme } = useTheme();
+  const { hasActiveTrip } = useActiveTripContext();
 
   const tabBarTheme = {
     tabBarActiveTintColor: theme.accent,
     tabBarInactiveTintColor: theme.textSecondary,
-    tabBarStyle: {
-      backgroundColor: theme.cardBackground,
-      borderTopColor: theme.border,
-    },
+    tabBarStyle: hasActiveTrip
+      ? { display: 'none' as const }
+      : {
+          backgroundColor: theme.cardBackground,
+          borderTopColor: theme.border,
+        },
   };
 
   const getTabBarIcon = (routeName: string) => {
@@ -73,23 +78,29 @@ export default function MainNavigator() {
   };
 
   return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: getTabBarIcon(route.name),
+        tabBarActiveTintColor: tabBarTheme.tabBarActiveTintColor,
+        tabBarInactiveTintColor: tabBarTheme.tabBarInactiveTintColor,
+        tabBarStyle: tabBarTheme.tabBarStyle,
+        headerShown: false,
+      })}
+    >
+      <Tab.Screen name="Dashboard" component={DashboardStack} />
+      <Tab.Screen name="Account" component={AccountScreen} />
+      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Help" component={HelpScreen} />
+    </Tab.Navigator>
+  );
+}
+
+export default function MainNavigator() {
+  return (
     <NavigationContainer>
       <ActiveTripProvider>
         <SwipeNavigationWrapper>
-          <Tab.Navigator
-            screenOptions={({ route }) => ({
-              tabBarIcon: getTabBarIcon(route.name),
-              tabBarActiveTintColor: tabBarTheme.tabBarActiveTintColor,
-              tabBarInactiveTintColor: tabBarTheme.tabBarInactiveTintColor,
-              tabBarStyle: tabBarTheme.tabBarStyle,
-              headerShown: false,
-            })}
-          >
-            <Tab.Screen name="Dashboard" component={DashboardStack} />
-            <Tab.Screen name="Account" component={AccountScreen} />
-            <Tab.Screen name="Settings" component={SettingsScreen} />
-            <Tab.Screen name="Help" component={HelpScreen} />
-          </Tab.Navigator>
+          <TabNavigator />
         </SwipeNavigationWrapper>
       </ActiveTripProvider>
     </NavigationContainer>

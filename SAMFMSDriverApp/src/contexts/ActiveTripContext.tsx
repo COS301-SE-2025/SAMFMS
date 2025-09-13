@@ -112,28 +112,26 @@ export const ActiveTripProvider: React.FC<ActiveTripProviderProps> = ({ children
       }
 
       console.log('Checking for active trips for employee:', employeeId);
-      const activeTrips = await getDriverActiveTrips(employeeId);
+      const tripsResponse = await getDriverActiveTrips(employeeId);
 
       // Handle different response structures
       let trips = [];
-      if (Array.isArray(activeTrips)) {
-        trips = activeTrips;
-      } else if (activeTrips?.data?.data && Array.isArray(activeTrips.data.data)) {
+      if (Array.isArray(tripsResponse)) {
+        trips = tripsResponse;
+      } else if (tripsResponse?.data?.data && Array.isArray(tripsResponse.data.data)) {
         // Handle nested structure: {status: 'success', data: {data: [trips]}}
-        trips = activeTrips.data.data;
-      } else if (activeTrips?.data && Array.isArray(activeTrips.data)) {
-        trips = activeTrips.data;
-      } else if (activeTrips?.trips && Array.isArray(activeTrips.trips)) {
-        trips = activeTrips.trips;
+        trips = tripsResponse.data.data;
+      } else if (tripsResponse?.data && Array.isArray(tripsResponse.data)) {
+        trips = tripsResponse.data;
+      } else if (tripsResponse?.trips && Array.isArray(tripsResponse.trips)) {
+        trips = tripsResponse.trips;
       }
 
       console.log('Found active trips:', trips);
 
-      // Filter for truly active trips (in-progress status)
-      const inProgressTrips = trips;
-
-      if (inProgressTrips.length > 0) {
-        const trip = inProgressTrips[0]; // Take the first active trip
+      // Any trip that exists is considered "active" for navigation purposes
+      if (trips.length > 0) {
+        const trip = trips[0]; // Take the first active trip
         console.log('Active trip found:', trip);
 
         setHasActiveTrip(true);
@@ -149,7 +147,7 @@ export const ActiveTripProvider: React.FC<ActiveTripProviderProps> = ({ children
           ...trip, // Include all other trip data
         });
 
-        // Auto-navigate to active trip screen if not already there
+        // Always auto-navigate to active trip screen if there's an active trip and not already there
         const currentRoute = navigation
           .getState()
           ?.routes?.find(route => route.state?.index !== undefined)?.state?.routes[

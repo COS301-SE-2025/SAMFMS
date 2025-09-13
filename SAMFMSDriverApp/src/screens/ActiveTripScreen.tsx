@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+  PermissionsAndroid,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Navigation, Square, Pause, Play, X } from 'lucide-react-native';
+import { ArrowLeft, Navigation, Square, Pause, Play, X, CheckCircle } from 'lucide-react-native';
 import { WebView } from 'react-native-webview';
+import Geolocation from '@react-native-community/geolocation';
 import {
   finishTrip,
   getLocation,
@@ -10,6 +19,7 @@ import {
   pauseTrip,
   resumeTrip,
   cancelTrip,
+  pingDriverLocation,
 } from '../utils/api';
 import { useActiveTripContext } from '../contexts/ActiveTripContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -220,10 +230,67 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
   const [statusCheckInterval, setStatusCheckInterval] = useState<ReturnType<
     typeof setInterval
   > | null>(null);
+
+  // Determine if back button should be visible (when trip is paused or cancelled)
+  const shouldShowBackButton = isPaused || activeTrip?.status === 'cancelled';
+
+  // Calculate distance between two coordinates in meters using Haversine formula
+  const calculateDistance = useCallback(
+    (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+      const R = 6371e3; // Earth's radius in meters
+      const φ1 = (lat1 * Math.PI) / 180; // φ, λ in radians
+      const φ2 = (lat2 * Math.PI) / 180;
+      const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+      const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+      const a =
+        Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      return R * c; // Distance in meters
+    },
+    []
+  );
+
   const [vehicleLocation, setVehicleLocation] = useState<VehicleLocation | null>(null);
   const [_mapCenter, setMapCenter] = useState<[number, number]>([37.7749, -122.4194]);
   const [isWebViewLoaded, setIsWebViewLoaded] = useState(false);
   const webViewLoadAttempts = useRef(0);
+
+  // Location ping state
+  const [pingInterval, setPingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
+  // Check if driver is within 250m of destination
+  const isNearDestination = useMemo(() => {
+    console.log('=== Checking destination proximity ===');
+    console.log('Current location:', currentLocation);
+    console.log('Active trip destination:', activeTrip?.destination?.location?.coordinates);
+
+    if (!currentLocation || !activeTrip?.destination?.location?.coordinates) {
+      console.log('Missing location data - not near destination');
+      return false;
+    }
+
+    const destCoords = activeTrip.destination.location.coordinates;
+    console.log('Destination coordinates:', destCoords);
+
+    const distance = calculateDistance(
+      currentLocation.latitude,
+      currentLocation.longitude,
+      destCoords[1], // latitude
+      destCoords[0] // longitude
+    );
+
+    const isNear = distance <= 250; // Within 250 meters
+    console.log(`Distance to destination: ${distance.toFixed(2)}m, Near destination: ${isNear}`);
+
+    return isNear;
+  }, [currentLocation, activeTrip?.destination?.location?.coordinates, calculateDistance]);
 
   const { theme } = useTheme();
 
@@ -288,6 +355,112 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     },
     []
   );
+
+  // Get current location for pinging with retry mechanism
+  const getCurrentLocation = useCallback((): Promise<{
+    latitude: number;
+    longitude: number;
+  } | null> => {
+    return new Promise(resolve => {
+      // First try with high accuracy but short timeout
+      Geolocation.getCurrentPosition(
+        position => {
+          const location = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          setCurrentLocation(location);
+          console.log('Location acquired (high accuracy):', location);
+          resolve(location);
+        },
+        highAccuracyError => {
+          console.warn('High accuracy location failed, trying low accuracy:', highAccuracyError);
+
+          // Fallback to low accuracy with longer timeout
+          Geolocation.getCurrentPosition(
+            position => {
+              const location = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+              };
+              setCurrentLocation(location);
+              console.log('Location acquired (low accuracy):', location);
+              resolve(location);
+            },
+            lowAccuracyError => {
+              console.error(
+                'Error getting current location (both attempts failed):',
+                lowAccuracyError
+              );
+
+              // Final fallback - use last known location if available
+              if (currentLocation) {
+                console.log('Using last known location:', currentLocation);
+                resolve(currentLocation);
+              } else {
+                console.log('No location available, using mock coordinates');
+                // Use a default/mock location as last resort
+                const mockLocation = {
+                  latitude: -25.7479, // Pretoria coordinates as fallback
+                  longitude: 28.2293,
+                };
+                setCurrentLocation(mockLocation); // Set mock location to state
+                resolve(mockLocation);
+              }
+            },
+            {
+              enableHighAccuracy: false,
+              timeout: 10000,
+              maximumAge: 30000,
+            }
+          );
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 5000,
+        }
+      );
+    });
+  }, [currentLocation]);
+
+  // Start location pinging for active trip
+  const startLocationPing = useCallback(() => {
+    if (!activeTrip?.id || isPaused || pingInterval) return;
+
+    console.log('Starting location ping for trip:', activeTrip.id);
+
+    const interval = setInterval(async () => {
+      try {
+        const location = await getCurrentLocation();
+        if (location && activeTrip?.id) {
+          console.log('Attempting to ping location:', location);
+          const response = await pingDriverLocation(
+            activeTrip.id,
+            location.longitude,
+            location.latitude
+          );
+          console.log('Successfully pinged location:', location);
+          console.log('Ping API response:', response);
+        } else {
+          console.warn('Skipping ping - no location or trip ID available');
+        }
+      } catch (pingError) {
+        console.error('Failed to ping location:', pingError);
+      }
+    }, 5000); // Ping every 5 seconds
+
+    setPingInterval(interval);
+  }, [activeTrip?.id, isPaused, pingInterval, getCurrentLocation]);
+
+  // Stop location pinging
+  const stopLocationPing = useCallback(() => {
+    if (pingInterval) {
+      console.log('Stopping location ping');
+      clearInterval(pingInterval);
+      setPingInterval(null);
+    }
+  }, [pingInterval]);
 
   const fetchVehicleData = useCallback(async () => {
     if (!activeTrip?.vehicle_id && !activeTrip?.vehicleId) return;
@@ -818,6 +991,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
             console.log('Response for ending trip:', response);
 
             stopStatusMonitoring();
+            stopLocationPing(); // Stop location pinging when trip is finished
             clearActiveTrip();
             setVehicleLocation(null);
 
@@ -834,7 +1008,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         },
       },
     ]);
-  }, [activeTrip, navigation, stopStatusMonitoring, clearActiveTrip]);
+  }, [activeTrip, navigation, stopStatusMonitoring, clearActiveTrip, stopLocationPing]);
 
   const handlePauseResumeTrip = useCallback(async () => {
     if (!activeTrip) return;
@@ -903,6 +1077,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
               console.log('Response for canceling trip:', response);
 
               stopStatusMonitoring();
+              stopLocationPing(); // Stop location pinging when trip is cancelled
               clearActiveTrip();
               setVehicleLocation(null);
 
@@ -920,7 +1095,67 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         },
       ]
     );
-  }, [activeTrip, navigation, stopStatusMonitoring, clearActiveTrip]);
+  }, [activeTrip, navigation, stopStatusMonitoring, clearActiveTrip, stopLocationPing]);
+
+  // Handle trip completion when near destination
+  const handleCompleteTrip = useCallback(async () => {
+    if (!activeTrip) return;
+
+    Alert.alert(
+      'Complete Trip',
+      'You are near the destination. Would you like to complete this trip?',
+      [
+        { text: 'Not Yet', style: 'cancel' },
+        {
+          text: 'Complete Trip',
+          style: 'default',
+          onPress: async () => {
+            setEndingTrip(true);
+
+            try {
+              const now = new Date().toISOString();
+              const data = {
+                actual_end_time: now,
+                status: 'completed',
+              };
+
+              const tripId = activeTrip.id || activeTrip._id;
+              if (!tripId) {
+                throw new Error('Trip ID not found');
+              }
+
+              console.log('Completing trip ID:', tripId);
+
+              const response = await finishTrip(tripId, data);
+              console.log('Response for completing trip:', response);
+
+              stopStatusMonitoring();
+              stopLocationPing(); // Stop location pinging when trip is completed
+              clearActiveTrip();
+              setVehicleLocation(null);
+
+              console.log(`Trip ${tripId} completed successfully`);
+
+              // Navigate back to dashboard
+              navigation.navigate('Dashboard');
+            } catch (err) {
+              console.error('Error completing trip:', err);
+              Alert.alert('Error', 'Failed to complete trip. Please try again.');
+            } finally {
+              setEndingTrip(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [
+    activeTrip,
+    navigation,
+    stopStatusMonitoring,
+    clearActiveTrip,
+    stopLocationPing,
+    setEndingTrip,
+  ]);
 
   // Fetch active trip on component mount
   useEffect(() => {
@@ -930,6 +1165,21 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
       stopStatusMonitoring();
     };
   }, [fetchActiveTrip, stopStatusMonitoring]);
+
+  // Get initial location when component mounts
+  useEffect(() => {
+    const getInitialLocation = async () => {
+      console.log('Getting initial location for destination proximity check...');
+      const location = await getCurrentLocation();
+      if (location) {
+        console.log('Initial location acquired:', location);
+      } else {
+        console.log('Failed to get initial location');
+      }
+    };
+
+    getInitialLocation();
+  }, [getCurrentLocation]);
 
   // Fetch vehicle data when active trip changes and poll for updates
   useEffect(() => {
@@ -965,6 +1215,22 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     };
   }, []);
 
+  // Manage location pinging based on trip state
+  useEffect(() => {
+    if (activeTrip && !isPaused) {
+      // Start pinging when trip is active and not paused
+      startLocationPing();
+    } else {
+      // Stop pinging when trip is paused or ended
+      stopLocationPing();
+    }
+
+    // Cleanup when component unmounts or dependencies change
+    return () => {
+      stopLocationPing();
+    };
+  }, [activeTrip, isPaused, startLocationPing, stopLocationPing]);
+
   if (isCheckingActiveTrip) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -974,12 +1240,15 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
             { backgroundColor: theme.cardBackground, borderBottomColor: theme.border },
           ]}
         >
-          <TouchableOpacity
-            onPress={navigation.goBack}
-            style={[styles.backButton, { backgroundColor: theme.accent + '20' }]}
-          >
-            <ArrowLeft size={24} color={theme.accent} />
-          </TouchableOpacity>
+          {shouldShowBackButton && (
+            <TouchableOpacity
+              onPress={navigation.goBack}
+              style={[styles.backButton, { backgroundColor: theme.accent + '20' }]}
+            >
+              <ArrowLeft size={24} color={theme.accent} />
+            </TouchableOpacity>
+          )}
+          {!shouldShowBackButton && <View style={styles.headerRight} />}
           <Text style={[styles.headerTitle, { color: theme.text }]}>Active Trip</Text>
         </View>
         <View style={styles.loadingContainer}>
@@ -1001,12 +1270,15 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
             { backgroundColor: theme.cardBackground, borderBottomColor: theme.border },
           ]}
         >
-          <TouchableOpacity
-            onPress={navigation.goBack}
-            style={[styles.backButton, { backgroundColor: theme.accent + '20' }]}
-          >
-            <ArrowLeft size={24} color={theme.accent} />
-          </TouchableOpacity>
+          {shouldShowBackButton && (
+            <TouchableOpacity
+              onPress={navigation.goBack}
+              style={[styles.backButton, { backgroundColor: theme.accent + '20' }]}
+            >
+              <ArrowLeft size={24} color={theme.accent} />
+            </TouchableOpacity>
+          )}
+          {!shouldShowBackButton && <View style={styles.headerRight} />}
           <Text style={[styles.headerTitle, { color: theme.text }]}>Active Trip</Text>
         </View>
         <View style={styles.errorContainer}>
@@ -1038,11 +1310,14 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
           },
         ]}
       >
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <View style={[styles.backButtonCircle, { backgroundColor: theme.accent + '20' }]}>
-            <ArrowLeft size={20} color={theme.accent} />
-          </View>
-        </TouchableOpacity>
+        {shouldShowBackButton && (
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <View style={[styles.backButtonCircle, { backgroundColor: theme.accent + '20' }]}>
+              <ArrowLeft size={20} color={theme.accent} />
+            </View>
+          </TouchableOpacity>
+        )}
+        {!shouldShowBackButton && <View style={styles.headerRight} />}
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>
             {activeTrip.name || 'Active Trip'}
@@ -1112,58 +1387,74 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
 
         {/* Trip Control Buttons */}
         <View style={styles.tripControlContainer}>
-          {/* Pause/Resume Button */}
+          {/* Pause/Resume Button - Only show if NOT near destination */}
+          {!isNearDestination && (
+            <TouchableOpacity
+              onPress={handlePauseResumeTrip}
+              disabled={pausingTrip}
+              style={[
+                styles.controlButton,
+                {
+                  backgroundColor: pausingTrip
+                    ? isPaused
+                      ? theme.success + '60'
+                      : theme.accent + '60'
+                    : isPaused
+                    ? theme.success
+                    : theme.accent,
+                },
+              ]}
+            >
+              {pausingTrip ? (
+                <View style={styles.controlButtonContent}>
+                  <View style={[styles.loadingSpinner, styles.loadingSpinnerWhite]} />
+                  <Text style={styles.controlButtonText}>
+                    {isPaused ? 'Resuming...' : 'Pausing...'}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.controlButtonContent}>
+                  {isPaused ? <Play size={18} color="white" /> : <Pause size={18} color="white" />}
+                  <Text style={styles.controlButtonText}>{isPaused ? 'Resume' : 'Pause'}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {/* Cancel/Complete Trip Button */}
           <TouchableOpacity
-            onPress={handlePauseResumeTrip}
-            disabled={pausingTrip}
+            onPress={isNearDestination ? handleCompleteTrip : handleCancelTrip}
+            disabled={cancelingTrip || endingTrip}
             style={[
               styles.controlButton,
               {
-                backgroundColor: pausingTrip
-                  ? isPaused
+                backgroundColor: isNearDestination
+                  ? endingTrip
                     ? theme.success + '60'
-                    : theme.accent + '60'
-                  : isPaused
-                  ? theme.success
-                  : theme.accent,
+                    : theme.success
+                  : cancelingTrip
+                  ? theme.textSecondary + '60'
+                  : theme.textSecondary,
               },
             ]}
           >
-            {pausingTrip ? (
+            {cancelingTrip || endingTrip ? (
               <View style={styles.controlButtonContent}>
                 <View style={[styles.loadingSpinner, styles.loadingSpinnerWhite]} />
                 <Text style={styles.controlButtonText}>
-                  {isPaused ? 'Resuming...' : 'Pausing...'}
+                  {isNearDestination ? 'Completing...' : 'Canceling...'}
                 </Text>
               </View>
             ) : (
               <View style={styles.controlButtonContent}>
-                {isPaused ? <Play size={18} color="white" /> : <Pause size={18} color="white" />}
-                <Text style={styles.controlButtonText}>{isPaused ? 'Resume' : 'Pause'}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          {/* Cancel Trip Button */}
-          <TouchableOpacity
-            onPress={handleCancelTrip}
-            disabled={cancelingTrip}
-            style={[
-              styles.controlButton,
-              {
-                backgroundColor: cancelingTrip ? theme.textSecondary + '60' : theme.textSecondary,
-              },
-            ]}
-          >
-            {cancelingTrip ? (
-              <View style={styles.controlButtonContent}>
-                <View style={[styles.loadingSpinner, styles.loadingSpinnerWhite]} />
-                <Text style={styles.controlButtonText}>Canceling...</Text>
-              </View>
-            ) : (
-              <View style={styles.controlButtonContent}>
-                <X size={18} color="white" />
-                <Text style={styles.controlButtonText}>Cancel</Text>
+                {isNearDestination ? (
+                  <CheckCircle size={18} color="white" />
+                ) : (
+                  <X size={18} color="white" />
+                )}
+                <Text style={styles.controlButtonText}>
+                  {isNearDestination ? 'Complete Trip' : 'Cancel'}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
@@ -1192,6 +1483,22 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Temporary Debug Button */}
+        <TouchableOpacity
+          onPress={async () => {
+            console.log('=== DEBUG BUTTON PRESSED ===');
+            const location = await getCurrentLocation();
+            console.log('Current location from debug:', location);
+            console.log('isNearDestination:', isNearDestination);
+            console.log('Active trip destination:', activeTrip?.destination?.location?.coordinates);
+          }}
+          style={[styles.controlButton, { backgroundColor: theme.info }]}
+        >
+          <View style={styles.controlButtonContent}>
+            <Text style={styles.controlButtonText}>Debug Location</Text>
+          </View>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
