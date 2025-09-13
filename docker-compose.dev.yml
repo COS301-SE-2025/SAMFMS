@@ -158,6 +158,8 @@ services:
       - DEFAULT_TRIP_OPTIMIZATION=${DEFAULT_TRIP_OPTIMIZATION:-time}
       - MAX_TRIPS_PER_VEHICLE_PER_DAY=${MAX_TRIPS_PER_VEHICLE_PER_DAY:-5}
       - AUTO_ASSIGN_VEHICLES=${AUTO_ASSIGN_VEHICLES:-true}
+      - ORS_API_KEY=5b3ce3597851110001cf6248967d5deccac54ac1bca4d679e41d602d
+      - TOMTOM_API_KEY= BdpPkc0YlOBm4pnA6flu2U3dBiDfBWO5
     depends_on:
       mongodb:
         condition: service_healthy

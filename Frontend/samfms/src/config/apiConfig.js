@@ -176,6 +176,8 @@ export const API_ENDPOINTS = {
     RECENTTRIPSALL: '/trips/recent',
     VEHICLEPOLYLINE: id => `/trips/trips/polyline/${id}`,
     VEHICLETRIP: id => `/trips/trips/vehicle/${id}`,
+    GETSMARTTRIPS: 'trips/trips/smarttrips',
+    
     ANALYTICS: {
       // Trip History Statistics
       HISTORY_STATS: '/trips/analytics/trips/history-stats',

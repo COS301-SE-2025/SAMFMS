@@ -9,6 +9,7 @@ import UpcomingTripsStats from '../components/trips/UpcomingTripsStats';
 import UpcomingTripsTable from '../components/trips/UpcomingTripsTable';
 import RecentTripsStats from '../components/trips/RecentTripsStats';
 import RecentTripsTable from '../components/trips/RecentTripsTable';
+import SmartTripSuggestions from '../components/trips/SmartTripSuggestions';
 import {
   createTrip,
   createScheduledTrip,
@@ -115,10 +116,10 @@ const Trips = () => {
         trip.status === 'scheduled'
           ? 'Loading'
           : trip.status === 'in_progress'
-          ? 'In Transit'
-          : trip.status === 'completed'
-          ? 'At Destination'
-          : 'Unknown',
+            ? 'In Transit'
+            : trip.status === 'completed'
+              ? 'At Destination'
+              : 'Unknown',
       progress: trip.status === 'completed' ? 100 : trip.status === 'in_progress' ? 50 : 0,
     }));
   };
@@ -140,7 +141,7 @@ const Trips = () => {
 
       // Extract trips from the response structure - based on actual API response
       let trips = response.data.trips
-      
+
       setUpcomingTrips(trips);
     } catch (error) {
       console.error('Error fetching upcoming trips:', error);
@@ -681,11 +682,10 @@ const Trips = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.id
+                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
                       ? 'border-primary text-primary'
                       : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -704,9 +704,30 @@ const Trips = () => {
                 availableVehicles={availableVehicles.length}
                 availableDrivers={availableDriversCount}
               />
+
+              {/* Smart Trip Suggestions - NEW ADDITION */}
+              <div className="animate-fade-in animate-delay-100">
+                <SmartTripSuggestions
+                  onAccept={(suggestionId) => {
+                    // Handle suggestion acceptance
+                    console.log('Accepted suggestion:', suggestionId);
+                    // Optionally refresh upcoming trips or show notification
+                    fetchUpcomingTrips();
+                    showNotification('Trip suggestion accepted successfully!', 'success');
+                  }}
+                  onDecline={(suggestionId) => {
+                    // Handle suggestion decline
+                    console.log('Declined suggestion:', suggestionId);
+                    showNotification('Trip suggestion declined', 'info');
+                  }}
+                  onRefresh={() => {
+                    // Handle refresh - could trigger a general refresh of trip data
+                    console.log('Smart suggestions refreshed');
+                  }}
+                />
+              </div>
             </div>
           )}
-
           {/* Active Tab */}
           {activeTab === 'active' && (
             <div className="space-y-6 animate-fade-in">

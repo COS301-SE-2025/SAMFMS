@@ -16,6 +16,7 @@ const TRIPS_ENDPOINTS = {
   recenttrips: API_ENDPOINTS.TRIPS.RECENTTRIPS,
   recenttripsall: API_ENDPOINTS.TRIPS.RECENTTRIPSALL,
   polyline: API_ENDPOINTS.TRIPS.VEHICLEPOLYLINE,
+  getSmartTrips: API_ENDPOINTS.TRIPS.GETSMARTTRIPS,
   ANALYTICS: {
     HISTORY_STATS: API_ENDPOINTS.TRIPS.ANALYTICS.HISTORY_STATS,
     DRIVERSTATS: API_ENDPOINTS.TRIPS.ANALYTICS.DRiVERSTATS,
@@ -622,3 +623,26 @@ export const getVehiclePolyline = async (VehicleID) => {
     throw error
   }
 }
+
+// Get AI-generated smart trip suggestions
+export const getSmartTripSuggestions = async () => {
+  // Implementation for fetching smart suggestions
+  try {
+    const response = httpClient.get(TRIPS_ENDPOINTS.get);
+    console.log("Response for smart trips", response)
+    return response;
+  } catch (error){
+    console.error("Error fetching smart trips");
+    throw error
+  }
+};
+
+// Accept a smart trip suggestion
+export const acceptSmartTripSuggestion = async (suggestionId) => {
+  // Implementation for accepting a suggestion
+};
+
+// Decline a smart trip suggestion  
+export const declineSmartTripSuggestion = async (suggestionId) => {
+  // Implementation for declining a suggestion
+};

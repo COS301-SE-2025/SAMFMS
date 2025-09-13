@@ -271,6 +271,8 @@ class ServiceRequestConsumer:
             logger.info(f"[DEBUG] Full endpoint analysis: endpoint='{endpoint}', method='{method}'")
 
             if method == "GET":
+                if "smarttrips" in endpoint:
+                    
                 if "vehicle" in endpoint:
                     vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
                     logger.info(f"Vehicle ID extracted for trip: {vehicle_id}")
