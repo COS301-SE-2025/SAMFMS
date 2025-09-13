@@ -76,7 +76,7 @@ class VehicleService:
       self,
       status: Optional[str] = None,
       skip: int = 0,
-      limit: int = 100
+      limit: int = 1000
   ) -> Dict[str, Any]:
     """Get all vehicles from the vehicles collection"""
     try:
@@ -152,7 +152,7 @@ class VehicleService:
       start_time: datetime,
       end_time: datetime,
       skip: int = 0,
-      limit: int = 100
+      limit: int = 1000
   ) -> Dict[str, Any]:
     """Get all vehicles available during a specific time period"""
     try:

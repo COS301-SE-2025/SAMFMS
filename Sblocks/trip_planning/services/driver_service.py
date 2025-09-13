@@ -304,7 +304,7 @@ class DriverService:
             logger.error(f"Failed to get driver assignments: {e}")
             raise
 
-    async def get_all_drivers(self, status: Optional[str] = None, department: Optional[str] = None, skip: int = 0, limit: int = 100) -> Dict[str, Any]:
+    async def get_all_drivers(self, status: Optional[str] = None, department: Optional[str] = None, skip: int = 0, limit: int = 1000) -> Dict[str, Any]:
         """Get all drivers from the drivers collection with optional filtering"""
         try:
             # Build filter query

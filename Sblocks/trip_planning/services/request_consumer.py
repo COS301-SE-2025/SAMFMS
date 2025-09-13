@@ -240,6 +240,9 @@ class ServiceRequestConsumer:
             elif "analytics" in endpoint:
                 logger.info(f"Routing to general analytics")
                 return await self._handle_analytics_requests(method, user_context)
+            elif "driver/ping" in endpoint:
+                logger.info(f"[_route_request] Routing to _handle_driver_ping_request()")
+                return await self._handle_driver_ping_request(method, user_context)
             elif "trips" in endpoint or endpoint.startswith("driver/") or endpoint == "recent":
                 logger.info(f"[_route_request] Routing to _handle_trips_request()")
                 return await self._handle_trips_request(method, user_context)
@@ -895,7 +898,7 @@ class ServiceRequestConsumer:
                 start_time_str = query_params.get("start_time")
                 end_time_str = query_params.get("end_time")
                 skip = int(query_params.get("skip", 0))
-                limit = int(query_params.get("limit", 100))
+                limit = int(query_params.get("limit", 1000))
                 
                 if not start_time_str or not end_time_str:
                     return ResponseBuilder.error(
@@ -1246,6 +1249,136 @@ class ServiceRequestConsumer:
             return ResponseBuilder.error(
                 error="NotificationRequestError",
                 message=f"Failed to process notification request: {str(e)}"
+            ).model_dump()
+
+    async def _handle_driver_ping_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle driver ping requests"""
+        try:
+            from schemas.responses import ResponseBuilder
+            from services.driver_ping_service import driver_ping_service
+            from services.trip_service import trip_service
+            from schemas.requests import DriverPingRequest
+            from schemas.entities import LocationPoint
+            
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            logger.info(f"[_handle_driver_ping_request] Endpoint: '{endpoint}', Method: '{method}', Data: {data}")
+            
+            if method == "POST" and "driver/ping" in endpoint:
+                # Handle POST /driver/ping - receive driver phone ping
+                logger.info(f"[_handle_driver_ping_request] Processing driver ping request")
+                
+                if not data:
+                    return ResponseBuilder.error(
+                        error="ValidationError",
+                        message="Request data is required for ping operation"
+                    ).model_dump()
+                
+                try:
+                    # Parse the ping request data
+                    ping_request = DriverPingRequest(**data)
+                    
+                    # Validate trip exists and is active
+                    trip = await trip_service.get_trip_by_id(ping_request.trip_id)
+                    if not trip:
+                        return ResponseBuilder.error(
+                            error="TripNotFound",
+                            message=f"Trip {ping_request.trip_id} not found"
+                        ).model_dump()
+                    
+                    # Process the ping
+                    result = await driver_ping_service.process_ping(
+                        trip_id=ping_request.trip_id,
+                        location=ping_request.location,
+                        ping_time=ping_request.timestamp
+                    )
+                    
+                    if result["status"] == "error":
+                        return ResponseBuilder.error(
+                            error="PingProcessingError",
+                            message=result["message"]
+                        ).model_dump()
+                    
+                    # Return success response
+                    return ResponseBuilder.success(
+                        data={
+                            "status": result["status"],
+                            "message": result["message"],
+                            "ping_received_at": result["ping_received_at"],
+                            "next_ping_expected_at": result["next_ping_expected_at"],
+                            "session_active": result["session_active"],
+                            "violations_count": result["violations_count"]
+                        },
+                        message="Ping processed successfully"
+                    ).model_dump()
+                    
+                except Exception as e:
+                    logger.error(f"[_handle_driver_ping_request] Error processing ping: {e}")
+                    return ResponseBuilder.error(
+                        error="PingProcessingError",
+                        message=f"Failed to process driver ping: {str(e)}"
+                    ).model_dump()
+            
+            elif method == "GET" and "violations" in endpoint:
+                # Handle GET /driver/ping/violations/{trip_id}
+                trip_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not trip_id:
+                    return ResponseBuilder.error(
+                        error="ValidationError",
+                        message="Trip ID is required for violations endpoint"
+                    ).model_dump()
+                
+                violations = await driver_ping_service.get_trip_violations(trip_id)
+                violations_data = [violation.dict() for violation in violations]
+                
+                return ResponseBuilder.success(
+                    data={
+                        "trip_id": trip_id,
+                        "violations": violations_data,
+                        "total_violations": len(violations)
+                    },
+                    message=f"Retrieved {len(violations)} violations for trip"
+                ).model_dump()
+            
+            elif method == "GET" and "session" in endpoint:
+                # Handle GET /driver/ping/session/{trip_id}
+                trip_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                if not trip_id:
+                    return ResponseBuilder.error(
+                        error="ValidationError",
+                        message="Trip ID is required for session endpoint"
+                    ).model_dump()
+                
+                session = await driver_ping_service._get_active_session(trip_id)
+                if not session:
+                    return ResponseBuilder.success(
+                        data={
+                            "trip_id": trip_id,
+                            "session_active": False,
+                            "message": "No active ping session found"
+                        },
+                        message="No active ping session for this trip"
+                    ).model_dump()
+                
+                session_data = session.dict()
+                session_data["session_active"] = session.is_active
+                
+                return ResponseBuilder.success(
+                    data=session_data,
+                    message="Ping session status retrieved successfully"
+                ).model_dump()
+            
+            else:
+                return ResponseBuilder.error(
+                    error="UnsupportedEndpoint",
+                    message=f"Endpoint {method} {endpoint} not supported for driver ping"
+                ).model_dump()
+                
+        except Exception as e:
+            logger.error(f"[_handle_driver_ping_request] Exception: {e}")
+            return ResponseBuilder.error(
+                error="DriverPingRequestError",
+                message=f"Failed to process driver ping request: {str(e)}"
             ).model_dump()
 
     async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
