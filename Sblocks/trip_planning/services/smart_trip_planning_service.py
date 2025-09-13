@@ -11,6 +11,7 @@ from schemas.entities import ScheduledTrip, RouteInfo, RouteBounds, TripStatus
 from schemas.requests import CreateTripRequest, UpdateTripRequest
 from repositories.database import db_manager, db_manager_gps, db_manager_management
 from services.trip_service import trip_service
+from services.vehicle_service import vehicle_service
 from services.driver_analytics_service import driver_analytics_service
 
 logger = logging.getLogger(__name__)
@@ -133,6 +134,10 @@ class SmartTripService:
 
         # Vehicle assignment
         # get the available vehicles for specific timeslot 
+        optimized_end = best_start + timedelta(seconds=min_duration)
+        vehicles = vehicle_service.get_available_vehicles(best_start,optimized_end)
+        logger.info(f"Vehicles in optimised time: {vehicles}")
+
         vehicle_locations = await self.db_gps.db.vehicle_locations.find().to_list(None)
         min_dist, closest_vehicle_id, closest_vehicle_name = float("inf"), None, "Unknown"
         for loc in vehicle_locations:

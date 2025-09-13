@@ -60,6 +60,20 @@ class TripService:
             logger.error(f"[TripService.create_trip_scheduled] Failed: {e}")
             raise
 
+    async def get_scheduled_trips(self) -> list[ScheduledTrip]:
+        """Return all scheduled trips"""
+        logger.info("Enter get all scheduled trips")
+        try:
+            cursor = self.db.trips_scheduled.find({})
+            scheduled_trips = []
+            async for scheduled_trip_doc in cursor:
+                scheduled_trip_doc["_id"] = str(scheduled_trip_doc["_id"])
+                scheduled_trips.append(ScheduledTrip**(scheduled_trip_doc))
+            return scheduled_trips
+        except Exception as e:
+            logger.error(f"[TripService.get_scheduled_trips] Failed: {e}")
+            raise
+
     async def create_trip(
         self, 
         request: CreateTripRequest,

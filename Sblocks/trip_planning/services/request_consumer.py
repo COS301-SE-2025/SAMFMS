@@ -272,6 +272,10 @@ class ServiceRequestConsumer:
 
             if method == "GET":
                 if "smarttrips" in endpoint:
+                    # get all the current schduled trips
+                    from services.trip_service import trip_service
+                    scheduled_trips = trip_service.get_scheduled_trips()
+                    from services.smart_trip_planning_service import smart_trip_service
                     
                 if "vehicle" in endpoint:
                     vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
