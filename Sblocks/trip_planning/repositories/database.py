@@ -95,7 +95,8 @@ class DatabaseManager:
             
             # Get collection stats
             collections = ["trips", "trip_constraints", "driver_assignments", 
-                          "trip_analytics", "notifications", "notification_preferences"]
+                          "trip_analytics", "notifications", "notification_preferences",
+                          "phone_usage_violations", "speed_violations", "driver_ping_sessions"]
             
             metrics = {
                 "status": "connected",
@@ -154,6 +155,24 @@ class DatabaseManager:
             
             # Notification preferences indexes
             await self.notification_preferences.create_index("user_id", unique=True)
+            
+            # Phone usage violations indexes
+            await self.phone_usage_violations.create_index("trip_id")
+            await self.phone_usage_violations.create_index("driver_id")
+            await self.phone_usage_violations.create_index([("trip_id", 1), ("start_time", -1)])
+            await self.phone_usage_violations.create_index("is_active")
+            
+            # Speed violations indexes
+            await self.speed_violations.create_index("trip_id")
+            await self.speed_violations.create_index("driver_id")
+            await self.speed_violations.create_index([("trip_id", 1), ("timestamp", -1)])
+            await self.speed_violations.create_index("place_id")
+            
+            # Driver ping sessions indexes
+            await self.driver_ping_sessions.create_index("trip_id", unique=True)
+            await self.driver_ping_sessions.create_index("driver_id")
+            await self.driver_ping_sessions.create_index("is_active")
+            await self.driver_ping_sessions.create_index("started_at")
             
             # Compound indexes for common queries
             await self.trips.create_index([
@@ -215,6 +234,27 @@ class DatabaseManager:
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.notification_preferences
+    
+    @property
+    def phone_usage_violations(self):
+        """Get phone usage violations collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.phone_usage_violations
+    
+    @property
+    def speed_violations(self):
+        """Get speed violations collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.speed_violations
+    
+    @property
+    def driver_ping_sessions(self):
+        """Get driver ping sessions collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.driver_ping_sessions
     
     async def create_trip_with_transaction(self, trip_data: dict, constraints: list = None):
         """Create a trip with constraints in a transaction"""

@@ -32,6 +32,9 @@ class EventType(str, Enum):
     # Notification events
     NOTIFICATION_SENT = "notification.sent"
     
+    # Violation events
+    SPEED_VIOLATION_CREATED = "violation.speed.created"
+    
     # Service events
     SERVICE_STARTED = "service.started"
 
@@ -266,4 +269,19 @@ class ServiceStartedEvent(BaseEvent):
                 "version": version,
                 "started_at": datetime.utcnow().isoformat()
             }
+        )
+
+
+class SpeedViolationCreatedEvent(BaseEvent):
+    """Event published when a speed violation is detected"""
+    event_type: EventType = EventType.SPEED_VIOLATION_CREATED
+    
+    def __init__(self, trip_id: str, driver_id: str, violation_data: Dict[str, Any], **kwargs):
+        super().__init__(
+            data={
+                "trip_id": trip_id,
+                "driver_id": driver_id,
+                "violation_data": violation_data
+            },
+            **kwargs
         )
