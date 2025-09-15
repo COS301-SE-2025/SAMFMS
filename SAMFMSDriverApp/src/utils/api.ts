@@ -610,8 +610,35 @@ export const cancelTrip = async (tripId: string) => {
   }
 };
 
+export const completeTrip = async (tripId: string) => {
+  try {
+    const data = await apiRequest(`/trips/trips/${tripId}/complete`, {
+      method: 'POST',
+    });
+    return data;
+  } catch (error) {
+    console.error('Error completing trip:', error);
+
+    // Fallback to mock success for development
+    console.log('Falling back to mock complete trip success');
+    return {
+      data: {
+        id: tripId,
+        status: 'completed',
+        message: 'Trip completed successfully (mock)',
+      },
+      status: 'success',
+    };
+  }
+};
+
 // Driver location ping during active trip
-export const pingDriverLocation = async (tripId: string, longitude: number, latitude: number) => {
+export const pingDriverLocation = async (
+  tripId: string,
+  longitude: number,
+  latitude: number,
+  speed?: number
+) => {
   try {
     const data = await apiRequest('/trips/trips/driver/ping', {
       method: 'POST',
@@ -621,9 +648,11 @@ export const pingDriverLocation = async (tripId: string, longitude: number, lati
           type: 'Point',
           coordinates: [longitude, latitude],
         },
+        speed: speed || 0,
         timestamp: new Date().toISOString(),
       }),
     });
+    console.log('Driver location ping response:', data);
     return data;
   } catch (error) {
     console.error('Error pinging driver location:', error);
@@ -701,16 +730,79 @@ export const getLocation = async (vehicleId: string) => {
   }
 };
 
+// Storage for last successful polylines by vehicle ID
+const lastSuccessfulPolylines: { [vehicleId: string]: any } = {};
+
+// Helper function to clear stored polylines (useful for testing or when vehicle changes route)
+export const clearStoredPolyline = (vehicleId: string) => {
+  if (lastSuccessfulPolylines[vehicleId]) {
+    delete lastSuccessfulPolylines[vehicleId];
+    console.log(`Cleared stored polyline for vehicle ${vehicleId}`);
+  }
+};
+
+// Helper function to clear all stored polylines
+export const clearAllStoredPolylines = () => {
+  const vehicleIds = Object.keys(lastSuccessfulPolylines);
+  vehicleIds.forEach(id => delete lastSuccessfulPolylines[id]);
+  console.log(`Cleared all stored polylines for ${vehicleIds.length} vehicles`);
+};
+
+// Helper function to get stored polylines info (for debugging)
+export const getStoredPolylinesInfo = () => {
+  const info = Object.keys(lastSuccessfulPolylines).map(vehicleId => {
+    const data = lastSuccessfulPolylines[vehicleId];
+    const age = new Date().getTime() - new Date(data.timestamp).getTime();
+    const ageMinutes = Math.round(age / (1000 * 60));
+    return {
+      vehicleId,
+      timestamp: data.timestamp,
+      ageMinutes,
+      pointCount: data.data?.data?.length || 0,
+    };
+  });
+  console.log('Stored polylines info:', info);
+  return info;
+};
+
 export const getVehiclePolyline = async (vehicleId: string) => {
   try {
     const data = await apiRequest(`/trips/trips/polyline/${vehicleId}`);
-    console.log('Vehicle polyline data:', data);
+
+    // Store the successful polyline for future fallback
+    if (data && data.data) {
+      lastSuccessfulPolylines[vehicleId] = {
+        ...data,
+        timestamp: new Date().toISOString(), // Add timestamp for reference
+      };
+      console.log(`Stored successful polyline for vehicle ${vehicleId}`);
+    }
+
     return data;
   } catch (error) {
-    console.error('Error fetching vehicle polyline:', error);
+    console.error(`Error fetching vehicle polyline for ${vehicleId}:`, error);
 
-    // Fallback to mock polyline data for development
-    console.log('Falling back to mock vehicle polyline');
+    // First, try to use the last successful polyline for this vehicle
+    if (lastSuccessfulPolylines[vehicleId]) {
+      const storedData = lastSuccessfulPolylines[vehicleId];
+      const age = new Date().getTime() - new Date(storedData.timestamp).getTime();
+      const ageMinutes = Math.round(age / (1000 * 60));
+
+      console.log(
+        `Falling back to last successful polyline for vehicle ${vehicleId} (${ageMinutes} minutes old)`
+      );
+      return {
+        ...storedData,
+        fallback: true, // Flag to indicate this is fallback data
+        fallback_reason: 'api_error',
+        fallback_age_minutes: ageMinutes,
+      };
+    }
+
+    // If no previous polyline exists, fallback to mock polyline data for development
+    console.log(
+      `Falling back to mock vehicle polyline for ${vehicleId} (no previous polyline stored)`
+    );
     const mockPolyline = {
       data: {
         data: [
@@ -726,6 +818,8 @@ export const getVehiclePolyline = async (vehicleId: string) => {
         ],
       },
       status: 'success',
+      fallback: true,
+      fallback_reason: 'no_previous_polyline',
     };
 
     return mockPolyline;

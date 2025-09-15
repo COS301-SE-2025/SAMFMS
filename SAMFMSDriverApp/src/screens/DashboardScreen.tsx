@@ -500,9 +500,10 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
 interface RecentTripsProps {
   theme: any;
   userData: any;
+  navigation?: any;
 }
 
-const RecentTrips: React.FC<RecentTripsProps> = ({ theme, userData }) => {
+const RecentTrips: React.FC<RecentTripsProps> = ({ theme, userData, navigation }) => {
   const [recentTrips, setRecentTrips] = useState<any[]>([]);
   const [_loading, setLoading] = useState(false);
 
@@ -582,21 +583,73 @@ const RecentTrips: React.FC<RecentTripsProps> = ({ theme, userData }) => {
 
           console.log('Extracted recent trips data:', tripsData);
 
-          const formattedTrips = tripsData.slice(0, 3).map((trip: any) => ({
-            id: trip.id || trip._id,
-            route: `${trip.origin?.address || trip.origin?.name || 'Unknown'} → ${
-              trip.destination?.address || trip.destination?.name || 'Unknown'
-            }`,
-            date: trip.actual_start_time
-              ? new Date(trip.actual_start_time).toLocaleDateString([], {
-                  weekday: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
-              : 'Recently',
-            status: 'completed',
-            distance: trip.estimated_distance ? `${trip.estimated_distance} km` : 'N/A',
-          }));
+          const formattedTrips = tripsData.slice(0, 3).map((trip: any) => {
+            // Helper function to truncate location text at first comma
+            const truncateLocation = (location: string) => {
+              const commaIndex = location.indexOf(',');
+              return commaIndex !== -1 ? location.substring(0, commaIndex) : location;
+            };
+
+            const originText = trip.origin?.address || trip.origin?.name || 'Unknown';
+            const destinationText =
+              trip.destination?.address || trip.destination?.name || 'Unknown';
+
+            const actualStartTime = trip.actual_start_time
+              ? new Date(trip.actual_start_time)
+              : null;
+            const actualEndTime = trip.actual_end_time ? new Date(trip.actual_end_time) : null;
+
+            // Priority color mapping
+            const getPriorityColor = (priority: string) => {
+              switch (priority?.toLowerCase()) {
+                case 'high':
+                  return '#ef4444'; // Red
+                case 'medium':
+                  return '#f59e0b'; // Orange
+                case 'low':
+                  return '#10b981'; // Green
+                default:
+                  return '#6b7280'; // Gray for normal/unknown
+              }
+            };
+
+            const priority = trip.priority || 'normal';
+            const priorityColor = getPriorityColor(priority);
+
+            return {
+              // Preserve all original API data
+              ...trip,
+              // Add formatted display properties
+              id: trip.id || trip._id,
+              name: trip.name || trip.trip_name || `Trip ${trip.id || 'Unknown'}`,
+              route: `${originText} → ${destinationText}`,
+              pickupShort: truncateLocation(originText),
+              destinationShort: truncateLocation(destinationText),
+              startTime: actualStartTime
+                ? actualStartTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : 'N/A',
+              endTime: actualEndTime
+                ? actualEndTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : 'N/A',
+              startDate: actualStartTime ? actualStartTime.toLocaleDateString() : 'N/A',
+              endDate: actualEndTime ? actualEndTime.toLocaleDateString() : 'N/A',
+              priority: trip.priority || 'normal',
+              priorityDisplay:
+                trip.priority?.charAt(0).toUpperCase() + trip.priority?.slice(1) || 'Normal',
+              priorityColor: priorityColor,
+              date: actualStartTime
+                ? actualStartTime.toLocaleDateString([], {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                : 'Recently',
+              status: 'completed',
+              distance: trip.estimated_distance
+                ? `${Math.round(trip.estimated_distance)} km`
+                : 'N/A',
+            };
+          });
 
           console.log('Formatted recent trips:', formattedTrips);
           setRecentTrips(formattedTrips);
@@ -613,6 +666,16 @@ const RecentTrips: React.FC<RecentTripsProps> = ({ theme, userData }) => {
     }
   }, [userData?.id]);
 
+  const handleViewTrip = (trip: any) => {
+    if (navigation) {
+      navigation.navigate('TripDetails', { trip });
+    } else {
+      Alert.alert('Trip Details', 'Trip details will be available soon!', [
+        { text: 'OK', style: 'default' },
+      ]);
+    }
+  };
+
   return (
     <View style={[styles.sectionContainer, { backgroundColor: theme.cardBackground }]}>
       <View style={styles.sectionHeader}>
@@ -621,25 +684,82 @@ const RecentTrips: React.FC<RecentTripsProps> = ({ theme, userData }) => {
       </View>
 
       {recentTrips.length > 0 ? (
-        recentTrips.map(trip => (
-          <View key={trip.id} style={[styles.recentTripItem, { borderBottomColor: theme.border }]}>
-            <View style={styles.recentTripInfo}>
-              <Text style={[styles.recentTripRoute, { color: theme.text }]}>{trip.route}</Text>
-              <Text style={[styles.recentTripDate, { color: theme.textSecondary }]}>
-                {trip.date}
-              </Text>
-            </View>
-            <View style={styles.recentTripRight}>
-              <Text style={[styles.recentTripDistance, { color: theme.textSecondary }]}>
-                {trip.distance}
-              </Text>
-              <View style={[styles.statusBadgeSmall, { backgroundColor: theme.accent + '20' }]}>
-                <CheckCircle size={12} color={theme.accent} />
-                <Text style={[styles.statusBadgeText, { color: theme.accent }]}>Done</Text>
+        <View style={styles.recentTripsContainer}>
+          {recentTrips.map((trip: any) => (
+            <View
+              key={trip.id}
+              style={[
+                styles.recentTripCard,
+                { backgroundColor: theme.background, borderColor: theme.border },
+              ]}
+            >
+              <View style={styles.tripHeader}>
+                <Text style={[styles.tripName, { color: theme.text }]} numberOfLines={1}>
+                  {trip.name || 'Recent Trip'}
+                </Text>
+                <View
+                  style={[styles.statusBadgeTrip, { backgroundColor: trip.priorityColor + '20' }]}
+                >
+                  <Text style={[styles.statusBadgeText, { color: trip.priorityColor }]}>
+                    {trip.priorityDisplay}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.timeContainer, { backgroundColor: theme.cardBackground }]}>
+                <View style={styles.timeSection}>
+                  <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>Started</Text>
+                  <Text style={[styles.timeValue, { color: theme.text }]}>{trip.startTime}</Text>
+                  <Text style={[styles.dateValue, { color: theme.textSecondary }]}>
+                    {trip.startDate}
+                  </Text>
+                  <View style={styles.locationItem}>
+                    <View style={[styles.locationDot, styles.startDot]} />
+                    <Text style={[styles.locationText, { color: theme.text }]}>
+                      {trip.pickupShort || trip.route.split(' → ')[0] || 'Unknown'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={[styles.timeDivider, { backgroundColor: theme.border }]} />
+                <View style={styles.timeSection}>
+                  <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>Completed</Text>
+                  <Text style={[styles.timeValue, { color: theme.text }]}>{trip.endTime}</Text>
+                  <Text style={[styles.dateValue, { color: theme.textSecondary }]}>
+                    {trip.endDate}
+                  </Text>
+                  <View style={styles.locationItem}>
+                    <View style={[styles.locationDot, styles.endDot]} />
+                    <Text style={[styles.locationText, { color: theme.text }]}>
+                      {trip.destinationShort || trip.route.split(' → ')[1] || 'Unknown'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.tripFooter}>
+                <View style={styles.distanceContainer}>
+                  <MapPin size={14} color={theme.textSecondary} />
+                  <Text style={[styles.distanceText, { color: theme.textSecondary }]}>
+                    {trip.distance}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.viewButton,
+                    {
+                      backgroundColor: '#3b82f6',
+                      borderColor: '#3b82f6',
+                    },
+                  ]}
+                  onPress={() => handleViewTrip(trip)}
+                >
+                  <Eye size={14} color="#ffffff" />
+                  <Text style={styles.viewButtonText}>View</Text>
+                </TouchableOpacity>
               </View>
             </View>
-          </View>
-        ))
+          ))}
+        </View>
       ) : (
         <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No recent trips</Text>
       )}
@@ -972,7 +1092,7 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
             />
 
             {/* Recent Trips */}
-            <RecentTrips theme={theme} userData={userData} />
+            <RecentTrips theme={theme} userData={userData} navigation={navigation} />
           </View>
         }
       </ScrollView>
@@ -1358,5 +1478,21 @@ const styles = StyleSheet.create({
   tripsContainer: {
     padding: 20,
     gap: 20,
+  },
+  // Recent Trips Specific Styles
+  recentTripsContainer: {
+    gap: 12,
+  },
+  recentTripCard: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 0,
+    borderWidth: 1,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
 });

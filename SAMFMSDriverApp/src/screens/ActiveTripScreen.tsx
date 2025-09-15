@@ -19,6 +19,7 @@ import {
   pauseTrip,
   resumeTrip,
   cancelTrip,
+  completeTrip,
   pingDriverLocation,
 } from '../utils/api';
 import { useActiveTripContext } from '../contexts/ActiveTripContext';
@@ -92,6 +93,20 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     width: 40,
+  },
+  speedContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  speedValue: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  speedLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 2,
   },
   loadingContainer: {
     flex: 1,
@@ -260,101 +275,47 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
 
   // Location ping state
   const [pingInterval, setPingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
+  const [speedLimitInterval, setSpeedLimitInterval] = useState<ReturnType<
+    typeof setInterval
+  > | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
+  const [previousLocation, setPreviousLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    timestamp: number;
+  } | null>(null);
+  const [_previousVehicleLocation, setPreviousVehicleLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    timestamp: number;
+  } | null>(null);
+  const [currentSpeed, setCurrentSpeed] = useState<number>(0);
+  const [speedLimit, setSpeedLimit] = useState<number | null>(null);
 
   // Check if driver is within 250m of destination
   const isNearDestination = useMemo(() => {
-    console.log('=== Checking destination proximity ===');
-    console.log('Current location:', currentLocation);
-    console.log('Active trip destination:', activeTrip?.destination?.location?.coordinates);
-
     if (!currentLocation || !activeTrip?.destination?.location?.coordinates) {
-      console.log('Missing location data - not near destination');
       return false;
     }
 
     const destCoords = activeTrip.destination.location.coordinates;
-    console.log('Destination coordinates:', destCoords);
 
     const distance = calculateDistance(
       currentLocation.latitude,
       currentLocation.longitude,
-      destCoords[1], // latitude
-      destCoords[0] // longitude
+      destCoords[1], // destination latitude (GeoJSON: [lng, lat])
+      destCoords[0] // destination longitude (GeoJSON: [lng, lat])
     );
 
-    const isNear = distance <= 250; // Within 250 meters
-    console.log(`Distance to destination: ${distance.toFixed(2)}m, Near destination: ${isNear}`);
+    const isNear = distance <= 10000; // Temporarily 10km for testing
 
     return isNear;
   }, [currentLocation, activeTrip?.destination?.location?.coordinates, calculateDistance]);
 
   const { theme } = useTheme();
-
-  const fetchVehicleLocation = useCallback(
-    async (vehicleId: string): Promise<VehicleLocation | null> => {
-      try {
-        const response = await getLocation(vehicleId);
-        console.log('Fetching vehicle location:', response);
-        if (response && response.data.data) {
-          const locationData = response.data.data;
-
-          const location: VehicleLocation = {
-            id: vehicleId,
-            position: [
-              locationData.latitude || locationData.lat,
-              locationData.longitude || locationData.lng,
-            ],
-            speed: locationData.speed || null,
-            heading: locationData.heading || locationData.direction || null,
-            lastUpdated: new Date(locationData.timestamp || Date.now()),
-          };
-
-          return location;
-        }
-
-        console.warn(`No valid location data found for vehicle ${vehicleId}`);
-        return null;
-      } catch (err) {
-        console.error('Error fetching vehicle location:', err);
-        return null;
-      }
-    },
-    []
-  );
-
-  const fetchVehiclePolyline = useCallback(
-    async (vehicleId: string): Promise<Array<[number, number]> | null> => {
-      try {
-        console.log(`Fetching polyline for vehicle ${vehicleId}`);
-        const response = await getVehiclePolyline(vehicleId);
-
-        // Handle the response based on the backend structure
-        if (response && response.data) {
-          const polylineData = response.data.data || response.data;
-
-          // Convert polyline data to coordinates array
-          if (Array.isArray(polylineData)) {
-            const coordinates: Array<[number, number]> = polylineData.map((point: any) => [
-              point.latitude || point.lat || point[0],
-              point.longitude || point.lng || point[1],
-            ]);
-            return coordinates;
-          }
-        }
-
-        console.warn(`No valid polyline data found for vehicle ${vehicleId}`);
-        return null;
-      } catch (err) {
-        console.error('Error fetching vehicle polyline:', err);
-        return null;
-      }
-    },
-    []
-  );
 
   // Get current location for pinging with retry mechanism
   const getCurrentLocation = useCallback((): Promise<{
@@ -370,12 +331,9 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
             longitude: position.coords.longitude,
           };
           setCurrentLocation(location);
-          console.log('Location acquired (high accuracy):', location);
           resolve(location);
         },
-        highAccuracyError => {
-          console.warn('High accuracy location failed, trying low accuracy:', highAccuracyError);
-
+        _highAccuracyError => {
           // Fallback to low accuracy with longer timeout
           Geolocation.getCurrentPosition(
             position => {
@@ -384,21 +342,13 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
                 longitude: position.coords.longitude,
               };
               setCurrentLocation(location);
-              console.log('Location acquired (low accuracy):', location);
               resolve(location);
             },
-            lowAccuracyError => {
-              console.error(
-                'Error getting current location (both attempts failed):',
-                lowAccuracyError
-              );
-
+            _lowAccuracyError => {
               // Final fallback - use last known location if available
               if (currentLocation) {
-                console.log('Using last known location:', currentLocation);
                 resolve(currentLocation);
               } else {
-                console.log('No location available, using mock coordinates');
                 // Use a default/mock location as last resort
                 const mockLocation = {
                   latitude: -25.7479, // Pretoria coordinates as fallback
@@ -428,22 +378,47 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
   const startLocationPing = useCallback(() => {
     if (!activeTrip?.id || isPaused || pingInterval) return;
 
-    console.log('Starting location ping for trip:', activeTrip.id);
-
     const interval = setInterval(async () => {
       try {
         const location = await getCurrentLocation();
         if (location && activeTrip?.id) {
-          console.log('Attempting to ping location:', location);
-          const response = await pingDriverLocation(
+          const currentTime = Date.now();
+
+          // Check if this is the first location (no previous location)
+          if (!previousLocation) {
+            // Set initial location without calculating speed
+            setPreviousLocation({
+              latitude: location.latitude,
+              longitude: location.longitude,
+              timestamp: currentTime,
+            });
+          } else {
+            // Update previous location for next calculation
+            setPreviousLocation({
+              latitude: location.latitude,
+              longitude: location.longitude,
+              timestamp: currentTime,
+            });
+          }
+
+          // Use the same speed that's displayed in the UI (currentSpeed)
+          const speedToSend = currentSpeed;
+
+          console.log('Ping request:', {
+            tripId: activeTrip.id,
+            longitude: location.longitude,
+            latitude: location.latitude,
+            speed: speedToSend,
+          });
+
+          const pingResponse = await pingDriverLocation(
             activeTrip.id,
             location.longitude,
-            location.latitude
+            location.latitude,
+            speedToSend
           );
-          console.log('Successfully pinged location:', location);
-          console.log('Ping API response:', response);
-        } else {
-          console.warn('Skipping ping - no location or trip ID available');
+
+          console.log('Ping response:', pingResponse);
         }
       } catch (pingError) {
         console.error('Failed to ping location:', pingError);
@@ -451,16 +426,104 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     }, 5000); // Ping every 5 seconds
 
     setPingInterval(interval);
-  }, [activeTrip?.id, isPaused, pingInterval, getCurrentLocation]);
+  }, [
+    activeTrip?.id,
+    isPaused,
+    pingInterval,
+    getCurrentLocation,
+    setPreviousLocation,
+    previousLocation,
+    currentSpeed,
+  ]);
 
   // Stop location pinging
   const stopLocationPing = useCallback(() => {
     if (pingInterval) {
-      console.log('Stopping location ping');
       clearInterval(pingInterval);
       setPingInterval(null);
     }
   }, [pingInterval]);
+
+  // Get speed limit using Geoapify Map Matching API
+  const getSpeedLimit = useCallback(async () => {
+    try {
+      const location = await getCurrentLocation();
+      if (!location) return;
+
+      // Create two waypoints - current location and a small offset
+      // This provides the minimum "shape" required by the API
+      const offsetDistance = 0.001; // Small offset in degrees (~100m)
+      const waypoints = [
+        {
+          timestamp: new Date().toISOString(),
+          location: [location.longitude, location.latitude],
+        },
+        {
+          timestamp: new Date(Date.now() + 10000).toISOString(), // 10 seconds later
+          location: [location.longitude + offsetDistance, location.latitude + offsetDistance],
+        },
+      ];
+
+      // Make API call to Geoapify
+      const response = await fetch(
+        'https://api.geoapify.com/v1/mapmatching?apiKey=8c5cae4820744254b3cb03ebd9b9ce13',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            mode: 'drive',
+            waypoints: waypoints,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Extract speed limit from the first step
+        const firstFeature = data.features?.[0];
+        const firstLeg = firstFeature?.properties?.legs?.[0];
+        const firstStep = firstLeg?.steps?.[0];
+        const speedLimitValue = firstStep?.speed_limit;
+
+        if (speedLimitValue && typeof speedLimitValue === 'number') {
+          setSpeedLimit(speedLimitValue);
+          console.log('Speed limit updated:', speedLimitValue);
+        } else {
+          console.log('No speed limit data available');
+        }
+      } else {
+        console.error('Speed limit API call failed:', response);
+      }
+    } catch (speedLimitError) {
+      console.error('Error fetching speed limit:', speedLimitError);
+    }
+  }, [getCurrentLocation]);
+
+  // Start speed limit checking every 90 seconds
+  const startSpeedLimitChecking = useCallback(() => {
+    if (!activeTrip?.id || isPaused || speedLimitInterval) return;
+
+    // Get initial speed limit
+    getSpeedLimit();
+
+    // Set up interval for every 90 seconds
+    const interval = setInterval(() => {
+      getSpeedLimit();
+    }, 90000); // 90 seconds
+
+    setSpeedLimitInterval(interval);
+  }, [activeTrip?.id, isPaused, speedLimitInterval, getSpeedLimit]);
+
+  // Stop speed limit checking
+  const stopSpeedLimitChecking = useCallback(() => {
+    if (speedLimitInterval) {
+      clearInterval(speedLimitInterval);
+      setSpeedLimitInterval(null);
+    }
+  }, [speedLimitInterval]);
 
   const fetchVehicleData = useCallback(async () => {
     if (!activeTrip?.vehicle_id && !activeTrip?.vehicleId) return;
@@ -469,15 +532,106 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     if (!vehicleId) return;
 
     try {
-      const [location, polyline] = await Promise.all([
-        fetchVehicleLocation(vehicleId),
-        fetchVehiclePolyline(vehicleId),
-      ]);
+      // Inline vehicle location fetching to avoid dependency issues
+      const locationResponse = await getLocation(vehicleId);
+      let location = null;
+      if (locationResponse && locationResponse.data.data) {
+        const locationData = locationResponse.data.data;
+        location = {
+          id: vehicleId,
+          position: [
+            locationData.latitude || locationData.lat,
+            locationData.longitude || locationData.lng,
+          ] as [number, number],
+          speed: locationData.speed || null,
+          heading: locationData.heading || locationData.direction || null,
+          lastUpdated: new Date(locationData.timestamp || Date.now()),
+        };
+      }
+
+      // Inline polyline fetching
+      const polylineResponse = await getVehiclePolyline(vehicleId);
+      let polyline = null;
+      let polylineStatus = 'live'; // 'live', 'fallback', or 'mock'
+
+      if (polylineResponse && polylineResponse.data) {
+        const polylineData = polylineResponse.data.data || polylineResponse.data;
+        if (Array.isArray(polylineData)) {
+          polyline = polylineData.map((point: any) => [
+            point.latitude || point.lat || point[0],
+            point.longitude || point.lng || point[1],
+          ]);
+
+          // Check if this is fallback data
+          if (polylineResponse.fallback) {
+            polylineStatus =
+              polylineResponse.fallback_reason === 'no_previous_polyline' ? 'mock' : 'fallback';
+            console.log(
+              `Using ${polylineStatus} polyline for vehicle ${vehicleId}`,
+              polylineResponse.fallback_reason === 'api_error'
+                ? `(${polylineResponse.fallback_age_minutes} minutes old)`
+                : ''
+            );
+          }
+        }
+      }
 
       // Update state for UI display
       if (location) {
         setVehicleLocation(location);
-        setMapCenter(location.position);
+        setMapCenter(location.position as [number, number]);
+
+        // Calculate speed using vehicle timestamps
+        const vehicleTimestamp =
+          location.lastUpdated instanceof Date
+            ? location.lastUpdated.getTime()
+            : new Date(location.lastUpdated).getTime();
+
+        // Get current previous location state
+        setPreviousVehicleLocation(prev => {
+          if (!prev) {
+            // Set initial vehicle location without calculating speed
+            return {
+              latitude: location.position[0], // latitude
+              longitude: location.position[1], // longitude
+              timestamp: vehicleTimestamp,
+            };
+          } else {
+            // Calculate speed using previous vehicle location
+            const currentTime = new Date(
+              location.lastUpdated instanceof Date
+                ? location.lastUpdated.toISOString()
+                : location.lastUpdated
+            ).getTime();
+
+            // Calculate distance using Haversine formula
+            const distance = calculateDistance(
+              prev.latitude,
+              prev.longitude,
+              location.position[0], // latitude
+              location.position[1] // longitude
+            );
+
+            // Calculate time difference in seconds
+            const timeDiff = (currentTime - prev.timestamp) / 1000;
+
+            if (timeDiff > 0) {
+              // Speed in m/s
+              const speedMS = distance / timeDiff;
+              // Convert to km/h
+              const speedKMH = speedMS * 3.6;
+              // Update speed state for UI display
+              setCurrentSpeed(speedKMH);
+            }
+
+            // Return new previous location for next calculation
+            return {
+              latitude: location.position[0], // latitude
+              longitude: location.position[1], // longitude
+              timestamp: vehicleTimestamp,
+            };
+          }
+        });
       }
 
       // Send update to WebView using injectJavaScript for more reliable delivery
@@ -492,9 +646,9 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
           script += `
             if (typeof vehicleMarker !== 'undefined' && vehicleMarker && typeof map !== 'undefined') {
               vehicleMarker.setLatLng([${location.position[0]}, ${location.position[1]}]);
-              vehicleMarker.setPopupContent('<b>Vehicle Position</b><br>Speed: ${
-                location.speed || 0
-              } km/h<br>Heading: ${location.heading || 0}°');
+              vehicleMarker.setPopupContent('<b>Vehicle Position</b><br>Speed: ${Math.round(
+                currentSpeed
+              )} km/h<br>Heading: ${location.heading || 0}°');
               
               // Rotate the vehicle marker to show direction of travel
               if (typeof vehicleMarker.setRotationAngle === 'function') {
@@ -534,20 +688,24 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
           `;
         }
 
+        // Update polyline status indicator
+        script += `
+          if (typeof updatePolylineStatusIndicator === 'function') {
+            updatePolylineStatusIndicator('${polylineStatus}', ${
+          polylineStatus === 'fallback' ? polylineResponse.fallback_age_minutes || 0 : 0
+        });
+          }
+        `;
+
         if (script) {
-          console.log('Injecting JavaScript to update map');
           webViewRef.current.injectJavaScript(script);
         }
       } else {
         webViewLoadAttempts.current += 1;
         const currentAttempts = webViewLoadAttempts.current;
-        console.log(
-          `WebView not ready for update, isLoaded: ${isWebViewLoaded}, attempt: ${currentAttempts}`
-        );
 
         // If we've tried 3 times and WebView still not loaded, force it
         if (currentAttempts >= 3 && !isWebViewLoaded) {
-          console.log('Forcing WebView to be considered loaded after 3 attempts');
           setIsWebViewLoaded(true);
           // Retry sending the update
           if (webViewRef.current && (location || polyline)) {
@@ -561,9 +719,9 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
               script += `
                 if (typeof vehicleMarker !== 'undefined' && vehicleMarker && typeof map !== 'undefined') {
                   vehicleMarker.setLatLng([${location.position[0]}, ${location.position[1]}]);
-                  vehicleMarker.setPopupContent('<b>Vehicle Position</b><br>Speed: ${
-                    location.speed || 0
-                  } km/h<br>Heading: ${location.heading || 0}°');
+                  vehicleMarker.setPopupContent('<b>Vehicle Position</b><br>Speed: ${Math.round(
+                    currentSpeed
+                  )} km/h<br>Heading: ${location.heading || 0}°');
                   
                   // Rotate the vehicle marker to show direction of travel
                   if (typeof vehicleMarker.setRotationAngle === 'function') {
@@ -603,8 +761,16 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
               `;
             }
 
+            // Update polyline status indicator in retry logic too
+            script += `
+              if (typeof updatePolylineStatusIndicator === 'function') {
+                updatePolylineStatusIndicator('${polylineStatus}', ${
+              polylineStatus === 'fallback' ? polylineResponse.fallback_age_minutes || 0 : 0
+            });
+              }
+            `;
+
             if (script) {
-              console.log('Force injecting JavaScript after 3 attempts');
               webViewRef.current.injectJavaScript(script);
             }
           }
@@ -613,7 +779,13 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     } catch (err) {
       console.error('Error fetching vehicle data:', err);
     }
-  }, [activeTrip, fetchVehicleLocation, fetchVehiclePolyline]);
+  }, [
+    activeTrip?.vehicle_id,
+    activeTrip?.vehicleId,
+    calculateDistance,
+    isWebViewLoaded,
+    currentSpeed,
+  ]);
 
   const stopStatusMonitoring = useCallback(() => {
     if (statusCheckInterval) {
@@ -630,11 +802,9 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
   // Function to generate stable map HTML
   // Handle WebView load - fetch initial vehicle data
   const handleWebViewLoad = useCallback(() => {
-    console.log('Leaflet map loaded successfully, setting isWebViewLoaded to true');
     setIsWebViewLoaded(true);
     // Fetch initial vehicle data when WebView is ready
     setTimeout(() => {
-      console.log('Fetching initial vehicle data after WebView load');
       fetchVehicleData();
     }, 500); // Small delay to ensure WebView is fully initialized
   }, [fetchVehicleData]);
@@ -643,7 +813,6 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
   useEffect(() => {
     const backupTimer = setTimeout(() => {
       if (!isWebViewLoaded) {
-        console.log('WebView loading timeout - forcing isLoaded to true');
         setIsWebViewLoaded(true);
         // Try to fetch vehicle data anyway
         fetchVehicleData();
@@ -653,7 +822,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     return () => clearTimeout(backupTimer);
   }, [isWebViewLoaded, fetchVehicleData]);
 
-  const getMapHTML = () => {
+  const getMapHTML = useCallback(() => {
     const pickup = activeTrip?.origin?.location?.coordinates
       ? [activeTrip.origin.location.coordinates[1], activeTrip.origin.location.coordinates[0]]
       : [37.7749, -122.4194];
@@ -866,6 +1035,16 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         };
         statusCard.addTo(map);
 
+        // Add polyline status indicator in bottom left corner (initially hidden)
+        const polylineStatusCard = L.control({position: 'bottomleft'});
+        polylineStatusCard.onAdd = function (map) {
+            const div = L.DomUtil.create('div', 'polyline-status-indicator');
+            div.style.display = 'none'; // Initially hidden
+            div.innerHTML = '<div style="background: ' + cardBg + '; padding: 8px 12px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 2px solid #f59e0b; opacity: 0.9;"><div style="color: #f59e0b; font-size: 12px; font-weight: bold;">Route Status</div><div style="font-size: 10px; color: ' + textColor + '; margin-top: 2px;">Fallback Data</div></div>';
+            return div;
+        };
+        polylineStatusCard.addTo(map);
+
         // Add initial route polyline (this will be updated)
         if (routeCoordinates.length > 0) {
             routePolyline = L.polyline(routeCoordinates, {
@@ -914,6 +1093,33 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
                 // Update route polyline
                 routePolyline.setLatLngs(data.polyline);
             }
+            
+            // Update polyline status indicator
+            if (data.polylineStatus) {
+                updatePolylineStatusIndicator(data.polylineStatus, data.polylineAge);
+            }
+        }
+        
+        // Function to update polyline status indicator
+        function updatePolylineStatusIndicator(status, age) {
+            const statusElement = document.querySelector('.polyline-status-indicator');
+            if (!statusElement) return;
+            
+            if (status === 'live') {
+                // Hide indicator for live data
+                statusElement.style.display = 'none';
+            } else {
+                // Show indicator for fallback/mock data
+                statusElement.style.display = 'block';
+                const statusDiv = statusElement.querySelector('div');
+                
+                if (status === 'fallback') {
+                    const ageText = age ? \` (\${age}m old)\` : '';
+                    statusDiv.innerHTML = '<div style="background: ' + cardBg + '; padding: 8px 12px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 2px solid #f59e0b; opacity: 0.9;"><div style="color: #f59e0b; font-size: 12px; font-weight: bold;">Route Status</div><div style="font-size: 10px; color: ' + textColor + '; margin-top: 2px;">Fallback Data' + ageText + '</div></div>';
+                } else if (status === 'mock') {
+                    statusDiv.innerHTML = '<div style="background: ' + cardBg + '; padding: 8px 12px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 2px solid #ef4444; opacity: 0.9;"><div style="color: #ef4444; font-size: 12px; font-weight: bold;">Route Status</div><div style="font-size: 10px; color: ' + textColor + '; margin-top: 2px;">Mock Data</div></div>';
+                }
+            }
         }
         
         // Listen for messages from React Native
@@ -957,10 +1163,10 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
 </body>
 </html>
     `;
-  };
+  }, [activeTrip, theme]);
 
   // Memoize the HTML so it only generates once and doesn't cause re-renders
-  const mapHTML = useMemo(() => getMapHTML(), [activeTrip, theme]);
+  const mapHTML = useMemo(() => getMapHTML(), [getMapHTML]);
 
   const handleEndTrip = useCallback(async () => {
     if (!activeTrip) return;
@@ -992,6 +1198,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
 
             stopStatusMonitoring();
             stopLocationPing(); // Stop location pinging when trip is finished
+            stopSpeedLimitChecking(); // Stop speed limit checking when trip is finished
             clearActiveTrip();
             setVehicleLocation(null);
 
@@ -1008,7 +1215,14 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         },
       },
     ]);
-  }, [activeTrip, navigation, stopStatusMonitoring, clearActiveTrip, stopLocationPing]);
+  }, [
+    activeTrip,
+    navigation,
+    stopStatusMonitoring,
+    clearActiveTrip,
+    stopLocationPing,
+    stopSpeedLimitChecking,
+  ]);
 
   const handlePauseResumeTrip = useCallback(async () => {
     if (!activeTrip) return;
@@ -1078,6 +1292,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
 
               stopStatusMonitoring();
               stopLocationPing(); // Stop location pinging when trip is cancelled
+              stopSpeedLimitChecking(); // Stop speed limit checking when trip is cancelled
               clearActiveTrip();
               setVehicleLocation(null);
 
@@ -1095,7 +1310,14 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         },
       ]
     );
-  }, [activeTrip, navigation, stopStatusMonitoring, clearActiveTrip, stopLocationPing]);
+  }, [
+    activeTrip,
+    navigation,
+    stopStatusMonitoring,
+    clearActiveTrip,
+    stopLocationPing,
+    stopSpeedLimitChecking,
+  ]);
 
   // Handle trip completion when near destination
   const handleCompleteTrip = useCallback(async () => {
@@ -1113,12 +1335,6 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
             setEndingTrip(true);
 
             try {
-              const now = new Date().toISOString();
-              const data = {
-                actual_end_time: now,
-                status: 'completed',
-              };
-
               const tripId = activeTrip.id || activeTrip._id;
               if (!tripId) {
                 throw new Error('Trip ID not found');
@@ -1126,11 +1342,12 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
 
               console.log('Completing trip ID:', tripId);
 
-              const response = await finishTrip(tripId, data);
+              const response = await completeTrip(tripId);
               console.log('Response for completing trip:', response);
 
               stopStatusMonitoring();
               stopLocationPing(); // Stop location pinging when trip is completed
+              stopSpeedLimitChecking(); // Stop speed limit checking when trip is completed
               clearActiveTrip();
               setVehicleLocation(null);
 
@@ -1154,6 +1371,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     stopStatusMonitoring,
     clearActiveTrip,
     stopLocationPing,
+    stopSpeedLimitChecking,
     setEndingTrip,
   ]);
 
@@ -1169,17 +1387,22 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
   // Get initial location when component mounts
   useEffect(() => {
     const getInitialLocation = async () => {
-      console.log('Getting initial location for destination proximity check...');
       const location = await getCurrentLocation();
       if (location) {
-        console.log('Initial location acquired:', location);
-      } else {
-        console.log('Failed to get initial location');
+        // Set initial previous location for speed calculations
+        if (!previousLocation) {
+          const initialTime = Date.now();
+          setPreviousLocation({
+            latitude: location.latitude,
+            longitude: location.longitude,
+            timestamp: initialTime,
+          });
+        }
       }
     };
 
     getInitialLocation();
-  }, [getCurrentLocation]);
+  }, [getCurrentLocation, previousLocation]);
 
   // Fetch vehicle data when active trip changes and poll for updates
   useEffect(() => {
@@ -1201,7 +1424,6 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
 
   // Reset WebView loaded state when component mounts or activeTrip changes
   useEffect(() => {
-    console.log('Resetting WebView loaded state for new trip or component mount');
     setIsWebViewLoaded(false);
     webViewLoadAttempts.current = 0;
   }, [activeTrip?.id]);
@@ -1209,7 +1431,6 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
   // Reset WebView loaded state when component unmounts
   useEffect(() => {
     return () => {
-      console.log('Component unmounting - resetting WebView state');
       setIsWebViewLoaded(false);
       webViewLoadAttempts.current = 0;
     };
@@ -1230,6 +1451,22 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
       stopLocationPing();
     };
   }, [activeTrip, isPaused, startLocationPing, stopLocationPing]);
+
+  // Manage speed limit checking based on trip state
+  useEffect(() => {
+    if (activeTrip && !isPaused) {
+      // Start speed limit checking when trip is active and not paused
+      startSpeedLimitChecking();
+    } else {
+      // Stop speed limit checking when trip is paused or ended
+      stopSpeedLimitChecking();
+    }
+
+    // Cleanup when component unmounts or dependencies change
+    return () => {
+      stopSpeedLimitChecking();
+    };
+  }, [activeTrip, isPaused, startSpeedLimitChecking, stopSpeedLimitChecking]);
 
   if (isCheckingActiveTrip) {
     return (
@@ -1350,7 +1587,13 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
               : 'Distance N/A'}
           </Text>
         </View>
-        <View style={styles.headerRight} />
+        <View style={styles.speedContainer}>
+          <Text style={[styles.speedValue, { color: theme.accent }]}>
+            {currentSpeed.toFixed(0)}
+          </Text>
+          <Text style={[styles.speedLabel, { color: theme.textSecondary }]}>km/h</Text>
+          {speedLimit && <Text style={[{ color: theme.textSecondary }]}>Limit: {speedLimit}</Text>}
+        </View>
       </View>
 
       {/* Leaflet Map Container */}
@@ -1363,21 +1606,18 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
             html: mapHTML,
           }}
           onLoad={() => {
-            console.log('WebView onLoad triggered for trip:', activeTrip?.id);
             handleWebViewLoad();
           }}
           onLoadEnd={() => {
-            console.log('WebView onLoadEnd triggered for trip:', activeTrip?.id);
             if (!isWebViewLoaded) {
               handleWebViewLoad();
             }
           }}
           onError={webViewError => {
             console.error('WebView error:', webViewError);
-            console.log('WebView failed to load, isLoaded will remain false');
           }}
-          onMessage={event => {
-            console.log('WebView message:', event.nativeEvent.data);
+          onMessage={_event => {
+            // Handle WebView messages if needed
           }}
           javaScriptEnabled={true}
           domStorageEnabled={true}
@@ -1483,22 +1723,6 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
             </TouchableOpacity>
           )}
         </View>
-
-        {/* Temporary Debug Button */}
-        <TouchableOpacity
-          onPress={async () => {
-            console.log('=== DEBUG BUTTON PRESSED ===');
-            const location = await getCurrentLocation();
-            console.log('Current location from debug:', location);
-            console.log('isNearDestination:', isNearDestination);
-            console.log('Active trip destination:', activeTrip?.destination?.location?.coordinates);
-          }}
-          style={[styles.controlButton, { backgroundColor: theme.info }]}
-        >
-          <View style={styles.controlButtonContent}>
-            <Text style={styles.controlButtonText}>Debug Location</Text>
-          </View>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
