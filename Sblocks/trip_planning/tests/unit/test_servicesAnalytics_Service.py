@@ -1,6 +1,3 @@
-# tests/unit/test_servicesAnalytics_Service.py
-# Self-contained; no conftest.py required. Designed not to interfere with other tests.
-
 import os, sys, types, importlib, importlib.util
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -12,7 +9,7 @@ from datetime import datetime, timezone
 # -----------------------------------------------------------------------------
 HERE = os.path.abspath(os.path.dirname(__file__))
 CANDIDATES = [
-    os.path.abspath(os.path.join(HERE, "..", "..")),  # project-ish root
+    os.path.abspath(os.path.join(HERE, "..", "..")), 
     os.path.abspath(os.path.join(HERE, "..")),
     os.getcwd(),
 ]
@@ -20,9 +17,6 @@ for p in CANDIDATES:
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# -----------------------------------------------------------------------------
-# Minimal stubs for deps (ONLY if not already present)
-# -----------------------------------------------------------------------------
 if "bson" not in sys.modules:
     bson_mod = types.ModuleType("bson")
     class _ObjectId:
@@ -67,18 +61,14 @@ if "schemas.requests" not in sys.modules:
     schemas_requests.AnalyticsRequest = AnalyticsRequest
     sys.modules["schemas.requests"] = schemas_requests
 
-# lightweight repositories.database so imports in module can resolve if needed
 if "repositories" not in sys.modules:
     sys.modules["repositories"] = types.ModuleType("repositories")
 if "repositories.database" not in sys.modules:
     repos_db = types.ModuleType("repositories.database")
-    repos_db.db_manager = SimpleNamespace()  # we will override on the loaded module, not globally
+    repos_db.db_manager = SimpleNamespace()  
     repos_db.db_manager_management = SimpleNamespace()
     sys.modules["repositories.database"] = repos_db
 
-# -----------------------------------------------------------------------------
-# Robust loader for analytics_service WITHOUT importing real 'services' package
-# -----------------------------------------------------------------------------
 def _walk_roots_for(filename, roots):
     seen = set()
     for root in roots:
@@ -95,14 +85,13 @@ def _walk_roots_for(filename, roots):
                 yield os.path.join(dirpath, filename)
 
 def _load_analytics_service_module():
-    # Prefer direct file loading to avoid executing real packages' __init__
     for path in _walk_roots_for("analytics_service.py", CANDIDATES):
         try:
             pkg_dir = os.path.dirname(path)
             pkg_name = os.path.basename(pkg_dir)
             if pkg_name == "services" and "services" not in sys.modules:
                 services_pkg = types.ModuleType("services")
-                services_pkg.__path__ = [pkg_dir]  # mark as package
+                services_pkg.__path__ = [pkg_dir]  
                 sys.modules["services"] = services_pkg
                 mod_name = "services.analytics_service"
             else:
@@ -110,19 +99,15 @@ def _load_analytics_service_module():
             spec = importlib.util.spec_from_file_location(mod_name, path)
             mod = importlib.util.module_from_spec(spec)
             sys.modules[mod_name] = mod
-            spec.loader.exec_module(mod)  # type: ignore[attr-defined]
+            spec.loader.exec_module(mod) 
             return mod
         except Exception:
             continue
-    # Fallback: simple import if resolvable
     return importlib.import_module("analytics_service")
 
 analytics_service_module = _load_analytics_service_module()
 AnalyticsService = getattr(analytics_service_module, "AnalyticsService")
 
-# -----------------------------------------------------------------------------
-# DB stubs + injection helpers
-# -----------------------------------------------------------------------------
 class _AsyncCursor:
     """Cursor supporting both to_list and async iteration."""
     def __init__(self, items):
@@ -143,7 +128,6 @@ class _AsyncCursor:
 class _Coll:
     """Collection stub with overrideable async-like methods."""
     def __init__(self):
-        # defaults return empty/zero; tests override as needed
         self._aggregate_impl = lambda pipeline: _AsyncCursor([])
         self._find_impl = lambda query: _AsyncCursor([])
         self._count_docs_impl = AsyncMock(return_value=0)
@@ -162,18 +146,14 @@ def _wire_db_handles(svc, trip_history: _Coll, trips: _Coll, drivers: _Coll):
     core_container = SimpleNamespace(trip_history=trip_history, trips=trips)
     mgmt_container = SimpleNamespace(drivers=drivers)
 
-    # Service instance attributes (cover many common names)
     for name in ("db", "db_manager", "dbm", "database", "mongo"):
         setattr(svc, name, core_container)
     for name in ("db_management", "db_manager_management", "management_db"):
         setattr(svc, name, mgmt_container)
-    # Rare but safe: also directly set attributes in case the code uses self.trip_history
     setattr(svc, "trip_history", trip_history)
     setattr(svc, "trips", trips)
     setattr(svc, "drivers", drivers)
 
-    # Patch module-level handles the file might have bound at import time.
-    # We intentionally set multiple names; harmless if unused.
     for name in ("db", "db_manager", "dbm", "database", "mongo"):
         setattr(analytics_service_module, name, core_container)
     for name in ("db_management", "db_manager_management", "management_db"):
@@ -187,22 +167,17 @@ def _fresh_service_with_injected_db():
     _wire_db_handles(svc, trip_history, trips, drivers)
     return svc, SimpleNamespace(trip_history=trip_history, trips=trips, drivers=drivers)
 
-# =============================================================================
-# get_analytics_first
-# =============================================================================
 
 @pytest.mark.asyncio
 async def test_get_analytics_first_happy_path_monkeypatch_names(monkeypatch):
     svc, stubs = _fresh_service_with_injected_db()
 
-    # Simulate driver rollup results; include one None _id to ensure skip
     stubs.trip_history._aggregate_impl = lambda pipeline: _AsyncCursor([
         {"_id": "D1", "completedTrips": 3, "cancelledTrips": 1, "totalHours": 5.234, "totalTrips": 4},
         {"_id": "D2", "completedTrips": 0, "cancelledTrips": 2, "totalHours": 0, "totalTrips": 2},
         {"_id": None, "completedTrips": 1, "cancelledTrips": 0, "totalHours": 1.0, "totalTrips": 1},
     ])
 
-    # Avoid await/async mismatch by making _get_driver_names a safe sync func
     monkeypatch.setattr(AnalyticsService, "_get_driver_names",
                         lambda self, ids: {"D1": "Alice Able"},
                         raising=False)
@@ -224,7 +199,6 @@ async def test_get_analytics_first_bug_branch_returns_default(monkeypatch):
     stubs.trip_history._aggregate_impl = lambda pipeline: _AsyncCursor(
         [{"_id": "D1", "completedTrips": 1, "cancelledTrips": 0, "totalHours": 1.0, "totalTrips": 1}]
     )
-    # Force an exception in name resolution to hit the safe-default path
     def _boom(self, ids): raise RuntimeError("name lookup failed")
     monkeypatch.setattr(AnalyticsService, "_get_driver_names", _boom, raising=False)
     out = await svc.get_analytics_first(datetime(2025, 9, 1), datetime(2025, 9, 1))
@@ -310,7 +284,7 @@ def test_calculate_trip_distance_direct_leg_positive():
         "destination": {"location": {"coordinates": [1.0, 0.0]}},
     }
     d = AnalyticsService._calculate_trip_distance(trip)
-    assert 100 < d < 120  # ~111.32 km
+    assert 100 < d < 120 
 
 def test_calculate_trip_distance_with_waypoints_sums_legs():
     trip = {
@@ -495,8 +469,6 @@ async def test_build_analytics_query_all_filters():
 @pytest.mark.asyncio
 async def test_calculate_trip_statistics_and_efficiency_and_cost_and_performance():
     svc, stubs = _fresh_service_with_injected_db()
-    # stats + efficiency use count_documents in sequence:
-    # total_trips, completed_trips, cancelled_trips, on_time_trips, completed_again
     stubs.trips._count_docs_impl = AsyncMock(side_effect=[10, 7, 3, 5, 7])
 
     class _Agg:

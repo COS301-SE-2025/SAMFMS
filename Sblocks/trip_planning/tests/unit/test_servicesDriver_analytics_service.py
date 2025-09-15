@@ -1,8 +1,6 @@
 import sys, os, types, importlib, pytest
 from datetime import datetime, timezone
 
-# ---------- helpers (no global mutation yet)
-
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 def _candidate_paths():
@@ -16,7 +14,7 @@ def _candidate_paths():
 def _ensure_pkg(name: str):
     if name not in sys.modules:
         pkg = types.ModuleType(name)
-        pkg.__path__ = []  # mark as package
+        pkg.__path__ = []  
         sys.modules[name] = pkg
     elif not hasattr(sys.modules[name], "__path__"):
         sys.modules[name].__path__ = []
@@ -39,7 +37,6 @@ def _restore(snap):
         if "schemas.requests" in snap:
             setattr(sys.modules["schemas"], "requests", snap["schemas.requests"])
 
-# ---------- fixture: fully isolate stubs and module load
 
 @pytest.fixture(scope="module")
 def svc_env():
@@ -54,7 +51,6 @@ def svc_env():
     ]
     snap = _snap(names)
 
-    # 1) minimal bson.ObjectId (with is_valid)
     if snap["bson"] is None:
         bson_mod = types.ModuleType("bson")
         class ObjectId:
@@ -72,7 +68,6 @@ def svc_env():
         bson_mod.ObjectId = ObjectId
         sys.modules["bson"] = bson_mod
 
-    # 2) repositories.database fakes (create fresh package + child module)
     _ensure_pkg("repositories")
     repodb = types.ModuleType("repositories.database")
 
@@ -123,14 +118,12 @@ def svc_env():
         def find(self, flt, projection=None):
             self.last_find_filter = flt
             data = list(self.drivers_data)
-            # apply very small subset of filtering for {"_id": {"$in": [...]}}
             try:
                 in_list = flt.get("_id", {}).get("$in")
                 if in_list is not None:
                     data = [d for d in data if d.get("_id") in set(in_list)]
             except Exception:
                 pass
-            # apply very small subset of projection: keep keys with 1 and always _id
             if isinstance(projection, dict) and projection:
                 keep = {k for k, v in projection.items() if v} | {"_id"}
                 projected = []
@@ -152,7 +145,6 @@ def svc_env():
     sys.modules["repositories.database"] = repodb
     sys.modules["repositories"].database = repodb
 
-    # 3) schemas.entities / schemas.requests (create fresh package + children)
     _ensure_pkg("schemas")
     se = types.ModuleType("schemas.entities")
     class TripAnalytics: pass
@@ -168,7 +160,6 @@ def svc_env():
     sys.modules["schemas.requests"] = sr
     sys.modules["schemas"].requests = sr
 
-    # 4) load driver_analytics_service fresh, under its package name
     import importlib.util
     for path in _candidate_paths():
         if os.path.exists(path):
@@ -195,7 +186,6 @@ def svc_env():
     finally:
         _restore(snap)
 
-# ---------- small helpers used by tests
 
 def _make_service(env):
     s = env["DriverAnalyticsService"]()
@@ -216,7 +206,6 @@ async def test_get_driver_names_mixed_ids_found_and_defaults(svc_env):
     valid_hex = "507f1f77bcf86cd799439011"
     invalid_hexlen = "Z"*24
     short_id = "drv-1"
-    # use existing collection instance; just set its data
     drv = s.db_management.drivers
     drv.drivers_data = [
         {"_id": OID(valid_hex), "first_name":"Ann", "last_name":"Lee"},
@@ -309,7 +298,6 @@ async def test_get_driver_trip_stats_formats_names_and_counts(svc_env):
         {"_id":"D1","completed_trips":3,"cancelled_trips":1},
         {"_id":hex_id,"completed_trips":0,"cancelled_trips":2},
     ]
-    # use existing collection; set its data
     OID = svc_env["ObjectId"]
     s.db_management.drivers.drivers_data = [
         {"_id": OID(hex_id), "first_name":"Bo", "last_name":"Peep"}

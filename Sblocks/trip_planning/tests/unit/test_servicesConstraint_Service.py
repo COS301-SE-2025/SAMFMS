@@ -10,7 +10,6 @@ CANDIDATES = [
     os.path.abspath(os.path.join(os.getcwd(), "constraint_service.py")),
 ]
 
-# ----------------- Minimal dependency stubs before import -----------------
 def ensure(name, as_pkg=False):
     if name not in sys.modules:
         m = types.ModuleType(name)
@@ -19,14 +18,12 @@ def ensure(name, as_pkg=False):
         sys.modules[name] = m
     return sys.modules[name]
 
-# bson.ObjectId stub
 bson_mod = ensure("bson")
 class _ObjectId:
     def __init__(self, v): self.v = str(v)
     def __repr__(self): return f"OID({self.v})"
 bson_mod.ObjectId = _ObjectId
 
-# schemas.entities stubs
 schemas_pkg = ensure("schemas", as_pkg=True)
 schemas_entities = ensure("schemas.entities")
 class ConstraintType:
@@ -54,7 +51,6 @@ class TripConstraint:
         return d
 schemas_entities.TripConstraint = TripConstraint
 
-# schemas.requests stubs
 schemas_requests = ensure("schemas.requests")
 class CreateConstraintRequest:
     def __init__(self, **data):
@@ -73,7 +69,6 @@ class UpdateConstraintRequest:
         return {k: v for k, v in self._data.items() if v is not None}
 schemas_requests.UpdateConstraintRequest = UpdateConstraintRequest
 
-# repositories.database.db_manager stub
 repositories_pkg = ensure("repositories", as_pkg=True)
 repositories_database = ensure("repositories.database")
 
@@ -104,11 +99,11 @@ class _AsyncCursor:
 
 class _TripsCollection:
     def __init__(self):
-        self.docs = {}  # key: trip_id(str) -> trip doc
-        self.updates = []  # record update_one calls
+        self.docs = {} 
+        self.updates = []  
     async def find_one(self, filt):
         _id = filt.get("_id")
-        key = getattr(_id, "v", _id)  # our OID stub stores .v
+        key = getattr(_id, "v", _id) 
         return self.docs.get(str(key))
     async def update_one(self, filt, update):
         self.updates.append((filt, update))
@@ -116,7 +111,6 @@ class _TripsCollection:
         trip = self.docs.get(str(key))
         if not trip:
             return _UpdateResult(0)
-        # apply $push and $set simply
         if "$push" in update:
             for k, v in update["$push"].items():
                 trip.setdefault(k, []).append(v)
@@ -126,9 +120,9 @@ class _TripsCollection:
 
 class _ConstraintsCollection:
     def __init__(self):
-        self.docs = {}  # key: str id -> doc
+        self.docs = {}
         self.next = 1
-        self.update_returns_zero = set()  # ids for which update returns 0
+        self.update_returns_zero = set()  
         self.delete_returns_zero = set()
     async def insert_one(self, data):
         cid = f"c{self.next}"; self.next += 1
@@ -173,7 +167,6 @@ class _DBManager:
 
 repositories_database.db_manager = _DBManager()
 
-# ----------------- Load the service module by path -----------------
 def _load_module():
     for p in CANDIDATES:
         if os.path.exists(p):
@@ -204,22 +197,17 @@ async def test_add_constraint_trip_not_found_raises():
 @pytest.mark.asyncio
 async def test_add_constraint_validation_errors_avoid_area_and_preferred_route():
     svc = make_service()
-    # set up trip
     db = repositories_database.db_manager
     db.trips.docs["T1"] = {"_id": "T1", "constraints": []}
-    # AVOID_AREA missing fields
     bad1 = CreateConstraintRequest(type=ConstraintType.AVOID_AREA, value={"radius": 1}, priority=1)
     with pytest.raises(ValueError):
         await svc.add_constraint_to_trip("T1", bad1)
-    # AVOID_AREA bad center
     bad2 = CreateConstraintRequest(type=ConstraintType.AVOID_AREA, value={"center": {"x": 1}, "radius": 1}, priority=1)
     with pytest.raises(ValueError):
         await svc.add_constraint_to_trip("T1", bad2)
-    # AVOID_AREA bad radius
     bad3 = CreateConstraintRequest(type=ConstraintType.AVOID_AREA, value={"center": {"coordinates": [0,0]}, "radius": 0}, priority=1)
     with pytest.raises(ValueError):
         await svc.add_constraint_to_trip("T1", bad3)
-    # PREFERRED_ROUTE requires waypoints list
     bad4 = CreateConstraintRequest(type=ConstraintType.PREFERRED_ROUTE, value={"waypoints": "not-list"}, priority=1)
     with pytest.raises(ValueError):
         await svc.add_constraint_to_trip("T1", bad4)
@@ -240,12 +228,10 @@ async def test_add_constraint_success_inserts_and_updates_trip():
 async def test_get_trip_constraints_and_errors(monkeypatch):
     svc = make_service()
     db = repositories_database.db_manager
-    # seed constraints
     await db.trip_constraints.insert_one({"trip_id":"TX","type":ConstraintType.AVOID_TOLLS,"value":None,"priority":1,"is_active":True,"created_at":"now"})
     await db.trip_constraints.insert_one({"trip_id":"TX","type":ConstraintType.FASTEST_ROUTE,"value":None,"priority":2,"is_active":True,"created_at":"now"})
     out = await svc.get_trip_constraints("TX")
     assert len(out) == 2 and all(isinstance(c, TripConstraint) for c in out)
-    # error path
     orig_find = db.trip_constraints.find
     def boom(_): raise RuntimeError("find fail")
     db.trip_constraints.find = boom
@@ -265,15 +251,12 @@ async def test_get_constraint_by_id_found_and_none():
 @pytest.mark.asyncio
 async def test_update_constraint_not_found_none_and_invalid_value_and_nomodified():
     svc = make_service()
-    # not found
     out = await svc.update_constraint("c999", UpdateConstraintRequest(priority=2))
     assert out is None
-    # existing with invalid value for type
     db = repositories_database.db_manager
     ins = await db.trip_constraints.insert_one({"trip_id":"T4","type":ConstraintType.AVOID_AREA,"value":{"center":{"coordinates":[0,0]},"radius": 1},"priority":1,"is_active":True,"created_at":"now"})
     with pytest.raises(ValueError):
         await svc.update_constraint(ins.inserted_id, UpdateConstraintRequest(value={"radius": 2}))  # missing center
-    # modified_count == 0 path
     db.trip_constraints.update_returns_zero.add(ins.inserted_id)
     assert await svc.update_constraint(ins.inserted_id, UpdateConstraintRequest(priority=3)) is None
     db.trip_constraints.update_returns_zero.clear()
@@ -286,21 +269,17 @@ async def test_update_constraint_success_triggers_trip_array_refresh():
     ins = await db.trip_constraints.insert_one({"trip_id":"T5","type":ConstraintType.FUEL_EFFICIENT,"value":None,"priority":4,"is_active":True,"created_at":"now"})
     out = await svc.update_constraint(ins.inserted_id, UpdateConstraintRequest(priority=7))
     assert isinstance(out, TripConstraint) and out.priority == 7
-    # trip.update_one was invoked by _update_trip_constraints
     assert db.trips.updates, "expected trips.update_one in _update_trip_constraints"
 
 @pytest.mark.asyncio
 async def test_remove_constraint_not_found_false_delete_zero_false_and_success_true():
     svc = make_service()
     db = repositories_database.db_manager
-    # not found
     assert await svc.remove_constraint("nope") is False
-    # present but delete returns 0
     ins = await db.trip_constraints.insert_one({"trip_id":"T6","type":ConstraintType.AVOID_HIGHWAYS,"value":None,"priority":2,"is_active":True,"created_at":"now"})
     db.trip_constraints.delete_returns_zero.add(ins.inserted_id)
     assert await svc.remove_constraint(ins.inserted_id) is False
     db.trip_constraints.delete_returns_zero.clear()
-    # success
     db.trips.docs["T6"] = {"_id":"T6","constraints":[]}
     ins2 = await db.trip_constraints.insert_one({"trip_id":"T6","type":ConstraintType.AVOID_HIGHWAYS,"value":None,"priority":2,"is_active":True,"created_at":"now"})
     assert await svc.remove_constraint(ins2.inserted_id) is True
@@ -310,7 +289,6 @@ async def test_remove_constraint_not_found_false_delete_zero_false_and_success_t
 async def test_get_active_constraints_for_trip_sorted_descending():
     svc = make_service()
     db = repositories_database.db_manager
-    # create mixed active/inactive
     await db.trip_constraints.insert_one({"trip_id":"TA","type":ConstraintType.AVOID_TOLLS,"value":None,"priority":3,"is_active":True,"created_at":"now"})
     await db.trip_constraints.insert_one({"trip_id":"TA","type":ConstraintType.FASTEST_ROUTE,"value":None,"priority":7,"is_active":True,"created_at":"now"})
     await db.trip_constraints.insert_one({"trip_id":"TA","type":ConstraintType.AVOID_FERRIES,"value":None,"priority":1,"is_active":False,"created_at":"now"})
@@ -321,7 +299,6 @@ async def test_get_active_constraints_for_trip_sorted_descending():
 @pytest.mark.asyncio
 async def test_apply_constraints_to_route_all_flags_and_lists(monkeypatch):
     svc = make_service()
-    # craft constraints in desired order
     constraints = [
         TripConstraint(_id="x1", trip_id="T7", type=ConstraintType.AVOID_TOLLS, value=None, priority=1, is_active=True),
         TripConstraint(_id="x2", trip_id="T7", type=ConstraintType.AVOID_HIGHWAYS, value=None, priority=2, is_active=True),
@@ -338,7 +315,7 @@ async def test_apply_constraints_to_route_all_flags_and_lists(monkeypatch):
     assert out["avoid_tolls"] is True
     assert out["avoid_highways"] is True
     assert out["avoid_ferries"] is True
-    assert out["optimization"] == "fuel"  # last optimization wins
+    assert out["optimization"] == "fuel"  
     assert out["avoid_areas"] == [constraints[6].value]
     assert out["preferred_waypoints"] == constraints[7].value["waypoints"]
 
@@ -347,7 +324,6 @@ async def test_update_trip_constraints_swallow_errors(monkeypatch):
     svc = make_service()
     async def boom(*a, **k): raise RuntimeError("x")
     monkeypatch.setattr(svc, "get_trip_constraints", boom)
-    # should not raise
     await svc._update_trip_constraints("T8")
 
 
