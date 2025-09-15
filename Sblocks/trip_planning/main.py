@@ -43,6 +43,7 @@ from schemas.responses import ResponseBuilder
 # Import the simulation service
 from services.simulation_service import simulation_service
 from services.missed_trip_scheduler import missed_trip_scheduler
+from services.ping_session_monitor import ping_session_monitor
 
 # Setup logging
 logging.basicConfig(
@@ -215,6 +216,14 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Failed to start missed trip scheduler: {e}")
 
+        # Start the ping session monitor
+        logger.info("Starting ping session monitor...")
+        try:
+            await ping_session_monitor.start()
+            logger.info("Ping session monitor started successfully")
+        except Exception as e:
+            logger.error(f"Failed to start ping session monitor: {e}")
+
         logger.info("Trips Service Startup Completed Successfully")
         
         yield
@@ -234,6 +243,14 @@ async def lifespan(app: FastAPI):
                 logger.info("Missed trip scheduler stopped")
             except Exception as e:
                 logger.warning(f"Error stopping missed trip scheduler: {e}")
+
+            # Stop the ping session monitor
+            logger.info("Stopping ping session monitor...")
+            try:
+                await ping_session_monitor.stop()
+                logger.info("Ping session monitor stopped")
+            except Exception as e:
+                logger.warning(f"Error stopping ping session monitor: {e}")
 
             # Publish service stopped event
             try:

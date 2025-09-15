@@ -1,10 +1,11 @@
 """
-Google Roads API service for speed limit checking
+Geoapify Map Matching API service for speed limit checking
 """
 import logging
 import asyncio
 import httpx
-from typing import Dict, Optional, List, Tuple
+import json
+from typing import Dict, List, Tuple
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 import os
@@ -28,15 +29,21 @@ class SpeedLimitInfo:
 
 
 class SpeedLimitService:
-    """Service for checking speed limits using Google Roads API"""
+    """Service for checking speed limits using Geoapify Roads API"""
     
-    CACHE_DURATION_SECONDS = 30  # Cache speed limits for 30 seconds
-    API_BASE_URL = "https://roads.googleapis.com/v1/speedLimits"
+    CACHE_DURATION_SECONDS = 90  # Cache speed limits for 90 seconds
+    API_BASE_URL = "https://api.geoapify.com/v1/roads"
     
     def __init__(self):
-        self.api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+        # Try to get API key from config first, then environment, then default
+        try:
+            from config.settings import config
+            self.api_key = config.trips.geoapify_api_key or os.getenv("GEOAPIFY_API_KEY", "8c5cae4820744254b3cb03ebd9b9ce13")
+        except ImportError:
+            self.api_key = os.getenv("GEOAPIFY_API_KEY", "8c5cae4820744254b3cb03ebd9b9ce13")
+        
         if not self.api_key:
-            logger.warning("GOOGLE_MAPS_API_KEY not found in environment variables")
+            logger.warning("GEOAPIFY_API_KEY not found in environment variables")
         
         # Cache: location_key -> SpeedLimitInfo
         self._speed_limit_cache: Dict[str, SpeedLimitInfo] = {}
@@ -56,7 +63,7 @@ class SpeedLimitService:
         age = datetime.utcnow() - speed_info.timestamp
         return age.total_seconds() < self.CACHE_DURATION_SECONDS
     
-    async def get_speed_limit(self, location: LocationPoint) -> Optional[SpeedLimitInfo]:
+    async def get_speed_limit(self, location: LocationPoint) -> SpeedLimitInfo:
         """
         Get speed limit for a location, with caching
         
@@ -64,11 +71,18 @@ class SpeedLimitService:
             location: GPS location to check
             
         Returns:
-            SpeedLimitInfo if found, None if API error or no data
+            SpeedLimitInfo (always returns a valid object, defaults to 50 km/h if API fails)
         """
         if not self.api_key:
-            logger.warning("Google Maps API key not configured, cannot check speed limits")
-            return None
+            logger.warning("Geoapify API key not configured, using default speed limit")
+            lat = location.coordinates[1]
+            lon = location.coordinates[0]
+            return SpeedLimitInfo(
+                speed_limit=50.0,
+                place_id=f"{lat},{lon}",
+                units="KPH",
+                timestamp=datetime.utcnow()
+            )
         
         cache_key = self._location_cache_key(location)
         
@@ -76,72 +90,173 @@ class SpeedLimitService:
         if cache_key in self._speed_limit_cache:
             cached_info = self._speed_limit_cache[cache_key]
             if self._is_cache_valid(cached_info):
-                logger.debug(f"[SpeedLimitService] Using cached speed limit for {cache_key}")
+                logger.info(f"[SpeedLimitService] Using cached speed limit {cached_info.speed_limit} km/h for {cache_key} (cached {(datetime.utcnow() - cached_info.timestamp).total_seconds():.1f}s ago)")
                 return cached_info
             else:
                 # Remove expired cache entry
+                logger.info(f"[SpeedLimitService] Cache expired for {cache_key}, removing from cache")
                 del self._speed_limit_cache[cache_key]
         
         # Fetch from API
         try:
+            logger.info(f"[SpeedLimitService] Making API request for location {cache_key} (cache miss or expired)")
             speed_info = await self._fetch_speed_limit_from_api(location)
             if speed_info:
                 # Cache the result
                 self._speed_limit_cache[cache_key] = speed_info
-                logger.info(f"[SpeedLimitService] Cached speed limit {speed_info.speed_limit} km/h for {cache_key}")
+                logger.info(f"[SpeedLimitService] Cached speed limit {speed_info.speed_limit} km/h for {cache_key} for {self.CACHE_DURATION_SECONDS} seconds")
+                return speed_info
             
-            return speed_info
+            # If API returned None, return default
+            lat = location.coordinates[1]
+            lon = location.coordinates[0]
+            default_info = SpeedLimitInfo(
+                speed_limit=50.0,
+                place_id=f"{lat},{lon}",
+                units="KPH",
+                timestamp=datetime.utcnow()
+            )
+            return default_info
             
         except Exception as e:
             logger.error(f"[SpeedLimitService] Failed to get speed limit: {e}")
-            return None
+            # Return default on any error
+            lat = location.coordinates[1]
+            lon = location.coordinates[0]
+            return SpeedLimitInfo(
+                speed_limit=50.0,
+                place_id=f"{lat},{lon}",
+                units="KPH",
+                timestamp=datetime.utcnow()
+            )
     
-    async def _fetch_speed_limit_from_api(self, location: LocationPoint) -> Optional[SpeedLimitInfo]:
-        """Fetch speed limit from Google Roads API"""
+    async def _fetch_speed_limit_from_api(self, location: LocationPoint) -> SpeedLimitInfo:
+        """Fetch speed limit from Geoapify Roads API"""
         try:
             lat = location.coordinates[1]  # latitude
             lon = location.coordinates[0]  # longitude
             
+            # Use Geoapify Roads API for road information at a specific point
             params = {
-                "path": f"{lat},{lon}",
-                "units": "KPH",
-                "key": self.api_key
+                "lat": lat,
+                "lon": lon,
+                "apiKey": self.api_key
+            }
+            
+            headers = {
+                "Accept": "application/json"
             }
             
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(self.API_BASE_URL, params=params)
+                response = await client.get(
+                    self.API_BASE_URL,
+                    params=params,
+                    headers=headers
+                )
                 response.raise_for_status()
                 
                 data = response.json()
+                logger.info(f"[SpeedLimitService] Full Geoapify Roads API response for {lat},{lon}: {json.dumps(data, indent=2)}")
                 
                 # Extract speed limit from response
-                speed_limits = data.get("speedLimits", [])
-                if not speed_limits:
-                    logger.debug(f"[SpeedLimitService] No speed limit data for location {lat},{lon}")
-                    return None
-                
-                # Use the first speed limit (should only be one for single point)
-                speed_data = speed_limits[0]
-                
-                return SpeedLimitInfo(
-                    speed_limit=float(speed_data["speedLimit"]),
-                    place_id=speed_data["placeId"],
-                    units=speed_data.get("units", "KPH"),
-                    timestamp=datetime.utcnow()
-                )
+                if "features" in data and data["features"]:
+                    feature = data["features"][0]  # Take first matched feature
+                    properties = feature.get("properties", {})
+                    
+                    # Look for speed limit in properties
+                    speed_limit = properties.get("maxspeed")
+                    if speed_limit:
+                        # Convert to float and handle different units
+                        if isinstance(speed_limit, str):
+                            # Handle formats like "50", "50 km/h", "30 mph"
+                            import re
+                            numbers = re.findall(r'\d+', speed_limit)
+                            if numbers:
+                                speed_value = float(numbers[0])
+                                if "mph" in speed_limit.lower():
+                                    speed_value = speed_value * 1.60934  # Convert mph to km/h
+                            else:
+                                speed_value = 50.0  # Default fallback
+                        else:
+                            speed_value = float(speed_limit)
+                        
+                        # Generate a place_id from the road name or use coordinates
+                        place_id = properties.get("name", f"{lat},{lon}")
+                        
+                        return SpeedLimitInfo(
+                            speed_limit=speed_value,
+                            place_id=place_id,
+                            units="KPH",
+                            timestamp=datetime.utcnow()
+                        )
+                    else:
+                        # If no speed limit found, return a default based on road type
+                        road_type = properties.get("highway", "residential")
+                        default_speed = self._get_default_speed_limit(road_type)
+                        
+                        return SpeedLimitInfo(
+                            speed_limit=default_speed,
+                            place_id=properties.get("name", f"{lat},{lon}"),
+                            units="KPH",
+                            timestamp=datetime.utcnow()
+                        )
+                else:
+                    # No road data found, return default urban speed limit
+                    logger.debug(f"[SpeedLimitService] No road data found for location {lat},{lon}, using default")
+                    return SpeedLimitInfo(
+                        speed_limit=50.0,  # Default urban speed limit
+                        place_id=f"{lat},{lon}",
+                        units="KPH",
+                        timestamp=datetime.utcnow()
+                    )
                 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 403:
-                logger.error("[SpeedLimitService] Google Maps API access denied - check API key and billing")
+                logger.error("[SpeedLimitService] Geoapify API access denied - check API key")
             elif e.response.status_code == 429:
-                logger.warning("[SpeedLimitService] Google Maps API rate limit exceeded")
+                logger.warning("[SpeedLimitService] Geoapify API rate limit exceeded")
             else:
                 logger.error(f"[SpeedLimitService] API HTTP error {e.response.status_code}: {e}")
-            return None
+            
+            # Return default speed limit on API error
+            lat = location.coordinates[1]
+            lon = location.coordinates[0]
+            return SpeedLimitInfo(
+                speed_limit=50.0,
+                place_id=f"{lat},{lon}",
+                units="KPH",
+                timestamp=datetime.utcnow()
+            )
             
         except Exception as e:
             logger.error(f"[SpeedLimitService] Unexpected error fetching speed limit: {e}")
-            return None
+            
+            # Return default speed limit on any error
+            lat = location.coordinates[1]
+            lon = location.coordinates[0]
+            return SpeedLimitInfo(
+                speed_limit=50.0,
+                place_id=f"{lat},{lon}",
+                units="KPH",
+                timestamp=datetime.utcnow()
+            )
+    
+    def _get_default_speed_limit(self, road_type: str) -> float:
+        """Get default speed limit based on road type"""
+        default_limits = {
+            "motorway": 120.0,
+            "trunk": 100.0,
+            "primary": 80.0,
+            "secondary": 60.0,
+            "tertiary": 50.0,
+            "residential": 30.0,
+            "unclassified": 50.0,
+            "service": 20.0,
+            "track": 20.0,
+            "path": 10.0
+        }
+        
+        return default_limits.get(road_type, 50.0)  # Default to 50 km/h if unknown
     
     def calculate_speed_kmh(self, 
                            prev_location: LocationPoint, 
@@ -161,6 +276,12 @@ class SpeedLimitService:
             Speed in km/h
         """
         try:
+            # Convert to UTC and remove timezone info to ensure compatibility
+            if prev_time.tzinfo is not None:
+                prev_time = prev_time.replace(tzinfo=None)
+            if current_time.tzinfo is not None:
+                current_time = current_time.replace(tzinfo=None)
+                
             # Calculate distance using Haversine formula
             distance_km = self._haversine_distance(
                 prev_location.coordinates[1], prev_location.coordinates[0],  # prev lat, lon
@@ -171,10 +292,21 @@ class SpeedLimitService:
             time_diff = current_time - prev_time
             time_hours = time_diff.total_seconds() / 3600.0
             
+            # Prevent unrealistic speeds from very small time intervals
+            # Minimum 5 seconds between measurements for reliable speed calculation
+            if time_diff.total_seconds() < 5.0:
+                logger.debug(f"[SpeedLimitService] Time interval too small ({time_diff.total_seconds():.3f}s), skipping speed calculation")
+                return 0.0
+            
             if time_hours <= 0:
                 return 0.0
             
             speed_kmh = distance_km / time_hours
+            
+            # Cap maximum reasonable speed (e.g., 300 km/h for vehicles)
+            if speed_kmh > 300.0:
+                logger.warning(f"[SpeedLimitService] Calculated speed {speed_kmh:.1f} km/h seems unrealistic, capping at 300 km/h")
+                speed_kmh = min(speed_kmh, 300.0)
             
             logger.debug(f"[SpeedLimitService] Calculated speed: {speed_kmh:.2f} km/h over {distance_km:.3f}km in {time_diff.total_seconds():.1f}s")
             

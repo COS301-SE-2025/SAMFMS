@@ -36,7 +36,8 @@ class VehicleSimulator:
         self.trip_id = trip_id
         self.vehicle_id = vehicle_id
         self.route = route
-        self.speed_kmh = speed_kmh
+        self.base_speed_kmh = speed_kmh
+        self.current_speed_kmh = speed_kmh
         self.speed_ms = speed_kmh / 3.6  # Convert km/h to m/s
         self.current_position = 0  # Current position along the route (0-1)
         self.is_running = False
@@ -44,6 +45,15 @@ class VehicleSimulator:
         self.start_time = datetime.utcnow()
         self.distance_traveled = 0.0
         self.last_location = None
+        
+        # Speed variation parameters
+        self.min_speed = 40.0  # km/h
+        self.max_speed = 140.0  # km/h
+        self.speed_change_rate = 0.5  # How quickly speed changes (km/h per update)
+        self.target_speed = speed_kmh
+        self.speed_change_timer = 0
+        self.speed_change_interval = 15  # Change target speed every 15 updates (30 seconds)
+        
         # Note: When current_position reaches 1.0 (destination), simulation stops
         # but trip remains active until manually completed by driver
     
@@ -141,6 +151,47 @@ class VehicleSimulator:
         remaining_time_sec = remaining_distance / speed_ms
         return datetime.utcnow() + timedelta(seconds=remaining_time_sec)
     
+    def update_speed(self):
+        """Update current speed with realistic variation"""
+        import random
+        
+        self.speed_change_timer += 1
+        
+        # Change target speed periodically
+        if self.speed_change_timer >= self.speed_change_interval:
+            # Choose new target speed with some logic based on route progress
+            if self.current_position < 0.1:  # Starting - gradually increase
+                self.target_speed = random.uniform(50, 80)
+            elif self.current_position > 0.9:  # Near destination - slow down
+                self.target_speed = random.uniform(40, 60)
+            else:  # Middle of journey - higher speeds on highways
+                # Assume highway speeds in middle sections
+                highway_probability = 0.7
+                if random.random() < highway_probability:
+                    self.target_speed = random.uniform(80, 140)
+                else:
+                    self.target_speed = random.uniform(50, 80)
+            
+            # Ensure target is within bounds
+            self.target_speed = max(self.min_speed, min(self.max_speed, self.target_speed))
+            self.speed_change_timer = 0
+        
+        # Gradually adjust current speed toward target
+        speed_diff = self.target_speed - self.current_speed_kmh
+        if abs(speed_diff) > self.speed_change_rate:
+            if speed_diff > 0:
+                self.current_speed_kmh += self.speed_change_rate
+            else:
+                self.current_speed_kmh -= self.speed_change_rate
+        else:
+            self.current_speed_kmh = self.target_speed
+        
+        # Ensure speed stays within bounds
+        self.current_speed_kmh = max(self.min_speed, min(self.max_speed, self.current_speed_kmh))
+        
+        # Update speed_ms for calculations
+        self.speed_ms = self.current_speed_kmh / 3.6
+    
     async def update_position(self):
         """Update vehicle position and save to database"""
         # Don't update position if paused
@@ -152,6 +203,9 @@ class VehicleSimulator:
             self.is_running = False
             logger.info(f"Trip {self.trip_id} simulation reached destination - stopping location updates. Trip remains active for manual completion.")
             return False
+        
+        # Update speed with realistic variation
+        self.update_speed()
         
         # Calculate how far we should have moved in 2 seconds
         distance_moved = self.speed_ms * 2  # 2 seconds
@@ -175,7 +229,7 @@ class VehicleSimulator:
             "latitude": lat,
             "longitude": lon,
             "altitude": None,
-            "speed": self.speed_kmh,
+            "speed": self.current_speed_kmh,  # Use current variable speed
             "heading": self._calculate_heading(),
             "accuracy": None,
             "timestamp": current_time,
@@ -454,13 +508,13 @@ class SimulationService:
             return
         
         # Create and start simulator
-        speed = 80.0  # Default speed since it's not in the trip structure
+        speed = 80.0  # Default starting speed
         simulator = VehicleSimulator(trip_id, vehicle_id, route, speed)
         simulator.is_running = True
         
         self.active_simulators[trip_id] = simulator
         
-        logger.info(f"Started simulation for trip {trip_id}, vehicle {vehicle_id}")
+        logger.info(f"Started simulation for trip {trip_id}, vehicle {vehicle_id} with variable speed (40-140 km/h)")
     
     async def get_route_with_waypoints(self, start_lat: float, start_lon: float, 
                                      end_lat: float, end_lon: float, 
