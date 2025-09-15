@@ -3,6 +3,8 @@
  */
 
 // Set a cookie with optional expiration days
+import { AUTH_API } from '../backend/api/auth'
+import { getToken } from '../lib/cookies';
 export const setCookie = (name, value, days = 30) => {
   try {
     const expires = new Date();
@@ -114,9 +116,43 @@ export const saveDashboardLayout = (dashboardId, layoutData) => {
     lastSaved: new Date().toISOString(),
     version: '1.0',
   };
+  const token = getToken();
+
+  const existingPreferences = {
+    theme: 'dark',
+    animations: 'true',
+    email_alerts: 'false',
+    push_notifications: 'true',
+    two_factor: 'true',
+    activity_log: 'true',
+    session_timeout: '30 minutes',
+  };
+
+  const requestBody = {
+    preferences: {
+      ...existingPreferences,
+      dashboard_layout: JSON.stringify(dashboardData),
+    },
+  };
 
   try {
-    return setCookie(cookieName, dashboardData, 365); // Save for 1 year
+    const response = fetch(AUTH_API.updatePreferences, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (response.ok){
+      console.log('Dashboard layout saved to server successfully');
+    } else {
+      console.error('Failed to save dashboard layout to server:', response.statusText);
+    }
+    
+    return setCookie(cookieName, dashboardData, 365); // Save for 1 year;
   } catch (error) {
     console.error('Failed to save dashboard layout to cookies:', error);
 
@@ -136,6 +172,22 @@ export const loadDashboardLayout = dashboardId => {
   const cookieName = `${DASHBOARD_COOKIE_PREFIX}${dashboardId}`;
 
   try {
+    const token = getToken();
+    const response = fetch(AUTH_API.me, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (response.ok){
+      setCookie(cookieName, JSON.parse(response.preferences.dashboard_layout), 365);
+      console.log("Dashboard layout retrieved from backend");
+    }else{
+      console.error('Failed to fetch dashboard layout from server:', response.statusText);
+    }
+
+
     // Try to load from cookies first
     let data = getCookie(cookieName);
 
