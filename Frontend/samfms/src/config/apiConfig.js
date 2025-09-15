@@ -176,7 +176,7 @@ export const API_ENDPOINTS = {
     RECENTTRIPSALL: '/trips/recent',
     VEHICLEPOLYLINE: id => `/trips/trips/polyline/${id}`,
     VEHICLETRIP: id => `/trips/trips/vehicle/${id}`,
-    GETSMARTTRIPS: 'trips/trips/smarttrips',
+    GETSMARTTRIPS: '/trips/trips/smarttrips',
     
     
     // Driver Availability Endpoints

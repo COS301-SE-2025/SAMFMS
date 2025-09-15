@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 // Expected backend API functions (to be implemented):
-// import { getSmartTripSuggestions, acceptSmartTripSuggestion, declineSmartTripSuggestion } from '../backend/api/trips';
+import { getSmartTripSuggestions, acceptSmartTripSuggestion, declineSmartTripSuggestion } from '../../backend/api/trips';
 
 const SmartTripSuggestions = ({ onAccept, onDecline, onRefresh }) => {
   const [suggestions, setSuggestions] = useState([]);
@@ -32,12 +32,11 @@ const SmartTripSuggestions = ({ onAccept, onDecline, onRefresh }) => {
     
     try {
       // TODO: Replace with actual API endpoint
-      // const response = await getSmartTripSuggestions();
-      // setSuggestions(response.data || []);
+      const response = await getSmartTripSuggestions();
+      console.log("Received smart trips in smarttripsuggestions.jsx: ", response)
+
+      setSuggestions(response.data.data.data || []);
       
-      // For now, show empty state until backend integration
-      console.log('SmartTripSuggestions: Fetching suggestions...');
-      setSuggestions([]);
     } catch (error) {
       console.error('Error fetching smart trip suggestions:', error);
       setError('Failed to load smart trip suggestions');

@@ -264,6 +264,14 @@ class DatabaseManager:
             raise RuntimeError("Database not connected")
         return self._db.driver_ping_sessions
     
+    @property
+    def smarttrips(self):
+        """Get driver ping sessions collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.smart_trips
+
+    
     async def create_trip_with_transaction(self, trip_data: dict, constraints: list = None):
         """Create a trip with constraints in a transaction"""
         async with await self._client.start_session() as session:

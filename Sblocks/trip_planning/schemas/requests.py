@@ -7,7 +7,8 @@ from datetime import datetime
 
 from .entities import (
     TripStatus, TripPriority, ConstraintType, NotificationType,
-    LocationPoint, Address, Waypoint, TripConstraint, RouteInfo
+    LocationPoint, Address, Waypoint, TripConstraint, RouteInfo,
+    ScheduleInfo, RouteSummary, SmartTripBenefits
 )
 
 
@@ -87,6 +88,36 @@ class CreateTripRequest(BaseModel):
             if orders != sorted(orders):
                 raise ValueError('Waypoints must be ordered correctly')
         return v
+    
+class CreateSmartTripRequest(BaseModel):
+    """Request to create a smart trip"""
+    # normal trip details
+    id: str = Field(..., min_length=1, max_length=200, description="Trip name")
+    name: str = Field(..., min_length=1, max_length=200, description="Trip name")
+    description: Optional[str] = None
+
+    original_start_time: datetime = Field(..., description="When the trip should start")
+    original_end_time: datetime = Field(..., description="When the trip should end")
+    
+    # New start and end times
+    optimized_start_time: datetime = Field(..., description="When the trip should start")
+    optimized_end_time: datetime = Field(..., description="When the trip should end")
+ 
+    # Proposed assignments
+    vehicle_id: str = Field(..., description="Assigned vehicle ID")
+    driver_assignment: str = Field(..., description="Assigned driver ID")
+
+    origin: Waypoint = Field(..., description="Starting point")
+    destination: Waypoint = Field(..., description="End point")
+    waypoints: List[Waypoint] = Field(default_factory=list, description="Intermediate stops")
+    route_info: Optional[RouteInfo] = Field(None, description="Route information including distance, duration, and coordinates")
+    priority: TripPriority = Field(..., description="Trip priority")
+    # smart featurs
+    r_time: str
+
+    
+
+
 
 
 

@@ -68,7 +68,7 @@ class TripService:
             scheduled_trips = []
             async for scheduled_trip_doc in cursor:
                 scheduled_trip_doc["_id"] = str(scheduled_trip_doc["_id"])
-                scheduled_trips.append(ScheduledTrip**(scheduled_trip_doc))
+                scheduled_trips.append(ScheduledTrip(**scheduled_trip_doc))
             return scheduled_trips
         except Exception as e:
             logger.error(f"[TripService.get_scheduled_trips] Failed: {e}")

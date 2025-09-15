@@ -278,10 +278,31 @@ class ServiceRequestConsumer:
 
             if method == "GET":
                 if "smarttrips" in endpoint:
+                    logger.info("Entered get smart trips")
                     # get all the current schduled trips
                     from services.trip_service import trip_service
-                    scheduled_trips = trip_service.get_scheduled_trips()
+                    scheduled_trips = await trip_service.get_scheduled_trips()
+                    logger.info(f"Scheduled trips found: {scheduled_trips}")
+                    created_by = user_context.get("user_id", "system")
+                    logger.info(f"Created by: {created_by}")
+                    
                     from services.smart_trip_planning_service import smart_trip_service
+                    return_data = {
+                        "data" : []
+                    }
+                    for trip in scheduled_trips:
+                        logger.info("Entered for loop")
+                        try:
+                            smart_trip = await smart_trip_service.create_smart_trip(trip, created_by)
+                            return_data["data"].append(smart_trip)
+                        except Exception as e:
+                            logger.error(f"Error processing trip {trip}: {e}")
+                            continue  # Skip this trip and continue with others
+                    
+                    return ResponseBuilder.success(
+                        data=return_data,
+                        message="Smart trips retrieved successfully"
+                    )
                     
                 if "vehicle" in endpoint:
                     vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None

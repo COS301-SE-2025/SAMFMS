@@ -183,6 +183,55 @@ class ScheduledTrip(BaseModel):
     # Trip details
     priority: TripPriority = Field(..., description="Trip priority")
     status: TripStatus = Field(default=TripStatus.SCHEDULED)
+    estimated_distance: Optional[float] = Field(None, description="Estimated distance in km")
+    estimated_duration: Optional[float] = Field(None, description="Estimated duration in minutes")
+
+class ScheduleInfo(BaseModel):
+    """Represents schedule information for a trip"""
+    start_time: datetime = Field(..., description="Start time of the schedule")
+    end_time: datetime = Field(..., description="End time of the schedule")
+    vehicle_id: Optional[str] = Field(None, description="Assigned vehicle ID")
+    vehicle_name: Optional[str] = Field(None, description="Assigned vehicle name")
+    driver_id: Optional[str] = Field(None, description="Assigned driver ID")
+    driver_name: Optional[str] = Field(None, description="Assigned driver name")
+
+
+class RouteSummary(BaseModel):
+    """Route summary information for the smart trip"""
+    origin: str = Field(..., description="Name of the origin point")
+    destination: str = Field(..., description="Name of the destination point")
+    waypoints: List[str] = Field(default_factory=list, description="Names of intermediate waypoints")
+    estimated_distance: str = Field(..., description="Estimated distance as formatted string (e.g., '12.3 km')")
+    estimated_duration: str = Field(..., description="Estimated duration as formatted string (e.g., '30 minutes')")
+
+
+class SmartTripBenefits(BaseModel):
+    """Benefits gained from smart trip optimization"""
+    time_saved: str = Field(..., description="Time saved as a formatted string")
+    fuel_efficiency: str = Field(..., description="Fuel efficiency information")
+    route_optimization: str = Field(..., description="Description of route optimization")
+    driver_utilization: str = Field(..., description="Driver utilization efficiency as formatted string")
+
+
+class SmartTrip(BaseModel):
+    """Smart trip entity with optimization details"""
+    id: str = Field(..., description="Unique Smart Trip ID")
+    trip_id: str = Field(..., description="Reference to ScheduledTrip ID")
+    trip_name: str = Field(..., description="Name of the trip")
+
+    original_schedule: ScheduleInfo = Field(..., description="Original schedule details")
+    optimized_schedule: ScheduleInfo = Field(..., description="Optimized schedule details")
+    route: RouteSummary = Field(..., description="Route information summary")
+    benefits: SmartTripBenefits = Field(..., description="Benefits from optimization")
+
+    confidence: int = Field(..., description="Confidence score of the optimization")
+    reasoning: str = Field(..., description="Reasoning behind optimization decisions")
+
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp when SmartTrip was created")
+    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp when SmartTrip was last updated")
+
+    class Config:
+        populate_by_name = True
 
 
 

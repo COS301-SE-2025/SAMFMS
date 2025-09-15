@@ -702,7 +702,7 @@ export const checkVehicleAvailability = async (vehicleId, startTime, endTime) =>
 export const getSmartTripSuggestions = async () => {
   // Implementation for fetching smart suggestions
   try {
-    const response = httpClient.get(TRIPS_ENDPOINTS.get);
+    const response = await httpClient.get(TRIPS_ENDPOINTS.getSmartTrips);
     console.log("Response for smart trips", response)
     return response;
   } catch (error){
