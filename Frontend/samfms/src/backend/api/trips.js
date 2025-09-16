@@ -22,6 +22,7 @@ const TRIPS_ENDPOINTS = {
   checkVehicleAvailability: API_ENDPOINTS.TRIPS.CHECK_VEHICLE_AVAILABILITY,
   getSmartTrips: API_ENDPOINTS.TRIPS.GETSMARTTRIPS,
   activeSmartTrip: API_ENDPOINTS.TRIPS.ACTIVATESMARTTRIP,
+  rejectSmartTrip: API_ENDPOINTS.TRIPS.REJECTSMARTTRIP,
   ANALYTICS: {
     HISTORY_STATS: API_ENDPOINTS.TRIPS.ANALYTICS.HISTORY_STATS,
     DRIVERSTATS: API_ENDPOINTS.TRIPS.ANALYTICS.DRiVERSTATS,
@@ -729,5 +730,15 @@ export const acceptSmartTripSuggestion = async (suggestionId) => {
 
 // Decline a smart trip suggestion  
 export const declineSmartTripSuggestion = async (suggestionId) => {
-  // Implementation for declining a suggestion
+  try {
+    const data = {
+      smart_id: suggestionId
+    }
+
+    const response = await httpClient.post(TRIPS_ENDPOINTS.rejectSmartTrip,data)
+    return response
+  } catch (error){
+    console.error(`Error rejecting smart trid ${suggestionId}`)
+    throw error
+  }
 };

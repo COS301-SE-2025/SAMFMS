@@ -512,19 +512,37 @@ class ServiceRequestConsumer:
                 if "scheduled" in endpoint:
                     logger.info(f"Preparing schedule trip request")
                     from schemas.requests import ScheduledTripRequest
+                    
+                    # Create the request object
                     scheduled_request = ScheduledTripRequest(**data)
                     created_by = user_context.get("user_id", "system")
-
-                    scheduled_trip = await trip_service.create_scheduled_trip(scheduled_request,created_by)
-                    # also create new smart trip for scheduled trip
-                    from services.smart_trip_planning_service import smart_trip_service
-                    smart_trip = await smart_trip_service.create_smart_trip(scheduled_trip,created_by)
-                    trip_id = scheduled_trip.id
-
-                    return ResponseBuilder.success(
-                        data=scheduled_trip.model_dump(),
-                        message="Scheduled Trip created successfully"
-                    ).model_dump()
+                    
+                    try:
+                        # Create the scheduled trip first
+                        scheduled_trip = await trip_service.create_scheduled_trip(scheduled_request, created_by)
+                        logger.info(f"Scheduled trip created: {scheduled_trip.id}")
+                        
+                        # Now create smart trip from the scheduled trip
+                        from services.smart_trip_planning_service import smart_trip_service
+                        smart_trip = await smart_trip_service.create_smart_trip(scheduled_trip, created_by)
+                        logger.info(f"Smart trip created: {smart_trip}")
+                        
+                        trip_id = scheduled_trip.id
+                        
+                        return ResponseBuilder.success(
+                            data={
+                                "scheduled_trip": scheduled_trip.model_dump(),
+                                "smart_trip": smart_trip.model_dump() if hasattr(smart_trip, 'model_dump') else smart_trip
+                            },
+                            message="Scheduled Trip and Smart Trip created successfully"
+                        ).model_dump()
+                        
+                    except Exception as e:
+                        logger.error(f"Error creating scheduled trip and smart trip: {e}")
+                        return ResponseBuilder.error(
+                            error="CreateTripError",
+                            message=f"Failed to create scheduled trip: {str(e)}"
+                        ).model_dump()
                 if "activesmart" in endpoint:
                     logger.info("Preparing to activate smart trip")
                     data = user_context.get("data", {})
@@ -586,7 +604,24 @@ class ServiceRequestConsumer:
                             message=f"Failed to activate smart trip: {str(e)}"
                         ).model_dump()
 
-
+                if "rejectsmart" in endpoint:
+                    logger.info("Preparing to reject smart trip")
+                    data = user_context.get("data", {})
+                    created_by = user_context.get("user_id", "system")
+                    
+                    smart_trip_id = data["smart_id"]
+                    if not await trip_service.delete_smart_trip(smart_trip_id):
+                        logger.error(f"Error rejecting smart trip: {e}")
+                        return ResponseBuilder.error(
+                            error="RejectSmartTripError",
+                            message=f"Failed to reject smart trip: {str(e)}"
+                        ).model_dump()
+                    
+                    return ResponseBuilder.success(
+                        data={"deleted smart_trip_id": smart_trip_id},
+                        message="Smart Trip deleted successfully"
+                    ).model_dump()
+                    
 
                 elif "create" in endpoint:
                     logger.info(f"[_handle_trips_request] Preparing CreateTripRequest and calling trip_service.create_trip()")

@@ -83,8 +83,8 @@ const SmartTripSuggestions = ({ onAccept, onDecline, onRefresh }) => {
     setProcessingIds(prev => new Set([...prev, suggestionId]));
     
     try {
-      // TODO: Replace with actual API call
-      // await declineSmartTripSuggestion(suggestionId);
+      const response = await declineSmartTripSuggestion(suggestionId);
+      console.log("Response for declining suggestion: ", response)
       
       console.log('Declining suggestion:', suggestionId);
       

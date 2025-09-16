@@ -118,6 +118,8 @@ class SmartTripService:
     async def create_smart_trip(self, scheduled_trip: ScheduledTrip, created_by: str) -> SmartTrip:
         """Create an optimized smart trip from a scheduled trip"""
         try:
+            logger.info(f"[SmartTripService.create_smart_trip] Creating smart trip from scheduled trip ID={scheduled_trip.id}")
+            
             # Extract coordinates safely
             origin_coords = scheduled_trip.origin.location.coordinates
             dest_coords = scheduled_trip.destination.location.coordinates
@@ -127,6 +129,7 @@ class SmartTripService:
             dest_lat = dest_coords[1]
             dest_lng = dest_coords[0]
 
+            # Use the correct attribute names from ScheduledTrip
             start_window = scheduled_trip.start_time_window
             end_window = scheduled_trip.end_time_window
             
@@ -145,6 +148,7 @@ class SmartTripService:
             min_duration = float("inf")
 
             # Route optimization
+            logger.info(f"[SmartTripService.create_smart_trip] Optimizing route with {num_samples} samples")
             for i in range(num_samples + 1):
                 test_start = start_window + i * step
                 route = await self._get_ors_route(origin_lat, origin_lng, dest_lat, dest_lng, test_start)
@@ -167,7 +171,7 @@ class SmartTripService:
             # Vehicle assignment
             optimized_end = best_start + timedelta(seconds=min_duration)
             vehicles = await vehicle_service.get_available_vehicles(best_start, optimized_end)
-            logger.info(f"Vehicles in optimized time: {vehicles}")
+            logger.info(f"[SmartTripService.create_smart_trip] Found {len(vehicles.get('vehicles', [])) if vehicles else 0} available vehicles")
             
             # Get current locations
             locations = await self.get_all_vehicle_locations()
@@ -236,7 +240,7 @@ class SmartTripService:
             if closest_vehicle_id:
                 try:
                     vehicle_doc = await self.db_management.vehicles.find_one({"_id": ObjectId(closest_vehicle_id)})
-                    logger.info(f"Vehicle assignment chosen: {vehicle_doc}")
+                    logger.info(f"[SmartTripService.create_smart_trip] Vehicle assignment chosen: {vehicle_doc}")
                     if vehicle_doc:
                         vehicle_name = vehicle_doc["make"] + vehicle_doc["model"] + vehicle_doc["registration_number"]
                         closest_vehicle_name = vehicle_name
@@ -267,7 +271,7 @@ class SmartTripService:
                 if best_driver_id is None:
                     logger.warning("No valid driver ID found; defaulting to None")
                     
-                logger.info(f"Best driver assignment: {best_driver_id}")
+                logger.info(f"[SmartTripService.create_smart_trip] Best driver assignment: {best_driver_id}")
             except Exception as e:
                 logger.warning(f"Error getting driver stats: {e}")
                 best_driver_id = None
@@ -306,11 +310,11 @@ class SmartTripService:
                 bounds=best_route["bounds"]
             )
             
-            from schemas.requests import CreateSmartTripRequest
             # Return properly structured response
             trip_id = str(getattr(scheduled_trip, 'id', 'unknown'))
             smart_id = f"smart-{trip_id[:8]}"
 
+            from schemas.requests import CreateSmartTripRequest
             create_request = CreateSmartTripRequest(
                 smart_id=smart_id,
                 trip_id=trip_id,
@@ -330,7 +334,7 @@ class SmartTripService:
 
                 origin=scheduled_trip.origin,
                 destination=scheduled_trip.destination,
-                waypoints=[],
+                waypoints=scheduled_trip.waypoints or [],
                 estimated_distance=distance_km,
                 estimated_duration=duration_min,
                 route_info=route_info_obj,
@@ -344,23 +348,17 @@ class SmartTripService:
             )
 
             try:
-                from schemas.requests import CreateSmartTripRequest
+                # Call the database service method to create the smart trip
                 actual_trip = await trip_service.create_smart_trip(create_request, created_by)
-                logger.info(f"New smart trip created {actual_trip}")
+                logger.info(f"[SmartTripService.create_smart_trip] New smart trip created: {actual_trip.id}")
                 return actual_trip
             except Exception as e:
-                logger.warning(f"Error creating trip in database: {e}")
-            
-            
+                logger.error(f"Error creating trip in database: {e}")
+                raise
+                
         except Exception as e:
-            logger.error(f"Error in create_smart_trip: {e}", exc_info=True)
-            # Return a basic error response instead of failing completely
-            return {
-                "id": f"error-{datetime.now().timestamp()}",
-                "error": f"Failed to create smart trip: {str(e)}",
-                "tripId": getattr(scheduled_trip, 'id', 'unknown'),
-                "tripName": getattr(scheduled_trip, 'name', 'Unknown Trip')
-            }
+            logger.error(f"[SmartTripService.create_smart_trip] Error in create_smart_trip: {e}", exc_info=True)
+            raise
 
 # Create global service instance
 smart_trip_service = SmartTripService()

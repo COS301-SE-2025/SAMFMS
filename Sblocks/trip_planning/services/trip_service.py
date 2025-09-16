@@ -60,6 +60,43 @@ class TripService:
             logger.error(f"[TripService.create_trip_scheduled] Failed: {e}")
             raise
 
+    async def create_smart_trip(
+        self,
+        request: CreateSmartTripRequest,
+        created_by: str
+    ) -> SmartTrip:
+        """Create a new scheduled trip"""
+        try:
+            if request.optimized_end_time:
+                if request.optimized_end_time <= request.optimized_start_time:
+                    logger.warning("[TripService.smart_trip] Invalid schedule: end <= start")
+                    raise ValueError("End time must be after start time")
+                
+            trip_data = request.model_dump(exclude_unset=True)
+
+            if request.route_info:
+                trip_data["estimated_distance"] = request.route_info.distance
+                # Convert duration from seconds to minutes for estimated_duration
+                trip_data["estimated_duration"] = request.route_info.duration 
+                logger.debug(f"[TripService.create_smart_trip] Extracted from route_info: distance={trip_data['estimated_distance']}km, duration={trip_data['estimated_duration']}min")
+
+            trip_data.update({
+                "created_by": created_by,
+                "created_at": datetime.utcnow()
+            })
+
+            result = await self.db.smarttrips.insert_one(trip_data)
+
+            trip = await self.get_trip_by_id_smart(str(result.inserted_id))
+            if not trip:
+                logger.error(f"[TripService.create_smart] Failed to retrieve trip after insert (ID={result.inserted_id})")
+                raise RuntimeError("Failed to retrieve created smart trip")
+            
+            return trip
+        except Exception as e:
+            logger.error(f"[TripService.create_trip_smart] Failed: {e}")
+            raise
+
     async def get_scheduled_trips(self) -> list[ScheduledTrip]:
         """Return all scheduled trips"""
         logger.info("Enter get all scheduled trips")
@@ -493,7 +530,7 @@ class TripService:
             logger.error(f"Failed to get trip {trip_id}: {e}")
             raise
     
-    async def get_trip_by_id_scheduled(self, trip_id: str) -> Optional[ScheduledTrip]:
+    async def get_trip_by_id_scheduled(self, trip_id: str) -> ScheduledTrip:
         """Get trip by ID"""
         try:
             trip_doc = await self.db.trips_scheduled.find_one({"_id": ObjectId(trip_id)})
