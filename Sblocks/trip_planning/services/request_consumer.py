@@ -525,6 +525,68 @@ class ServiceRequestConsumer:
                         data=scheduled_trip.model_dump(),
                         message="Scheduled Trip created successfully"
                     ).model_dump()
+                if "activesmart" in endpoint:
+                    logger.info("Preparing to activate smart trip")
+                    data = user_context.get("data", {})
+                    created_by = user_context.get("user_id", "system")
+                    
+                    smart_trip_id = data["smart_id"]
+                    smart_trip = await trip_service.get_trip_by_id_smart(smart_trip_id)
+                    logger.info(f"Smart trip retrieved using id: {smart_trip}")
+                    
+                    if smart_trip is None:
+                        return ResponseBuilder.error(
+                            error="SmartTripNotFound",
+                            message=f"Smart trip with ID {smart_trip_id} not found"
+                        ).model_dump()
+                    
+                    try:
+                        # Change trip into actual trip and add it to trips collection
+                        corresponding_trip = await trip_service.activate_smart_trip(smart_trip, created_by)
+                        logger.info(f"Trip created from smart trip data: {corresponding_trip}")
+                        
+                        if corresponding_trip is None:
+                            return ResponseBuilder.error(
+                                error="ActivateSmartTripError",
+                                message="Failed to activate smart trip"
+                            ).model_dump()
+                        
+                        # Delete smart trip from smart trips collection
+                        deleted_smart = await trip_service.delete_smart_trip(smart_trip_id)
+                        if not deleted_smart:
+                            # Rollback: delete the created trip
+                            try:
+                                await trip_service.delete_trip(corresponding_trip.id)
+                            except Exception as rollback_error:
+                                logger.error(f"Failed to rollback trip creation: {rollback_error}")
+                            
+                            return ResponseBuilder.error(
+                                error="DeleteSmartTripError",
+                                message=f"Failed to delete smart trip during activation"
+                            ).model_dump()
+                        
+                        # Delete scheduled trip from scheduled trips collection
+                        scheduled_trip_id = smart_trip.trip_id  # Use dot notation, not dict access
+                        deleted_scheduled = await trip_service.delete_scheduled_trip(scheduled_trip_id)
+                        if not deleted_scheduled:
+                            return ResponseBuilder.error(
+                                error="DeleteScheduledTripError",
+                                message=f"Could not delete scheduled trip with ID={scheduled_trip_id}"
+                            ).model_dump()
+                        
+                        return ResponseBuilder.success(
+                            data=corresponding_trip.model_dump(),
+                            message="Smart Trip activated successfully"
+                        ).model_dump()
+                        
+                    except Exception as e:
+                        logger.error(f"Error activating smart trip: {e}")
+                        return ResponseBuilder.error(
+                            error="ActivateSmartTripError",
+                            message=f"Failed to activate smart trip: {str(e)}"
+                        ).model_dump()
+
+
 
                 elif "create" in endpoint:
                     logger.info(f"[_handle_trips_request] Preparing CreateTripRequest and calling trip_service.create_trip()")

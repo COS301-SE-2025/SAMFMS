@@ -21,6 +21,7 @@ const TRIPS_ENDPOINTS = {
   availableVehicles: API_ENDPOINTS.TRIPS.AVAILABLE_VEHICLES,
   checkVehicleAvailability: API_ENDPOINTS.TRIPS.CHECK_VEHICLE_AVAILABILITY,
   getSmartTrips: API_ENDPOINTS.TRIPS.GETSMARTTRIPS,
+  activeSmartTrip: API_ENDPOINTS.TRIPS.ACTIVATESMARTTRIP,
   ANALYTICS: {
     HISTORY_STATS: API_ENDPOINTS.TRIPS.ANALYTICS.HISTORY_STATS,
     DRIVERSTATS: API_ENDPOINTS.TRIPS.ANALYTICS.DRiVERSTATS,
@@ -280,7 +281,7 @@ export const getVehicleAnalytics = async (timeframe = 'week') => {
 export const getAllUpcommingTrip = async () => {
   try {
     const response = await httpClient.get(TRIPS_ENDPOINTS.allupcomming);
-
+    console.log("Response for upcomming trips: ", response)
     let trips = [];
 
     if (Array.isArray(response?.data?.data)) {
@@ -713,7 +714,17 @@ export const getSmartTripSuggestions = async () => {
 
 // Accept a smart trip suggestion
 export const acceptSmartTripSuggestion = async (suggestionId) => {
-  // Implementation for accepting a suggestion
+  try {
+    const data = {
+      smart_id: suggestionId
+    }
+
+    const response = await httpClient.post(TRIPS_ENDPOINTS.activeSmartTrip,data)
+    return response
+  } catch (error){
+    console.error(`Error accepting smart trid ${suggestionId}`)
+    throw error
+  }
 };
 
 // Decline a smart trip suggestion  
