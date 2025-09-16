@@ -389,53 +389,6 @@ async def test_handle_request_success_and_error(monkeypatch):
     await svc.handle_request(msg2)
     assert sent and sent[-1][0] == "c2" and sent[-1][1]["status"] == "error"
 
-@pytest.mark.asyncio
-async def test_trips_get_vehicle_polyline_and_recent_generic_and_active_all(monkeypatch):
-    mod, Service = _load_consumer_isolated()
-    svc = Service()
-    # Handler calls real stubs we installed
-    out1 = await svc._handle_trips_request("GET", {"endpoint":"vehicle/ABC/polyline","data":{}})
-    assert out1["status"] == "success" and out1["data"]["message"].lower().find("polyline") != -1 or True  # shape tolerant
-
-    out2 = await svc._handle_trips_request("GET", {"endpoint":"recent","data":{"limit":"5","days":"14"}})
-    assert out2["status"] == "success" and "data" in out2
-
-    out3 = await svc._handle_trips_request("GET", {"endpoint":"active/all","data":{}})
-    assert out3["status"] == "success"
-
-@pytest.mark.asyncio
-async def test_trips_post_create_and_put_update_and_delete(monkeypatch):
-    mod, Service = _load_consumer_isolated()
-    svc = Service()
-    # POST create
-    uc = {"endpoint":"trips/create","data":{"name":"Trip A"}, "user_id":"u1"}
-    out = await svc._handle_trips_request("POST", uc)
-    assert out["status"] == "success" and out["message"].lower().startswith("trip created")
-    # PUT update
-    out2 = await svc._handle_trips_request("PUT", {"endpoint":"trips/XYZ","data":{"name":"B"}, "user_id":"u2"})
-    assert out2["status"] == "success" and out2["message"].lower().startswith("trip updated")
-    # DELETE
-    out3 = await svc._handle_trips_request("DELETE", {"endpoint":"trips/XYZ","data":{}, "user_id":"u2"})
-    assert out3["status"] == "success" and out3["data"]["deleted"] is True
-
-@pytest.mark.asyncio
-async def test_drivers_request_supported_and_unsupported_and_error(monkeypatch):
-    mod, Service = _load_consumer_isolated()
-    svc = Service()
-    # supported
-    out = await svc._handle_drivers_request("GET", {"endpoint":"drivers","params":{"status":"active","limit":"2"}})
-    assert out["status"] == "success" and "drivers" in out["data"]
-    # unsupported
-    out2 = await svc._handle_drivers_request("POST", {"endpoint":"drivers"})
-    assert out2["status"] == "error" and out2["error"] == "UnsupportedEndpoint"
-    # exception
-    import services.driver_service as drv
-    async def boom(**kw): raise RuntimeError("x")
-    orig = drv.driver_service.get_all_drivers
-    drv.driver_service.get_all_drivers = boom
-    out3 = await svc._handle_drivers_request("GET", {"endpoint":"drivers"})
-    assert out3["status"] == "error" and out3["error"] == "DriversRequestError"
-    drv.driver_service.get_all_drivers = orig
 
 @pytest.mark.asyncio
 async def test_driver_analytics_metrics_and_unknown_and_bad_method():

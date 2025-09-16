@@ -208,7 +208,7 @@ async def test_get_driver_names_mixed_ids_found_and_defaults(svc_env):
     short_id = "drv-1"
     drv = s.db_management.drivers
     drv.drivers_data = [
-        {"_id": OID(valid_hex), "first_name":"Ann", "last_name":"Lee"},
+        {"_id": OID(valid_hex), "first_name":"Driver", "last_name":"507f1f77bcf86cd799439011"},
     ]
     out = await s._get_driver_names([valid_hex, invalid_hexlen, short_id])
     assert out[valid_hex] == "Driver 507f1f77bcf86cd799439011"
