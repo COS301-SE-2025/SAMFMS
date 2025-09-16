@@ -94,9 +94,6 @@ export const login = async (email: string, password: string) => {
   }
 
   try {
-    console.log('Attempting login with email:', email);
-    console.log('API URL:', `${API_URL}/auth/login`);
-
     const response = await fetchWithTimeout(
       `${API_URL}/auth/login`,
       {
@@ -112,12 +109,8 @@ export const login = async (email: string, password: string) => {
       10000
     );
 
-    console.log('Response status:', response.status);
-    console.log('Response headers:', response.headers);
-
     if (!response.ok) {
       const errorText = await response.text();
-      console.log('Error response:', errorText);
 
       let errorData;
       try {
@@ -130,7 +123,6 @@ export const login = async (email: string, password: string) => {
     }
 
     const data = await response.json();
-    console.log('Login response data:', data);
 
     // Store tokens
     await setToken(data.access_token);
@@ -843,5 +835,127 @@ export const getCurrentUserId = async () => {
     console.error('Error getting current user ID:', error);
     // Fallback to mock user ID for development
     return 'mock-driver-123';
+  }
+};
+
+// Live Trip Tracking API - Get real-time trip data
+export const getLiveTripData = async (tripId: string) => {
+  try {
+    console.log(`Attempting to fetch live tracking data for trip_id: ${tripId}`);
+    const data = await apiRequest(`/trips/trips/live/${tripId}`);
+    console.log('Successfully fetched live tracking data:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching live tracking data:', error);
+
+    // Fallback to mock live tracking data for development
+    console.log('Falling back to mock live tracking data');
+
+    const mockLiveData = {
+      success: true,
+      status: 'success',
+      data: {
+        data: {
+          // Trip identification
+          trip_id: tripId,
+          vehicle_id: 'VH001',
+          driver_id: 'mock-driver-123',
+          trip_status: 'IN_PROGRESS',
+
+          // Current vehicle position (real-time)
+          current_position: {
+            latitude: -25.7479 + (Math.random() - 0.5) * 0.01, // Pretoria area with slight randomization
+            longitude: 28.2293 + (Math.random() - 0.5) * 0.01,
+            bearing: Math.random() * 360,
+            speed: 45 + Math.random() * 20, // 45-65 km/h
+            accuracy: 5.0,
+            timestamp: new Date().toISOString(),
+          },
+
+          // Route geometry and navigation
+          route_polyline: [
+            [-25.7479, 28.2293], // Pretoria
+            [-25.75, 28.24],
+            [-25.752, 28.25],
+            [-25.754, 28.26],
+            [-25.756, 28.27], // Sample route points
+          ],
+          remaining_polyline: [
+            [-25.75, 28.24],
+            [-25.752, 28.25],
+            [-25.754, 28.26],
+            [-25.756, 28.27],
+          ],
+          route_bounds: {
+            southWest: {
+              lat: -25.756,
+              lng: 28.2293,
+            },
+            northEast: {
+              lat: -25.7479,
+              lng: 28.27,
+            },
+          },
+
+          // Trip progress tracking
+          progress: {
+            total_distance: 12500, // 12.5km
+            remaining_distance: 7800.0,
+            completed_distance: 4700.0,
+            progress_percentage: 37.6,
+            estimated_time_remaining: 840, // 14 minutes
+            current_step_index: 3,
+            total_steps: 8,
+          },
+
+          // Current turn-by-turn instruction
+          current_instruction: {
+            text: 'Turn right onto Church Street',
+            type: 'Right',
+            distance_to_instruction: 0.3,
+            road_name: 'Church Street',
+            speed_limit: 60,
+          },
+
+          // Trip waypoints
+          origin: {
+            location: {
+              type: 'Point',
+              coordinates: [28.2293, -25.7479],
+            },
+            name: 'Pretoria CBD',
+            order: 1,
+          },
+          destination: {
+            location: {
+              type: 'Point',
+              coordinates: [28.27, -25.756],
+            },
+            name: 'Menlyn Park Shopping Centre',
+            order: 2,
+          },
+
+          // Trip timing
+          scheduled_time: new Date(Date.now() - 300000).toISOString(), // 5 minutes ago
+          actual_start_time: new Date(Date.now() - 600000).toISOString(), // 10 minutes ago
+
+          // Simulation status
+          is_simulated: true,
+          last_updated: new Date().toISOString(),
+        },
+        message: 'Successfully retrieved live tracking data',
+        meta: {
+          timestamp: new Date().toISOString(),
+          request_id: null,
+          execution_time_ms: null,
+          version: '1.0.0',
+          pagination: null,
+        },
+        links: null,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    return mockLiveData;
   }
 };
