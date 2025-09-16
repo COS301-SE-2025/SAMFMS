@@ -7,7 +7,7 @@ from math import radians, sin, cos, sqrt, atan2
 from bson import ObjectId
 from flexpolyline import decode
 
-from schemas.entities import ScheduledTrip, RouteInfo, RouteBounds, TripStatus, VehicleLocation
+from schemas.entities import ScheduledTrip, RouteInfo, RouteBounds, TripStatus, VehicleLocation, SmartTrip
 from schemas.requests import CreateTripRequest, UpdateTripRequest
 from repositories.database import db_manager, db_manager_gps, db_manager_management
 from services.trip_service import trip_service
@@ -115,7 +115,7 @@ class SmartTripService:
             return 0
 
     # -------------------- Main Smart Trip Function --------------------
-    async def create_smart_trip(self, scheduled_trip: ScheduledTrip, created_by: str) -> Dict[str, Any]:
+    async def create_smart_trip(self, scheduled_trip: ScheduledTrip, created_by: str) -> SmartTrip:
         """Create an optimized smart trip from a scheduled trip"""
         try:
             # Extract coordinates safely
@@ -299,73 +299,58 @@ class SmartTripService:
                 f"Closest vehicle at {min_dist:.1f} km assigned"
             ]
 
-            # Create trip record in DB
-            try:
-                route_info_obj = RouteInfo(
-                    distance=best_route["distance"],
-                    duration=best_route["duration"],
-                    coordinates=best_route["coordinates"],
-                    bounds=best_route["bounds"]
-                )
-                
-                create_request = CreateTripRequest(
-                    name=scheduled_trip.name,
-                    description=scheduled_trip.description,
-                    scheduled_start_time=optimized_start,
-                    scheduled_end_time=optimized_end,
-                    origin=scheduled_trip.origin,
-                    destination=scheduled_trip.destination,
-                    waypoints=scheduled_trip.waypoints or [],
-                    route_info=route_info_obj,
-                    priority=scheduled_trip.priority,
-                    driver_assignment=best_driver_id, 
-                    vehicle_id=vehicle_name,
-                    constraints=[]
-                )
-                
-                actual_trip = await trip_service.create_trip(create_request, created_by)
-                logger.info(f"New smart trip created {actual_trip}")
-            except Exception as e:
-                logger.warning(f"Error creating trip in database: {e}")
-
+            route_info_obj = RouteInfo(
+                distance=best_route["distance"],
+                duration=best_route["duration"],
+                coordinates=best_route["coordinates"],
+                bounds=best_route["bounds"]
+            )
+            
+            from schemas.requests import CreateSmartTripRequest
             # Return properly structured response
             trip_id = str(getattr(scheduled_trip, 'id', 'unknown'))
             smart_id = f"smart-{trip_id[:8]}"
+
+            create_request = CreateSmartTripRequest(
+                smart_id=smart_id,
+                trip_id=trip_id,
+                trip_name=scheduled_trip.name,
+                description=scheduled_trip.description,
+
+                original_start_time=start_window,
+                original_end_time=end_window,
+
+                optimized_start_time=optimized_start,
+                optimized_end_time=optimized_end,
+                vehicle_id=closest_vehicle_id,
+                vehicle_name=closest_vehicle_name,
+                driver_id=best_driver_id,
+                driver_name=best_driver_name,
+                priority=scheduled_trip.priority,
+
+                origin=scheduled_trip.origin,
+                destination=scheduled_trip.destination,
+                waypoints=[],
+                estimated_distance=distance_km,
+                estimated_duration=duration_min,
+                route_info=route_info_obj,
+
+                time_saved=time_saved_str,
+                fuel_efficiency=fuel_efficiency,
+                route_optimisation="Optimal traffic timing",
+                driver_utilisation=f"{best_rate * 100:.0f}% efficiency",
+                confidence="92",
+                reasoning=reasoning
+            )
+
+            try:
+                from schemas.requests import CreateSmartTripRequest
+                actual_trip = await trip_service.create_smart_trip(create_request, created_by)
+                logger.info(f"New smart trip created {actual_trip}")
+                return actual_trip
+            except Exception as e:
+                logger.warning(f"Error creating trip in database: {e}")
             
-            return {
-                "id": smart_id,
-                "tripId": trip_id,
-                "tripName": scheduled_trip.name,
-                "originalSchedule": {
-                    "startTime": start_window.isoformat() if hasattr(start_window, 'isoformat') else str(start_window),
-                    "endTime": end_window.isoformat() if hasattr(end_window, 'isoformat') else str(end_window),
-                    "vehicle": None,
-                    "driver": None
-                },
-                "optimizedSchedule": {
-                    "startTime": optimized_start.isoformat(),
-                    "endTime": optimized_end.isoformat(),
-                    "vehicleId": closest_vehicle_id,
-                    "vehicleName": closest_vehicle_name,
-                    "driverId": best_driver_id,
-                    "driverName": best_driver_name
-                },
-                "route": {
-                    "origin": scheduled_trip.origin.name,
-                    "destination": scheduled_trip.destination.name,
-                    "waypoints": [],
-                    "estimatedDistance": f"{distance_km:.1f} km",
-                    "estimatedDuration": f"{int(duration_min)} minutes"
-                },
-                "benefits": {
-                    "timeSaved": time_saved_str,
-                    "fuelEfficiency": fuel_efficiency,
-                    "routeOptimization": "Optimal traffic timing",
-                    "driverUtilization": f"{best_rate * 100:.0f}% efficiency"
-                },
-                "confidence": 92,
-                "reasoning": reasoning
-            }
             
         except Exception as e:
             logger.error(f"Error in create_smart_trip: {e}", exc_info=True)

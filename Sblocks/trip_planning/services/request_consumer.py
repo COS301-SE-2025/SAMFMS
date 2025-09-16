@@ -279,25 +279,10 @@ class ServiceRequestConsumer:
             if method == "GET":
                 if "smarttrips" in endpoint:
                     logger.info("Entered get smart trips")
-                    # get all the current schduled trips
-                    from services.trip_service import trip_service
-                    scheduled_trips = await trip_service.get_scheduled_trips()
-                    logger.info(f"Scheduled trips found: {scheduled_trips}")
-                    created_by = user_context.get("user_id", "system")
-                    logger.info(f"Created by: {created_by}")
-                    
-                    from services.smart_trip_planning_service import smart_trip_service
+                    smart_trips = await trip_service.get_smart_trips()
                     return_data = {
-                        "data" : []
+                        "data" : smart_trips
                     }
-                    for trip in scheduled_trips:
-                        logger.info("Entered for loop")
-                        try:
-                            smart_trip = await smart_trip_service.create_smart_trip(trip, created_by)
-                            return_data["data"].append(smart_trip)
-                        except Exception as e:
-                            logger.error(f"Error processing trip {trip}: {e}")
-                            continue  # Skip this trip and continue with others
                     
                     return ResponseBuilder.success(
                         data=return_data,
@@ -531,6 +516,9 @@ class ServiceRequestConsumer:
                     created_by = user_context.get("user_id", "system")
 
                     scheduled_trip = await trip_service.create_scheduled_trip(scheduled_request,created_by)
+                    # also create new smart trip for scheduled trip
+                    from services.smart_trip_planning_service import smart_trip_service
+                    smart_trip = await smart_trip_service.create_smart_trip(scheduled_trip,created_by)
                     trip_id = scheduled_trip.id
 
                     return ResponseBuilder.success(

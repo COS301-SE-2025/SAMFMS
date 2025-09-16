@@ -247,7 +247,7 @@ const Trips = () => {
         trips = response.data.trips;
       } else if (response?.data?.data) {
         trips = Array.isArray(response.data.data) ? response.data.data : [];
-      } else if (Array.isArray(response?.data)) {
+      } else if (Array.isArray(response?.data) ) {
         trips = response.data;
       }
 
@@ -355,10 +355,7 @@ const Trips = () => {
     scheduledEndDate: '',
     scheduledEndTime: '',
     priority: 'normal',
-    temperatureControl: false,
     driverNote: '',
-    timeWindowStart: '',
-    timeWindowEnd: '',
   });
 
   // Store coordinates for selected locations
@@ -531,7 +528,6 @@ const Trips = () => {
       scheduledEndDate: '',
       scheduledEndTime: '',
       priority: 'normal',
-      temperatureControl: false,
       driverNote: '',
     });
     // Reset location coordinates
@@ -558,65 +554,54 @@ const Trips = () => {
     setIsSubmitting(true);
 
     try {
-      // Use enhanced trip data if provided, otherwise format current trip form
-      let tripData;
-      if (enhancedTripData) {
-        // Enhanced data from the new modal with route information
-        // Handle both old field names (scheduledStartDate) and new ones (startDate)
-        const startDate = enhancedTripData.startDate || enhancedTripData.scheduledStartDate;
-        const startTime = enhancedTripData.startTime || enhancedTripData.scheduledStartTime;
-        const endDate = enhancedTripData.endDate || enhancedTripData.scheduledEndDate;
-        const endTime = enhancedTripData.endTime || enhancedTripData.scheduledEndTime;
+      const isScheduled = enhancedTripData.tripType === 'scheduled';
 
-        // Ensure proper datetime format (ISO 8601)
-        const startDateTime = startDate && startTime ? `${startDate}T${startTime}:00Z` : null;
-        const endDateTime = endDate && endTime ? `${endDate}T${endTime}:00Z` : null;
+      // Format waypoints with order
+      const formattedWaypoints = (enhancedTripData.waypoints || []).map((waypoint, index) => ({
+        name: `Waypoint ${index + 1}`,
+        location: {
+          type: 'Point',
+          coordinates: [waypoint.lng, waypoint.lat],
+          address: `Waypoint ${index + 1}`,
+        },
+        order: index + 1,
+      }));
 
-        tripData = {
-          name: enhancedTripData.name,
-          description: enhancedTripData.description || '',
-          scheduled_start_time: startDateTime,
-          scheduled_end_time: endDateTime,
-          origin: {
-            name: enhancedTripData.startLocation,
-            location: {
-              type: 'Point',
-              coordinates: [
-                enhancedTripData.coordinates?.start?.lng || locationCoords.start?.lng,
-                enhancedTripData.coordinates?.start?.lat || locationCoords.start?.lat,
-              ],
-              address: enhancedTripData.startLocation,
-            },
-            order: 1,
+      let tripData = {
+        name: enhancedTripData.name,
+        description: enhancedTripData.description || '',
+        origin: {
+          name: enhancedTripData.startLocation,
+          location: {
+            type: 'Point',
+            coordinates: [
+              enhancedTripData.coordinates?.start?.lng,
+              enhancedTripData.coordinates?.start?.lat,
+            ],
+            address: enhancedTripData.startLocation,
           },
-          destination: {
-            name: enhancedTripData.endLocation,
-            location: {
-              type: 'Point',
-              coordinates: [
-                enhancedTripData.coordinates?.end?.lng || locationCoords.end?.lng,
-                enhancedTripData.coordinates?.end?.lat || locationCoords.end?.lat,
-              ],
-              address: enhancedTripData.endLocation,
-            },
-            order: 2,
+          order: 0,
+        },
+        destination: {
+          name: enhancedTripData.endLocation,
+          location: {
+            type: 'Point',
+            coordinates: [
+              enhancedTripData.coordinates?.end?.lng,
+              enhancedTripData.coordinates?.end?.lat,
+            ],
+            address: enhancedTripData.endLocation,
           },
-          priority: enhancedTripData.priority || 'normal',
-          vehicle_id: enhancedTripData.vehicleId,
-          driver_assignment: enhancedTripData.driverId,
-          // Enhanced route information with properly formatted waypoints
-          waypoints: (enhancedTripData.waypoints || []).map((waypoint, index) => ({
-            name: `Waypoint ${index + 1}`,
-            location: {
-              type: 'Point',
-              coordinates: [waypoint.lng, waypoint.lat],
-              address: `Waypoint ${index + 1}`,
-            },
-            order: index + 3, // Start from 3 since origin is 1, destination is 2
-          })),
-          route_info: enhancedTripData.routeInfo || null,
-          driver_note: enhancedTripData.driverNotes || enhancedTripData.driverNote || '',
-        };
+          order: 99,
+        },
+        waypoints: formattedWaypoints,
+        route_info: enhancedTripData.routeInfo || null,
+        priority: enhancedTripData.priority || 'normal',
+      };
+
+      if (isScheduled) {
+        tripData.start_time_window = `${enhancedTripData.startTimeWindow}:00Z`;
+        tripData.end_time_window = `${enhancedTripData.endTimeWindow}:00Z`;
       } else {
         const startDateTime = `${enhancedTripData.startDate}T${enhancedTripData.startTime}:00Z`;
         const endDateTime = `${enhancedTripData.endDate}T${enhancedTripData.endTime}:00Z`;

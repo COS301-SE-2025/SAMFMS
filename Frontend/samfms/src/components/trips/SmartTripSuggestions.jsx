@@ -55,8 +55,8 @@ const SmartTripSuggestions = ({ onAccept, onDecline, onRefresh }) => {
     setProcessingIds(prev => new Set([...prev, suggestionId]));
     
     try {
-      // TODO: Replace with actual API call
-      // await acceptSmartTripSuggestion(suggestionId);
+      const respone = await acceptSmartTripSuggestion(suggestionId);
+      console.log("Response for accepting smart trip: ", respone)
       
       console.log('Accepting suggestion:', suggestionId);
       
@@ -264,8 +264,8 @@ const SuggestionCard = ({
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div>
-          <h4 className="font-medium text-gray-900">{suggestion.tripName}</h4>
-          <p className="text-sm text-gray-500">Trip ID: {suggestion.tripId}</p>
+          <h4 className="font-medium text-gray-900">{suggestion.trip_name || 'Unnamed Trip'}</h4>
+          <p className="text-sm text-gray-500">Trip ID: {suggestion.trip_id}</p>
         </div>
         <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
           <TrendingUp className="h-3 w-3" />
@@ -283,12 +283,12 @@ const SuggestionCard = ({
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-2">
               <MapPin className="h-3 w-3 text-green-500" />
-              <span className="text-gray-700">{suggestion.route.origin}</span>
+              <span className="text-gray-700">{suggestion.route.origin?.name || 'Origin'}</span>
             </div>
             <ArrowRight className="h-4 w-4 text-gray-400" />
             <div className="flex items-center gap-2">
               <MapPin className="h-3 w-3 text-red-500" />
-              <span className="text-gray-700">{suggestion.route.destination}</span>
+              <span className="text-gray-700">{suggestion.route.destination?.name || 'Destination'}</span>
             </div>
           </div>
           
@@ -298,7 +298,7 @@ const SuggestionCard = ({
               <div className="flex flex-wrap gap-1">
                 {suggestion.route.waypoints.map((waypoint, idx) => (
                   <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                    {waypoint}
+                    {waypoint?.name || `Waypoint ${idx + 1}`}
                   </span>
                 ))}
               </div>
@@ -306,8 +306,8 @@ const SuggestionCard = ({
           )}
           
           <div className="flex gap-4 mt-2 text-xs text-gray-500">
-            <span>Distance: {suggestion.route.estimatedDistance}</span>
-            <span>Duration: {suggestion.route.estimatedDuration}</span>
+            <span>Distance: {suggestion.route.estimated_distance ? `${suggestion.route.estimated_distance.toFixed(1)} km` : 'N/A'}</span>
+            <span>Duration: {suggestion.route.estimated_duration ? `${Math.round(suggestion.route.estimated_duration)} min` : 'N/A'}</span>
           </div>
         </div>
       </div>
@@ -320,19 +320,19 @@ const SuggestionCard = ({
           <div className="space-y-1 text-sm text-gray-600">
             <div className="flex items-center gap-2">
               <Calendar className="h-3 w-3" />
-              <span>Start: {formatDateTime(suggestion.originalSchedule.startTime)}</span>
+              <span>Start: {formatDateTime(suggestion.original_schedule.start_time)}</span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-3 w-3" />
-              <span>End: {formatDateTime(suggestion.originalSchedule.endTime)}</span>
+              <span>End: {formatDateTime(suggestion.original_schedule.end_time)}</span>
             </div>
             <div className="flex items-center gap-2">
               <Truck className="h-3 w-3" />
-              <span>{suggestion.originalSchedule.vehicle || 'No vehicle assigned'}</span>
+              <span>{suggestion.original_schedule.vehicle_name || 'No vehicle assigned'}</span>
             </div>
             <div className="flex items-center gap-2">
               <User className="h-3 w-3" />
-              <span>{suggestion.originalSchedule.driver || 'No driver assigned'}</span>
+              <span>{suggestion.original_schedule.driver_name || 'No driver assigned'}</span>
             </div>
           </div>
         </div>
@@ -346,25 +346,25 @@ const SuggestionCard = ({
           <div className="space-y-1 text-sm text-gray-600">
             <div className="flex items-center gap-2">
               <Calendar className="h-3 w-3" />
-              <span>Start: {formatDateTime(suggestion.optimizedSchedule.startTime)}</span>
+              <span>Start: {formatDateTime(suggestion.optimized_schedule.start_time)}</span>
               <span className="text-xs text-blue-600 font-medium bg-blue-100 px-1 py-0.5 rounded">
-                {getTimeDifference(suggestion.originalSchedule.startTime, suggestion.optimizedSchedule.startTime)}
+                {getTimeDifference(suggestion.original_schedule.start_time, suggestion.optimized_schedule.start_time)}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-3 w-3" />
-              <span>End: {formatDateTime(suggestion.optimizedSchedule.endTime)}</span>
+              <span>End: {formatDateTime(suggestion.optimized_schedule.end_time)}</span>
               <span className="text-xs text-blue-600 font-medium bg-blue-100 px-1 py-0.5 rounded">
-                {getTimeDifference(suggestion.originalSchedule.endTime, suggestion.optimizedSchedule.endTime)}
+                {getTimeDifference(suggestion.original_schedule.end_time, suggestion.optimized_schedule.end_time)}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Truck className="h-3 w-3" />
-              <span className="font-medium text-blue-700">{suggestion.optimizedSchedule.vehicleName}</span>
+              <span className="font-medium text-blue-700">{suggestion.optimized_schedule.vehicle_name || 'Vehicle TBD'}</span>
             </div>
             <div className="flex items-center gap-2">
               <User className="h-3 w-3" />
-              <span className="font-medium text-blue-700">{suggestion.optimizedSchedule.driverName}</span>
+              <span className="font-medium text-blue-700">{suggestion.optimized_schedule.driver_name || 'Driver TBD'}</span>
             </div>
           </div>
         </div>
@@ -375,24 +375,24 @@ const SuggestionCard = ({
         <div className="mb-4">
           <h5 className="text-sm font-medium text-gray-700 mb-2">Expected Benefits</h5>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {suggestion.benefits.timeSaved && (
+            {suggestion.benefits.time_saved && (
               <div className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">
-                ⏰ {suggestion.benefits.timeSaved}
+                ⏰ {suggestion.benefits.time_saved}
               </div>
             )}
-            {suggestion.benefits.fuelEfficiency && (
+            {suggestion.benefits.fuel_efficiency && (
               <div className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-medium">
-                ⛽ {suggestion.benefits.fuelEfficiency}
+                ⛽ {suggestion.benefits.fuel_efficiency}
               </div>
             )}
-            {suggestion.benefits.routeOptimization && (
+            {suggestion.benefits.route_optimization && (
               <div className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-medium">
-                🗺️ {suggestion.benefits.routeOptimization}
+                🗺️ {suggestion.benefits.route_optimization}
               </div>
             )}
-            {suggestion.benefits.driverUtilization && (
+            {suggestion.benefits.driver_utilization && (
               <div className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-medium">
-                👤 {suggestion.benefits.driverUtilization}
+                👤 {suggestion.benefits.driver_utilization}
               </div>
             )}
           </div>

@@ -20,7 +20,7 @@ import {
 import TripPlanningMap from './TripPlanningMap';
 import LocationAutocomplete from './LocationAutocomplete';
 import SearchableDropdown from '../ui/SearchableDropdown';
-import { getAvailableDrivers, getAvailableVehicles } from '../../backend/api/trips';
+import { getAvailableDrivers, getAvailableVehicles } from '../../backend/api/trips';  
 
 const TripSchedulingModal = ({
   showModal,
@@ -270,14 +270,14 @@ const TripSchedulingModal = ({
     return () => clearTimeout(timeoutId);
   }, [fetchAvailableDrivers, fetchAvailableVehicles]);
 
-  // Initialize default date/time values when step 1 is opened
+  // Initialize default date/time values when appropriate step is opened
   useEffect(() => {
-    if (currentStep === 1 && (!tripForm.startDate || !tripForm.startTime)) {
-      const now = new Date();
-      const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD format
-      const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+    const now = new Date();
+    const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
 
-      // Set default values if not already set
+    if (currentStep === 2 && tripType === 'normal' && (!tripForm.startDate || !tripForm.startTime)) {
+      // Set default values if not already set for normal trip schedule step
       if (!tripForm.startDate) {
         onFormChange('startDate', currentDate);
       }
@@ -294,8 +294,18 @@ const TripSchedulingModal = ({
         const endTimeString = endTime.toTimeString().slice(0, 5);
         onFormChange('endTime', endTimeString);
       }
+    } else if (currentStep === 1 && tripType === 'scheduled' && (!tripForm.startTimeWindow || !tripForm.endTimeWindow)) {
+      // Set defaults for scheduled time windows
+      const startWindow = now.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
+      const endWindow = new Date(now.getTime() + 3600000).toISOString().slice(0, 16); // +1 hour
+      if (!tripForm.startTimeWindow) {
+        onFormChange('startTimeWindow', startWindow);
+      }
+      if (!tripForm.endTimeWindow) {
+        onFormChange('endTimeWindow', endWindow);
+      }
     }
-  }, [currentStep, tripForm.startDate, tripForm.startTime, tripForm.endDate, tripForm.endTime, onFormChange]);
+  }, [currentStep, tripType, tripForm, onFormChange]);
 
   // Handle start date change and ensure end date is not less than start date
   const handleStartDateChange = useCallback((value) => {
@@ -334,6 +344,22 @@ const TripSchedulingModal = ({
     }
     onFormChange('endTime', value);
   }, [onFormChange, tripForm.startDate, tripForm.endDate, tripForm.startTime]);
+
+  // New: Handle start time window change for scheduled
+  const handleStartTimeWindowChange = useCallback((value) => {
+    onFormChange('startTimeWindow', value);
+    if (tripForm.endTimeWindow && value > tripForm.endTimeWindow) {
+      onFormChange('endTimeWindow', value);
+    }
+  }, [onFormChange, tripForm.endTimeWindow]);
+
+  // New: Handle end time window change for scheduled
+  const handleEndTimeWindowChange = useCallback((value) => {
+    if (tripForm.startTimeWindow && value < tripForm.startTimeWindow) {
+      return; // Prevent
+    }
+    onFormChange('endTimeWindow', value);
+  }, [onFormChange, tripForm.startTimeWindow]);
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback(
@@ -715,7 +741,7 @@ const TripSchedulingModal = ({
                             <input
                               type="datetime-local"
                               value={tripForm.startTimeWindow}
-                              onChange={e => onFormChange('startTimeWindow', e.target.value)}
+                              onChange={e => handleStartTimeWindowChange(e.target.value)}
                               className="w-full pl-10 pr-4 py-3 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
                               required
                             />
@@ -732,7 +758,7 @@ const TripSchedulingModal = ({
                             <input
                               type="datetime-local"
                               value={tripForm.endTimeWindow}
-                              onChange={e => onFormChange('endTimeWindow', e.target.value)}
+                              onChange={e => handleEndTimeWindowChange(e.target.value)}
                               className="w-full pl-10 pr-4 py-3 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
                               required
                             />
@@ -817,25 +843,25 @@ const TripSchedulingModal = ({
                       </label>
                       <div className="relative">
                         <Car className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <select
-                          value={tripForm.vehicleId}
-                          onChange={e => onFormChange('vehicleId', e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
-                          required
-                        >
-                          <option value="">Choose a vehicle...</option>
-                          {(availableVehicles || vehicles)?.map(vehicle => (
-                            <option
-                              key={vehicle._id || vehicle.id}
-                              value={vehicle._id || vehicle.id}
-                            >
-                              {vehicle.make} {vehicle.model} -{' '}
-                              {vehicle.license_plate ||
-                                vehicle.licensePlate ||
-                                vehicle.registration}
-                            </option>
-                          ))}
-                        </select>
+                        {loadingVehicles ? (
+                          <div className="w-full pl-10 pr-4 py-3 border border-input rounded-lg bg-background text-foreground">
+                            Loading vehicles...
+                          </div>
+                        ) : (
+                          <select
+                            value={tripForm.vehicleId}
+                            onChange={e => onFormChange('vehicleId', e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
+                            required
+                          >
+                            <option value="">Choose a vehicle...</option>
+                            {vehicleOptions.map(option => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </div>
                     </div>
 
@@ -846,20 +872,25 @@ const TripSchedulingModal = ({
                       </label>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <select
-                          value={tripForm.driverId}
-                          onChange={e => onFormChange('driverId', e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
-                          required
-                        >
-                          <option value="">Choose a driver...</option>
-                          {drivers?.map(driver => (
-                            <option key={driver._id || driver.id} value={driver.employee_id}>
-                              {driver.first_name} {driver.last_name ? driver.last_name : ''}{' '}
-                              {driver.employee_id ? `(${driver.employee_id})` : ''}
-                            </option>
-                          ))}
-                        </select>
+                        {loadingDrivers ? (
+                          <div className="w-full pl-10 pr-4 py-3 border border-input rounded-lg bg-background text-foreground">
+                            Loading drivers...
+                          </div>
+                        ) : (
+                          <select
+                            value={tripForm.driverId}
+                            onChange={e => onFormChange('driverId', e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 hover:border-primary/50"
+                            required
+                          >
+                            <option value="">Choose a driver...</option>
+                            {driverOptions.map(option => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </div>
                     </div>
                   </div>

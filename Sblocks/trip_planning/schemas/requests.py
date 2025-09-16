@@ -92,28 +92,40 @@ class CreateTripRequest(BaseModel):
 class CreateSmartTripRequest(BaseModel):
     """Request to create a smart trip"""
     # normal trip details
-    id: str = Field(..., min_length=1, max_length=200, description="Trip name")
-    name: str = Field(..., min_length=1, max_length=200, description="Trip name")
+    smart_id: str = Field(..., min_length=1, max_length=200, description="Trip name")
+    trip_id: str
+    trip_name: str = Field(..., min_length=1, max_length=200, description="Trip name")
     description: Optional[str] = None
 
+    # Original schedule
     original_start_time: datetime = Field(..., description="When the trip should start")
     original_end_time: datetime = Field(..., description="When the trip should end")
     
-    # New start and end times
+    # Optimised schedule
     optimized_start_time: datetime = Field(..., description="When the trip should start")
     optimized_end_time: datetime = Field(..., description="When the trip should end")
- 
-    # Proposed assignments
     vehicle_id: str = Field(..., description="Assigned vehicle ID")
-    driver_assignment: str = Field(..., description="Assigned driver ID")
+    vehicle_name: str
+    driver_id: str 
+    driver_name: str
+    priority: TripPriority = Field(..., description="Trip priority")
 
+    # route
     origin: Waypoint = Field(..., description="Starting point")
     destination: Waypoint = Field(..., description="End point")
-    waypoints: List[Waypoint] = Field(default_factory=list, description="Intermediate stops")
+    waypoints: Optional[List[Waypoint]] = None
+    estimated_distance: float
+    estimated_duration: float
     route_info: Optional[RouteInfo] = Field(None, description="Route information including distance, duration, and coordinates")
-    priority: TripPriority = Field(..., description="Trip priority")
-    # smart featurs
-    r_time: str
+    
+    # benefits
+    time_saved: str
+    fuel_efficiency: str
+    route_optimisation: str
+    driver_utilisation: str
+
+    confidence: str
+    reasoning: List[str]
 
     
 

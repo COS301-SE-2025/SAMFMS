@@ -198,11 +198,11 @@ class ScheduleInfo(BaseModel):
 
 class RouteSummary(BaseModel):
     """Route summary information for the smart trip"""
-    origin: str = Field(..., description="Name of the origin point")
-    destination: str = Field(..., description="Name of the destination point")
-    waypoints: List[str] = Field(default_factory=list, description="Names of intermediate waypoints")
-    estimated_distance: str = Field(..., description="Estimated distance as formatted string (e.g., '12.3 km')")
-    estimated_duration: str = Field(..., description="Estimated duration as formatted string (e.g., '30 minutes')")
+    origin: Waypoint = Field(..., description="Starting point")
+    destination: Waypoint = Field(..., description="End point")
+    waypoints: List[Waypoint] = Field(default_factory=list, description="Intermediate stops")
+    estimated_distance: Optional[float] = Field(None, description="Estimated distance in km")
+    estimated_duration: Optional[float] = Field(None, description="Estimated duration in minutes")
 
 
 class SmartTripBenefits(BaseModel):
@@ -218,14 +218,17 @@ class SmartTrip(BaseModel):
     id: str = Field(..., description="Unique Smart Trip ID")
     trip_id: str = Field(..., description="Reference to ScheduledTrip ID")
     trip_name: str = Field(..., description="Name of the trip")
+    description: Optional[str] = None
+    priority: TripPriority = Field(..., description="Trip priority")
 
     original_schedule: ScheduleInfo = Field(..., description="Original schedule details")
     optimized_schedule: ScheduleInfo = Field(..., description="Optimized schedule details")
     route: RouteSummary = Field(..., description="Route information summary")
     benefits: SmartTripBenefits = Field(..., description="Benefits from optimization")
+    route_info: Optional[RouteInfo] = Field(None, description="Route information including distance, duration, and coordinates")
 
     confidence: int = Field(..., description="Confidence score of the optimization")
-    reasoning: str = Field(..., description="Reasoning behind optimization decisions")
+    reasoning: List[str] = Field(..., description="Reasoning behind optimization decisions")
 
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp when SmartTrip was created")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp when SmartTrip was last updated")

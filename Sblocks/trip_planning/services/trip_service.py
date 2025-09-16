@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 from bson import ObjectId
 
 from repositories.database import db_manager, db_manager_gps
-from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation, ScheduledTrip
-from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest, ScheduledTripRequest
+from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation, ScheduledTrip, SmartTrip
+from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest, ScheduledTripRequest, CreateSmartTripRequest
 from events.publisher import event_publisher
 
 logger = logging.getLogger(__name__)
@@ -72,6 +72,135 @@ class TripService:
             return scheduled_trips
         except Exception as e:
             logger.error(f"[TripService.get_scheduled_trips] Failed: {e}")
+            raise
+
+    async def get_smart_trips(self) -> list[SmartTrip]:
+        """Return all smart trips"""
+        logger.info("Enter get all smart trips")
+        try:
+            cursor = self.db.smarttrips.find({})
+            smart_trips = []
+            async for smart_trips_doc in cursor:
+                # Transform the document structure to match Pydantic schema
+                transformed_doc = {
+                    "id": str(smart_trips_doc["_id"]),
+                    "trip_id": smart_trips_doc["trip_id"],
+                    "trip_name": smart_trips_doc["trip_name"],
+                    "description": smart_trips_doc.get("description", ""),
+                    "priority": smart_trips_doc["priority"],
+                    
+                    # Transform original schedule
+                    "original_schedule": {
+                        "start_time": smart_trips_doc["original_start_time"],
+                        "end_time": smart_trips_doc["original_end_time"],
+                        "vehicle_id": smart_trips_doc.get("vehicle_id"),
+                        "vehicle_name": smart_trips_doc.get("vehicle_name"),
+                        "driver_id": smart_trips_doc.get("driver_id"),
+                        "driver_name": smart_trips_doc.get("driver_name")
+                    },
+                    
+                    # Transform optimized schedule
+                    "optimized_schedule": {
+                        "start_time": smart_trips_doc["optimized_start_time"],
+                        "end_time": smart_trips_doc["optimized_end_time"],
+                        "vehicle_id": smart_trips_doc.get("vehicle_id"),
+                        "vehicle_name": smart_trips_doc.get("vehicle_name"),
+                        "driver_id": smart_trips_doc.get("driver_id"),
+                        "driver_name": smart_trips_doc.get("driver_name")
+                    },
+                    
+                    # Transform route information
+                    "route": {
+                        "origin": smart_trips_doc["origin"],
+                        "destination": smart_trips_doc["destination"],
+                        "waypoints": smart_trips_doc.get("waypoints", []),
+                        "estimated_distance": smart_trips_doc.get("estimated_distance"),
+                        "estimated_duration": smart_trips_doc.get("estimated_duration")
+                    },
+                    
+                    # Transform benefits
+                    "benefits": {
+                        "time_saved": smart_trips_doc.get("time_saved", "No data"),
+                        "fuel_efficiency": smart_trips_doc.get("fuel_efficiency", "No data"),
+                        "route_optimization": smart_trips_doc.get("route_optimisation", "No data"),  # Note: your doc has 'optimisation'
+                        "driver_utilization": smart_trips_doc.get("driver_utilisation", "No data")  # Note: your doc has 'utilisation'
+                    },
+                    
+                    # Optional route_info (already structured correctly)
+                    "route_info": smart_trips_doc.get("route_info"),
+                    
+                    # Other fields
+                    "confidence": int(smart_trips_doc.get("confidence", 0)),
+                    "reasoning": smart_trips_doc.get("reasoning", []),
+                    "created_at": smart_trips_doc.get("created_at", datetime.utcnow()),
+                    "updated_at": smart_trips_doc.get("updated_at", datetime.utcnow())
+                }
+                
+                smart_trips.append(SmartTrip(**transformed_doc))
+            return smart_trips
+        except Exception as e:
+            logger.error(f"[TripService.get_smarttrips_trips] Failed: {e}")
+            raise
+    
+    async def activate_smart_trip(self, smart_trip: SmartTrip, created_by: str) -> Trip:
+        """After accepting a smart trip it will be turned into an actual trip"""
+        try:
+
+            request = CreateTripRequest(
+                name=smart_trip.trip_name,
+                description=smart_trip.description,
+                scheduled_start_time=smart_trip.optimized_schedule.start_time,
+                scheduled_end_time=smart_trip.optimized_schedule.end_time,
+                origin=smart_trip.route.origin,
+                destination=smart_trip.route.destination,
+                waypoints=smart_trip.route.waypoints,
+                route_info=smart_trip.route_info,
+                priority=smart_trip.priority,
+                vehicle_id=smart_trip.optimized_schedule.vehicle_id ,
+                driver_assignment=smart_trip.optimized_schedule.driver_id
+
+            )
+
+            try:
+                new_trip = await self.create_trip(request,created_by)
+                return new_trip 
+            except Exception as e:
+                logger.error(f"[TripService.activate_smart_trip] Failed to create actual trip: {e}")
+                raise
+
+        except Exception as e:
+            logger.error(f"[TripService.activate_smart_trip] Failed: {e}")
+            raise
+
+    async def create_smart_trip(
+        self,
+        request: CreateSmartTripRequest,
+        created_by: str
+    ) -> SmartTrip:
+        """Create a new scheduled trip"""
+        try:
+            if request.optimized_end_time:
+                if request.optimized_end_time <= request.optimized_start_time:
+                    logger.warning("[TripService.create_smart_trip] Invalid schedule: end <= start")
+                    raise ValueError("End time must be after start time")
+                
+            trip_data = request.model_dump(exclude_unset=True)
+
+            trip_data.update({
+                "created_by": created_by,
+                "created_at": datetime.utcnow()
+            })
+
+            result = await self.db.smarttrips.insert_one(trip_data)
+
+            trip = await self.get_trip_by_id_smart(str(result.inserted_id))
+            if not trip:
+                logger.error(f"[TripService.create_smart] Failed to retrieve trip after insert (ID={result.inserted_id})")
+                raise RuntimeError("Failed to retrieve created trip")
+            
+            return trip
+        except Exception as e:
+            logger.error(f"[TripService.create_trip_scheduled] Failed: {e}")
             raise
 
     async def create_trip(
@@ -311,6 +440,19 @@ class TripService:
             if trip_doc:
                 trip_doc["_id"] = str(trip_doc["_id"])
                 return ScheduledTrip(**trip_doc)
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get trip {trip_id}: {e}")
+            raise
+    
+    async def get_trip_by_id_smart(self, trip_id: str) -> Optional[SmartTrip]:
+        """Get trip by ID"""
+        try:
+            trip_doc = await self.db.smarttrips.find_one({"_id": ObjectId(trip_id)})
+            if trip_doc:
+                trip_doc["_id"] = str(trip_doc["_id"])
+                return SmartTrip(**trip_doc)
             return None
             
         except Exception as e:
