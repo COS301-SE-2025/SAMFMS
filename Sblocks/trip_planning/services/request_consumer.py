@@ -312,6 +312,21 @@ class ServiceRequestConsumer:
                         message="Successfully retrieved polyline"
                     )
 
+                if "live" in endpoint:
+                    trip_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                    logger.info(f"Trip ID extracted for live tracking: {trip_id}")
+                    if trip_id is None:
+                        return ResponseBuilder.error(
+                            error="Error while processing live tracking request",
+                            message="Trip ID was not included",
+                        )
+                    
+                    live_data = await trip_service.get_live_tracking_data(trip_id)
+                    return ResponseBuilder.success(
+                        data=live_data,
+                        message="Successfully retrieved live tracking data"
+                    )
+
                 if "upcomming" in endpoint:
                     if "all" in endpoint:
                         trip = await trip_service.get_all_upcoming_trips()
@@ -521,7 +536,7 @@ class ServiceRequestConsumer:
 
                     logger.info(f"[_handle_trips_request] trip_service.create_trip() succeeded for trip {trip.id}")
                     return ResponseBuilder.success(
-                        data=trip.model_dump(),
+                        data=trip.dict(),
                         message="Trip created successfully"
                     ).model_dump()
                 
@@ -719,6 +734,9 @@ class ServiceRequestConsumer:
 
         except Exception as e:
             logger.error(f"[_handle_trips_request] Exception: {e}")
+            logger.error(f"[_handle_trips_request] Exception type: {type(e)}")
+            import traceback
+            logger.error(f"[_handle_trips_request] Traceback: {traceback.format_exc()}")
             return ResponseBuilder.error(
                 error="TripsRequestError",
                 message=f"Failed to process trips request: {str(e)}"

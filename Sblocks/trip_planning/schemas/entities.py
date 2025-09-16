@@ -16,6 +16,55 @@ class RouteBounds(BaseModel):
         populate_by_name = True
 
 
+class TurnByTurnInstruction(BaseModel):
+    """Turn-by-turn navigation instruction"""
+    text: str = Field(..., description="Human-readable instruction text")
+    type: Optional[str] = Field(None, description="Maneuver type")
+    distance: float = Field(0, description="Distance for this instruction in meters")
+    time: float = Field(0, description="Time for this instruction in seconds")
+    from_index: Optional[int] = Field(None, description="Starting geometry index")
+    to_index: Optional[int] = Field(None, description="Ending geometry index")
+
+
+class RoadDetail(BaseModel):
+    """Detailed information about a road segment"""
+    distance: float = Field(0, description="Segment distance in meters")
+    time: float = Field(0, description="Segment time in seconds")
+    speed_limit: Optional[float] = Field(None, description="Speed limit in km/h")
+    road_class: Optional[str] = Field(None, description="Road class (motorway, trunk, primary, etc.)")
+    surface: Optional[str] = Field(None, description="Road surface type")
+    lane_count: Optional[int] = Field(None, description="Number of lanes")
+    name: Optional[str] = Field(None, description="Road name")
+    toll: bool = Field(False, description="Whether this segment has tolls")
+    ferry: bool = Field(False, description="Whether this segment uses a ferry")
+    tunnel: bool = Field(False, description="Whether this segment is a tunnel")
+    bridge: bool = Field(False, description="Whether this segment is a bridge")
+
+
+class DetailedRouteInfo(BaseModel):
+    """Comprehensive route information from Geoapify Routing API"""
+    # Basic route information
+    distance: float = Field(..., description="Route distance in meters")
+    duration: float = Field(..., description="Route duration in seconds")
+    coordinates: List[List[float]] = Field(..., description="Route coordinates as [lat, lng] pairs")
+    
+    # Route characteristics
+    toll: bool = Field(False, description="Whether the route includes tolls")
+    ferry: bool = Field(False, description="Whether the route uses ferries")
+    
+    # Turn-by-turn navigation
+    instructions: List[TurnByTurnInstruction] = Field(default_factory=list, description="Turn-by-turn navigation instructions")
+    
+    # Detailed road information
+    road_details: List[RoadDetail] = Field(default_factory=list, description="Detailed information for each road segment")
+    
+    # API response metadata
+    raw_response: Optional[Dict[str, Any]] = Field(None, description="Original routing API response for reference")
+    
+    # Timestamp when this route was fetched
+    fetched_at: datetime = Field(default_factory=datetime.utcnow, description="When this route information was fetched")
+
+
 class RouteInfo(BaseModel):
     """Route information including distance, duration, and coordinates"""
     distance: float = Field(..., description="Route distance in meters")
@@ -139,6 +188,8 @@ class Trip(BaseModel):
     destination: Waypoint = Field(..., description="End point")
     waypoints: List[Waypoint] = Field(default_factory=list, description="Intermediate stops")
     route_info: Optional[RouteInfo] = Field(None, description="Route information including distance, duration, and coordinates")
+    detailed_route_info: Optional[DetailedRouteInfo] = Field(None, description="Comprehensive route information from Geoapify API including turn-by-turn instructions and road details")
+    raw_route_response: Optional[Dict[str, Any]] = Field(None, description="Raw response from Geoapify Routing API for complete route data")
     
     # Trip details
     status: TripStatus = Field(default=TripStatus.SCHEDULED)

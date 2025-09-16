@@ -252,6 +252,14 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.warning(f"Error stopping ping session monitor: {e}")
 
+            # Close trip service and routing service
+            logger.info("Closing trip service...")
+            try:
+                await trip_service.close()
+                logger.info("Trip service closed")
+            except Exception as e:
+                logger.warning(f"Error closing trip service: {e}")
+
             # Publish service stopped event
             try:
                 await event_publisher.publish_service_stopped(

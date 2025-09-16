@@ -48,6 +48,64 @@ class ErrorResponse(BaseModel):
     status: ResponseStatus = Field(default=ResponseStatus.ERROR, description="Response status")
     error: str = Field(..., description="Error type")
     message: str = Field(..., description="Error message")
+
+class VehiclePosition(BaseModel):
+    """Current vehicle position data"""
+    latitude: float = Field(..., description="Current latitude")
+    longitude: float = Field(..., description="Current longitude")
+    bearing: Optional[float] = Field(None, description="Vehicle heading in degrees (0-360)")
+    speed: Optional[float] = Field(None, description="Current speed in km/h")
+    accuracy: Optional[float] = Field(None, description="Position accuracy in meters")
+    timestamp: datetime = Field(..., description="Position timestamp")
+
+class RouteProgress(BaseModel):
+    """Route progress information"""
+    total_distance: float = Field(..., description="Total route distance in meters")
+    remaining_distance: float = Field(..., description="Remaining distance in meters")
+    completed_distance: float = Field(..., description="Completed distance in meters")
+    progress_percentage: float = Field(..., description="Progress as percentage (0-100)")
+    estimated_time_remaining: Optional[float] = Field(None, description="ETA in seconds")
+    current_step_index: Optional[int] = Field(None, description="Current step in route")
+    total_steps: Optional[int] = Field(None, description="Total number of steps")
+
+class CurrentInstruction(BaseModel):
+    """Current navigation instruction"""
+    text: Optional[str] = Field(None, description="Instruction text")
+    type: Optional[str] = Field(None, description="Instruction type")
+    distance_to_instruction: Optional[float] = Field(None, description="Distance to next instruction in meters")
+    road_name: Optional[str] = Field(None, description="Current road name")
+    speed_limit: Optional[float] = Field(None, description="Current speed limit")
+
+class LiveTrackingResponse(BaseModel):
+    """Live tracking data for map display"""
+    trip_id: str = Field(..., description="Trip identifier")
+    vehicle_id: Optional[str] = Field(None, description="Vehicle identifier")
+    driver_id: Optional[str] = Field(None, description="Driver identifier")
+    trip_status: str = Field(..., description="Current trip status")
+    
+    # Vehicle position and movement
+    current_position: VehiclePosition = Field(..., description="Current vehicle position")
+    
+    # Route information
+    route_polyline: List[List[float]] = Field(..., description="Complete route as [lat, lon] coordinates")
+    remaining_polyline: Optional[List[List[float]]] = Field(None, description="Remaining route from current position")
+    route_bounds: Optional[Dict[str, Any]] = Field(None, description="Route bounding box")
+    
+    # Progress tracking
+    progress: RouteProgress = Field(..., description="Route progress information")
+    
+    # Navigation
+    current_instruction: Optional[CurrentInstruction] = Field(None, description="Current navigation instruction")
+    
+    # Trip details
+    origin: Dict[str, Any] = Field(..., description="Trip origin information")
+    destination: Dict[str, Any] = Field(..., description="Trip destination information")
+    scheduled_time: Optional[datetime] = Field(None, description="Scheduled departure time")
+    actual_start_time: Optional[datetime] = Field(None, description="Actual start time")
+    
+    # Simulation info
+    is_simulated: bool = Field(default=False, description="Whether this is simulated data")
+    last_updated: datetime = Field(..., description="Last update timestamp")
     details: Optional[Dict[str, Any]] = Field(None, description="Additional error details")
     meta: ResponseMeta = Field(default_factory=ResponseMeta, description="Response metadata")
     trace_id: Optional[str] = Field(None, description="Trace ID for debugging")
