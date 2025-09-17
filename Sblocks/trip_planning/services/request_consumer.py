@@ -243,6 +243,9 @@ class ServiceRequestConsumer:
             elif "driver/ping" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_driver_ping_request()")
                 return await self._handle_driver_ping_request(method, user_context)
+            elif "monitor" in endpoint:
+                logger.info(f"[_route_request] Routing to _handle_monitor_request()")
+                return await self._handle_monitor_request(method, user_context)
             elif "trips" in endpoint or endpoint.startswith("driver/") or endpoint == "recent":
                 logger.info(f"[_route_request] Routing to _handle_trips_request()")
                 return await self._handle_trips_request(method, user_context)
@@ -1424,16 +1427,25 @@ class ServiceRequestConsumer:
                             message=result["message"]
                         ).model_dump()
                     
-                    # Return success response
+                    # Return success response with speed limit data
+                    response_data = {
+                        "status": result["status"],
+                        "message": result["message"],
+                        "ping_received_at": result["ping_received_at"],
+                        "next_ping_expected_at": result["next_ping_expected_at"],
+                        "session_active": result["session_active"],
+                        "violations_count": result["violations_count"],
+                        # Always include speed-related fields
+                        "speed_limit": result.get("speed_limit", 50.0),
+                        "speed_limit_units": result.get("speed_limit_units", "km/h"),
+                        "current_speed": result.get("current_speed", 0.0),
+                        "current_speed_units": result.get("current_speed_units", "km/h"),
+                        "is_speeding": result.get("is_speeding", False),
+                        "speed_over_limit": result.get("speed_over_limit", 0.0)
+                    }
+                    
                     return ResponseBuilder.success(
-                        data={
-                            "status": result["status"],
-                            "message": result["message"],
-                            "ping_received_at": result["ping_received_at"],
-                            "next_ping_expected_at": result["next_ping_expected_at"],
-                            "session_active": result["session_active"],
-                            "violations_count": result["violations_count"]
-                        },
+                        data=response_data,
                         message="Ping processed successfully"
                     ).model_dump()
                     
@@ -1504,6 +1516,59 @@ class ServiceRequestConsumer:
             return ResponseBuilder.error(
                 error="DriverPingRequestError",
                 message=f"Failed to process driver ping request: {str(e)}"
+            ).model_dump()
+
+    async def _handle_monitor_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle monitoring requests"""
+        try:
+            from schemas.responses import ResponseBuilder
+            from services.ping_session_monitor import ping_session_monitor
+            
+            endpoint = user_context.get("endpoint", "")
+            
+            logger.info(f"[_handle_monitor_request] Endpoint: '{endpoint}', Method: '{method}'")
+            
+            if method == "GET" and "ping-sessions" in endpoint:
+                # Handle GET /monitor/ping-sessions - get ping session monitor status
+                status = await ping_session_monitor.get_status()
+                
+                return ResponseBuilder.success(
+                    data=status,
+                    message="Ping session monitor status retrieved successfully"
+                ).model_dump()
+            
+            elif method == "POST" and "ping-sessions/check" in endpoint:
+                # Handle POST /monitor/ping-sessions/check - manually trigger check
+                fixed_count = await ping_session_monitor.check_now()
+                
+                return ResponseBuilder.success(
+                    data={
+                        "sessions_created": fixed_count,
+                        "message": f"Created {fixed_count} missing ping sessions"
+                    },
+                    message="Ping session check completed"
+                ).model_dump()
+            
+            elif method == "POST" and "ping-sessions/force-create" in endpoint:
+                # Handle POST /monitor/ping-sessions/force-create - force create all ping sessions
+                result = await ping_session_monitor.force_create_all_ping_sessions()
+                
+                return ResponseBuilder.success(
+                    data=result,
+                    message="Force ping session creation completed"
+                ).model_dump()
+            
+            else:
+                return ResponseBuilder.error(
+                    error="UnsupportedEndpoint",
+                    message=f"Endpoint {method} {endpoint} not supported for monitoring"
+                ).model_dump()
+                
+        except Exception as e:
+            logger.error(f"[_handle_monitor_request] Exception: {e}")
+            return ResponseBuilder.error(
+                error="MonitorRequestError",
+                message=f"Failed to process monitor request: {str(e)}"
             ).model_dump()
 
     async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
