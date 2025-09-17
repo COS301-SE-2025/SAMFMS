@@ -8,6 +8,7 @@ import { useActiveTripContext } from '../contexts/ActiveTripContext';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import AccelerometerSettingsScreen from '../screens/AccelerometerSettingsScreen';
 import AccountScreen from '../screens/AccountScreen';
 import HelpScreen from '../screens/HelpScreen';
 import TripDetailsScreen from '../screens/TripDetailsScreen';
@@ -25,6 +26,16 @@ function DashboardStack() {
       <Stack.Screen name="DashboardHome" component={DashboardScreen} />
       <Stack.Screen name="TripDetails" component={TripDetailsScreen} />
       <Stack.Screen name="ActiveTrip" component={ActiveTripScreen} />
+    </Stack.Navigator>
+  );
+}
+
+// Stack navigator for Settings tab
+function SettingsStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="SettingsHome" component={SettingsScreen} />
+      <Stack.Screen name="AccelerometerSettings" component={AccelerometerSettingsScreen} />
     </Stack.Navigator>
   );
 }
@@ -89,7 +100,7 @@ function TabNavigator() {
     >
       <Tab.Screen name="Dashboard" component={DashboardStack} />
       <Tab.Screen name="Account" component={AccountScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Settings" component={SettingsStack} />
       <Tab.Screen name="Help" component={HelpScreen} />
     </Tab.Navigator>
   );

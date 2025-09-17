@@ -180,34 +180,43 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
         if (isInitialLoad) {
           setLoading(true);
         }
-        const driverId = userData?.id;
 
+        const newTrips = await fetchUpcomingTripsSilent();
+
+        // Compare and update only if data has changed
+        if (newTrips && JSON.stringify(newTrips) !== JSON.stringify(trips)) {
+          console.log('Upcoming trips data changed, updating UI');
+          setTrips(newTrips);
+        }
+
+        if (isInitialLoad) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error fetching upcoming trips:', error);
+        if (isInitialLoad) {
+          setLoading(false);
+        }
+      }
+    };
+
+    const fetchUpcomingTripsSilent = async () => {
+      try {
+        const driverId = userData?.id;
         if (!driverId) {
           console.log('No driver ID found');
-          setTrips([]);
-          if (isInitialLoad) {
-            setLoading(false);
-          }
-          return;
+          return [];
         }
 
         const employeeID = await getEmployeeID(driverId);
         if (!employeeID) {
           console.log('No employee ID found');
-          setTrips([]);
-          if (isInitialLoad) {
-            setLoading(false);
-          }
-          return;
+          return [];
         }
 
         const token = await getToken();
         if (!token) {
-          setTrips([]);
-          if (isInitialLoad) {
-            setLoading(false);
-          }
-          return;
+          return [];
         }
 
         const response = await fetch(`${API_URL}/trips/trips/upcomming/${employeeID.data}`, {
@@ -219,10 +228,8 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
 
         if (response.ok) {
           const data = await response.json();
-          console.log('Upcoming trips API response:', data);
 
           // Extract trips data from nested response structure
-          // Based on API response: {"status": "success", "data": {"status": "success", "data": [...]}}
           let tripsData = [];
           if (Array.isArray(data?.data?.data)) {
             tripsData = data.data.data;
@@ -231,8 +238,6 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
           } else if (Array.isArray(data?.trips)) {
             tripsData = data.trips;
           }
-
-          console.log('Extracted trips data:', tripsData);
 
           const formattedTrips = tripsData.map((trip: any) => {
             const startTime = trip.scheduled_start_time
@@ -281,7 +286,7 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
             return {
               // Preserve all original API data
               ...trip,
-              // Add formatted display properties (using different names to avoid conflicts)
+              // Add formatted display properties
               id: trip.id || trip._id,
               name: trip.name || trip.trip_name || `Trip ${trip.id || 'Unknown'}`,
               pickupDisplay: trip.origin?.name || trip.origin?.address || 'Unknown Location',
@@ -316,19 +321,13 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
             };
           });
 
-          console.log('Formatted trips:', formattedTrips);
-          setTrips(formattedTrips);
-        } else {
-          console.log('Failed to fetch upcoming trips:', response.status, response.statusText);
-          setTrips([]);
+          return formattedTrips;
         }
+
+        return [];
       } catch (error) {
-        console.error('Error fetching trips:', error);
-        setTrips([]);
-      } finally {
-        if (isInitialLoad) {
-          setLoading(false);
-        }
+        console.error('Error fetching upcoming trips silently:', error);
+        return [];
       }
     };
 
@@ -336,19 +335,19 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
     if (userData?.id) {
       fetchUpcomingTrips(true); // Pass true for initial load
 
-      // Set up interval to check for upcoming trips changes every 2 seconds
+      // Set up interval to check for upcoming trips changes every 3 seconds
       const interval = setInterval(() => {
         if (userData?.id) {
-          fetchUpcomingTrips(false); // Pass false for subsequent loads
+          fetchUpcomingTrips(false); // Pass false for subsequent loads with change detection
         }
-      }, 2000);
+      }, 90000);
 
       // Cleanup interval on component unmount or when userData changes
       return () => {
         clearInterval(interval);
       };
     }
-  }, [userData?.id]);
+  }, [userData?.id, trips]);
 
   const handleStartTrip = async (tripId: string) => {
     Alert.alert('Start Trip', 'Are you ready to start this trip?', [
@@ -771,7 +770,7 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
   const { theme } = useTheme();
   const [userData, setUserData] = useState<any>(null);
   const [performanceData, setPerformanceData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Only for initial load
 
   // Use the ActiveTripContext
   const {
@@ -997,7 +996,7 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Manual refresh function
+  // Manual refresh function (shows loading indicators)
   const refreshDashboard = useCallback(async () => {
     setLoading(true);
     try {
@@ -1013,6 +1012,121 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Silent background refresh function with change detection
+  const backgroundRefresh = useCallback(async () => {
+    try {
+      // Fetch new data without updating state
+      const newUserData = await fetchUserDataSilent();
+      const newPerformanceData = await fetchPerformanceDataSilent(newUserData);
+
+      // Compare and update only if data has changed
+      if (newUserData && JSON.stringify(newUserData) !== JSON.stringify(userData)) {
+        console.log('User data changed, updating UI');
+      }
+
+      if (
+        newPerformanceData &&
+        JSON.stringify(newPerformanceData) !== JSON.stringify(performanceData)
+      ) {
+        console.log('Performance data changed, updating UI');
+        setPerformanceData(newPerformanceData);
+      }
+    } catch (error) {
+      console.error('Error in background refresh:', error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userData, performanceData]);
+
+  // Silent fetch functions that return data without updating state
+  const fetchUserDataSilent = useCallback(async () => {
+    try {
+      // First load data from storage
+      let localUserData = await getUserData();
+
+      // Also try to get fresh data from API
+      const token = await getToken();
+      if (token) {
+        const response = await fetch(`${API_URL}/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const apiUserData = await response.json();
+
+          // Preserve existing employee ID if present
+          if (localUserData?.employee_id) {
+            apiUserData.employee_id = localUserData.employee_id;
+          } else if (localUserData?.employeeId) {
+            apiUserData.employee_id = localUserData.employeeId;
+          }
+
+          // If we have user ID, fetch the employee ID if not already present
+          if (apiUserData?.id && !apiUserData.employee_id) {
+            const employeeId = await getEmployeeID(apiUserData.id);
+            if (employeeId) {
+              apiUserData.employee_id = employeeId;
+              apiUserData.employeeId = employeeId;
+            }
+          }
+
+          return apiUserData;
+        }
+      }
+
+      return localUserData;
+    } catch (error) {
+      console.error('Error fetching user data silently:', error);
+      return null;
+    }
+  }, [getEmployeeID]);
+
+  const fetchPerformanceDataSilent = useCallback(
+    async (currentUserData = null) => {
+      try {
+        const userDataToUse = currentUserData || userData;
+        const token = await getToken();
+        if (!token || !userDataToUse?.id) return null;
+
+        // Get the employee ID from userData first, if available
+        let employeeId = userDataToUse.employee_id || userDataToUse.employeeId;
+
+        // If not available, fetch it from the API
+        if (!employeeId) {
+          employeeId = await getEmployeeID(userDataToUse.id);
+        }
+
+        if (!employeeId) {
+          return null;
+        }
+
+        // Fetch driver-specific analytics from management service
+        const response = await fetch(
+          `${API_URL}/management/analytics/driver-performance/${employeeId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          return data;
+        }
+
+        return null;
+      } catch (error) {
+        console.error('Error fetching performance data silently:', error);
+        return null;
+      }
+    },
+    [userData, getEmployeeID]
+  );
+
   // Create a memoized function to render the refresh button
   const renderRefreshButton = useCallback(() => {
     return (
@@ -1024,9 +1138,38 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
     );
   }, [refreshDashboard, loading, theme.accent]);
 
-  // Load data only once on component mount
+  // Load data only once on component mount and set up auto-refresh intervals
   useEffect(() => {
-    refreshDashboard();
+    const initialLoad = async () => {
+      try {
+        await fetchUserData();
+        if (userData?.id) {
+          await fetchPerformanceData();
+        }
+      } catch (error) {
+        console.error('Error in initial load:', error);
+      } finally {
+        setLoading(false); // Only set loading to false after initial load
+      }
+    };
+
+    initialLoad(); // Initial load
+
+    // Set up interval to refresh dashboard data every 3 seconds (silently)
+    const dashboardInterval = setInterval(() => {
+      backgroundRefresh(); // Use silent refresh for automatic updates
+    }, 900000);
+
+    // Set up interval to check for active trips every 3 seconds
+    const activeTripsInterval = setInterval(() => {
+      checkForActiveTrip();
+    }, 900000);
+
+    // Cleanup intervals on component unmount
+    return () => {
+      clearInterval(dashboardInterval);
+      clearInterval(activeTripsInterval);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1076,7 +1219,7 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
           theme={theme}
           userData={userData}
           performanceData={performanceData}
-          loading={loading}
+          loading={loading && !userData} // Only show loading if no userData yet
           onRefreshUserData={fetchUserData}
         />
 

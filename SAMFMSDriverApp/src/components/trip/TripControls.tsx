@@ -28,6 +28,13 @@ const TripControls: React.FC<TripControlsProps> = ({
 }) => {
   const { theme } = useTheme();
 
+  // Debug logging - removed to reduce console spam
+  // console.log('🎮 TripControls rendered with:', {
+  //   isNearDestination,
+  //   isPaused,
+  //   canEndTrip,
+  // });
+
   return (
     <View style={[styles.controlsContainer, { backgroundColor: theme.background }]}>
       <View style={styles.controlButtonsRow}>
@@ -131,6 +138,8 @@ const TripControls: React.FC<TripControlsProps> = ({
   );
 };
 
+TripControls.displayName = 'TripControls';
+
 const styles = StyleSheet.create({
   controlsContainer: {
     paddingHorizontal: 20,
@@ -181,4 +190,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TripControls;
+export default React.memo(TripControls);

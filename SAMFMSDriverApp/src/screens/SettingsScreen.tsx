@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, Moon, Sun, ChevronRight, Monitor } from 'lucide-react-native';
+import { Bell, Moon, Sun, ChevronRight, Monitor, Activity } from 'lucide-react-native';
 import { useTheme, ThemeMode } from '../contexts/ThemeContext';
 
 interface SettingItemProps {
@@ -55,7 +55,7 @@ const SettingItem: React.FC<SettingItemProps> = ({
   </TouchableOpacity>
 );
 
-export default function SettingsScreen() {
+export default function SettingsScreen({ navigation }: { navigation: any }) {
   const { theme, themeMode, setThemeMode } = useTheme();
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
 
@@ -136,6 +136,21 @@ export default function SettingsScreen() {
               subtitle={getThemeLabel()}
               theme={theme}
               onPress={toggleTheme}
+              showChevron={true}
+            />
+          </View>
+        </View>
+
+        {/* Driving Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>DRIVING</Text>
+          <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
+            <SettingItem
+              icon={Activity}
+              title="Accelerometer Settings"
+              subtitle="Configure driving behavior detection"
+              theme={theme}
+              onPress={() => navigation.navigate('AccelerometerSettings')}
               showChevron={true}
             />
           </View>

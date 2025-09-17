@@ -1,13 +1,26 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { View, StyleSheet, Alert, Vibration } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { finishTrip, pauseTrip, resumeTrip, cancelTrip, completeTrip } from '../utils/api';
+import {
+  finishTrip,
+  pauseTrip,
+  resumeTrip,
+  cancelTrip,
+  completeTrip,
+  reportSpeedViolation,
+  getUserData,
+} from '../utils/api';
 import { useActiveTripContext } from '../contexts/ActiveTripContext';
 import { useTheme } from '../contexts/ThemeContext';
 
 // Import new components and hooks
 import { TripHeader, DirectionsCard, TripMap, TripControls } from '../components/trip';
-import { useLocationTracking, useSpeedLimitTracking, useVehicleData } from '../hooks';
+import {
+  useLocationTracking,
+  useSpeedLimitTracking,
+  useVehicleData,
+  useAccelerometerMonitoring,
+} from '../hooks';
 
 interface ActiveTripScreenProps {
   navigation: {
@@ -26,6 +39,8 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
   const [isPaused, setIsPaused] = useState(false);
   const [pausingTrip, setPausingTrip] = useState(false);
   const [cancelingTrip, setCancelingTrip] = useState(false);
+  const [lastSpeedViolationAlert, setLastSpeedViolationAlert] = useState<number>(0);
+  const [lastSpeedViolationReport, setLastSpeedViolationReport] = useState<number>(0);
   const [statusCheckInterval, setStatusCheckInterval] = useState<ReturnType<
     typeof setInterval
   > | null>(null);
@@ -45,56 +60,163 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     useLocationTracking();
   const { speedLimit, stopSpeedLimitChecking } = useSpeedLimitTracking();
   const {
+    vehicleLocation,
     isWebViewLoaded,
     liveInstruction,
     liveInstructionDistance,
     liveSpeed,
     liveSpeedLimit,
-    currentRoadName,
     setIsWebViewLoaded,
     fetchVehicleData,
     handleWebViewLoad,
     webViewRef,
   } = useVehicleData(activeTrip, currentSpeed, directions, currentDirectionIndex);
 
+  // Callback for accelerometer violations to show popup alerts
+  const handleAccelerometerViolation = useCallback(
+    (params: {
+      type: 'acceleration' | 'braking';
+      value: number;
+      threshold: number;
+      timestamp: Date;
+    }) => {
+      const violationType =
+        params.type === 'acceleration' ? 'Excessive Acceleration' : 'Excessive Braking';
+      const intensity =
+        Math.abs(params.value) > Math.abs(params.threshold) * 1.5 ? 'High' : 'Moderate';
+
+      Alert.alert(
+        `⚠️ ${violationType} Detected`,
+        `${intensity} ${params.type} detected: ${Math.abs(params.value).toFixed(
+          2
+        )} m/s²\n\nPlease drive more smoothly for safety.`,
+        [
+          {
+            text: 'OK',
+            style: 'default',
+          },
+        ]
+      );
+    },
+    []
+  );
+
+  // Use accelerometer monitoring for driving behavior
+  const {
+    isMonitoring: isAccelMonitoring,
+    startMonitoring: startAccelMonitoring,
+    stopMonitoring: stopAccelMonitoring,
+    excessiveAcceleration,
+    excessiveBraking,
+    currentAcceleration,
+    violations,
+    isCalibrated,
+    calibrationProgress,
+    dataQuality,
+  } = useAccelerometerMonitoring(handleAccelerometerViolation);
+
   // Calculate distance between two coordinates in meters using Haversine formula
   const calculateDistance = useCallback(
     (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+      // Haversine formula
       const R = 6371e3; // Earth's radius in meters
-      const φ1 = (lat1 * Math.PI) / 180; // φ, λ in radians
-      const φ2 = (lat2 * Math.PI) / 180;
-      const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-      const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+      const φ1 = (lat1 * Math.PI) / 180; // Convert lat1 to radians
+      const φ2 = (lat2 * Math.PI) / 180; // Convert lat2 to radians
+      const Δφ = ((lat2 - lat1) * Math.PI) / 180; // Latitude difference in radians
+      const Δλ = ((lon2 - lon1) * Math.PI) / 180; // Longitude difference in radians
 
       const a =
         Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
         Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-      return R * c; // Distance in meters
+      const distance = R * c; // Distance in meters
+
+      return distance;
     },
     []
   );
 
-  // Check if driver is within 250m of destination
+  // Check if driver is within 400m of destination - optimized to reduce recalculations
   const isNearDestination = useMemo(() => {
-    if (!currentLocation || !activeTrip?.destination?.location?.coordinates) {
+    // Reduced console logging
+    // console.log('🔍 isNearDestination calculation started');
+
+    if (!activeTrip?.destination?.location?.coordinates) {
+      // console.log('❌ Missing destination data:', {
+      //   hasDestination: !!activeTrip?.destination?.location?.coordinates,
+      //   destination: activeTrip?.destination,
+      // });
+      return false;
+    }
+
+    // Determine which location source to use for distance calculation
+    // Priority: 1) Live vehicle data from API, 2) Current location from GPS tracking
+    let activeVehicleLocation = null;
+
+    // Check if we have live vehicle data from the API (this is the most accurate)
+    if (vehicleLocation?.position) {
+      activeVehicleLocation = {
+        latitude: vehicleLocation.position[0],
+        longitude: vehicleLocation.position[1],
+      };
+    } else if (currentLocation) {
+      activeVehicleLocation = currentLocation;
+    }
+
+    if (!activeVehicleLocation) {
+      // console.log('❌ No vehicle location available');
       return false;
     }
 
     const destCoords = activeTrip.destination.location.coordinates;
+    // Reduced logging
+    // console.log('📍 Coordinates:', {
+    //   vehicle: { lat: activeVehicleLocation.latitude, lng: activeVehicleLocation.longitude },
+    //   destination: { lat: destCoords[1], lng: destCoords[0] },
+    //   destCoords,
+    //   locationSource,
+    // });
 
     const distance = calculateDistance(
-      currentLocation.latitude,
-      currentLocation.longitude,
+      activeVehicleLocation.latitude,
+      activeVehicleLocation.longitude,
       destCoords[1], // destination latitude (GeoJSON: [lng, lat])
       destCoords[0] // destination longitude (GeoJSON: [lng, lat])
     );
 
-    const isNear = distance <= 10000; // Temporarily 10km for testing
+    // Check if we're using mock location (Pretoria coordinates)
+    const isMockLocation =
+      Math.abs(activeVehicleLocation.latitude - -25.7479) < 0.001 &&
+      Math.abs(activeVehicleLocation.longitude - 28.2293) < 0.001;
 
+    let isNear = distance <= 500; // Set to 500m for testing - adjust based on actual needs
+
+    // Reduced logging - only log when actually near
+    if (isNear) {
+      console.log('📏 Near destination:', {
+        distance: Math.round(distance),
+        threshold: 500,
+        isNear,
+      });
+    }
+
+    // For demo purposes: If using mock location, only enable completion if very close (within 1km)
+    // This provides a more realistic demo experience
+    if (isMockLocation && distance > 400) {
+      // console.log('🎭 Mock location detected, but distance too far for completion');
+      isNear = false;
+    }
+
+    // console.log('✅ Final isNearDestination result:', isNear);
     return isNear;
-  }, [currentLocation, activeTrip?.destination?.location?.coordinates, calculateDistance]);
+  }, [
+    // Essential dependencies only
+    activeTrip?.destination,
+    currentLocation,
+    vehicleLocation,
+    calculateDistance,
+  ]);
 
   // Extract turn-by-turn directions from raw route response
   const extractDirections = useCallback(() => {
@@ -176,6 +298,8 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
           if (activeTrip.id) {
             const tripId = activeTrip.id;
             startLocationPing(tripId, false);
+            startAccelMonitoring(); // Resume accelerometer monitoring
+            console.log('🎯 Resumed accelerometer monitoring after trip resume');
             // startSpeedLimitChecking(activeTrip, getCurrentLocation, false);
           }
         }
@@ -186,6 +310,8 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
           // Stop tracking when trip is paused
           stopLocationPing();
           stopSpeedLimitChecking();
+          stopAccelMonitoring(); // Pause accelerometer monitoring
+          console.log('⏸️ Paused accelerometer monitoring with trip');
         }
       }
     } catch (err) {
@@ -193,7 +319,15 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     } finally {
       setPausingTrip(false);
     }
-  }, [activeTrip?.id, isPaused, startLocationPing, stopLocationPing, stopSpeedLimitChecking]);
+  }, [
+    activeTrip?.id,
+    isPaused,
+    startLocationPing,
+    stopLocationPing,
+    stopSpeedLimitChecking,
+    startAccelMonitoring,
+    stopAccelMonitoring,
+  ]);
 
   const handleCancelTrip = useCallback(async () => {
     if (!activeTrip?.id) return;
@@ -211,6 +345,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
               stopLocationPing();
               stopSpeedLimitChecking();
               stopStatusMonitoring();
+              stopAccelMonitoring(); // Stop accelerometer monitoring
               clearActiveTrip();
               navigation.navigate('Dashboard');
             }
@@ -227,6 +362,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     stopLocationPing,
     stopSpeedLimitChecking,
     stopStatusMonitoring,
+    stopAccelMonitoring,
     clearActiveTrip,
     navigation,
   ]);
@@ -241,11 +377,20 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         onPress: async () => {
           setEndingTrip(true);
           try {
+            // Log accelerometer violations before completing trip
+            console.log('🎯 Trip completion - Accelerometer violations:', {
+              totalAccelerationViolations: violations.accelerationCount,
+              totalBrakingViolations: violations.brakingCount,
+              totalViolations: violations.accelerationCount + violations.brakingCount,
+              lastViolationTime: violations.lastViolationTime,
+            });
+
             const response = await completeTrip(activeTrip.id);
             if (response?.data?.success) {
               stopLocationPing();
               stopSpeedLimitChecking();
               stopStatusMonitoring();
+              stopAccelMonitoring(); // Stop accelerometer monitoring
               clearActiveTrip();
               navigation.navigate('Dashboard');
             }
@@ -259,9 +404,13 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     ]);
   }, [
     activeTrip?.id,
+    violations.accelerationCount,
+    violations.brakingCount,
+    violations.lastViolationTime,
     stopLocationPing,
     stopSpeedLimitChecking,
     stopStatusMonitoring,
+    stopAccelMonitoring,
     clearActiveTrip,
     navigation,
   ]);
@@ -302,40 +451,208 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     navigation,
   ]);
 
+  // Use refs to store functions to avoid dependency issues
+  const startLocationPingRef = useRef(startLocationPing);
+  const extractDirectionsRef = useRef(extractDirections);
+  const startAccelMonitoringRef = useRef(startAccelMonitoring);
+  const stopLocationPingRef = useRef(stopLocationPing);
+  const stopSpeedLimitCheckingRef = useRef(stopSpeedLimitChecking);
+  const stopStatusMonitoringRef = useRef(stopStatusMonitoring);
+  const stopAccelMonitoringRef = useRef(stopAccelMonitoring);
+
+  // Update refs on each render
+  startLocationPingRef.current = startLocationPing;
+  extractDirectionsRef.current = extractDirections;
+  startAccelMonitoringRef.current = startAccelMonitoring;
+  stopLocationPingRef.current = stopLocationPing;
+  stopSpeedLimitCheckingRef.current = stopSpeedLimitChecking;
+  stopStatusMonitoringRef.current = stopStatusMonitoring;
+  stopAccelMonitoringRef.current = stopAccelMonitoring;
+
   // Start location tracking and other monitoring when trip is active
-  useEffect(() => {
+  const startTripMonitoring = useCallback(() => {
     if (activeTrip?.id && !isPaused) {
       const tripId = activeTrip.id;
-      startLocationPing(tripId, isPaused);
-      // startSpeedLimitChecking(activeTrip, getCurrentLocation, isPaused);
-      extractDirections();
+      startLocationPingRef.current(tripId, isPaused);
+      extractDirectionsRef.current();
+
+      // Start accelerometer monitoring for driving behavior
+      startAccelMonitoringRef.current();
+      console.log('🎯 Started accelerometer monitoring for trip:', tripId);
+    }
+  }, [activeTrip?.id, isPaused]); // Only depend on state, not functions
+
+  const stopTripMonitoring = useCallback(() => {
+    stopLocationPingRef.current();
+    stopSpeedLimitCheckingRef.current();
+    stopStatusMonitoringRef.current();
+    stopAccelMonitoringRef.current();
+    console.log('🛑 Stopped all trip monitoring');
+  }, []); // No dependencies needed since we use refs
+
+  // Use refs to track monitoring state to avoid effect recreation
+  const isMonitoringActiveRef = useRef(false);
+
+  useEffect(() => {
+    if (activeTrip?.id && !isPaused && !isMonitoringActiveRef.current) {
+      startTripMonitoring();
+      isMonitoringActiveRef.current = true;
+    } else if ((!activeTrip?.id || isPaused) && isMonitoringActiveRef.current) {
+      stopTripMonitoring();
+      isMonitoringActiveRef.current = false;
     }
 
+    // Cleanup on unmount
     return () => {
-      stopLocationPing();
-      stopSpeedLimitChecking();
-      stopStatusMonitoring();
+      if (isMonitoringActiveRef.current) {
+        stopTripMonitoring();
+        isMonitoringActiveRef.current = false;
+      }
     };
-  }, [
-    activeTrip?.id,
-    isPaused,
-    startLocationPing,
-    stopLocationPing,
-    stopSpeedLimitChecking,
-    stopStatusMonitoring,
-    extractDirections,
-  ]);
+  }, [activeTrip?.id, isPaused, startTripMonitoring, stopTripMonitoring]); // Include the stable callbacks
 
-  // Periodically fetch vehicle data
+  // Periodically fetch vehicle data - use ref to avoid dependency issues
+  const fetchVehicleDataRef = useRef(fetchVehicleData);
+  fetchVehicleDataRef.current = fetchVehicleData;
+
   useEffect(() => {
     if (activeTrip?.id && !isPaused) {
       const vehicleInterval = setInterval(() => {
-        fetchVehicleData();
-      }, 3000); // Every 3 seconds
+        fetchVehicleDataRef.current();
+      }, 5000); // Reduced frequency: Every 5 seconds instead of 3
 
       return () => clearInterval(vehicleInterval);
     }
-  }, [activeTrip?.id, isPaused, fetchVehicleData]);
+  }, [activeTrip?.id, isPaused]);
+
+  // Function to play beep sound
+  const playBeepSound = useCallback(() => {
+    // Vibration for immediate feedback (no popup)
+    try {
+      // Short vibration for immediate feedback
+      Vibration.vibrate(100);
+    } catch (beepError) {
+      // Fallback: Multiple vibrations if single vibration fails
+      Vibration.vibrate([0, 200, 100, 200]);
+    }
+  }, []);
+
+  // Function to report speed violation to API
+  const reportViolation = useCallback(
+    async (
+      speed: number,
+      currentSpeedLimit: number,
+      location: { latitude: number; longitude: number }
+    ) => {
+      if (!activeTrip?.id) {
+        console.warn('Cannot report violation: missing trip data', {
+          hasActiveTrip: !!activeTrip,
+          tripId: activeTrip?.id,
+          fullTripData: activeTrip,
+        });
+        return;
+      }
+
+      // Get the current user/employee data to use as driver ID
+      const userData = await getUserData();
+      const employeeId = userData?.employee_id || userData?.id || userData?.user_id;
+
+      if (!employeeId) {
+        console.warn('Cannot report violation: missing employee ID from user data', {
+          userData,
+          availableFields: Object.keys(userData || {}),
+        });
+        return;
+      }
+
+      try {
+        await reportSpeedViolation({
+          trip_id: activeTrip.id,
+          driver_id: employeeId,
+          speed: speed,
+          speed_limit: currentSpeedLimit,
+          location: {
+            type: 'Point',
+            coordinates: [location.longitude, location.latitude], // GeoJSON format: [lng, lat]
+          },
+          time: new Date().toISOString(),
+        });
+
+        console.log(
+          `Speed violation reported: ${Math.round(speed)} km/h in ${currentSpeedLimit} km/h zone`
+        );
+      } catch (violationError) {
+        console.error('Failed to report speed violation:', violationError);
+      }
+    },
+    [activeTrip]
+  );
+
+  // Speed limit violation monitoring with beep alert and violation reporting
+  // Split into smaller effects to reduce re-renders
+  const currentSpeedValue = useMemo(() => {
+    return liveSpeed !== null ? liveSpeed : currentSpeed;
+  }, [liveSpeed, currentSpeed]);
+
+  const currentSpeedLimitValue = useMemo(() => {
+    return liveSpeedLimit !== null ? liveSpeedLimit : speedLimit;
+  }, [liveSpeedLimit, speedLimit]);
+
+  useEffect(() => {
+    const now = Date.now();
+
+    // Check if driver is speeding (only when trip is active and not paused)
+    if (
+      activeTrip?.id &&
+      !isPaused &&
+      currentSpeedLimitValue &&
+      currentSpeedValue > currentSpeedLimitValue &&
+      now - lastSpeedViolationAlert > 3000 // Only alert every 3 seconds
+    ) {
+      // Update the last alert time to prevent spam
+      setLastSpeedViolationAlert(now);
+
+      // Trigger beep sound and vibration
+      playBeepSound();
+
+      // Check if this is a reportable violation (5+ km/h over limit)
+      const speedExcess = currentSpeedValue - currentSpeedLimitValue;
+      if (
+        speedExcess >= 5 &&
+        currentLocation &&
+        now - lastSpeedViolationReport > 30000 // Only report every 30 seconds
+      ) {
+        setLastSpeedViolationReport(now);
+
+        // Report the violation to the API
+        reportViolation(currentSpeedValue, currentSpeedLimitValue, currentLocation);
+
+        console.warn(
+          `REPORTABLE Speed violation: ${Math.round(currentSpeedValue)} km/h (${Math.round(
+            speedExcess
+          )} km/h over ${currentSpeedLimitValue} km/h limit)`
+        );
+      } else {
+        // Just log minor violations
+        console.warn(
+          `Speed limit exceeded: ${Math.round(
+            currentSpeedValue
+          )} km/h (limit: ${currentSpeedLimitValue} km/h)`
+        );
+      }
+    }
+  }, [
+    // Reduced dependencies using memoized values
+    currentSpeedValue,
+    currentSpeedLimitValue,
+    activeTrip?.id,
+    isPaused,
+    lastSpeedViolationAlert,
+    lastSpeedViolationReport,
+    playBeepSound,
+    currentLocation,
+    reportViolation,
+  ]);
 
   // Show loading or error states
   if (isCheckingActiveTrip) {
@@ -362,6 +679,15 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         activeTrip={activeTrip}
         currentSpeed={liveSpeed !== null ? liveSpeed : currentSpeed}
         speedLimit={liveSpeedLimit !== null ? liveSpeedLimit : speedLimit}
+        accelerometerData={{
+          excessiveAcceleration,
+          excessiveBraking,
+          currentAcceleration,
+          violations,
+          isCalibrated,
+          calibrationProgress,
+          dataQuality,
+        }}
       />
 
       <DirectionsCard

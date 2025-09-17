@@ -26,6 +26,11 @@ const TripMap: React.FC<TripMapProps> = ({
   const localWebViewRef = useRef<WebView>(null);
 
   const getMapHTML = useCallback(() => {
+    // Log the raw coordinates from activeTrip for debugging - reduced logging
+    // console.log('MAP DEBUGGING - Raw activeTrip coordinates:');
+    // console.log('Origin coordinates:', activeTrip?.origin?.location?.coordinates);
+    // console.log('Destination coordinates:', activeTrip?.destination?.location?.coordinates);
+
     const pickup = activeTrip?.origin?.location?.coordinates
       ? [activeTrip.origin.location.coordinates[1], activeTrip.origin.location.coordinates[0]]
       : [37.7749, -122.4194];
@@ -36,6 +41,11 @@ const TripMap: React.FC<TripMapProps> = ({
           activeTrip.destination.location.coordinates[0],
         ]
       : [37.6197, -122.3875];
+
+    // Log the transformed coordinates used by the map - reduced logging
+    // console.log('MAP DEBUGGING - Transformed coordinates for map:');
+    // console.log('Pickup (lat, lng):', pickup);
+    // console.log('Destination (lat, lng):', destination);
 
     // Get waypoints data if available
     const waypoints =
@@ -400,6 +410,8 @@ const TripMap: React.FC<TripMapProps> = ({
   );
 };
 
+TripMap.displayName = 'TripMap';
+
 const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
@@ -409,4 +421,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TripMap;
+export default React.memo(TripMap);

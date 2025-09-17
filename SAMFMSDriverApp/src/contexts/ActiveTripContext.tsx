@@ -84,9 +84,9 @@ export const ActiveTripProvider: React.FC<ActiveTripProviderProps> = ({ children
 
   // Check for active trips
   const checkForActiveTrip = useCallback(async () => {
-    // Prevent too frequent checks (minimum 30 seconds between checks)
+    // Prevent too frequent checks (minimum 60 seconds between checks) - increased from 30s
     const now = Date.now();
-    if (now - lastCheckTime < 30000) {
+    if (now - lastCheckTime < 60000) {
       return;
     }
 
@@ -210,13 +210,13 @@ export const ActiveTripProvider: React.FC<ActiveTripProviderProps> = ({ children
     checkForActiveTrip();
   }, [checkForActiveTrip]);
 
-  // Periodic check every 2 minutes when app is active
+  // Periodic check every 5 minutes when app is active (reduced from 2 minutes)
   useEffect(() => {
     const interval = setInterval(() => {
       if (AppState.currentState === 'active') {
         checkForActiveTrip();
       }
-    }, 120000); // 2 minutes
+    }, 300000); // 5 minutes
 
     return () => clearInterval(interval);
   }, [checkForActiveTrip]);

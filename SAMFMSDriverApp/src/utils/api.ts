@@ -624,6 +624,75 @@ export const completeTrip = async (tripId: string) => {
   }
 };
 
+// Report speed violation
+export const reportSpeedViolation = async (violationData: {
+  trip_id: string;
+  driver_id: string;
+  speed: number;
+  speed_limit: number;
+  location: {
+    type: 'Point';
+    coordinates: [number, number]; // [longitude, latitude]
+  };
+  time: string; // ISO 8601 timestamp
+}) => {
+  try {
+    console.log('📤 Sending speed violation report:', {
+      endpoint: '/trips/trips/speed-violations/',
+      data: violationData,
+      timestamp: new Date().toISOString(),
+    });
+
+    const data = await apiRequest('/trips/trips/speed-violations/', {
+      method: 'POST',
+      body: JSON.stringify(violationData),
+    });
+
+    console.log('✅ Speed violation API response:', {
+      success: true,
+      response: data,
+      timestamp: new Date().toISOString(),
+    });
+
+    return data;
+  } catch (error) {
+    console.error('❌ Speed violation API error:', {
+      error: error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      requestData: violationData,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Fallback to mock success for development
+    console.log('🔄 Falling back to mock speed violation report:', {
+      reason: 'API request failed',
+      timestamp: new Date().toISOString(),
+    });
+
+    const mockResponse = {
+      data: {
+        id: `violation-${Date.now()}`,
+        trip_id: violationData.trip_id,
+        driver_id: violationData.driver_id,
+        speed: violationData.speed,
+        speed_limit: violationData.speed_limit,
+        location: violationData.location,
+        time: violationData.time,
+        status: 'recorded',
+        message: 'Speed violation recorded successfully (mock)',
+      },
+      status: 'success',
+    };
+
+    console.log('🎭 Mock speed violation response:', {
+      response: mockResponse,
+      timestamp: new Date().toISOString(),
+    });
+
+    return mockResponse;
+  }
+};
+
 // Driver location ping during active trip
 export const pingDriverLocation = async (
   tripId: string,

@@ -73,6 +73,15 @@ export const useVehicleData = (
               heading: pos.bearing || null,
               lastUpdated: new Date(pos.timestamp || Date.now()),
             };
+
+            // DEBUG: Log the live vehicle position being sent to map
+            console.log('🚗 LIVE VEHICLE POSITION (sent to map):', {
+              latitude: pos.latitude,
+              longitude: pos.longitude,
+              coordinates: [pos.latitude, pos.longitude],
+              speed: pos.speed,
+              timestamp: pos.timestamp,
+            });
           }
 
           // Extract route polyline - prefer remaining polyline for live navigation
@@ -90,17 +99,29 @@ export const useVehicleData = (
             ]);
           }
 
-          // Update state and WebView with live data
+          // Update state and WebView with live data (only if values actually changed)
           if (location) {
-            setVehicleLocation(location);
-            setMapCenter(location.position as [number, number]);
-            // Extract and set live speed from current position
-            setLiveSpeed(location.speed);
+            // Only update if location has actually changed significantly
+            const hasSignificantChange =
+              !vehicleLocation ||
+              Math.abs(location.position[0] - vehicleLocation.position[0]) > 0.0001 ||
+              Math.abs(location.position[1] - vehicleLocation.position[1]) > 0.0001 ||
+              Math.abs((location.speed || 0) - (vehicleLocation.speed || 0)) > 1;
+
+            if (hasSignificantChange) {
+              setVehicleLocation(location);
+              setMapCenter(location.position as [number, number]);
+              // Extract and set live speed from current position
+              setLiveSpeed(location.speed);
+            }
           }
 
-          // Extract and set speed limit from current instruction
+          // Extract and set speed limit from current instruction (only if changed)
           if (liveData.current_instruction && liveData.current_instruction.speed_limit) {
-            setLiveSpeedLimit(liveData.current_instruction.speed_limit);
+            const newSpeedLimit = liveData.current_instruction.speed_limit;
+            if (newSpeedLimit !== liveSpeedLimit) {
+              setLiveSpeedLimit(newSpeedLimit);
+            }
           }
 
           console.log('Live speed and speed limit extracted:', {
@@ -469,6 +490,8 @@ export const useVehicleData = (
     activeTrip?.vehicleId,
     isWebViewLoaded,
     currentSpeed,
+    liveSpeedLimit,
+    vehicleLocation,
   ]);
 
   // Handle WebView load - fetch initial vehicle data
