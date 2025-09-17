@@ -85,6 +85,32 @@ export const login = async (email: string, password: string): Promise<any> => {
   return data;
 };
 
+export const forgotPassword = async (email: string): Promise<any> => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw new Error('Invalid email format');
+  }
+  return email;
+  const response = await fetch(`${API_URL}/auth/login`, {//change to forgot password for util
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Forgot password failed');
+  }
+
+  const data = await response.json();
+
+  return data;
+};
+
 export const logout = (): void => {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
