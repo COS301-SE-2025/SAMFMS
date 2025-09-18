@@ -1,4 +1,4 @@
-from config.database import security_users_collection
+from config.database import security_users_collection, otp_collection
 from models.database_models import SecurityUser
 from typing import Optional, Dict, Any
 from bson import ObjectId
@@ -133,6 +133,16 @@ class UserRepository:
         """Delete user by user_id"""
         try:
             result = await security_users_collection.delete_one({"user_id": user_id})
+            return result.deleted_count > 0
+        except Exception as e:
+            logger.error(f"Failed to delete user: {e}")
+            raise
+
+    @staticmethod
+    async def insert_otp(email: str, otp) -> bool:
+        """Insert otp for an email and make it expire eventually"""
+        try:
+            result = await otp_collection.insert_one({"email": email, "otp": otp})
             return result.deleted_count > 0
         except Exception as e:
             logger.error(f"Failed to delete user: {e}")

@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 import uuid
 import logging
 import hashlib
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -359,3 +360,21 @@ class AuthService:
         except Exception as e:
             logger.error(f"Logout error: {e}")
             raise
+
+
+
+
+    @staticmethod
+    async def generate_otp(email: str) -> str:
+        """Generate a 10-digit OTP based on the email and current time."""
+        current_time = int(time.time())
+        
+        data = f"{email}{current_time}"
+        
+        hash_object = hashlib.sha256(data.encode())
+        
+        otp = str(int(hash_object.hexdigest(), 16))[-10:]
+        
+        return otp
+
+

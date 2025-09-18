@@ -18,6 +18,9 @@ security_users_collection = db.security_users
 sessions_collection = db.sessions
 audit_logs_collection = db.audit_logs
 blacklisted_tokens_collection = db.blacklisted_tokens
+otp_collection = db.otp
+
+
 
 
 async def test_database_connection():
@@ -42,6 +45,8 @@ async def create_indexes():
         await audit_logs_collection.create_index("user_id")
         
         await blacklisted_tokens_collection.create_index("token_hash", unique=True)
+
+        await otp_collection.create_index("created_at", expireAfterSeconds=900)  # 15 minutes
         
         logger.info("Database indexes created successfully")
     except Exception as e:

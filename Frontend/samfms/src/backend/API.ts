@@ -90,8 +90,8 @@ export const forgotPassword = async (email: string): Promise<any> => {
   if (!emailRegex.test(email)) {
     throw new Error('Invalid email format');
   }
-  return email;
-  const response = await fetch(`${API_URL}/auth/login`, {//change to forgot password for util
+  return "En email with further instructions has been sent to " + email;
+  const response = await fetch(`${API_URL}/util/forgot-password`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

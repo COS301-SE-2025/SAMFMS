@@ -325,6 +325,25 @@ async def change_password(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to change password"
         )
+    
+@router.post("/forgot-password") #POST /auth/forgot-password?email=user@example.com || POST /auth/forgot-password?otp=user@example.com
+async def forgot_password(email: str):
+
+    """Forgot-password: Endpoint to start forgot password sequence"""
+
+    #if parameter = email
+    #Check if email exists
+    user = AuthService.get_user_by_email(email)
+    #Tell frontend email has been sent
+    #Generate otp linked with email that has expiry time if user exists
+    #Send email with otp
+
+    #if parameter = otp and email and password
+    #Check if otp matches otp linked with email
+        #If yes, change password
+        #if no, send error
+
+
 
 
 @router.post("/upload-profile-picture")
