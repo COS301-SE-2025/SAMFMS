@@ -88,6 +88,24 @@ const TripHeader: React.FC<TripHeaderProps> = ({
             )}
           </View>
 
+          {/* Violation Counters */}
+          {accelerometerData && accelerometerData.isCalibrated && (
+            <View style={styles.violationCounters}>
+              <View style={styles.violationCounter}>
+                <Text style={[styles.violationLabel, { color: theme.danger }]}>ACC:</Text>
+                <Text style={[styles.violationCountValue, { color: theme.danger }]}>
+                  {accelerometerData.violations.accelerationCount}
+                </Text>
+              </View>
+              <View style={styles.violationCounter}>
+                <Text style={[styles.violationLabel, { color: theme.warning }]}>BRK:</Text>
+                <Text style={[styles.violationCountValue, { color: theme.warning }]}>
+                  {accelerometerData.violations.brakingCount}
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Live Accelerometer Reading */}
           {accelerometerData && (
             <AccelerometerDisplay
@@ -359,6 +377,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     lineHeight: 12,
+  },
+  violationCounters: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 12,
+  },
+  violationCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  violationLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  violationCountValue: {
+    fontSize: 10,
+    fontWeight: '700',
+    minWidth: 16,
+    textAlign: 'center',
   },
 });
 

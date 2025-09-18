@@ -13,6 +13,7 @@ import AccountScreen from '../screens/AccountScreen';
 import HelpScreen from '../screens/HelpScreen';
 import TripDetailsScreen from '../screens/TripDetailsScreen';
 import ActiveTripScreen from '../screens/ActiveTripScreen';
+import { ComprehensiveDemoScreen } from '../components/ComprehensiveDemoScreen';
 import SwipeNavigationWrapper from '../components/SwipeNavigationWrapper';
 import { ActiveTripProvider } from '../contexts/ActiveTripContext';
 
@@ -36,6 +37,7 @@ function SettingsStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SettingsHome" component={SettingsScreen} />
       <Stack.Screen name="AccelerometerSettings" component={AccelerometerSettingsScreen} />
+      <Stack.Screen name="ComprehensiveDemo" component={ComprehensiveDemoScreen} />
     </Stack.Navigator>
   );
 }

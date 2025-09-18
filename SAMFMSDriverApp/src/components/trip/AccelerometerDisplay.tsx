@@ -57,12 +57,26 @@ const AccelerometerDisplay: React.FC<AccelerometerDisplayProps> = React.memo(
       }
     };
 
-    // Get calibration status text
+    // Get color for data quality based on percentage
+    const getQualityColor = () => {
+      const quality = dataQuality || 0;
+      if (quality >= 0.8) {
+        return theme.success; // Green for high quality (>=80%)
+      } else if (quality >= 0.6) {
+        return '#ffd43b'; // Yellow for medium quality (60-79%)
+      } else if (quality >= 0.3) {
+        return theme.warning; // Orange for low quality (30-59%)
+      } else {
+        return theme.danger; // Red for very low quality (<30%)
+      }
+    };
+
+    // Get calibration status text (simplified since quality is shown separately)
     const getCalibrationStatus = () => {
       if (!isCalibrated && calibrationProgress > 0) {
         return `Calibrating... ${Math.round(calibrationProgress * 100)}%`;
       } else if (isCalibrated) {
-        return `Quality: ${Math.round(dataQuality * 100)}%`;
+        return 'Calibrated';
       } else {
         return 'Not calibrated';
       }
@@ -70,11 +84,23 @@ const AccelerometerDisplay: React.FC<AccelerometerDisplayProps> = React.memo(
 
     return (
       <View style={styles.container}>
-        <Text style={[styles.label, { color: theme.textSecondary }]}>Acceleration:</Text>
-        <Text ref={accelerationTextRef} style={[styles.value, { color: getAccelerationColor() }]}>
-          {currentAcceleration.toFixed(2)} m/s²
-        </Text>
-        {(calibrationProgress > 0 || isCalibrated || dataQuality > 0) && (
+        <View style={styles.accelerationContainer}>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Acceleration:</Text>
+          <Text ref={accelerationTextRef} style={[styles.value, { color: getAccelerationColor() }]}>
+            {currentAcceleration.toFixed(2)} m/s²
+          </Text>
+        </View>
+
+        {/* Data Quality Display */}
+        <View style={styles.qualityContainer}>
+          <Text style={[styles.qualityLabel, { color: theme.textSecondary }]}>Quality:</Text>
+          <Text style={[styles.qualityValue, { color: getQualityColor() }]}>
+            {dataQuality > 0 ? Math.round(dataQuality * 100) : 0}%
+          </Text>
+        </View>
+
+        {/* Calibration Status */}
+        {(calibrationProgress > 0 || isCalibrated) && (
           <Text style={[styles.status, { color: theme.textSecondary }]}>
             {getCalibrationStatus()}
           </Text>
@@ -86,9 +112,19 @@ const AccelerometerDisplay: React.FC<AccelerometerDisplayProps> = React.memo(
 
 const styles = StyleSheet.create({
   container: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    marginTop: 4,
+  },
+  accelerationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginBottom: 2,
+  },
+  qualityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
   },
   label: {
     fontSize: 12,
@@ -99,11 +135,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+  qualityLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginRight: 6,
+  },
+  qualityValue: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   status: {
     fontSize: 10,
     fontWeight: '400',
-    marginLeft: 8,
     fontStyle: 'italic',
+    marginTop: 2,
   },
 });
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, Moon, Sun, ChevronRight, Monitor, Activity } from 'lucide-react-native';
+import { Bell, Moon, Sun, ChevronRight, Monitor, Activity, TestTube } from 'lucide-react-native';
 import { useTheme, ThemeMode } from '../contexts/ThemeContext';
 
 interface SettingItemProps {
@@ -151,6 +151,23 @@ export default function SettingsScreen({ navigation }: { navigation: any }) {
               subtitle="Configure driving behavior detection"
               theme={theme}
               onPress={() => navigation.navigate('AccelerometerSettings')}
+              showChevron={true}
+            />
+          </View>
+        </View>
+
+        {/* Development & Testing Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+            DEVELOPMENT & TESTING
+          </Text>
+          <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
+            <SettingItem
+              icon={TestTube}
+              title="Algorithm Demo & Validation"
+              subtitle="Comprehensive testing and demo suite"
+              theme={theme}
+              onPress={() => navigation.navigate('ComprehensiveDemo')}
               showChevron={true}
             />
           </View>

@@ -7,7 +7,9 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "test:algorithm": "node runAlgorithmTests.js",
+    "validate": "node runAlgorithmTests.js"
   },
   "dependencies": {
     "@mapbox/polyline": "^1.2.1",

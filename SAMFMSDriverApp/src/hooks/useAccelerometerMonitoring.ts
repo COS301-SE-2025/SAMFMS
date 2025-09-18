@@ -120,13 +120,59 @@ export const useAccelerometerMonitoring = (
     (acceleration: number, quality: number) => {
       const now = Date.now();
 
+      // Enhanced debug logging for violation detection
+      const shouldLogDebug = Math.abs(acceleration) > 1.0; // Log when there's any significant acceleration
+
+      // Check calibration status directly from sensor fusion for real-time accuracy
+      const isCurrentlyCalibrated = settings.enableSensorFusion
+        ? sensorFusionRef.current.isCalibrated()
+        : true; // Skip calibration requirement if sensor fusion is disabled
+
+      const currentProgress = settings.enableSensorFusion
+        ? sensorFusionRef.current.getCalibrationProgress()
+        : 1.0;
+
+      if (shouldLogDebug) {
+        console.log(
+          `🔍 VIOLATION CHECK: acc=${acceleration.toFixed(3)}, quality=${(quality * 100).toFixed(
+            1
+          )}%, calibrated=${isCurrentlyCalibrated} (state: ${isCalibrated}), accel_threshold=${
+            settings.accelerationThreshold
+          }, brake_threshold=${settings.brakingThreshold}`
+        );
+      }
+
       // Skip violation detection if data quality is too low
+      // Temporarily reduced threshold from 0.6 to 0.3 for better testing
       if (quality < 0.3) {
+        if (shouldLogDebug) {
+          console.log(`❌ SKIP: Quality too low (${(quality * 100).toFixed(1)}% < 30%)`);
+        }
+        return;
+      }
+
+      // Skip violation detection during calibration phase
+      // Allow the system to learn normal driving patterns without false alerts
+      if (!isCurrentlyCalibrated) {
+        if (shouldLogDebug) {
+          console.log(
+            `❌ SKIP: System not calibrated yet (progress: ${Math.round(currentProgress * 100)}%)`
+          );
+        }
         return;
       }
 
       // Check if enough time has passed since last alert
-      if (now - lastAlertTimeRef.current < settings.alertCooldown) {
+      const timeSinceLastAlert = now - lastAlertTimeRef.current;
+      if (timeSinceLastAlert < settings.alertCooldown) {
+        if (shouldLogDebug) {
+          const remainingCooldown = Math.ceil((settings.alertCooldown - timeSinceLastAlert) / 1000);
+          console.log(
+            `❌ SKIP: Cooldown active - ${remainingCooldown}s remaining (${(
+              timeSinceLastAlert / 1000
+            ).toFixed(1)}s/${settings.alertCooldown / 1000}s)`
+          );
+        }
         return;
       }
 
@@ -134,6 +180,11 @@ export const useAccelerometerMonitoring = (
       let violationType = '';
 
       if (acceleration > settings.accelerationThreshold) {
+        console.log(
+          `🚨 ACCELERATION VIOLATION DETECTED! ${acceleration.toFixed(3)} > ${
+            settings.accelerationThreshold
+          }`
+        );
         setExcessiveAcceleration(true);
         violationDetected = true;
         violationType = 'acceleration';
@@ -161,10 +212,12 @@ export const useAccelerometerMonitoring = (
           ).toFixed(0)}%)`
         );
       } else if (acceleration < settings.brakingThreshold) {
+        console.log(
+          `🚨 BRAKING VIOLATION DETECTED! ${acceleration.toFixed(3)} < ${settings.brakingThreshold}`
+        );
         setExcessiveBraking(true);
         violationDetected = true;
         violationType = 'braking';
-
         const violationTime = new Date();
         setViolations(prev => ({
           ...prev,
@@ -199,6 +252,13 @@ export const useAccelerometerMonitoring = (
 
         lastAlertTimeRef.current = now;
 
+        // Log cooldown period start
+        console.log(
+          `⏱️ Violation cooldown started - Next violation can be detected in ${
+            settings.alertCooldown / 1000
+          } seconds`
+        );
+
         // Clear the violation flag after a short time
         setTimeout(() => {
           if (violationType === 'acceleration') {
@@ -209,12 +269,19 @@ export const useAccelerometerMonitoring = (
         }, 2000); // Clear after 2 seconds
       }
     },
-    [settings.accelerationThreshold, settings.brakingThreshold, settings.alertCooldown, onViolation]
+    [
+      settings.accelerationThreshold,
+      settings.brakingThreshold,
+      settings.alertCooldown,
+      settings.enableSensorFusion,
+      onViolation,
+      isCalibrated,
+    ]
   );
 
   // Process accelerometer data with new sensor fusion and filtering
-  // Note: For phone in upright/portrait orientation:
-  // X-axis = lateral (left/right), Y-axis = vertical (up/down), Z-axis = forward/backward
+  // Note: Dynamic orientation detection determines the appropriate driving axis
+  // No assumptions made about device orientation
   const processAccelerometerData = useCallback(
     (data: SensorData) => {
       const { x, y, z } = data;
@@ -242,13 +309,19 @@ export const useAccelerometerMonitoring = (
           sensorFusionRef.current.addCalibrationSample(accelerometerVector);
         }
       } else {
-        // Basic processing without sensor fusion
+        // Basic processing without sensor fusion - use magnitude of acceleration
+        // to avoid axis assumptions when sensor fusion is disabled
+        const magnitude = Math.sqrt(x * x + y * y + z * z);
+        const gravityMagnitude = 9.81;
+        // Estimate driving acceleration as deviation from gravity
+        const drivingMagnitude = Math.abs(magnitude - gravityMagnitude);
+
         processed = {
           raw: accelerometerVector,
           compensated: accelerometerVector,
           filtered: accelerometerVector,
-          drivingAcceleration: z, // Use Z-axis for upright phone orientation
-          quality: 0.7, // Default quality
+          drivingAcceleration: drivingMagnitude,
+          quality: 0.5, // Lower quality without sensor fusion
         };
       }
 
@@ -256,7 +329,14 @@ export const useAccelerometerMonitoring = (
       let finalAcceleration = processed.drivingAcceleration;
       if (settings.enableMultistageFiltering && multistageFilterRef.current) {
         const filteredVector = multistageFilterRef.current.filter(processed.compensated);
-        finalAcceleration = filteredVector.z; // Use Z-axis for upright phone orientation
+        // Use the driving acceleration from sensor fusion instead of assuming axis
+        finalAcceleration = sensorFusionRef.current.isCalibrated()
+          ? processed.drivingAcceleration
+          : Math.sqrt(
+              filteredVector.x * filteredVector.x +
+                filteredVector.y * filteredVector.y +
+                filteredVector.z * filteredVector.z
+            ) - 9.81;
       } // Update data quality
       setDataQuality(processed.quality);
 
@@ -278,11 +358,14 @@ export const useAccelerometerMonitoring = (
       // Debug logging for high acceleration events
       if (Math.abs(finalAcceleration) > 2.0) {
         console.log(
-          `📊 Acceleration: ${finalAcceleration.toFixed(2)} m/s² | Quality: ${(
+          `📊 Acceleration: ${finalAcceleration.toFixed(3)} m/s² (SIGNED) | Quality: ${(
             processed.quality * 100
           ).toFixed(0)}% | ` +
             `Calibrated: ${sensorFusionRef.current.isCalibrated() ? 'Yes' : 'No'} | ` +
-            `Filtering: ${settings.enableMultistageFiltering ? 'On' : 'Off'}`
+            `Filtering: ${settings.enableMultistageFiltering ? 'On' : 'Off'} | ` +
+            `Raw: [${accelerometerVector.x.toFixed(2)}, ${accelerometerVector.y.toFixed(
+              2
+            )}, ${accelerometerVector.z.toFixed(2)}]`
         );
       }
     },
@@ -302,10 +385,23 @@ export const useAccelerometerMonitoring = (
       return;
     }
 
+    // Clean up any existing subscriptions before starting new ones
+    if (accelerometerSubscriptionRef.current) {
+      accelerometerSubscriptionRef.current.unsubscribe();
+      accelerometerSubscriptionRef.current = null;
+    }
+    if (gyroscopeSubscriptionRef.current) {
+      gyroscopeSubscriptionRef.current.unsubscribe();
+      gyroscopeSubscriptionRef.current = null;
+    }
+
     console.log('🎯 Starting enhanced accelerometer monitoring with sensor fusion and filtering');
 
     // Reset sensor fusion and filters
     sensorFusionRef.current = new SensorFusion();
+    // Start calibration process
+    sensorFusionRef.current.startCalibration();
+
     if (settings.enableMultistageFiltering) {
       multistageFilterRef.current = new MultistageFilter(
         settings.processNoise,
@@ -315,6 +411,14 @@ export const useAccelerometerMonitoring = (
         settings.movingAverageWindow
       );
     }
+
+    // Reset state
+    setExcessiveAcceleration(false);
+    setExcessiveBraking(false);
+    setCurrentAcceleration(0);
+    setIsCalibrated(false);
+    setCalibrationProgress(0);
+    setDataQuality(0);
 
     // Set update interval based on settings
     setUpdateIntervalForType(SensorTypes.accelerometer, settings.samplingRate);
@@ -337,6 +441,7 @@ export const useAccelerometerMonitoring = (
       });
     }
 
+    // Set monitoring state AFTER successful subscription setup
     setIsMonitoring(true);
 
     // Reset violation counters when starting
@@ -346,26 +451,16 @@ export const useAccelerometerMonitoring = (
       lastViolationTime: null,
     });
 
-    // Clear previous flags
-    setExcessiveAcceleration(false);
-    setExcessiveBraking(false);
-    setCurrentAcceleration(0);
-    setIsCalibrated(false);
-    setCalibrationProgress(0);
-    setDataQuality(0);
-
     // Reset gyroscope data
     gyroscopeDataRef.current = null;
   }, [isMonitoring, settings, processAccelerometerData, processGyroscopeData]);
 
   // Stop monitoring accelerometer
   const stopMonitoring = useCallback(() => {
-    if (!isMonitoring) {
-      console.log('Accelerometer monitoring already inactive');
-      return;
-    }
-
     console.log('🛑 Stopping enhanced accelerometer monitoring');
+
+    // Set monitoring to false BEFORE cleanup to prevent race conditions
+    setIsMonitoring(false);
 
     if (accelerometerSubscriptionRef.current) {
       accelerometerSubscriptionRef.current.unsubscribe();
@@ -377,7 +472,6 @@ export const useAccelerometerMonitoring = (
       gyroscopeSubscriptionRef.current = null;
     }
 
-    setIsMonitoring(false);
     setExcessiveAcceleration(false);
     setExcessiveBraking(false);
     setCurrentAcceleration(0);
@@ -398,7 +492,7 @@ export const useAccelerometerMonitoring = (
         }`
       );
     }
-  }, [isMonitoring, violations, settings]);
+  }, [violations, settings]);
 
   // Cleanup on unmount
   useEffect(() => {

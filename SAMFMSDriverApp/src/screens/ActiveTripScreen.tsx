@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, StyleSheet, Alert, Vibration } from 'react-native';
+import { View, Text, StyleSheet, Alert, Vibration } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   finishTrip,
@@ -72,7 +72,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     webViewRef,
   } = useVehicleData(activeTrip, currentSpeed, directions, currentDirectionIndex);
 
-  // Callback for accelerometer violations to show popup alerts
+  // Callback for accelerometer violations (no popup, just logging)
   const handleAccelerometerViolation = useCallback(
     (params: {
       type: 'acceleration' | 'braking';
@@ -85,18 +85,15 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
       const intensity =
         Math.abs(params.value) > Math.abs(params.threshold) * 1.5 ? 'High' : 'Moderate';
 
-      Alert.alert(
-        `⚠️ ${violationType} Detected`,
-        `${intensity} ${params.type} detected: ${Math.abs(params.value).toFixed(
-          2
-        )} m/s²\n\nPlease drive more smoothly for safety.`,
-        [
-          {
-            text: 'OK',
-            style: 'default',
-          },
-        ]
+      // Log the violation for debugging/analytics (no popup shown to user)
+      console.log(
+        `⚠️ ${violationType} Detected: ${intensity} ${params.type} - ${Math.abs(
+          params.value
+        ).toFixed(2)} m/s² (threshold: ${Math.abs(params.threshold).toFixed(2)} m/s²)`
       );
+
+      // Note: Vibration and counter updates are handled in the useAccelerometerMonitoring hook
+      // No popup alert shown to avoid interrupting the driver
     },
     []
   );
@@ -114,6 +111,36 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     calibrationProgress,
     dataQuality,
   } = useAccelerometerMonitoring(handleAccelerometerViolation);
+
+  // Debug effect to log calibration status changes
+  useEffect(() => {
+    console.log(
+      `📊 Accelerometer Status: Calibrated=${isCalibrated}, Progress=${Math.round(
+        calibrationProgress * 100
+      )}%, Quality=${Math.round(dataQuality * 100)}%`
+    );
+    if (isCalibrated) {
+      console.log(`✅ Accelerometer fully calibrated! Violation detection is now ACTIVE.`);
+    }
+  }, [isCalibrated, calibrationProgress, dataQuality]);
+
+  // Calculate remaining cooldown time for display
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (violations.lastViolationTime) {
+        const timeSinceViolation = Date.now() - violations.lastViolationTime.getTime();
+        const cooldownPeriod = 30000; // 30 seconds in milliseconds
+        const remaining = Math.max(0, cooldownPeriod - timeSinceViolation);
+        setCooldownRemaining(Math.ceil(remaining / 1000));
+      } else {
+        setCooldownRemaining(0);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [violations.lastViolationTime]);
 
   // Calculate distance between two coordinates in meters using Haversine formula
   const calculateDistance = useCallback(
@@ -690,6 +717,95 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         }}
       />
 
+      {/* Debug Info Display */}
+      {__DEV__ && (
+        <View
+          style={[
+            styles.debugContainer,
+            { backgroundColor: theme.cardBackground, borderColor: theme.border },
+          ]}
+        >
+          <Text style={[styles.debugTitle, { color: theme.text }]}>
+            🔧 Behavior Analytics Debug
+          </Text>
+          <View style={styles.debugRow}>
+            <Text style={[styles.debugLabel, { color: theme.textSecondary }]}>Calibrated:</Text>
+            <Text
+              style={[styles.debugValue, { color: isCalibrated ? theme.success : theme.danger }]}
+            >
+              {isCalibrated ? 'YES' : 'NO'}
+            </Text>
+          </View>
+          <View style={styles.debugRow}>
+            <Text style={[styles.debugLabel, { color: theme.textSecondary }]}>Progress:</Text>
+            <Text style={[styles.debugValue, { color: theme.text }]}>
+              {Math.round(calibrationProgress * 100)}%
+            </Text>
+          </View>
+          <View style={styles.debugRow}>
+            <Text style={[styles.debugLabel, { color: theme.textSecondary }]}>Quality:</Text>
+            <Text style={[styles.debugValue, { color: theme.text }]}>
+              {Math.round(dataQuality * 100)}%
+            </Text>
+          </View>
+          <View style={styles.debugRow}>
+            <Text style={[styles.debugLabel, { color: theme.textSecondary }]}>Acceleration:</Text>
+            <Text style={[styles.debugValue, { color: theme.text }]}>
+              {currentAcceleration.toFixed(2)} m/s²
+            </Text>
+          </View>
+          <View style={styles.debugRow}>
+            <Text style={[styles.debugLabel, { color: theme.textSecondary }]}>Violations:</Text>
+            <Text style={[styles.debugValue, { color: theme.text }]}>
+              ACC: {violations.accelerationCount}, BRK: {violations.brakingCount}
+            </Text>
+          </View>
+          <View style={styles.debugRow}>
+            <Text style={[styles.debugLabel, { color: theme.textSecondary }]}>Cooldown:</Text>
+            <Text
+              style={[
+                styles.debugValue,
+                { color: cooldownRemaining > 0 ? theme.warning : theme.success },
+              ]}
+            >
+              {cooldownRemaining > 0 ? `${cooldownRemaining}s` : 'Ready'}
+            </Text>
+          </View>
+        </View>
+      )}
+      {!isCalibrated && calibrationProgress > 0 && (
+        <View style={[styles.calibrationBanner, { backgroundColor: theme.warning || '#ffd43b' }]}>
+          <Text style={[styles.calibrationText, { color: theme.background || '#000' }]}>
+            🔧 Calibrating Behavior Analytics... {Math.round(calibrationProgress * 100)}%
+          </Text>
+          <View style={styles.progressBarContainer}>
+            <View style={styles.progressBarBackground} />
+            <View
+              style={[
+                styles.progressBar,
+                {
+                  backgroundColor: theme.background || '#000',
+                  width: `${calibrationProgress * 100}%`,
+                },
+              ]}
+            />
+          </View>
+          <Text style={[styles.calibrationSubtext, { color: theme.textSecondary || '#666' }]}>
+            Drive normally - violations alerts are disabled during calibration
+          </Text>
+        </View>
+      )}
+
+      {/* Temporary Debug Info for Testing */}
+      {isCalibrated && (
+        <View style={[styles.debugContainer, { backgroundColor: theme.cardBackground }]}>
+          <Text style={[styles.debugText, { color: theme.text }]}>
+            DEBUG: ACC={currentAcceleration.toFixed(2)} | Quality={Math.round(dataQuality * 100)}% |
+            Violations: ACC={violations.accelerationCount} BRK={violations.brakingCount}
+          </Text>
+        </View>
+      )}
+
       <DirectionsCard
         liveInstruction={liveInstruction}
         liveInstructionDistance={liveInstructionDistance}
@@ -750,6 +866,82 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  calibrationBanner: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  calibrationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  progressBarContainer: {
+    width: '100%',
+    height: 4,
+    borderRadius: 2,
+    marginBottom: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  progressBarBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 2,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  calibrationSubtext: {
+    fontSize: 12,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  debugContainer: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  debugTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  debugRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  debugLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    flex: 1,
+  },
+  debugValue: {
+    fontSize: 11,
+    fontWeight: '600',
+    flex: 1,
+    textAlign: 'right',
+  },
+  debugText: {
+    fontSize: 10,
+    fontFamily: 'monospace',
+    textAlign: 'center',
   },
 });
 

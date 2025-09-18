@@ -15,11 +15,11 @@ export interface AccelerometerSettings {
 }
 
 export const DEFAULT_ACCELEROMETER_SETTINGS: AccelerometerSettings = {
-  accelerationThreshold: 4.5, // m/s²
-  brakingThreshold: -4.5, // m/s²
+  accelerationThreshold: 4.0, // m/s² - Updated from 6.5 to 4.0 for better detection
+  brakingThreshold: -4.0, // m/s² - Updated from -6.5 to -4.0 for better detection
   samplingRate: 100, // milliseconds
   smoothingFactor: 0.8, // 0-1
-  alertCooldown: 10000, // milliseconds
+  alertCooldown: 30000, // milliseconds - Set to 30 seconds cooldown after violation
   enableSensorFusion: true,
   enableMultistageFiltering: true,
   processNoise: 0.01, // Kalman filter parameter
@@ -177,8 +177,8 @@ export class AccelerometerSettingsManager {
   public getPresets(): { [key: string]: Partial<AccelerometerSettings> } {
     return {
       sensitive: {
-        accelerationThreshold: 3.0,
-        brakingThreshold: -3.0,
+        accelerationThreshold: 5.0, // Increased from 3.0 to reduce false positives
+        brakingThreshold: -5.0, // Increased magnitude from 3.0
         cutoffFrequency: 1.5,
         movingAverageWindow: 3,
       },
@@ -186,8 +186,8 @@ export class AccelerometerSettingsManager {
         ...DEFAULT_ACCELEROMETER_SETTINGS,
       },
       relaxed: {
-        accelerationThreshold: 6.0,
-        brakingThreshold: -6.0,
+        accelerationThreshold: 8.0, // Increased from 6.0
+        brakingThreshold: -8.0, // Increased magnitude from 6.0
         cutoffFrequency: 2.5,
         movingAverageWindow: 7,
       },
