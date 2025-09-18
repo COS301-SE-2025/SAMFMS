@@ -187,6 +187,19 @@ export const API_ENDPOINTS = {
     // Vehicle Availability Endpoints
     AVAILABLE_VEHICLES: '/trips/vehicles/available',
     CHECK_VEHICLE_AVAILABILITY: id => `/trips/vehicles/${id}/availability`,
+
+    TRAFFIC: {
+      RECOMMENDATIONS: '/trips/traffic/recommendations',
+      RECOMMENDATION: id => `/trips/traffic/recommendation/${id}`,
+      ACCEPT: `/trips/traffic/accept`,
+      REJECT: `/trips/traffic/reject`,
+      STARTMONITOR: '/trips/traffic/startmonitor',
+      STOPMONITOR: '/trips/traffic/stopmonitor',
+      GETSTATUS: '/trips/traffic/monitorstatus',
+      RUNCYCLE: '/trips/traffic/runcycle',
+      ANALYSIS: id => `/trips/traffic/analysis/${id}`,
+      DASHBOARD: '/trips/traffic/dashboard'
+    },
     
     ANALYTICS: {
       // Trip History Statistics

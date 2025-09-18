@@ -1,5 +1,5 @@
-import React, {useState, useEffect, useCallback} from 'react';
-import {Plus} from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus } from 'lucide-react';
 import TripsAnalytics from '../components/trips/TripsAnalytics';
 import TripSchedulingModal from '../components/trips/TripSchedulingModal';
 import Notification from '../components/common/Notification';
@@ -10,6 +10,7 @@ import UpcomingTripsTable from '../components/trips/UpcomingTripsTable';
 import RecentTripsStats from '../components/trips/RecentTripsStats';
 import RecentTripsTable from '../components/trips/RecentTripsTable';
 import SmartTripSuggestions from '../components/trips/SmartTripSuggestions';
+import RouteRecommendations from '../components/trips/RouteRecommendations';
 import {
   createTrip,
   createScheduledTrip,
@@ -20,8 +21,8 @@ import {
   getTripHistoryStats,
   getAllUpcommingTrip,
 } from '../backend/api/trips';
-import {getVehicles} from '../backend/api/vehicles';
-import {getTripPlanningDrivers} from '../backend/api/drivers';
+import { getVehicles } from '../backend/api/vehicles';
+import { getTripPlanningDrivers } from '../backend/api/drivers';
 
 const Trips = () => {
   // Existing state
@@ -89,11 +90,11 @@ const Trips = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   const tabs = [
-    {id: 'overview', label: 'Overview'},
-    {id: 'active', label: 'Active'},
-    {id: 'upcoming', label: 'Upcoming'},
-    {id: 'recent', label: 'Recent'},
-    {id: 'analytics', label: 'Analytics'},
+    { id: 'overview', label: 'Overview' },
+    { id: 'active', label: 'Active' },
+    { id: 'upcoming', label: 'Upcoming' },
+    { id: 'recent', label: 'Recent' },
+    { id: 'analytics', label: 'Analytics' },
   ];
 
   // Helper function to show notifications
@@ -247,7 +248,7 @@ const Trips = () => {
         trips = response.data.trips;
       } else if (response?.data?.data) {
         trips = Array.isArray(response.data.data) ? response.data.data : [];
-      } else if (Array.isArray(response?.data) ) {
+      } else if (Array.isArray(response?.data)) {
         trips = response.data;
       }
 
@@ -811,6 +812,62 @@ const Trips = () => {
               <div className="animate-fade-in animate-delay-200">
                 <ActiveTripsMap activeLocations={transformTripsForMap(activeTrips)} />
               </div>
+              {/* Route Optimization Suggestions - NEW ADDITION */}
+              <div className="animate-fade-in animate-delay-100">
+                <RouteRecommendations
+                  activeTrips={activeTrips}
+                  onAccept={(tripId, recommendationId) => {
+                    // Handle route recommendation acceptance
+                    console.log('Accepted route recommendation:', { tripId, recommendationId });
+
+                    // Show success notification
+                    showNotification(
+                      'Route updated successfully! Vehicle will be notified of the new route.',
+                      'success'
+                    );
+
+                    // Optionally refresh active trips to show updated route
+                    const loadActiveTrips = async () => {
+                      try {
+                        const response = await getActiveTrips();
+                        const tripsData = Array.isArray(response.data) ? response.data : [];
+                        setActiveTrips(tripsData);
+                      } catch (error) {
+                        console.error('Error reloading active trips:', error);
+                      }
+                    };
+                    loadActiveTrips();
+                  }}
+                  onReject={(tripId, recommendationId) => {
+                    // Handle route recommendation rejection
+                    console.log('Rejected route recommendation:', { tripId, recommendationId });
+
+                    // Show info notification
+                    showNotification(
+                      'Route recommendation declined. Current route will continue as planned.',
+                      'info'
+                    );
+                  }}
+                  onRefresh={() => {
+                    // Handle refresh - reload active trips and recommendations
+                    console.log('Refreshing route recommendations');
+
+                    const loadActiveTrips = async () => {
+                      try {
+                        const response = await getActiveTrips();
+                        const tripsData = Array.isArray(response.data) ? response.data : [];
+                        setActiveTrips(tripsData);
+                      } catch (error) {
+                        console.error('Error reloading active trips:', error);
+                      }
+                    };
+                    loadActiveTrips();
+
+                    showNotification('Route recommendations refreshed', 'info');
+                  }}
+                />
+              </div>
+
             </div>
           )}
 

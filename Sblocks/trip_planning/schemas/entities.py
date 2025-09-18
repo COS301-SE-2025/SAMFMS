@@ -237,6 +237,49 @@ class SmartTrip(BaseModel):
         populate_by_name = True
 
 
+class TrafficType(str, Enum):
+    """Traffic type enumeration"""
+    LIGHT = "light"
+    MODERATE = "moderate"
+    HEAVY = "heavy"
+    SEVERE = "severe"
+
+class RouteRecommendationStatus(str, Enum):
+    """Route Rec. Status types"""
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+
+class TrafficCondition(BaseModel):
+    """Represents current traffic condition for a route segment"""
+    segment_id: str = Field(..., description="Unique identifier for the route segment")
+    current_duration: float = Field(..., description="Current travel duration in seconds")
+    free_flow_duration: float = Field(..., description="Travel duration in free-flow traffic conditions")
+    traffic_ratio: float = Field(..., description="Current / Free flow travel duration ratio")
+    severity: TrafficType = Field(..., description="Traffic severity level")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Time when condition was recorded")
+
+    class Config:
+        populate_by_name = True
+
+
+class RouteRecommendation(BaseModel):
+    """Represents a route optimization recommendation"""
+    id: str = Field(..., description="Unique Route Recommended Trip ID")
+    trip_id: str = Field(..., description="Associated Trip ID")
+    vehicle_id: str = Field(..., description="Associated Vehicle ID")
+    current_route: RouteInfo = Field(..., description="Current route information")
+    recommended_route: RouteInfo = Field(..., description="Recommended optimized route")
+    time_savings: float = Field(..., description="Time saved in seconds if recommendation is accepted")
+    traffic_avoided: TrafficType = Field(..., description="Traffic severity avoided with the new route")
+    confidence: float = Field(..., ge=0, le=1, description="Confidence score of recommendation")
+    reason: str = Field(..., description="Reason for the recommendation")
+    class Config:
+        populate_by_name = True
+
+
+
 
 class TripAnalytics(BaseModel):
     """Trip analytics data"""

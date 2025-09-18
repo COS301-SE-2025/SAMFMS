@@ -22,6 +22,7 @@ from services.constraint_service import constraint_service
 from services.driver_service import driver_service
 from services.notification_service import notification_service
 from services.trip_service import trip_service
+from services.smart_trip_planning_service import smart_trip_service
 from services.request_consumer import service_request_consumer
 from api.routes.analytics import router as analytics_router
 from api.routes.drivers import router as drivers_router
@@ -114,6 +115,55 @@ async def lifespan(app: FastAPI):
             logger.error(f"Database connection failed: {e}")
             raise DatabaseConnectionError(f"Failed to connect to database: {e}")
         
+        # Start database for Management
+        logger.info("Connecting to database Management...")
+        try:
+            await db_manager_management.connect()
+            logger.info("Database Management connected successfully")
+        except Exception as e:
+            logger.error(f"Database Management connection failed: {e}")
+            raise DatabaseConnectionError(f"Failed to connect to database Management: {e}")
+
+        # Start database for GPS
+        logger.info("Connecting to database GPS...")
+        try:
+            await db_manager_gps.connect()
+            logger.info("Database GPS connected successfully")
+        except Exception as e:
+            logger.error(f"Database GPS connection failed: {e}")
+            raise DatabaseConnectionError(f"Failed to connect to database GPS: {e}")
+        
+        # Start the traffic monitor
+        logger.info("Starting the traffic monitor...")
+        try:
+            asyncio.create_task(smart_trip_service.start_traffic_monitoring())
+            logger.info("Traffic monitor started successfully")
+        except Exception as e:
+            logger.error(f"Failed to start the traffic monitor: {e}")
+
+        # Start the simulation service
+        try:
+            asyncio.create_task(simulation_service.start_simulation_service())
+        except Exception as e:
+            logger.error(f"Failed to start missed simulation service: {e}")
+
+
+        # Start the missed trip scheduler
+        logger.info("Starting missed trip scheduler...")
+        try:
+            asyncio.create_task(missed_trip_scheduler.start())
+            logger.info("Missed trip scheduler started successfully")
+        except Exception as e:
+            logger.error(f"Failed to start missed trip scheduler: {e}")
+
+        # Start the ping session monitor
+        logger.info("Starting ping session monitor...")
+        try:
+            asyncio.create_task(ping_session_monitor.start())
+            logger.info("Ping session monitor started successfully")
+        except Exception as e:
+            logger.error(f"Failed to start ping session monitor: {e}")
+        
         # Connect to RabbitMQ for event publishing
         logger.info("Connecting to RabbitMQ for event publishing...")
         try:
@@ -187,42 +237,7 @@ async def lifespan(app: FastAPI):
         # Store start time for uptime calculation
         app.state.start_time = datetime.now(timezone.utc)
         metrics_middleware.app = app
-
-        # Start database for Management
-        logger.info("Connecting to database Management...")
-        try:
-            await db_manager_management.connect()
-            logger.info("Database Management connected successfully")
-        except Exception as e:
-            logger.error(f"Database Management connection failed: {e}")
-            raise DatabaseConnectionError(f"Failed to connect to database Management: {e}")
-
-        # Start database for GPS
-        logger.info("Connecting to database GPS...")
-        try:
-            await db_manager_gps.connect()
-            logger.info("Database GPS connected successfully")
-        except Exception as e:
-            logger.error(f"Database GPS connection failed: {e}")
-            raise DatabaseConnectionError(f"Failed to connect to database GPS: {e}")
-        # Start the simulation service
-        await simulation_service.start_simulation_service()
-
-        # Start the missed trip scheduler
-        logger.info("Starting missed trip scheduler...")
-        try:
-            await missed_trip_scheduler.start()
-            logger.info("Missed trip scheduler started successfully")
-        except Exception as e:
-            logger.error(f"Failed to start missed trip scheduler: {e}")
-
-        # Start the ping session monitor
-        logger.info("Starting ping session monitor...")
-        try:
-            await ping_session_monitor.start()
-            logger.info("Ping session monitor started successfully")
-        except Exception as e:
-            logger.error(f"Failed to start ping session monitor: {e}")
+        
 
         logger.info("Trips Service Startup Completed Successfully")
         

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from bson import ObjectId
 
 from repositories.database import db_manager, db_manager_gps
-from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation, ScheduledTrip, SmartTrip
+from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation, ScheduledTrip, SmartTrip, RouteRecommendation
 from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest, ScheduledTripRequest, CreateSmartTripRequest
 from events.publisher import event_publisher
 
@@ -299,6 +299,149 @@ class TripService:
         except Exception as e:
             logger.error(f"[TripService.activate_smart_trip] Failed: {e}")
             raise
+    
+    async def _store_route_recommendation(self, recommendation: RouteRecommendation):
+        """Store route recommendation in database for later retrieval"""
+        try:
+            recommendation_doc = {
+                "trip_id": recommendation.trip_id,
+                "vehicle_id": recommendation.vehicle_id,
+                "recommended_route": recommendation.recommended_route.model_dump() if recommendation.recommended_route else None,
+                "time_savings": recommendation.time_savings,
+                "traffic_avoided": recommendation.traffic_avoided,
+                "confidence": recommendation.confidence,
+                "reason": recommendation.reason,
+                "status": "pending",  # pending, accepted, rejected, expired
+                "created_at": recommendation.created_at,
+                "expires_at": recommendation.created_at + timedelta(minutes=120)  # Expire after 30 minutes
+            }
+            
+            # Store in route_recommendations collection
+            await self.db.route_recommendations.update_one(
+                {"trip_id": recommendation.trip_id},
+                {"$set": recommendation_doc},
+                upsert=True
+            )
+            
+            logger.info(f"Stored route recommendation for trip {recommendation.trip_id}")
+            
+        except Exception as e:
+            logger.error(f"Error storing route recommendation: {e}")
+    
+    async def get_route_recommendations(self, trip_id: str = None) -> List[RouteRecommendation]:
+        """Get active route recommendations, optionally filtered by trip_id"""
+        try:
+            query = {
+                "status": "pending",
+                "expires_at": {"$gt": datetime.utcnow()}
+            }
+            
+            if trip_id:
+                query["trip_id"] = trip_id
+            
+            cursor = self.db.route_recommendations.find(query)
+            recommendations = []
+
+            async for recommendation in cursor:
+                recommendation["_id"] = str(recommendation["_id"])
+                recommendations.append(RouteRecommendation(**recommendation))
+            
+            
+            return recommendations
+            
+        except Exception as e:
+            logger.error(f"Error getting route recommendations: {e}")
+            return []
+
+    async def accept_route_recommendation(self, trip_id: str, recommendation_id: str) -> bool:
+        """Accept a route recommendation and update the trip's route"""
+        try:
+            # Get the recommendation
+            recommendation = await self.db.route_recommendations.find_one({
+                "_id": ObjectId(recommendation_id),
+                "trip_id": trip_id,
+                "status": "pending"
+            })
+            
+            if not recommendation:
+                logger.warning(f"Route recommendation {recommendation_id} not found or not pending")
+                return False
+            
+            # Update trip with new route
+            new_route_info = recommendation["recommended_route"]
+            
+            update_result = await self.db.trips.update_one(
+                {"_id": ObjectId(trip_id)},
+                {
+                    "$set": {
+                        "route_info": new_route_info,
+                        "estimated_duration": new_route_info["duration"] / 60,  # Convert to minutes
+                        "route_updated_at": datetime.utcnow(),
+                        "route_update_reason": "traffic_optimization"
+                    }
+                }
+            )
+            
+            if update_result.modified_count > 0:
+                # Mark recommendation as accepted
+                await self.db.route_recommendations.update_one(
+                    {"_id": ObjectId(recommendation_id)},
+                    {
+                        "$set": {
+                            "status": "accepted",
+                            "accepted_at": datetime.utcnow()
+                        }
+                    }
+                )
+                
+                logger.info(f"Route recommendation {recommendation_id} accepted for trip {trip_id}")
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error accepting route recommendation: {e}")
+            return False
+    
+    async def reject_route_recommendation(self, trip_id: str, recommendation_id: str) -> bool:
+        """Reject a pending route recommendation for a trip"""
+        try:
+            # Find the recommendation for this trip
+            recommendation = await self.db.route_recommendations.find_one({
+                "_id": ObjectId(recommendation_id),
+                "trip_id": trip_id,
+                "status": "pending"
+            })
+
+            if not recommendation:
+                logger.warning(f"Recommendation {recommendation_id} for trip {trip_id} not found or not pending")
+                return False
+
+            # Update the recommendation status to rejected
+            update_result = await self.db.route_recommendations.update_one(
+                {
+                    "_id": ObjectId(recommendation_id),
+                    "trip_id": trip_id,
+                    "status": "pending"
+                },
+                {
+                    "$set": {
+                        "status": "rejected",
+                        "rejected_at": datetime.utcnow()
+                    }
+                }
+            )
+
+            if update_result.modified_count > 0:
+                logger.info(f"Route recommendation {recommendation_id} rejected for trip {trip_id}")
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Error rejecting route recommendation for trip {trip_id}: {e}")
+            return False
+
 
     async def create_trip(
         self, 
@@ -529,6 +672,24 @@ class TripService:
         except Exception as e:
             logger.error(f"Failed to get trip {trip_id}: {e}")
             raise
+    
+
+    async def get_trip_destination(self, trip_id: str) -> Optional[Dict[str, Any]]:
+        """Get the destination object for a given trip_id."""
+        try:
+            trip_doc = await self.db.trips.find_one(
+                {"_id": ObjectId(trip_id)},
+                {"destination": 1}  # Only fetch the destination field
+            )
+            if trip_doc and "destination" in trip_doc:
+                return trip_doc["destination"]
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get destination for trip {trip_id}: {e}")
+            raise
+    
+
+
     
     async def get_trip_by_id_scheduled(self, trip_id: str) -> ScheduledTrip:
         """Get trip by ID"""

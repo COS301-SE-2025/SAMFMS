@@ -231,6 +231,9 @@ class ServiceRequestConsumer:
             if endpoint == "health" or endpoint == "":
                 logger.info(f"[_route_request] Routing to _handle_health_request()")
                 return await self._handle_health_request(method, user_context)
+            elif "traffic" in endpoint:
+                logger.info("Routing to traffic handler")
+                return await self._handle_traffic_requests(method, user_context)
             elif "analytics/drivers" in endpoint:
                 logger.info(f"Routing to driver analytics")
                 return await self._handle_driver_analytics_requests(method, user_context)
@@ -266,6 +269,108 @@ class ServiceRequestConsumer:
         except Exception as e:
             logger.error(f"[_route_request] Exception: {e}")
             raise
+    
+    async def _handle_traffic_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle traffic montiro requests"""
+        try:
+            from services.trip_service import trip_service
+            from schemas.responses import ResponseBuilder
+            data = user_context.get("data",{})
+            endpoint = user_context.get("endpoint", "")
+            logger.info(f"[_handle_traffic_requests] Endpoint: '{endpoint}', Data: {data}")
+            logger.info(f"[_handle_traffic_requests] Endpoint checks - contains 'trips': {'trips' in endpoint}, contains 'active': {'active' in endpoint}, contains 'upcoming': {'upcoming' in endpoint}, contains 'recent': {'recent' in endpoint}")
+            logger.info(f"[DEBUG] Full endpoint analysis: endpoint='{endpoint}', method='{method}'")
+
+            if method == "GET":
+                if "recommendations" in endpoint:
+                    # get all the traffic recommendations
+                    try:
+                        recommended_trips = await trip_service.get_route_recommendations()
+                        return_data = {
+                            "data" : recommended_trips
+                        }
+
+                        return ResponseBuilder.success(
+                            data=return_data,
+                            message="Recommended routes retrieved successfully"
+                        )
+                    except Exception as e:
+                        logger.error(f"[_handle_traffic_request] Exception in returning route recommendation: {e}")
+                        return ResponseBuilder.error(
+                            error="RouteRecommendationReturnError",
+                            message=f"Failed to process return recommended routes request: {str(e)}"
+                        ).model_dump()
+
+            elif method == "POST":
+                if "accept" in endpoint:
+                    logger.info("Entered accept route recommendation")
+
+                    recommendation_id = data["recommendation_id"]
+                    trip_id = data["trip_id"]
+
+                    logger.info(f"Extracted recommendation_id: {recommendation_id}")
+                    logger.info(f"Extracted trip_id: {trip_id}")
+
+                    # Retrieve route info
+                    # Update actual trips route info
+                    try:
+                        response = await trip_service.accept_route_recommendation(trip_id)
+                        if(response):
+                            return ResponseBuilder.success(
+                                data=None,
+                                message="Route recommendation accepted successfully"
+                            )
+                        
+                        return ResponseBuilder.error(
+                            error="RouteRecommendationAcceptionError",
+                            message=f"Failed to process accept request"
+                        ).model_dump()
+                    except Exception as e:
+                        logger.error(f"[_handle_traffic_request] Exception in accepting route recommendation: {e}")
+                        return ResponseBuilder.error(
+                            error="RouteRecommendationAcceptionError",
+                            message=f"Failed to process accept request: {str(e)}"
+                        ).model_dump()
+                    
+                if "reject" in endpoint:
+                    logger.info("Entered reject route recommendation")
+
+                    recommendation_id = data["recommendation_id"]
+                    trip_id = data["trip_id"]
+
+                    logger.info(f"Extracted recommendation_id: {recommendation_id}")
+                    logger.info(f"Extracted trip_id: {trip_id}")
+
+                    # Remove route suggestion from database
+                    try:
+                        response = await trip_service.reject_route_recommendation(trip_id,recommendation_id)
+                        if response:
+                            return ResponseBuilder.success(
+                                data=None,
+                                message="Route recommendation rejected successfully"
+                            )
+                        
+                        return ResponseBuilder.error(
+                            error="RouteRecommendationRejectionError",
+                            message=f"Failed to process accept request"
+                        ).model_dump()
+                    except Exception as e:
+                        logger.error(f"[_handle_traffic_request] Exception in rejecting route recommendation: {e}")
+                        return ResponseBuilder.error(
+                            error="RouteRecommendationRejectionError",
+                            message=f"Failed to process reject request: {str(e)}"
+                        ).model_dump()
+
+
+            else:
+                raise ValueError(f"Unsupported HTTP method: {method}")
+        
+        except Exception as e:
+            logger.error(f"[_handle_trips_request] Exception: {e}")
+            return ResponseBuilder.error(
+                error="TripsRequestError",
+                message=f"Failed to process trips request: {str(e)}"
+            ).model_dump()
 
     
     async def _handle_trips_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
