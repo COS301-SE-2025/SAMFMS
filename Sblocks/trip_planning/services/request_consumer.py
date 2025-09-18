@@ -243,6 +243,15 @@ class ServiceRequestConsumer:
             elif "driver/ping" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_driver_ping_request()")
                 return await self._handle_driver_ping_request(method, user_context)
+            elif "speed-violations" in endpoint or "speed_violations" in endpoint:
+                logger.info(f"[_route_request] Routing to _handle_speed_violations_request()")
+                return await self._handle_speed_violations_request(method, user_context)
+            elif "excessive-braking-violations" in endpoint or "excessive_braking_violations" in endpoint:
+                logger.info(f"[_route_request] Routing to _handle_excessive_braking_violations_request()")
+                return await self._handle_excessive_braking_violations_request(method, user_context)
+            elif "excessive-acceleration-violations" in endpoint or "excessive_acceleration_violations" in endpoint:
+                logger.info(f"[_route_request] Routing to _handle_excessive_acceleration_violations_request()")
+                return await self._handle_excessive_acceleration_violations_request(method, user_context)
             elif "monitor" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_monitor_request()")
                 return await self._handle_monitor_request(method, user_context)
@@ -1409,6 +1418,195 @@ class ServiceRequestConsumer:
             return ResponseBuilder.error(
                 error="DriverPingRequestError",
                 message=f"Failed to process driver ping request: {str(e)}"
+            ).model_dump()
+
+    async def _handle_speed_violations_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle speed violations requests"""
+        try:
+            from schemas.responses import ResponseBuilder
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            logger.info(f"[_handle_speed_violations_request] Method: {method}, Endpoint: {endpoint}")
+            
+            if method == "POST":
+                # Create a new speed violation
+                from schemas.requests import CreateSpeedViolationRequest
+                from schemas.entities import SpeedViolation, LocationPoint
+                from repositories.database import db_manager
+                
+                try:
+                    # Validate request data
+                    request_data = CreateSpeedViolationRequest(**data)
+                    
+                    # Create violation record
+                    violation_data = {
+                        "trip_id": request_data.trip_id,
+                        "driver_id": request_data.driver_id,
+                        "speed": request_data.speed,
+                        "speed_limit": request_data.speed_limit,
+                        "location": request_data.location.dict(),
+                        "time": request_data.time,
+                        "created_at": datetime.utcnow()
+                    }
+                    
+                    result = await db_manager.speed_violations.insert_one(violation_data)
+                    violation_data["_id"] = str(result.inserted_id)
+                    
+                    # Create response object
+                    violation = SpeedViolation(**violation_data)
+                    
+                    logger.info(f"[_handle_speed_violations_request] Created speed violation {violation.id}")
+                    
+                    return ResponseBuilder.success(
+                        message="Speed violation created successfully",
+                        data=violation.dict()
+                    ).model_dump()
+                    
+                except Exception as e:
+                    logger.error(f"[_handle_speed_violations_request] Failed to create speed violation: {e}")
+                    return ResponseBuilder.error(
+                        error="ValidationError",
+                        message=f"Invalid speed violation data: {str(e)}"
+                    ).model_dump()
+            
+            else:
+                return ResponseBuilder.error(
+                    error="MethodNotAllowed",
+                    message=f"Method {method} not allowed for speed violations endpoint"
+                ).model_dump()
+                
+        except Exception as e:
+            logger.error(f"[_handle_speed_violations_request] Exception: {e}")
+            return ResponseBuilder.error(
+                error="SpeedViolationsRequestError",
+                message=f"Failed to process speed violations request: {str(e)}"
+            ).model_dump()
+
+    async def _handle_excessive_braking_violations_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle excessive braking violations requests"""
+        try:
+            from schemas.responses import ResponseBuilder
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            logger.info(f"[_handle_excessive_braking_violations_request] Method: {method}, Endpoint: {endpoint}")
+            
+            if method == "POST":
+                # Create a new excessive braking violation
+                from schemas.requests import CreateExcessiveBrakingViolationRequest
+                from schemas.entities import ExcessiveBrakingViolation, LocationPoint
+                from repositories.database import db_manager
+                
+                try:
+                    # Validate request data
+                    request_data = CreateExcessiveBrakingViolationRequest(**data)
+                    
+                    # Create violation record
+                    violation_data = {
+                        "trip_id": request_data.trip_id,
+                        "driver_id": request_data.driver_id,
+                        "deceleration": request_data.deceleration,
+                        "threshold": request_data.threshold,
+                        "location": request_data.location.dict(),
+                        "time": request_data.time,
+                        "created_at": datetime.utcnow()
+                    }
+                    
+                    result = await db_manager.excessive_braking_violations.insert_one(violation_data)
+                    violation_data["_id"] = str(result.inserted_id)
+                    
+                    # Create response object
+                    violation = ExcessiveBrakingViolation(**violation_data)
+                    
+                    logger.info(f"[_handle_excessive_braking_violations_request] Created excessive braking violation {violation.id}")
+                    
+                    return ResponseBuilder.success(
+                        message="Excessive braking violation created successfully",
+                        data=violation.dict()
+                    ).model_dump()
+                    
+                except Exception as e:
+                    logger.error(f"[_handle_excessive_braking_violations_request] Failed to create excessive braking violation: {e}")
+                    return ResponseBuilder.error(
+                        error="ValidationError",
+                        message=f"Invalid excessive braking violation data: {str(e)}"
+                    ).model_dump()
+            
+            else:
+                return ResponseBuilder.error(
+                    error="MethodNotAllowed",
+                    message=f"Method {method} not allowed for excessive braking violations endpoint"
+                ).model_dump()
+                
+        except Exception as e:
+            logger.error(f"[_handle_excessive_braking_violations_request] Exception: {e}")
+            return ResponseBuilder.error(
+                error="ExcessiveBrakingViolationsRequestError",
+                message=f"Failed to process excessive braking violations request: {str(e)}"
+            ).model_dump()
+
+    async def _handle_excessive_acceleration_violations_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle excessive acceleration violations requests"""
+        try:
+            from schemas.responses import ResponseBuilder
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            logger.info(f"[_handle_excessive_acceleration_violations_request] Method: {method}, Endpoint: {endpoint}")
+            
+            if method == "POST":
+                # Create a new excessive acceleration violation
+                from schemas.requests import CreateExcessiveAccelerationViolationRequest
+                from schemas.entities import ExcessiveAccelerationViolation, LocationPoint
+                from repositories.database import db_manager
+                
+                try:
+                    # Validate request data
+                    request_data = CreateExcessiveAccelerationViolationRequest(**data)
+                    
+                    # Create violation record
+                    violation_data = {
+                        "trip_id": request_data.trip_id,
+                        "driver_id": request_data.driver_id,
+                        "acceleration": request_data.acceleration,
+                        "threshold": request_data.threshold,
+                        "location": request_data.location.dict(),
+                        "time": request_data.time,
+                        "created_at": datetime.utcnow()
+                    }
+                    
+                    result = await db_manager.excessive_acceleration_violations.insert_one(violation_data)
+                    violation_data["_id"] = str(result.inserted_id)
+                    
+                    # Create response object
+                    violation = ExcessiveAccelerationViolation(**violation_data)
+                    
+                    logger.info(f"[_handle_excessive_acceleration_violations_request] Created excessive acceleration violation {violation.id}")
+                    
+                    return ResponseBuilder.success(
+                        message="Excessive acceleration violation created successfully",
+                        data=violation.dict()
+                    ).model_dump()
+                    
+                except Exception as e:
+                    logger.error(f"[_handle_excessive_acceleration_violations_request] Failed to create excessive acceleration violation: {e}")
+                    return ResponseBuilder.error(
+                        error="ValidationError",
+                        message=f"Invalid excessive acceleration violation data: {str(e)}"
+                    ).model_dump()
+            
+            else:
+                return ResponseBuilder.error(
+                    error="MethodNotAllowed",
+                    message=f"Method {method} not allowed for excessive acceleration violations endpoint"
+                ).model_dump()
+                
+        except Exception as e:
+            logger.error(f"[_handle_excessive_acceleration_violations_request] Exception: {e}")
+            return ResponseBuilder.error(
+                error="ExcessiveAccelerationViolationsRequestError",
+                message=f"Failed to process excessive acceleration violations request: {str(e)}"
             ).model_dump()
 
     async def _handle_monitor_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:

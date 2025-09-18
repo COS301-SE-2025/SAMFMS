@@ -96,7 +96,8 @@ class DatabaseManager:
             # Get collection stats
             collections = ["trips", "trip_constraints", "driver_assignments", 
                           "trip_analytics", "notifications", "notification_preferences",
-                          "phone_usage_violations", "speed_violations", "driver_ping_sessions"]
+                          "phone_usage_violations", "speed_violations", "excessive_braking_violations", 
+                          "excessive_acceleration_violations", "driver_ping_sessions"]
             
             metrics = {
                 "status": "connected",
@@ -165,8 +166,20 @@ class DatabaseManager:
             # Speed violations indexes
             await self.speed_violations.create_index("trip_id")
             await self.speed_violations.create_index("driver_id")
-            await self.speed_violations.create_index([("trip_id", 1), ("timestamp", -1)])
-            await self.speed_violations.create_index("place_id")
+            await self.speed_violations.create_index([("trip_id", 1), ("time", -1)])
+            await self.speed_violations.create_index("time")
+            
+            # Excessive braking violations indexes
+            await self.excessive_braking_violations.create_index("trip_id")
+            await self.excessive_braking_violations.create_index("driver_id")
+            await self.excessive_braking_violations.create_index([("trip_id", 1), ("time", -1)])
+            await self.excessive_braking_violations.create_index("time")
+            
+            # Excessive acceleration violations indexes
+            await self.excessive_acceleration_violations.create_index("trip_id")
+            await self.excessive_acceleration_violations.create_index("driver_id")
+            await self.excessive_acceleration_violations.create_index([("trip_id", 1), ("time", -1)])
+            await self.excessive_acceleration_violations.create_index("time")
             
             # Driver ping sessions indexes
             await self.driver_ping_sessions.create_index("trip_id", unique=True)
@@ -248,6 +261,20 @@ class DatabaseManager:
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.speed_violations
+    
+    @property
+    def excessive_braking_violations(self):
+        """Get excessive braking violations collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.excessive_braking_violations
+    
+    @property
+    def excessive_acceleration_violations(self):
+        """Get excessive acceleration violations collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.excessive_acceleration_violations
     
     @property
     def driver_ping_sessions(self):

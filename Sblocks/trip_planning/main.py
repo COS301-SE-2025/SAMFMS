@@ -28,6 +28,10 @@ from api.routes.drivers import router as drivers_router
 from api.routes.trips import router as trips_router
 from api.routes.vehicles import router as vehicles_router
 from api.routes.notifications import router as notifications_router
+from api.routes.speed_violations import router as speed_violations_router
+from api.routes.driver_ping import router as driver_ping_router
+from api.routes.excessive_braking_violations import router as excessive_braking_violations_router
+from api.routes.excessive_acceleration_violations import router as excessive_acceleration_violations_router
 
 # Import middleware and exception handlers
 from middleware import (
@@ -346,6 +350,10 @@ app.include_router(trips_router, tags=["trips"])
 app.include_router(drivers_router, prefix="/drivers", tags=["drivers"])
 app.include_router(vehicles_router, prefix="/vehicles", tags=["vehicles"])
 app.include_router(notifications_router, tags=["notifications"])
+app.include_router(speed_violations_router, tags=["speed_violations"])
+app.include_router(driver_ping_router, tags=["driver_ping"])
+app.include_router(excessive_braking_violations_router, tags=["excessive_braking_violations"])
+app.include_router(excessive_acceleration_violations_router, tags=["excessive_acceleration_violations"])
 
 @app.get("/")
 async def root():
