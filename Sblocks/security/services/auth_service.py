@@ -15,6 +15,10 @@ import hashlib
 import time
 import secrets
 import pyotp
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from fastapi import Request, Depends, HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -376,7 +380,10 @@ class AuthService:
         totp = pyotp.TOTP(user_secret, digits=6, interval=300)
         otp = totp.now()
         
-        UserRepository.insert_otp(email, otp)
+        worked = UserRepository.insert_otp(email, otp)
+        if worked == False:
+            return "Error"
+        
         return otp
     
     @staticmethod
@@ -389,6 +396,44 @@ class AuthService:
             return True
         
         return False
+    
+    @staticmethod
+    async def send_email(data: dict):
+        try:
+            # Validate required fields
+            required_fields = ["to_email", "subject", "message"]
+            for field in required_fields:
+                if field not in data:
+                    raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+                
+
+            smtp_server = "smtp.gmail.com"
+            smtp_port = 587
+            smtp_username = "u22550055@tuks.co.za"
+            smtp_password = "uxul haoo lror zcou"
+            
+            # Publish test email to RabbitMQ
+            msg = MIMEMultipart()
+            msg["From"] = smtp_username
+            msg["To"] = data["to_email"]
+            msg["Subject"] = data["subject"]
+            
+            body = data['message']
+            msg.attach(MIMEText(body, "plain"))
+
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()  # Upgrade the connection to secure
+                server.login(smtp_username, smtp_password)  # Log in to the SMTP server
+                s = server.sendmail(smtp_username, data["to_email"], msg.as_string())
+            
+
+            
+            return s
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error in test email endpoint: {e}")
+            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 

@@ -175,3 +175,15 @@ class UserRepository:
         except Exception as e:
             logger.error(f"OTP error: {e}")
             raise
+
+    @staticmethod
+    async def update_user_password(user_id: str, password: str) -> bool:
+        """Delete used otp"""
+        try:
+            return security_users_collection.update_one(
+                {"user_id": user_id},     
+                {"$set": {"password_hash": password}}
+            )
+        except Exception as e:
+            logger.error(f"OTP error: {e}")
+            raise

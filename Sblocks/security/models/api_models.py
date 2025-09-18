@@ -188,3 +188,12 @@ class ProfilePictureResponse(BaseModel):
 class PreferencesUpdateRequest(BaseModel):
     """Model for updating user preferences"""
     preferences: Dict
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str = None
+    otp: str = None
+    password: str = None
+
+class ForgotPasswordChangePassword(BaseModel):
+    password: str = None
