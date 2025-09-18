@@ -139,11 +139,39 @@ class UserRepository:
             raise
 
     @staticmethod
-    async def insert_otp(email: str, otp) -> bool:
-        """Insert otp for an email and make it expire eventually"""
+    async def insert_otp(email: str, otp: str) -> bool:
+        """Insert OTP for an email and make it expire after 15 minutes."""
         try:
-            result = await otp_collection.insert_one({"email": email, "otp": otp})
-            return result.deleted_count > 0
+            result = await otp_collection.insert_one({
+                "email": email,
+                "otp": otp,
+                "created_at": datetime.utcnow()
+            })
+            return result.acknowledged
         except Exception as e:
-            logger.error(f"Failed to delete user: {e}")
+            logger.error(f"Failed to save OTP: {e}")
+            raise
+
+    @staticmethod
+    async def verify_otp(email: str, otp: str) -> bool:
+        """Verify otp for a specific email address"""
+        try:
+            result = await otp_collection.find_one({
+                "email": email
+            })
+            if (result and result['otp'] == otp):
+                return True
+            else:
+                return False
+        except Exception as e:
+            logger.error(f"OTP error: {e}")
+            raise
+
+    @staticmethod
+    async def delete_otp(email: str) -> bool:
+        """Delete used otp"""
+        try:
+            return otp_collection.delete_one({"email": email})
+        except Exception as e:
+            logger.error(f"OTP error: {e}")
             raise

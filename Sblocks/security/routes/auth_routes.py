@@ -333,9 +333,11 @@ async def forgot_password(email: str):
 
     #if parameter = email
     #Check if email exists
+    user = ""
     user = AuthService.get_user_by_email(email)
     #Tell frontend email has been sent
     #Generate otp linked with email that has expiry time if user exists
+    otp = AuthService.generate_otp(email)
     #Send email with otp
 
     #if parameter = otp and email and password

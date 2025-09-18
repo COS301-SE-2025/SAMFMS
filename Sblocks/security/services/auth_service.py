@@ -13,6 +13,8 @@ import uuid
 import logging
 import hashlib
 import time
+import secrets
+import pyotp
 
 logger = logging.getLogger(__name__)
 
@@ -362,19 +364,32 @@ class AuthService:
             raise
 
 
-
-
     @staticmethod
-    async def generate_otp(email: str) -> str:
-        """Generate a 10-digit OTP based on the email and current time."""
-        current_time = int(time.time())
+    def generate_user_secret() -> str:
+        return pyotp.random_base32()
+    
+    @staticmethod
+    async def generate_otp(email: str, user_secret: str) -> str:
+        """
+        Generate OTP using TOTP algorithm but store for database verification
+        """
+        totp = pyotp.TOTP(user_secret, digits=6, interval=300)
+        otp = totp.now()
         
-        data = f"{email}{current_time}"
-        
-        hash_object = hashlib.sha256(data.encode())
-        
-        otp = str(int(hash_object.hexdigest(), 16))[-10:]
-        
+        UserRepository.insert_otp(email, otp)
         return otp
+    
+    @staticmethod
+    async def verify_otp(email: str, user_otp: str) -> bool:
+        """
+        Verify OTP against database storage
+        """
+        if (UserRepository.verify_otp(email, user_otp)):
+            UserRepository.delete_otp(email)
+            return True
+        
+        return False
+
+
 
 
