@@ -191,10 +191,9 @@ class DriverService:
     ) -> bool:
         """Check if a driver is available for a time period"""
         try:
-            # Find conflicting trips
+            # Find conflicting trips (regardless of trip status)
             conflicting_trips = await self.db.trips.find({
                 "driver_assignment": driver_id,
-                "status": {"$in": [TripStatus.SCHEDULED, TripStatus.IN_PROGRESS]},
                 "$or": [
                     {
                         "scheduled_start_time": {"$lt": end_time},
@@ -240,10 +239,9 @@ class DriverService:
                 }
                 
                 if not is_available:
-                    # Get conflicting trips
+                    # Get conflicting trips (regardless of status)
                     conflicting_trips = await self.db.trips.find({
                         "driver_assignment": driver_id,
-                        "status": {"$in": [TripStatus.SCHEDULED, TripStatus.IN_PROGRESS]},
                         "$or": [
                             {
                                 "scheduled_start_time": {"$lt": request.end_time},
@@ -306,7 +304,7 @@ class DriverService:
             logger.error(f"Failed to get driver assignments: {e}")
             raise
 
-    async def get_all_drivers(self, status: Optional[str] = None, department: Optional[str] = None, skip: int = 0, limit: int = 100) -> Dict[str, Any]:
+    async def get_all_drivers(self, status: Optional[str] = None, department: Optional[str] = None, skip: int = 0, limit: int = 1000) -> Dict[str, Any]:
         """Get all drivers from the drivers collection with optional filtering"""
         try:
             # Build filter query
@@ -368,10 +366,9 @@ class DriverService:
     ) -> Optional[datetime]:
         """Find the next available time for a driver"""
         try:
-            # Find the earliest end time of conflicting trips
+            # Find the earliest end time of conflicting trips (regardless of status)
             conflicting_trips = await self.db.trips.find({
                 "driver_assignment": driver_id,
-                "status": {"$in": [TripStatus.SCHEDULED, TripStatus.IN_PROGRESS]},
                 "scheduled_start_time": {"$gte": after_time}
             }).sort("scheduled_end_time", 1).to_list(length=1)
             

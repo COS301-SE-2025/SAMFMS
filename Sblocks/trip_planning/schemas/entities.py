@@ -270,3 +270,93 @@ class VehicleLocation(BaseModel):
     accuracy: Optional[float] = Field(None, ge=0, description="GPS accuracy in meters")
     timestamp: datetime = Field(..., description="Location timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
+
+
+class PhoneUsageViolationType(str, Enum):
+    """Phone usage violation types"""
+    PHONE_USAGE = "phone_usage"
+
+
+class PhoneUsageViolation(BaseModel):
+    """Phone usage violation during trip"""
+    id: Optional[str] = Field(None, alias="_id", description="Violation ID")
+    trip_id: str = Field(..., description="Associated trip ID")
+    driver_id: str = Field(..., description="Driver ID")
+    violation_type: PhoneUsageViolationType = Field(default=PhoneUsageViolationType.PHONE_USAGE)
+    
+    # Start violation data
+    start_time: datetime = Field(..., description="When violation started")
+    start_location: LocationPoint = Field(..., description="Location where violation started")
+    
+    # End violation data (optional - set when violation ends)
+    end_time: Optional[datetime] = Field(None, description="When violation ended")
+    end_location: Optional[LocationPoint] = Field(None, description="Location where violation ended")
+    
+    # Metadata
+    duration_seconds: Optional[int] = Field(None, description="Violation duration in seconds")
+    is_active: bool = Field(default=True, description="Whether violation is currently active")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True
+
+
+class SpeedViolationType(str, Enum):
+    """Speed violation types"""
+    SPEED_LIMIT_EXCEEDED = "speed_limit_exceeded"
+
+
+class SpeedViolation(BaseModel):
+    """Speed limit violation during trip"""
+    id: Optional[str] = Field(None, alias="_id", description="Violation ID")
+    trip_id: str = Field(..., description="Associated trip ID")
+    driver_id: str = Field(..., description="Driver ID")
+    violation_type: SpeedViolationType = Field(default=SpeedViolationType.SPEED_LIMIT_EXCEEDED)
+    
+    # Speed data
+    actual_speed: float = Field(..., ge=0, description="Actual vehicle speed in km/h")
+    speed_limit: float = Field(..., ge=0, description="Posted speed limit in km/h")
+    speed_over_limit: float = Field(..., ge=0, description="Speed over limit in km/h")
+    
+    # Location and time
+    location: LocationPoint = Field(..., description="Location where violation occurred")
+    timestamp: datetime = Field(..., description="When violation was detected")
+    
+    # Road information (from Google Roads API)
+    place_id: Optional[str] = Field(None, description="Google Maps place ID for road segment")
+    
+    # Metadata
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True
+
+
+class DriverPingSession(BaseModel):
+    """Driver phone ping session tracking"""
+    id: Optional[str] = Field(None, alias="_id", description="Session ID")
+    trip_id: str = Field(..., description="Associated trip ID")
+    driver_id: str = Field(..., description="Driver ID")
+    
+    # Session status
+    is_active: bool = Field(default=True, description="Whether session is currently active")
+    started_at: datetime = Field(default_factory=datetime.utcnow, description="When session started")
+    ended_at: Optional[datetime] = Field(None, description="When session ended")
+    
+    # Ping tracking
+    last_ping_time: Optional[datetime] = Field(None, description="Last successful ping time")
+    last_ping_location: Optional[LocationPoint] = Field(None, description="Last ping location")
+    ping_count: int = Field(default=0, description="Total pings received")
+    
+    # Violation tracking
+    current_violation_id: Optional[str] = Field(None, description="ID of current active violation")
+    total_violations: int = Field(default=0, description="Total violations in this session")
+    
+    # Metadata
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True

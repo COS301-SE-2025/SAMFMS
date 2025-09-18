@@ -40,9 +40,26 @@ class VehicleSimulator:
         self.speed_ms = speed_kmh / 3.6  # Convert km/h to m/s
         self.current_position = 0  # Current position along the route (0-1)
         self.is_running = False
+        self.is_paused = False  # New: Track pause state
         self.start_time = datetime.utcnow()
         self.distance_traveled = 0.0
         self.last_location = None
+    
+    def pause(self):
+        """Pause the simulation"""
+        self.is_paused = True
+        logger.info(f"Paused simulation for trip {self.trip_id}")
+    
+    def resume(self):
+        """Resume the simulation"""
+        self.is_paused = False
+        logger.info(f"Resumed simulation for trip {self.trip_id}")
+    
+    def stop(self):
+        """Stop the simulation"""
+        self.is_running = False
+        self.is_paused = False
+        logger.info(f"Stopped simulation for trip {self.trip_id}")
     
     def get_distance_traveled(self) -> float:
         """Get distance traveled in meters"""
@@ -124,12 +141,13 @@ class VehicleSimulator:
     
     async def update_position(self):
         """Update vehicle position and save to database"""
+        # Don't update position if paused
+        if self.is_paused:
+            return True
+            
         if self.current_position >= 1.0:
             self.is_running = False
-            logger.info(f"Trip {self.trip_id} completed in simulation")
-            
-            # Move trip to history when completed
-            # await self._complete_trip()
+            logger.info(f"Trip {self.trip_id} simulation reached destination - stopping updates")
             return False
         
         # Calculate how far we should have moved in 2 seconds
@@ -364,35 +382,60 @@ class SimulationService:
             #logger.info(f"Trip {trip_id} already being simulated")
             return
         
-        # Get start coordinates from origin
-        origin = trip.get("origin", {})
-        origin_location = origin.get("location", {})
-        origin_coords = origin_location.get("coordinates", [])
+        # First, try to use route_info from the scheduled trip
+        route = None
+        route_info = trip.get("route_info")
         
-        # Get end coordinates from destination
-        destination = trip.get("destination", {})
-        destination_location = destination.get("location", {})
-        destination_coords = destination_location.get("coordinates", [])
+        if route_info and route_info.get("coordinates"):
+            logger.info(f"Using route_info from scheduled trip {trip_id}")
+            
+            # Convert coordinates from [lat, lng] to (lat, lon) tuples
+            coordinates = []
+            for coord in route_info["coordinates"]:
+                if len(coord) >= 2:
+                    coordinates.append((coord[0], coord[1]))  # [lat, lng] to (lat, lon)
+            
+            if coordinates:
+                route = Route(
+                    coordinates=coordinates,
+                    distance=route_info.get("distance", 0),
+                    duration=route_info.get("duration", 0)
+                )
         
-        if len(origin_coords) < 2 or len(destination_coords) < 2:
-            logger.error(f"Trip {trip_id} missing origin or destination coordinates")
-            return
+        # Fallback to generating route from origin/destination if no route_info
+        if not route:
+            logger.info(f"No route_info found, generating route for trip {trip_id}")
+            
+            # Get start coordinates from origin
+            origin = trip.get("origin", {})
+            origin_location = origin.get("location", {})
+            origin_coords = origin_location.get("coordinates", [])
+            
+            # Get end coordinates from destination
+            destination = trip.get("destination", {})
+            destination_location = destination.get("location", {})
+            destination_coords = destination_location.get("coordinates", [])
+            
+            if len(origin_coords) < 2 or len(destination_coords) < 2:
+                logger.error(f"Trip {trip_id} missing origin or destination coordinates")
+                return
+            
+            # Coordinates are in [longitude, latitude] format (GeoJSON)
+            start_lon, start_lat = origin_coords[0], origin_coords[1]
+            end_lon, end_lat = destination_coords[0], destination_coords[1]
+            
+            # Get waypoints if they exist
+            waypoints = trip.get("waypoints", [])
+            waypoint_coords = []
+            for waypoint in waypoints:
+                wp_location = waypoint.get("location", {})
+                wp_coords = wp_location.get("coordinates", [])
+                if len(wp_coords) >= 2:
+                    waypoint_coords.append((wp_coords[1], wp_coords[0]))  # Convert to lat, lon
+            
+            # Get route including waypoints
+            route = await self.get_route_with_waypoints(start_lat, start_lon, end_lat, end_lon, waypoint_coords)
         
-        # Coordinates are in [longitude, latitude] format (GeoJSON)
-        start_lon, start_lat = origin_coords[0], origin_coords[1]
-        end_lon, end_lat = destination_coords[0], destination_coords[1]
-        
-        # Get waypoints if they exist
-        waypoints = trip.get("waypoints", [])
-        waypoint_coords = []
-        for waypoint in waypoints:
-            wp_location = waypoint.get("location", {})
-            wp_coords = wp_location.get("coordinates", [])
-            if len(wp_coords) >= 2:
-                waypoint_coords.append((wp_coords[1], wp_coords[0]))  # Convert to lat, lon
-        
-        # Get route including waypoints
-        route = await self.get_route_with_waypoints(start_lat, start_lon, end_lat, end_lon, waypoint_coords)
         if not route:
             logger.error(f"Failed to get route for trip {trip_id}")
             return
@@ -482,6 +525,31 @@ class SimulationService:
         for trip_id in completed_trips:
             del self.active_simulators[trip_id]
             logger.info(f"Completed simulation for trip {trip_id}")
+    
+    async def pause_trip_simulation(self, trip_id: str):
+        """Pause simulation for a specific trip"""
+        if trip_id in self.active_simulators:
+            self.active_simulators[trip_id].pause()
+            logger.info(f"Paused simulation for trip {trip_id}")
+        else:
+            logger.warning(f"Cannot pause simulation - trip {trip_id} not found in active simulators")
+    
+    async def resume_trip_simulation(self, trip_id: str):
+        """Resume simulation for a specific trip"""
+        if trip_id in self.active_simulators:
+            self.active_simulators[trip_id].resume()
+            logger.info(f"Resumed simulation for trip {trip_id}")
+        else:
+            logger.warning(f"Cannot resume simulation - trip {trip_id} not found in active simulators")
+    
+    async def stop_trip_simulation(self, trip_id: str):
+        """Stop and remove simulation for a specific trip"""
+        if trip_id in self.active_simulators:
+            self.active_simulators[trip_id].stop()
+            del self.active_simulators[trip_id]
+            logger.info(f"Stopped and removed simulation for trip {trip_id}")
+        else:
+            logger.warning(f"Cannot stop simulation - trip {trip_id} not found in active simulators")
     
     
     

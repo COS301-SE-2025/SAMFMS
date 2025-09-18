@@ -175,6 +175,15 @@ export const API_ENDPOINTS = {
     RECENTTRIPSALL: '/trips/recent',
     VEHICLEPOLYLINE: id => `/trips/trips/polyline/${id}`,
     VEHICLETRIP: id => `/trips/trips/vehicle/${id}`,
+    
+    // Driver Availability Endpoints
+    AVAILABLE_DRIVERS: '/trips/drivers/available',
+    CHECK_DRIVER_AVAILABILITY: id => `/trips/drivers/${id}/availability`,
+    
+    // Vehicle Availability Endpoints
+    AVAILABLE_VEHICLES: '/trips/vehicles/available',
+    CHECK_VEHICLE_AVAILABILITY: id => `/trips/vehicles/${id}/availability`,
+    
     ANALYTICS: {
       // Trip History Statistics
       HISTORY_STATS: '/trips/analytics/trips/history-stats',

@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from schemas.requests import AnalyticsRequest
 from schemas.responses import ResponseBuilder
 from services.analytics_service import analytics_service
-from api.dependencies import get_current_user
+from api.dependencies import get_current_user_legacy as get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

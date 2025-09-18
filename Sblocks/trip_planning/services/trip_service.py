@@ -430,6 +430,33 @@ class TripService:
                 {"$set": update_data}
             )
             
+            # Set driver status to unavailable when trip starts
+            if trip.driver_assignment:
+                from repositories.database import db_manager_management
+                await db_manager_management.drivers.update_one(
+                    {"employee_id": trip.driver_assignment},
+                    {"$set": {"status": "unavailable", "updated_at": datetime.utcnow()}}
+                )
+                logger.info(f"Set driver {trip.driver_assignment} status to unavailable")
+            
+            # Set vehicle status to unavailable when trip starts
+            if trip.vehicle_id:
+                from repositories.database import db_manager_management
+                await db_manager_management.vehicles.update_one(
+                    {"_id": trip.vehicle_id},
+                    {"$set": {"status": "unavailable", "updated_at": datetime.utcnow()}}
+                )
+                logger.info(f"Set vehicle {trip.vehicle_id} status to unavailable")
+            
+            # Start driver ping session for violation monitoring
+            if trip.driver_assignment:
+                try:
+                    from services.driver_ping_service import driver_ping_service
+                    await driver_ping_service.start_ping_session(trip_id, trip.driver_assignment)
+                    logger.info(f"Started ping session for driver {trip.driver_assignment} on trip {trip_id}")
+                except Exception as e:
+                    logger.error(f"Failed to start ping session: {e}")
+            
             # Get updated trip
             updated_trip = await self.get_trip_by_id(trip_id)
             
@@ -464,6 +491,18 @@ class TripService:
                 {"$set": update_data}
             )
             
+            # Pause the simulation
+            from services.simulation_service import simulation_service
+            await simulation_service.pause_trip_simulation(trip_id)
+            
+            # End driver ping session when trip is paused
+            try:
+                from services.driver_ping_service import driver_ping_service
+                await driver_ping_service.end_ping_session(trip_id)
+                logger.info(f"Ended ping session for paused trip {trip_id}")
+            except Exception as e:
+                logger.error(f"Failed to end ping session: {e}")
+            
             # Get updated trip
             updated_trip = await self.get_trip_by_id(trip_id)
             
@@ -497,6 +536,19 @@ class TripService:
                 {"_id": ObjectId(trip_id)},
                 {"$set": update_data}
             )
+            
+            # Resume the simulation
+            from services.simulation_service import simulation_service
+            await simulation_service.resume_trip_simulation(trip_id)
+            
+            # Restart driver ping session when trip is resumed
+            if trip.driver_assignment:
+                try:
+                    from services.driver_ping_service import driver_ping_service
+                    await driver_ping_service.start_ping_session(trip_id, trip.driver_assignment)
+                    logger.info(f"Restarted ping session for resumed trip {trip_id}")
+                except Exception as e:
+                    logger.error(f"Failed to restart ping session: {e}")
             
             # Get updated trip
             updated_trip = await self.get_trip_by_id(trip_id)
@@ -539,6 +591,36 @@ class TripService:
                 "cancelled_by": cancelled_by,
                 "updated_at": cancellation_time
             })
+            
+            # Set driver status back to available when trip is cancelled
+            if trip.driver_assignment:
+                from repositories.database import db_manager_management
+                await db_manager_management.drivers.update_one(
+                    {"employee_id": trip.driver_assignment},
+                    {"$set": {"status": "available", "updated_at": cancellation_time}}
+                )
+                logger.info(f"Set driver {trip.driver_assignment} status to available")
+            
+            # End driver ping session when trip is cancelled
+            try:
+                from services.driver_ping_service import driver_ping_service
+                await driver_ping_service.end_ping_session(trip_id)
+                logger.info(f"Ended ping session for cancelled trip {trip_id}")
+            except Exception as e:
+                logger.error(f"Failed to end ping session: {e}")
+            
+            # Set vehicle status back to available when trip is cancelled
+            if trip.vehicle_id:
+                from repositories.database import db_manager_management
+                await db_manager_management.vehicles.update_one(
+                    {"_id": trip.vehicle_id},
+                    {"$set": {"status": "available", "updated_at": cancellation_time}}
+                )
+                logger.info(f"Set vehicle {trip.vehicle_id} status to available")
+            
+            # Stop the simulation
+            from services.simulation_service import simulation_service
+            await simulation_service.stop_trip_simulation(trip_id)
             
             # Insert into trip_history collection
             await self.db.trip_history.insert_one(trip_doc)
@@ -588,6 +670,37 @@ class TripService:
                 "moved_to_history_at": completion_time,
                 "updated_at": completion_time
             })
+            
+            # Set driver status back to available when trip completes
+            if trip.driver_assignment:
+                from repositories.database import db_manager_management
+                await db_manager_management.drivers.update_one(
+                    {"employee_id": trip.driver_assignment},
+                    {"$set": {"status": "available", "updated_at": completion_time}}
+                )
+                logger.info(f"Set driver {trip.driver_assignment} status to available")
+            
+            # End driver ping session when trip is completed
+            try:
+                from services.driver_ping_service import driver_ping_service
+                await driver_ping_service.end_ping_session(trip_id)
+                logger.info(f"Ended ping session for completed trip {trip_id}")
+            except Exception as e:
+                logger.error(f"Failed to end ping session: {e}")
+                logger.info(f"Set driver {trip.driver_assignment} status to available")
+            
+            # Set vehicle status back to available when trip completes
+            if trip.vehicle_id:
+                from repositories.database import db_manager_management
+                await db_manager_management.vehicles.update_one(
+                    {"_id": trip.vehicle_id},
+                    {"$set": {"status": "available", "updated_at": completion_time}}
+                )
+                logger.info(f"Set vehicle {trip.vehicle_id} status to available")
+            
+            # Stop the simulation
+            from services.simulation_service import simulation_service
+            await simulation_service.stop_trip_simulation(trip_id)
             
             # Calculate analytics before moving to history
             completed_trip_temp = Trip(**{**trip_doc, "_id": str(trip_doc["_id"])})

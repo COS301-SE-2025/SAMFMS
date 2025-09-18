@@ -15,6 +15,10 @@ const TRIPS_ENDPOINTS = {
   recenttrips: API_ENDPOINTS.TRIPS.RECENTTRIPS,
   recenttripsall: API_ENDPOINTS.TRIPS.RECENTTRIPSALL,
   polyline: API_ENDPOINTS.TRIPS.VEHICLEPOLYLINE,
+  availableDrivers: API_ENDPOINTS.TRIPS.AVAILABLE_DRIVERS,
+  checkDriverAvailability: API_ENDPOINTS.TRIPS.CHECK_DRIVER_AVAILABILITY,
+  availableVehicles: API_ENDPOINTS.TRIPS.AVAILABLE_VEHICLES,
+  checkVehicleAvailability: API_ENDPOINTS.TRIPS.CHECK_VEHICLE_AVAILABILITY,
   ANALYTICS: {
     HISTORY_STATS: API_ENDPOINTS.TRIPS.ANALYTICS.HISTORY_STATS,
     DRIVERSTATS: API_ENDPOINTS.TRIPS.ANALYTICS.DRiVERSTATS,
@@ -609,3 +613,73 @@ export const getVehiclePolyline = async (VehicleID) => {
     throw error
   }
 }
+
+// Driver Availability API Functions
+export const getAvailableDrivers = async (startTime, endTime) => {
+  try {
+    const params = new URLSearchParams({
+      start_time: startTime,
+      end_time: endTime
+    });
+    const endpoint = `${TRIPS_ENDPOINTS.availableDrivers}?${params.toString()}`;
+    console.log('Fetching available drivers for timeframe:', { startTime, endTime });
+    console.log('Request URL:', endpoint);
+    const response = await httpClient.get(endpoint);
+    return response;
+  } catch (error) {
+    console.error('Error fetching available drivers:', error);
+    throw error;
+  }
+};
+
+export const checkDriverAvailability = async (driverId, startTime, endTime) => {
+  try {
+    const params = new URLSearchParams({
+      start_time: startTime,
+      end_time: endTime
+    });
+    const endpoint = `${TRIPS_ENDPOINTS.checkDriverAvailability(driverId)}?${params.toString()}`;
+    console.log(`Checking availability for driver ${driverId} for timeframe:`, { startTime, endTime });
+    console.log('Request URL:', endpoint);
+    const response = await httpClient.get(endpoint);
+    return response;
+  } catch (error) {
+    console.error(`Error checking driver ${driverId} availability:`, error);
+    throw error;
+  }
+};
+
+// Vehicle Availability API Functions
+export const getAvailableVehicles = async (startTime, endTime) => {
+  try {
+    const params = new URLSearchParams({
+      start_time: startTime,
+      end_time: endTime
+    });
+    const endpoint = `${TRIPS_ENDPOINTS.availableVehicles}?${params.toString()}`;
+    console.log('Fetching available vehicles for timeframe:', { startTime, endTime });
+    console.log('Request URL:', endpoint);
+    const response = await httpClient.get(endpoint);
+    return response;
+  } catch (error) {
+    console.error('Error fetching available vehicles:', error);
+    throw error;
+  }
+};
+
+export const checkVehicleAvailability = async (vehicleId, startTime, endTime) => {
+  try {
+    const params = new URLSearchParams({
+      start_time: startTime,
+      end_time: endTime
+    });
+    const endpoint = `${TRIPS_ENDPOINTS.checkVehicleAvailability(vehicleId)}?${params.toString()}`;
+    console.log(`Checking availability for vehicle ${vehicleId} for timeframe:`, { startTime, endTime });
+    console.log('Request URL:', endpoint);
+    const response = await httpClient.get(endpoint);
+    return response;
+  } catch (error) {
+    console.error(`Error checking vehicle ${vehicleId} availability:`, error);
+    throw error;
+  }
+};

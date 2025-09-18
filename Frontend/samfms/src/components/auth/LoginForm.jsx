@@ -4,8 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
   login,
-  hasRole,
+  hasRole
 } from '../../backend/API.js';
+import {
+  forgotPassword
+} from '../../backend/API.ts';
 import { ROLES } from '../auth/RBACUtils';
 
 const LoginForm = ({ onSuccess, onClose }) => {
@@ -35,15 +38,6 @@ const LoginForm = ({ onSuccess, onClose }) => {
     return '';
   };
 
-  // Validate password
-  const validatePassword = password => {
-    if (!password.trim()) {
-      return 'Password is required';
-    } else if (password.length < 6) {
-      return 'Password must be at least 6 characters';
-    }
-    return '';
-  };
 
   // Handle blur events
   const handleBlur = field => {
@@ -54,12 +48,7 @@ const LoginForm = ({ onSuccess, onClose }) => {
         ...validationErrors,
         email: validateEmail(email),
       });
-    } else if (field === 'password') {
-      setValidationErrors({
-        ...validationErrors,
-        password: validatePassword(password),
-      });
-    }
+    } 
   };
 
   // Handle change events with validation
@@ -74,12 +63,25 @@ const LoginForm = ({ onSuccess, onClose }) => {
       }
     } else if (field === 'password') {
       setPassword(value);
-      if (touched.password) {
-        setValidationErrors({
-          ...validationErrors,
-          password: validatePassword(value),
-        });
-      }
+    }
+  };
+
+  const handleForgotPassword = async email => {
+    const emailError = validateEmail(email);
+    setValidationErrors({
+      email: emailError,
+    });
+    setTouched({
+      email: true
+    });
+    if (emailError) {
+      return;
+    }
+    setError('');
+    try {
+      const res = await forgotPassword(email);
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -88,11 +90,9 @@ const LoginForm = ({ onSuccess, onClose }) => {
 
     // Validate all fields
     const emailError = validateEmail(email);
-    const passwordError = validatePassword(password);
 
     setValidationErrors({
       email: emailError,
-      password: passwordError,
     });
 
     setTouched({
@@ -101,7 +101,7 @@ const LoginForm = ({ onSuccess, onClose }) => {
     });
 
     // If any validation errors, prevent form submission
-    if (emailError || passwordError) {
+    if (emailError) {
       return;
     }
 
@@ -209,7 +209,7 @@ const LoginForm = ({ onSuccess, onClose }) => {
         <div className="text-right">
           <button
             type="button"
-            onClick={() => console.log('Forgot password clicked')}
+            onClick={() => (handleForgotPassword(email))}
             className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline focus:outline-none focus:underline transition-colors duration-200 font-medium"
           >
             Forgot your password?
