@@ -19,6 +19,7 @@ sessions_collection = db.sessions
 audit_logs_collection = db.audit_logs
 blacklisted_tokens_collection = db.blacklisted_tokens
 otp_collection = db.otp
+removed_users = db.removed_users
 
 
 
