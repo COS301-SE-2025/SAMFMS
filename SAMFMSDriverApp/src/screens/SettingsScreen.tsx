@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, Moon, Sun, ChevronRight, Monitor, Activity, TestTube } from 'lucide-react-native';
+import { Bell, Moon, Sun, ChevronRight, Monitor, Activity } from 'lucide-react-native';
 import { useTheme, ThemeMode } from '../contexts/ThemeContext';
 
 interface SettingItemProps {
@@ -157,7 +157,7 @@ export default function SettingsScreen({ navigation }: { navigation: any }) {
         </View>
 
         {/* Development & Testing Section */}
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
             DEVELOPMENT & TESTING
           </Text>
@@ -171,7 +171,7 @@ export default function SettingsScreen({ navigation }: { navigation: any }) {
               showChevron={true}
             />
           </View>
-        </View>
+        </View> */}
 
         {/* Removed Support Section and Sign Out button */}
       </ScrollView>

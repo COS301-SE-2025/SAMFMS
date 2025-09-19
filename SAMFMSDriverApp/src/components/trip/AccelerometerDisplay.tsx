@@ -15,12 +15,12 @@ interface AccelerometerDisplayProps {
 const AccelerometerDisplay: React.FC<AccelerometerDisplayProps> = React.memo(
   ({
     currentAcceleration,
-    excessiveAcceleration,
-    excessiveBraking,
-    violationCount,
+    excessiveAcceleration: _excessiveAcceleration,
+    excessiveBraking: _excessiveBraking,
+    violationCount: _violationCount,
     isCalibrated = false,
     calibrationProgress = 0,
-    dataQuality = 0,
+    dataQuality: _dataQuality = 0,
   }) => {
     const { theme } = useTheme();
     const accelerationTextRef = useRef<Text>(null);
@@ -43,7 +43,7 @@ const AccelerometerDisplay: React.FC<AccelerometerDisplayProps> = React.memo(
     }, [currentAcceleration]);
 
     // Determine color based on violation status and data quality
-    const getAccelerationColor = () => {
+    /* const getAccelerationColor = () => {
       if (excessiveAcceleration || excessiveBraking) {
         return '#ff6b6b'; // Red for active violation
       } else if (violationCount > 0) {
@@ -55,10 +55,10 @@ const AccelerometerDisplay: React.FC<AccelerometerDisplayProps> = React.memo(
       } else {
         return theme.textSecondary; // Gray for low quality
       }
-    };
+    }; */
 
     // Get color for data quality based on percentage
-    const getQualityColor = () => {
+    /* const getQualityColor = () => {
       const quality = dataQuality || 0;
       if (quality >= 0.8) {
         return theme.success; // Green for high quality (>=80%)
@@ -69,7 +69,7 @@ const AccelerometerDisplay: React.FC<AccelerometerDisplayProps> = React.memo(
       } else {
         return theme.danger; // Red for very low quality (<30%)
       }
-    };
+    }; */
 
     // Get calibration status text (simplified since quality is shown separately)
     const getCalibrationStatus = () => {
@@ -84,26 +84,31 @@ const AccelerometerDisplay: React.FC<AccelerometerDisplayProps> = React.memo(
 
     return (
       <View style={styles.container}>
-        <View style={styles.accelerationContainer}>
+        {/* <View style={styles.accelerationContainer}>
           <Text style={[styles.label, { color: theme.textSecondary }]}>Acceleration:</Text>
           <Text ref={accelerationTextRef} style={[styles.value, { color: getAccelerationColor() }]}>
             {currentAcceleration.toFixed(2)} m/s²
           </Text>
-        </View>
+        </View> */}
 
         {/* Data Quality Display */}
-        <View style={styles.qualityContainer}>
+        {/* <View style={styles.qualityContainer}>
           <Text style={[styles.qualityLabel, { color: theme.textSecondary }]}>Quality:</Text>
           <Text style={[styles.qualityValue, { color: getQualityColor() }]}>
             {dataQuality > 0 ? Math.round(dataQuality * 100) : 0}%
           </Text>
-        </View>
+        </View> */}
 
         {/* Calibration Status */}
         {(calibrationProgress > 0 || isCalibrated) && (
           <Text style={[styles.status, { color: theme.textSecondary }]}>
             {getCalibrationStatus()}
           </Text>
+        )}
+
+        {/* Keep an empty Text component to prevent React warnings about empty view */}
+        {!(calibrationProgress > 0 || isCalibrated) && (
+          <Text style={[styles.status, { color: 'transparent' }]}> </Text>
         )}
       </View>
     );

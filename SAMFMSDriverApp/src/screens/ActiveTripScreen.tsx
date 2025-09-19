@@ -717,7 +717,8 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         }}
       />
 
-      {/* Debug Info Display */}
+      {/* Debug Info Display - Commented out for clean interface */}
+      {/* 
       {__DEV__ && (
         <View
           style={[
@@ -773,6 +774,8 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
           </View>
         </View>
       )}
+      */}
+
       {!isCalibrated && calibrationProgress > 0 && (
         <View style={[styles.calibrationBanner, { backgroundColor: theme.warning || '#ffd43b' }]}>
           <Text style={[styles.calibrationText, { color: theme.background || '#000' }]}>
@@ -796,7 +799,8 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         </View>
       )}
 
-      {/* Temporary Debug Info for Testing */}
+      {/* Temporary Debug Info for Testing - Commented out for clean interface */}
+      {/* 
       {isCalibrated && (
         <View style={[styles.debugContainer, { backgroundColor: theme.cardBackground }]}>
           <Text style={[styles.debugText, { color: theme.text }]}>
@@ -805,6 +809,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
           </Text>
         </View>
       )}
+      */}
 
       <DirectionsCard
         liveInstruction={liveInstruction}

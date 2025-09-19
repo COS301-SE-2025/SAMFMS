@@ -122,11 +122,11 @@ const TripHeader: React.FC<TripHeaderProps> = ({
             />
           )}
 
-          <Text style={[styles.headerDistance, { color: theme.success }]}>
+          {/* <Text style={[styles.headerDistance, { color: theme.success }]}>
             {activeTrip.estimated_distance
               ? (activeTrip.estimated_distance / 1000).toFixed(1) + ' km'
               : 'Distance N/A'}
-          </Text>
+          </Text> */}
         </View>
       </View>
 
