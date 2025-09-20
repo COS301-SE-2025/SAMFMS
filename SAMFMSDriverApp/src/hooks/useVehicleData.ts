@@ -59,8 +59,9 @@ export const useVehicleData = (
 
         if (liveDataResponse?.data?.data) {
           const liveData = liveDataResponse.data.data;
-          console.log('Live tracking data received:', liveData); // Debug log
-          console.log('Current instruction from API:', liveData.current_instruction); // Debug current instruction specifically
+          // Reduced logging to prevent console spam
+          // console.log('Live tracking data received:', liveData);
+          // console.log('Current instruction from API:', liveData.current_instruction);
 
           // Extract current position from live data
           let location = null;
@@ -74,14 +75,14 @@ export const useVehicleData = (
               lastUpdated: new Date(pos.timestamp || Date.now()),
             };
 
-            // DEBUG: Log the live vehicle position being sent to map
-            console.log('🚗 LIVE VEHICLE POSITION (sent to map):', {
-              latitude: pos.latitude,
-              longitude: pos.longitude,
-              coordinates: [pos.latitude, pos.longitude],
-              speed: pos.speed,
-              timestamp: pos.timestamp,
-            });
+            // Reduced live position logging to prevent console spam
+            // console.log('🚗 LIVE VEHICLE POSITION (sent to map):', {
+            //   latitude: pos.latitude,
+            //   longitude: pos.longitude,
+            //   coordinates: [pos.latitude, pos.longitude],
+            //   speed: pos.speed,
+            //   timestamp: pos.timestamp,
+            // });
           }
 
           // Extract route polyline - prefer remaining polyline for live navigation
@@ -124,25 +125,26 @@ export const useVehicleData = (
             }
           }
 
-          console.log('Live speed and speed limit extracted:', {
-            speed: location?.speed,
-            speedLimit: liveData.current_instruction?.speed_limit,
-          }); // Debug log
+          // Reduced frequent debug logging
+          // console.log('Live speed and speed limit extracted:', {
+          //   speed: location?.speed,
+          //   speedLimit: liveData.current_instruction?.speed_limit,
+          // });
 
-          console.log('WebView state:', {
-            webViewRefCurrent: webViewRef.current,
-            isWebViewLoaded,
-            hasLocation: !!location,
-            hasPolyline: !!polyline,
-          }); // Debug log
+          // console.log('WebView state:', {
+          //   webViewRefCurrent: webViewRef.current,
+          //   isWebViewLoaded,
+          //   hasLocation: !!location,
+          //   hasPolyline: !!polyline,
+          // });
 
           // Send update to WebView with live data
           if (webViewRef.current && isWebViewLoaded && (location || polyline)) {
-            console.log('Sending update to WebView:', {
-              location,
-              polyline,
-              webViewRef: webViewRef.current,
-            }); // Debug log
+            // console.log('Sending update to WebView:', {
+            //   location,
+            //   polyline,
+            //   webViewRef: webViewRef.current,
+            // });
             let script = '';
 
             if (location) {
@@ -230,14 +232,15 @@ export const useVehicleData = (
             // Update directions from live data
             if (liveData.current_instruction) {
               const instruction = liveData.current_instruction;
-              console.log('Live instruction data received:', {
-                text: instruction.text,
-                type: instruction.type,
-                distance_to_instruction: instruction.distance_to_instruction,
-                road_name: instruction.road_name,
-                speed_limit: instruction.speed_limit,
-                fullInstruction: instruction,
-              });
+              // Reduced instruction logging frequency
+              // console.log('Live instruction data received:', {
+              //   text: instruction.text,
+              //   type: instruction.type,
+              //   distance_to_instruction: instruction.distance_to_instruction,
+              //   road_name: instruction.road_name,
+              //   speed_limit: instruction.speed_limit,
+              //   fullInstruction: instruction,
+              // });
 
               // Use instruction text if available, otherwise show current road
               const displayInstruction =
@@ -255,7 +258,8 @@ export const useVehicleData = (
             }
 
             if (script) {
-              console.log('About to inject script:', script.substring(0, 200) + '...');
+              // Reduced script injection logging
+              // console.log('About to inject script:', script.substring(0, 200) + '...');
               webViewRef.current.injectJavaScript(`
                 try {
                   window.ReactNativeWebView.postMessage(JSON.stringify({

@@ -164,7 +164,8 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
 
         if (response.ok) {
           const data = await response.json();
-          console.log('Employee ID API response:', data);
+          // Reduced frequent employee ID logging
+          // console.log('Employee ID API response:', data);
           // Based on API response: {"status":"success","data":{"status":"success","data":"EMP139",...}}
           return { data: data.data?.data || data.data };
         }
@@ -185,7 +186,8 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
 
         // Compare and update only if data has changed
         if (newTrips && JSON.stringify(newTrips) !== JSON.stringify(trips)) {
-          console.log('Upcoming trips data changed, updating UI');
+          // Reduced frequent trip data change logging
+          // console.log('Upcoming trips data changed, updating UI');
           setTrips(newTrips);
         }
 

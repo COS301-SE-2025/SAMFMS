@@ -75,7 +75,7 @@ const lightTheme: Theme = {
 
   // Accent and action colors
   accent: '#6366f1',
-  accentSecondary: '#8b5cf6',
+  accentSecondary: '#3b82f6',
 
   // Status colors
   success: '#10b981',
@@ -121,7 +121,7 @@ const darkTheme: Theme = {
 
   // Accent and action colors
   accent: '#6366f1',
-  accentSecondary: '#8b5cf6',
+  accentSecondary: '#3b82f6',
 
   // Status colors
   success: '#10b981',

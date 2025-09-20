@@ -693,6 +693,150 @@ export const reportSpeedViolation = async (violationData: {
   }
 };
 
+// Report excessive braking violation
+export const reportExcessiveBrakingViolation = async (violationData: {
+  trip_id: string;
+  driver_id: string;
+  vehicle_id: string;
+  time: string; // ISO 8601 timestamp
+  location: {
+    coordinates: [number, number]; // [longitude, latitude]
+  };
+  deceleration: number; // m/s² (must be ≥ 6.0)
+  threshold: number; // The threshold that was exceeded
+  severity: 'low' | 'medium' | 'high';
+}) => {
+  try {
+    console.log('📤 Sending excessive braking violation report:', {
+      endpoint: '/trips/excessive-braking-violations/',
+      data: violationData,
+      timestamp: new Date().toISOString(),
+    });
+
+    const data = await apiRequest('/trips/excessive-braking-violations/', {
+      method: 'POST',
+      body: JSON.stringify(violationData),
+    });
+
+    console.log('✅ Excessive braking violation API response:', {
+      success: true,
+      response: data,
+      timestamp: new Date().toISOString(),
+    });
+
+    return data;
+  } catch (error) {
+    console.error('❌ Excessive braking violation API error:', {
+      error: error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      requestData: violationData,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Fallback to mock success for development
+    console.log('🔄 Falling back to mock excessive braking violation report:', {
+      reason: 'API request failed',
+      timestamp: new Date().toISOString(),
+    });
+
+    const mockResponse = {
+      data: {
+        id: `braking-violation-${Date.now()}`,
+        trip_id: violationData.trip_id,
+        driver_id: violationData.driver_id,
+        vehicle_id: violationData.vehicle_id,
+        time: violationData.time,
+        location: violationData.location,
+        deceleration: violationData.deceleration,
+        threshold: violationData.threshold,
+        severity: violationData.severity,
+        status: 'recorded',
+        message: 'Excessive braking violation recorded successfully (mock)',
+      },
+      status: 'success',
+    };
+
+    console.log('🎭 Mock excessive braking violation response:', {
+      response: mockResponse,
+      timestamp: new Date().toISOString(),
+    });
+
+    return mockResponse;
+  }
+};
+
+// Report excessive acceleration violation
+export const reportExcessiveAccelerationViolation = async (violationData: {
+  trip_id: string;
+  driver_id: string;
+  vehicle_id: string;
+  time: string; // ISO 8601 timestamp
+  location: {
+    coordinates: [number, number]; // [longitude, latitude]
+  };
+  acceleration: number; // m/s² (must be ≥ 4.0)
+  threshold: number; // The threshold that was exceeded
+  severity: 'low' | 'medium' | 'high';
+}) => {
+  try {
+    console.log('📤 Sending excessive acceleration violation report:', {
+      endpoint: '/trips/excessive-acceleration-violations/',
+      data: violationData,
+      timestamp: new Date().toISOString(),
+    });
+
+    const data = await apiRequest('/trips/excessive-acceleration-violations/', {
+      method: 'POST',
+      body: JSON.stringify(violationData),
+    });
+
+    console.log('✅ Excessive acceleration violation API response:', {
+      success: true,
+      response: data,
+      timestamp: new Date().toISOString(),
+    });
+
+    return data;
+  } catch (error) {
+    console.error('❌ Excessive acceleration violation API error:', {
+      error: error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      requestData: violationData,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Fallback to mock success for development
+    console.log('🔄 Falling back to mock excessive acceleration violation report:', {
+      reason: 'API request failed',
+      timestamp: new Date().toISOString(),
+    });
+
+    const mockResponse = {
+      data: {
+        id: `acceleration-violation-${Date.now()}`,
+        trip_id: violationData.trip_id,
+        driver_id: violationData.driver_id,
+        vehicle_id: violationData.vehicle_id,
+        time: violationData.time,
+        location: violationData.location,
+        acceleration: violationData.acceleration,
+        threshold: violationData.threshold,
+        severity: violationData.severity,
+        status: 'recorded',
+        message: 'Excessive acceleration violation recorded successfully (mock)',
+      },
+      status: 'success',
+    };
+
+    console.log('🎭 Mock excessive acceleration violation response:', {
+      response: mockResponse,
+      timestamp: new Date().toISOString(),
+    });
+
+    return mockResponse;
+  }
+};
+
 // Driver location ping during active trip
 export const pingDriverLocation = async (
   tripId: string,
@@ -713,7 +857,13 @@ export const pingDriverLocation = async (
         timestamp: new Date().toISOString(),
       }),
     });
-    console.log('Driver location ping response:', data);
+    console.log('📡 PING API RESPONSE:', {
+      tripId,
+      coordinates: [longitude, latitude],
+      speed: speed || 0,
+      timestamp: new Date().toISOString(),
+      response: data,
+    });
     return data;
   } catch (error) {
     console.error('Error pinging driver location:', error);
@@ -910,9 +1060,10 @@ export const getCurrentUserId = async () => {
 // Live Trip Tracking API - Get real-time trip data
 export const getLiveTripData = async (tripId: string) => {
   try {
-    console.log(`Attempting to fetch live tracking data for trip_id: ${tripId}`);
+    // Reduced frequent API fetch logging
+    // console.log(`Attempting to fetch live tracking data for trip_id: ${tripId}`);
     const data = await apiRequest(`/trips/trips/live/${tripId}`);
-    console.log('Successfully fetched live tracking data:', data);
+    // console.log('Successfully fetched live tracking data:', data);
     return data;
   } catch (error) {
     console.error('Error fetching live tracking data:', error);

@@ -150,42 +150,6 @@ const TripHeader: React.FC<TripHeaderProps> = ({
             <Text style={styles.speedLimitLabel}>LIMIT</Text>
           </View>
         )}
-
-        {/* Accelerometer Status */}
-        {accelerometerData &&
-          (() => {
-            const accelerationBgColor = accelerometerData.excessiveAcceleration
-              ? '#ff6b6b'
-              : accelerometerData.violations.accelerationCount > 0
-              ? '#ffd43b'
-              : '#51cf66';
-
-            const brakingBgColor = accelerometerData.excessiveBraking
-              ? '#ff6b6b'
-              : accelerometerData.violations.brakingCount > 0
-              ? '#ffd43b'
-              : '#51cf66';
-
-            return (
-              <View style={styles.accelerometerContainer}>
-                {/* Acceleration Violations */}
-                <View style={[styles.violationIndicator, { backgroundColor: accelerationBgColor }]}>
-                  <Text style={styles.violationText}>ACC</Text>
-                  <Text style={styles.violationCount}>
-                    {accelerometerData.violations.accelerationCount}
-                  </Text>
-                </View>
-
-                {/* Braking Violations */}
-                <View style={[styles.violationIndicator, { backgroundColor: brakingBgColor }]}>
-                  <Text style={styles.violationText}>BRK</Text>
-                  <Text style={styles.violationCount}>
-                    {accelerometerData.violations.brakingCount}
-                  </Text>
-                </View>
-              </View>
-            );
-          })()}
       </View>
     </View>
   );
@@ -336,10 +300,6 @@ const styles = StyleSheet.create({
     marginTop: 1,
     color: '#000000',
   },
-  accelerometerContainer: {
-    flexDirection: 'column',
-    marginLeft: 8,
-  },
   accelerometerDisplay: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -353,30 +313,6 @@ const styles = StyleSheet.create({
   accelerometerValue: {
     fontSize: 12,
     fontWeight: '700',
-  },
-  violationIndicator: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 15,
-    width: 40,
-    height: 30,
-    marginVertical: 2,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  violationText: {
-    fontSize: 8,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    lineHeight: 10,
-  },
-  violationCount: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    lineHeight: 12,
   },
   violationCounters: {
     flexDirection: 'row',

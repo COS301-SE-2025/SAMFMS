@@ -8,7 +8,11 @@ import {
   cancelTrip,
   completeTrip,
   reportSpeedViolation,
+  reportExcessiveBrakingViolation,
+  reportExcessiveAccelerationViolation,
   getUserData,
+  getDriverEMPID,
+  setUserData,
 } from '../utils/api';
 import { useActiveTripContext } from '../contexts/ActiveTripContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -56,8 +60,13 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
 
   // Use custom hooks
-  const { currentLocation, currentSpeed, startLocationPing, stopLocationPing } =
-    useLocationTracking();
+  const {
+    currentLocation,
+    currentSpeed,
+    startLocationPing,
+    stopLocationPing,
+    updateVehicleLocation,
+  } = useLocationTracking();
   const { speedLimit, stopSpeedLimitChecking } = useSpeedLimitTracking();
   const {
     vehicleLocation,
@@ -74,7 +83,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
 
   // Callback for accelerometer violations (no popup, just logging)
   const handleAccelerometerViolation = useCallback(
-    (params: {
+    async (params: {
       type: 'acceleration' | 'braking';
       value: number;
       threshold: number;
@@ -92,10 +101,148 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         ).toFixed(2)} m/s² (threshold: ${Math.abs(params.threshold).toFixed(2)} m/s²)`
       );
 
+      // Report violation to API
+      try {
+        if (!activeTrip?.id) {
+          console.warn('Cannot report violation: missing trip data');
+          return;
+        }
+
+        // Get current location - use the proper vehicle location with priority logic
+        let activeVehicleLocation = null;
+
+        // Priority: 1) Live vehicle data from API, 2) Current location from GPS tracking
+        if (vehicleLocation?.position) {
+          activeVehicleLocation = {
+            latitude: vehicleLocation.position[0],
+            longitude: vehicleLocation.position[1],
+          };
+        } else if (currentLocation) {
+          activeVehicleLocation = {
+            latitude: currentLocation.latitude,
+            longitude: currentLocation.longitude,
+          };
+        }
+
+        if (!activeVehicleLocation) {
+          console.warn('Cannot report violation: no vehicle location available', {
+            vehicleLocation: vehicleLocation?.position ? 'available' : 'not available',
+            currentLocation: currentLocation ? 'available' : 'not available',
+            vehicleLocationData: vehicleLocation?.position ? vehicleLocation.position : null,
+            currentLocationData: currentLocation
+              ? { lat: currentLocation.latitude, lng: currentLocation.longitude }
+              : null,
+          });
+          return;
+        }
+
+        console.log('✅ Using vehicle location for violation report:', {
+          latitude: activeVehicleLocation.latitude,
+          longitude: activeVehicleLocation.longitude,
+          source: vehicleLocation?.position ? 'vehicleLocation' : 'currentLocation',
+        });
+
+        const location = {
+          coordinates: [activeVehicleLocation.longitude, activeVehicleLocation.latitude] as [
+            number,
+            number
+          ], // [lng, lat] format for GeoJSON
+        };
+
+        // Get user data for driver_id - ensure we use employee_id specifically
+        let userData = await getUserData();
+        let employeeId = userData?.employee_id;
+
+        // If employee_id is not available, try to fetch it from the API using the user's ID
+        if (!employeeId && userData?.id) {
+          console.log(
+            'Employee ID not found in userData, attempting to fetch from API for user ID:',
+            userData.id
+          );
+          try {
+            const fetchedEmployeeId = await getDriverEMPID(userData.id);
+            if (fetchedEmployeeId && fetchedEmployeeId.data) {
+              // Extract the employee ID from the API response
+              employeeId =
+                typeof fetchedEmployeeId.data === 'object'
+                  ? fetchedEmployeeId.data.data || fetchedEmployeeId.data
+                  : fetchedEmployeeId.data;
+
+              console.log('Successfully fetched employee ID from API:', employeeId);
+
+              // Update userData with the fetched employee_id and save it
+              const updatedUserData = {
+                ...userData,
+                employee_id: employeeId,
+              };
+              await setUserData(updatedUserData);
+              console.log('Updated and saved userData with employee_id:', employeeId);
+            }
+          } catch (apiError) {
+            console.error('Failed to fetch employee ID from API:', apiError);
+          }
+        }
+
+        if (!employeeId) {
+          console.warn(
+            'Cannot report violation: missing employee_id from user data and failed to fetch from API',
+            {
+              userData,
+              availableFields: Object.keys(userData || {}),
+              userIdAvailable: !!userData?.id,
+            }
+          );
+          return;
+        }
+
+        // Determine severity based on how much the threshold was exceeded
+        const exceedanceRatio = Math.abs(params.value) / Math.abs(params.threshold);
+        let severity: 'low' | 'medium' | 'high';
+        if (exceedanceRatio >= 2.0) {
+          severity = 'high';
+        } else if (exceedanceRatio >= 1.5) {
+          severity = 'medium';
+        } else {
+          severity = 'low';
+        }
+
+        const violationData = {
+          trip_id: activeTrip.id,
+          driver_id: employeeId, // Use only employee_id
+          vehicle_id: activeTrip.vehicle_id || 'unknown',
+          time: params.timestamp.toISOString(),
+          location: location,
+          threshold: Math.abs(params.threshold), // Include the threshold that was exceeded
+          severity: severity,
+        };
+
+        if (params.type === 'acceleration') {
+          const accelerationViolationData = {
+            ...violationData,
+            acceleration: Math.abs(params.value),
+          };
+
+          console.log('📤 Reporting excessive acceleration violation:', accelerationViolationData);
+          const response = await reportExcessiveAccelerationViolation(accelerationViolationData);
+          console.log('✅ Acceleration violation reported successfully:', response);
+        } else if (params.type === 'braking') {
+          const brakingViolationData = {
+            ...violationData,
+            deceleration: Math.abs(params.value),
+          };
+
+          console.log('📤 Reporting excessive braking violation:', brakingViolationData);
+          const response = await reportExcessiveBrakingViolation(brakingViolationData);
+          console.log('✅ Braking violation reported successfully:', response);
+        }
+      } catch (violationError) {
+        console.error('❌ Failed to report violation:', violationError);
+      }
+
       // Note: Vibration and counter updates are handled in the useAccelerometerMonitoring hook
       // No popup alert shown to avoid interrupting the driver
     },
-    []
+    [activeTrip, vehicleLocation, currentLocation]
   );
 
   // Use accelerometer monitoring for driving behavior
@@ -114,11 +261,12 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
 
   // Debug effect to log calibration status changes
   useEffect(() => {
-    console.log(
-      `📊 Accelerometer Status: Calibrated=${isCalibrated}, Progress=${Math.round(
-        calibrationProgress * 100
-      )}%, Quality=${Math.round(dataQuality * 100)}%`
-    );
+    // Only log when calibration is complete to reduce console spam
+    // console.log(
+    //   `📊 Accelerometer Status: Calibrated=${isCalibrated}, Progress=${Math.round(
+    //     calibrationProgress * 100
+    //   )}%, Quality=${Math.round(dataQuality * 100)}%`
+    // );
     if (isCalibrated) {
       console.log(`✅ Accelerometer fully calibrated! Violation detection is now ACTIVE.`);
     }
@@ -324,7 +472,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
           // Restart tracking when trip resumes
           if (activeTrip.id) {
             const tripId = activeTrip.id;
-            startLocationPing(tripId, false);
+            startLocationPing(tripId, false, vehicleLocation);
             startAccelMonitoring(); // Resume accelerometer monitoring
             console.log('🎯 Resumed accelerometer monitoring after trip resume');
             // startSpeedLimitChecking(activeTrip, getCurrentLocation, false);
@@ -354,6 +502,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     stopSpeedLimitChecking,
     startAccelMonitoring,
     stopAccelMonitoring,
+    vehicleLocation,
   ]);
 
   const handleCancelTrip = useCallback(async () => {
@@ -500,14 +649,14 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
   const startTripMonitoring = useCallback(() => {
     if (activeTrip?.id && !isPaused) {
       const tripId = activeTrip.id;
-      startLocationPingRef.current(tripId, isPaused);
+      startLocationPingRef.current(tripId, isPaused, vehicleLocation);
       extractDirectionsRef.current();
 
       // Start accelerometer monitoring for driving behavior
       startAccelMonitoringRef.current();
       console.log('🎯 Started accelerometer monitoring for trip:', tripId);
     }
-  }, [activeTrip?.id, isPaused]); // Only depend on state, not functions
+  }, [activeTrip?.id, isPaused, vehicleLocation]); // Only depend on state, not functions
 
   const stopTripMonitoring = useCallback(() => {
     stopLocationPingRef.current();
@@ -552,6 +701,11 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     }
   }, [activeTrip?.id, isPaused]);
 
+  // Update vehicle location for location pinging
+  useEffect(() => {
+    updateVehicleLocation(vehicleLocation);
+  }, [vehicleLocation, updateVehicleLocation]);
+
   // Function to play beep sound
   const playBeepSound = useCallback(() => {
     // Vibration for immediate feedback (no popup)
@@ -580,15 +734,49 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
         return;
       }
 
-      // Get the current user/employee data to use as driver ID
-      const userData = await getUserData();
-      const employeeId = userData?.employee_id || userData?.id || userData?.user_id;
+      // Get the current user/employee data to use as driver ID - ensure we use employee_id specifically
+      let userData = await getUserData();
+      let employeeId = userData?.employee_id;
+
+      // If employee_id is not available, try to fetch it from the API using the user's ID
+      if (!employeeId && userData?.id) {
+        console.log(
+          'Employee ID not found in userData, attempting to fetch from API for user ID:',
+          userData.id
+        );
+        try {
+          const fetchedEmployeeId = await getDriverEMPID(userData.id);
+          if (fetchedEmployeeId && fetchedEmployeeId.data) {
+            // Extract the employee ID from the API response
+            employeeId =
+              typeof fetchedEmployeeId.data === 'object'
+                ? fetchedEmployeeId.data.data || fetchedEmployeeId.data
+                : fetchedEmployeeId.data;
+
+            console.log('Successfully fetched employee ID from API:', employeeId);
+
+            // Update userData with the fetched employee_id and save it
+            const updatedUserData = {
+              ...userData,
+              employee_id: employeeId,
+            };
+            await setUserData(updatedUserData);
+            console.log('Updated and saved userData with employee_id:', employeeId);
+          }
+        } catch (apiError) {
+          console.error('Failed to fetch employee ID from API:', apiError);
+        }
+      }
 
       if (!employeeId) {
-        console.warn('Cannot report violation: missing employee ID from user data', {
-          userData,
-          availableFields: Object.keys(userData || {}),
-        });
+        console.warn(
+          'Cannot report violation: missing employee_id from user data and failed to fetch from API',
+          {
+            userData,
+            availableFields: Object.keys(userData || {}),
+            userIdAvailable: !!userData?.id,
+          }
+        );
         return;
       }
 
@@ -646,19 +834,58 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
       const speedExcess = currentSpeedValue - currentSpeedLimitValue;
       if (
         speedExcess >= 5 &&
-        currentLocation &&
         now - lastSpeedViolationReport > 30000 // Only report every 30 seconds
       ) {
-        setLastSpeedViolationReport(now);
+        // Get the current active vehicle location using the same priority logic
+        let activeVehicleLocation = null;
 
-        // Report the violation to the API
-        reportViolation(currentSpeedValue, currentSpeedLimitValue, currentLocation);
+        // Priority: 1) Live vehicle data from API, 2) Current location from GPS tracking
+        if (vehicleLocation?.position) {
+          activeVehicleLocation = {
+            latitude: vehicleLocation.position[0],
+            longitude: vehicleLocation.position[1],
+          };
+        } else if (currentLocation) {
+          activeVehicleLocation = {
+            latitude: currentLocation.latitude,
+            longitude: currentLocation.longitude,
+          };
+        }
 
-        console.warn(
-          `REPORTABLE Speed violation: ${Math.round(currentSpeedValue)} km/h (${Math.round(
-            speedExcess
-          )} km/h over ${currentSpeedLimitValue} km/h limit)`
-        );
+        if (activeVehicleLocation) {
+          setLastSpeedViolationReport(now);
+
+          console.log('✅ Using vehicle location for speed violation report:', {
+            latitude: activeVehicleLocation.latitude,
+            longitude: activeVehicleLocation.longitude,
+            source: vehicleLocation?.position ? 'vehicleLocation' : 'currentLocation',
+          });
+
+          // Report the violation to the API with proper location
+          reportViolation(currentSpeedValue, currentSpeedLimitValue, activeVehicleLocation);
+
+          console.warn(
+            `REPORTABLE Speed violation: ${Math.round(currentSpeedValue)} km/h (${Math.round(
+              speedExcess
+            )} km/h over ${currentSpeedLimitValue} km/h limit) at location [${
+              activeVehicleLocation.latitude
+            }, ${activeVehicleLocation.longitude}]`
+          );
+        } else {
+          console.warn(
+            `REPORTABLE Speed violation detected but no location available: ${Math.round(
+              currentSpeedValue
+            )} km/h (${Math.round(speedExcess)} km/h over ${currentSpeedLimitValue} km/h limit)`,
+            {
+              vehicleLocation: vehicleLocation?.position ? 'available' : 'not available',
+              currentLocation: currentLocation ? 'available' : 'not available',
+              vehicleLocationData: vehicleLocation?.position ? vehicleLocation.position : null,
+              currentLocationData: currentLocation
+                ? { lat: currentLocation.latitude, lng: currentLocation.longitude }
+                : null,
+            }
+          );
+        }
       } else {
         // Just log minor violations
         console.warn(
@@ -678,6 +905,7 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
     lastSpeedViolationReport,
     playBeepSound,
     currentLocation,
+    vehicleLocation,
     reportViolation,
   ]);
 
@@ -832,7 +1060,8 @@ const ActiveTripScreen: React.FC<ActiveTripScreenProps> = ({ navigation }) => {
           try {
             const data = JSON.parse(event.nativeEvent.data);
             if (data.type === 'debug') {
-              console.log('WebView Debug:', data.message);
+              // Reduced WebView debug logging to prevent console spam
+              // console.log('WebView Debug:', data.message);
             } else if (data.type === 'error') {
               console.error('WebView Error:', data.message);
             }
