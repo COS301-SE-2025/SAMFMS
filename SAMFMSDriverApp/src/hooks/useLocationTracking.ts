@@ -14,8 +14,9 @@ interface LocationData {
 interface LocationTrackingHookReturn {
   currentLocation: LocationData | null;
   currentSpeed: number;
-  startLocationPing: (tripId: string, isPaused: boolean) => void;
+  startLocationPing: (tripId: string, isPaused: boolean, vehicleLocation?: any) => void;
   stopLocationPing: () => void;
+  updateVehicleLocation: (vehicleLocation: any) => void;
 }
 
 export const useLocationTracking = (): LocationTrackingHookReturn => {
@@ -27,6 +28,7 @@ export const useLocationTracking = (): LocationTrackingHookReturn => {
   const isTracking = useRef<boolean>(false);
   const currentTripId = useRef<string | null>(null);
   const isPausedRef = useRef<boolean>(false);
+  const vehicleLocationRef = useRef<any>(null);
 
   // Start watching location changes
   const startLocationWatch = useCallback(() => {
@@ -63,12 +65,13 @@ export const useLocationTracking = (): LocationTrackingHookReturn => {
         const speedKmh = (position.coords.speed || 0) * 3.6;
         setCurrentSpeed(speedKmh);
 
-        console.log('📍 Location updated:', {
-          lat: locationData.latitude.toFixed(6),
-          lng: locationData.longitude.toFixed(6),
-          speed: speedKmh.toFixed(1) + ' km/h',
-          accuracy: locationData.accuracy.toFixed(1) + 'm',
-        });
+        // Reduced frequent location update logging
+        // console.log('📍 Location updated:', {
+        //   lat: locationData.latitude.toFixed(6),
+        //   lng: locationData.longitude.toFixed(6),
+        //   speed: speedKmh.toFixed(1) + ' km/h',
+        //   accuracy: locationData.accuracy.toFixed(1) + 'm',
+        // });
       },
       error => {
         console.error('Location watch error:', error);
@@ -89,66 +92,109 @@ export const useLocationTracking = (): LocationTrackingHookReturn => {
 
   // Send location ping to API
   const sendLocationPing = useCallback(async () => {
-    if (!currentTripId.current || isPausedRef.current || !currentLocation) {
+    if (!currentTripId.current || isPausedRef.current) {
+      console.log('🔇 Skipping ping: No trip ID or paused', {
+        tripId: currentTripId.current,
+        paused: isPausedRef.current,
+      });
+      return;
+    }
+
+    // Use priority: 1) vehicleLocation from API, 2) currentLocation from GPS
+    let pingLocation = null;
+    let pingSpeed = currentSpeed;
+
+    if (vehicleLocationRef.current?.position) {
+      pingLocation = {
+        latitude: vehicleLocationRef.current.position[0],
+        longitude: vehicleLocationRef.current.position[1],
+      };
+      // Use live speed from vehicle data if available
+      if (vehicleLocationRef.current.speed !== undefined) {
+        pingSpeed = vehicleLocationRef.current.speed;
+      }
+    } else if (currentLocation) {
+      pingLocation = {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+      };
+    }
+
+    if (!pingLocation) {
+      console.log('⚠️ No location available for ping yet - will retry on next interval');
       return;
     }
 
     try {
       await pingDriverLocation(
         currentTripId.current,
-        currentLocation.longitude,
-        currentLocation.latitude,
-        currentSpeed
+        pingLocation.longitude,
+        pingLocation.latitude,
+        pingSpeed
       );
 
-      console.log('📡 Location ping sent successfully:', {
-        tripId: currentTripId.current,
-        lat: currentLocation.latitude.toFixed(6),
-        lng: currentLocation.longitude.toFixed(6),
-        speed: currentSpeed.toFixed(1) + ' km/h',
-      });
+      // Reduced frequent ping success logging
+      // console.log('📡 Location ping sent successfully:', {
+      //   tripId: currentTripId.current,
+      //   lat: pingLocation.latitude.toFixed(6),
+      //   lng: pingLocation.longitude.toFixed(6),
+      //   speed: pingSpeed.toFixed(1) + ' km/h',
+      // });
     } catch (error) {
       console.error('Failed to send location ping:', error);
-      // Don't stop pinging on API errors, the API has fallback handling
+      // Continue pinging even on API errors - API has fallback handling
     }
   }, [currentLocation, currentSpeed]);
 
   // Start location pinging for a trip
   const startLocationPing = useCallback(
-    (tripId: string, isPaused: boolean) => {
+    (tripId: string, isPaused: boolean, vehicleLocation?: any) => {
       console.log('🚀 Starting location ping for trip:', tripId, 'Paused:', isPaused);
 
+      // Always update these values
       currentTripId.current = tripId;
       isPausedRef.current = isPaused;
-      isTracking.current = true;
+      vehicleLocationRef.current = vehicleLocation;
 
-      // Start location tracking
-      startLocationWatch();
+      // Only start if not already tracking this trip
+      if (!isTracking.current || currentTripId.current !== tripId) {
+        isTracking.current = true;
 
-      // Start periodic pinging (every 10 seconds)
-      if (locationInterval.current) {
-        clearInterval(locationInterval.current);
+        // Start location tracking
+        startLocationWatch();
+
+        // Clear any existing interval to prevent duplicates
+        if (locationInterval.current) {
+          clearInterval(locationInterval.current);
+        }
+
+        // Start periodic pinging (every 10 seconds)
+        locationInterval.current = setInterval(() => {
+          if (isTracking.current && currentTripId.current && !isPausedRef.current) {
+            sendLocationPing();
+          }
+        }, 10000); // Ping every 10 seconds
+
+        // Send an initial ping after a short delay to allow location to be acquired
+        setTimeout(() => {
+          if (isTracking.current && currentTripId.current && !isPausedRef.current) {
+            sendLocationPing();
+          }
+        }, 3000);
+      } else {
+        console.log('📍 Location ping already active for trip:', tripId);
       }
-
-      locationInterval.current = setInterval(() => {
-        if (isTracking.current && currentTripId.current && !isPausedRef.current) {
-          sendLocationPing();
-        }
-      }, 10000); // Ping every 10 seconds
-
-      // Send an initial ping after a short delay to allow location to be acquired
-      setTimeout(() => {
-        if (isTracking.current && currentTripId.current && !isPausedRef.current) {
-          sendLocationPing();
-        }
-      }, 3000);
     },
     [startLocationWatch, sendLocationPing]
   );
 
   // Stop location pinging
   const stopLocationPing = useCallback(() => {
-    console.log('🛑 Stopping location ping');
+    console.log('🛑 Stopping location ping - Current state:', {
+      isTracking: isTracking.current,
+      tripId: currentTripId.current,
+      paused: isPausedRef.current,
+    });
 
     isTracking.current = false;
     currentTripId.current = null;
@@ -161,12 +207,18 @@ export const useLocationTracking = (): LocationTrackingHookReturn => {
     if (locationInterval.current) {
       clearInterval(locationInterval.current);
       locationInterval.current = null;
+      console.log('✅ Location ping interval cleared');
     }
   }, [stopLocationWatch]);
 
   // Update pause state when needed
   useEffect(() => {
     // This effect can be used to handle pause state updates if needed
+  }, []);
+
+  // Update vehicle location reference for pinging
+  const updateVehicleLocation = useCallback((vehicleLocation: any) => {
+    vehicleLocationRef.current = vehicleLocation;
   }, []);
 
   // Cleanup on unmount
@@ -181,5 +233,6 @@ export const useLocationTracking = (): LocationTrackingHookReturn => {
     currentSpeed,
     startLocationPing,
     stopLocationPing,
+    updateVehicleLocation,
   };
 };

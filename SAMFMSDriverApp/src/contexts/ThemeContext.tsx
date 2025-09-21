@@ -74,7 +74,7 @@ const lightTheme: Theme = {
   divider: '#f1f5f9',
 
   // Accent and action colors
-  accent: '#6366f1',
+  accent: '#1e40af',
   accentSecondary: '#3b82f6',
 
   // Status colors
@@ -89,7 +89,7 @@ const lightTheme: Theme = {
 
   // Navigation colors
   tabBarBackground: '#ffffff',
-  tabBarActive: '#6366f1',
+  tabBarActive: '#1e40af',
   tabBarInactive: '#94a3b8',
 
   // Input colors
@@ -98,7 +98,7 @@ const lightTheme: Theme = {
   inputPlaceholder: '#9ca3af',
 
   // Button colors
-  buttonPrimary: '#6366f1',
+  buttonPrimary: '#1e40af',
   buttonSecondary: '#e5e7eb',
   buttonDisabled: '#d1d5db',
 };
@@ -120,7 +120,7 @@ const darkTheme: Theme = {
   divider: '#1e293b',
 
   // Accent and action colors
-  accent: '#6366f1',
+  accent: '#1e40af',
   accentSecondary: '#3b82f6',
 
   // Status colors
@@ -135,7 +135,7 @@ const darkTheme: Theme = {
 
   // Navigation colors
   tabBarBackground: '#1a1a2e',
-  tabBarActive: '#6366f1',
+  tabBarActive: '#1e40af',
   tabBarInactive: '#64748b',
 
   // Input colors
@@ -144,7 +144,7 @@ const darkTheme: Theme = {
   inputPlaceholder: '#6b7280',
 
   // Button colors
-  buttonPrimary: '#6366f1',
+  buttonPrimary: '#1e40af',
   buttonSecondary: '#374151',
   buttonDisabled: '#4b5563',
 };

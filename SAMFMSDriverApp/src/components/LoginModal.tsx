@@ -7,6 +7,9 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import Modal from 'react-native-modal';
 import { login } from '../utils/api';
@@ -125,117 +128,143 @@ const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose, onSuccess }) 
       animationOut="slideOutDown"
       backdropOpacity={0.5}
       style={styles.modal}
+      avoidKeyboard={true}
     >
-      <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
-        {/* Close button */}
-        <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-          <Text style={[styles.closeButtonText, { color: theme.textSecondary }]}>×</Text>
-        </TouchableOpacity>
-
-        {/* Logo */}
-        <View style={styles.logoContainer}>
-          <SamfmsLogo width={200} height={60} />
-        </View>
-
-        {/* Title */}
-        <Text style={[styles.title, { color: theme.text }]}>Welcome Back</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          Sign in to your SAMFMS account
-        </Text>
-
-        {/* Email Input */}
-        <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: theme.text }]}>Email Address</Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: theme.inputBackground,
-                borderColor: errors.email && touched.email ? theme.danger : theme.border,
-                color: theme.text,
-              },
-            ]}
-            placeholder="Enter your email"
-            placeholderTextColor={theme.textSecondary}
-            value={email}
-            onChangeText={value => handleChange('email', value)}
-            onBlur={() => handleBlur('email')}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {errors.email && touched.email && (
-            <Text style={[styles.errorText, { color: theme.danger }]}>⚠ {errors.email}</Text>
-          )}
-        </View>
-
-        {/* Password Input */}
-        <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: theme.text }]}>Password</Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: theme.inputBackground,
-                borderColor: errors.password && touched.password ? theme.danger : theme.border,
-                color: theme.text,
-              },
-            ]}
-            placeholder="Enter your password"
-            placeholderTextColor={theme.textSecondary}
-            value={password}
-            onChangeText={value => handleChange('password', value)}
-            onBlur={() => handleBlur('password')}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {errors.password && touched.password && (
-            <Text style={[styles.errorText, { color: theme.danger }]}>⚠ {errors.password}</Text>
-          )}
-        </View>
-
-        {/* Login Button */}
-        <TouchableOpacity
-          style={[
-            styles.loginButton,
-            { backgroundColor: theme.accent },
-            loading && styles.disabledButton,
-          ]}
-          onPress={handleSubmit}
-          disabled={loading}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        style={styles.keyboardAvoidingView}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator color="#ffffff" size="small" />
-              <Text style={styles.loginButtonText}>Logging in...</Text>
-            </View>
-          ) : (
-            <Text style={styles.loginButtonText}>Login to Account</Text>
-          )}
-        </TouchableOpacity>
+          <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
+            {/* Close button */}
+            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+              <Text style={[styles.closeButtonText, { color: theme.textSecondary }]}>×</Text>
+            </TouchableOpacity>
 
-        {/* Forgot Password */}
-        <TouchableOpacity style={styles.forgotPassword}>
-          <Text style={[styles.forgotPasswordText, { color: theme.accent }]}>
-            Forgot your password?
-          </Text>
-        </TouchableOpacity>
-      </View>
+            {/* Logo */}
+            <View style={styles.logoContainer}>
+              <SamfmsLogo width={200} height={60} />
+            </View>
+
+            {/* Title */}
+            <Text style={[styles.title, { color: theme.text }]}>Welcome Back</Text>
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+              Sign in to your SAMFMS account
+            </Text>
+
+            {/* Email Input */}
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: theme.text }]}>Email Address</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme.inputBackground,
+                    borderColor: errors.email && touched.email ? theme.danger : theme.border,
+                    color: theme.text,
+                  },
+                ]}
+                placeholder="Enter your email"
+                placeholderTextColor={theme.textSecondary}
+                value={email}
+                onChangeText={value => handleChange('email', value)}
+                onBlur={() => handleBlur('email')}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {errors.email && touched.email && (
+                <Text style={[styles.errorText, { color: theme.danger }]}>⚠ {errors.email}</Text>
+              )}
+            </View>
+
+            {/* Password Input */}
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: theme.text }]}>Password</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme.inputBackground,
+                    borderColor: errors.password && touched.password ? theme.danger : theme.border,
+                    color: theme.text,
+                  },
+                ]}
+                placeholder="Enter your password"
+                placeholderTextColor={theme.textSecondary}
+                value={password}
+                onChangeText={value => handleChange('password', value)}
+                onBlur={() => handleBlur('password')}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {errors.password && touched.password && (
+                <Text style={[styles.errorText, { color: theme.danger }]}>⚠ {errors.password}</Text>
+              )}
+            </View>
+
+            {/* Login Button */}
+            <TouchableOpacity
+              style={[
+                styles.loginButton,
+                { backgroundColor: theme.accent },
+                loading && styles.disabledButton,
+              ]}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator color="#ffffff" size="small" />
+                  <Text style={styles.loginButtonText}>Logging in...</Text>
+                </View>
+              ) : (
+                <Text style={styles.loginButtonText}>Login to Account</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Forgot Password */}
+            <TouchableOpacity style={styles.forgotPassword}>
+              <Text style={[styles.forgotPasswordText, { color: theme.accent }]}>
+                Forgot your password?
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
   modal: {
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
     margin: 0,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingTop: 40,
   },
   modalContent: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     padding: 24,
-    maxHeight: '90%',
+    margin: 20,
+    flex: 1,
+    justifyContent: 'center',
   },
   closeButton: {
     position: 'absolute',

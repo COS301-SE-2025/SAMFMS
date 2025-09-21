@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Phone, Mail, FileText, ChevronRight } from 'lucide-react-native';
+import { Phone, FileText, ChevronRight, Github } from 'lucide-react-native';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface HelpItemProps {
@@ -78,43 +78,50 @@ const FAQItem: React.FC<FAQItemProps> = ({ question, answer, theme }) => {
 export default function HelpScreen() {
   const { theme } = useTheme();
 
-  const openEmail = () => {
-    Linking.openURL('mailto:support@samfms.com');
-  };
-
   const openPhone = () => {
-    Linking.openURL('tel:+27118876543'); // Updated to the correct phone number
+    Linking.openURL('tel:+27842611935'); // Updated to the correct phone number
   };
 
   const openUserGuide = () => {
-    console.log('Open User Guide');
+    Linking.openURL(
+      'https://github.com/COS301-SE-2025/SAMFMS/blob/main/docs/Demo3/SAMFMS%20User%20Manual.pdf'
+    );
+  };
+
+  const openGitHub = () => {
+    Linking.openURL('https://github.com/COS301-SE-2025/SAMFMS');
   };
 
   const faqData = [
     {
-      question: 'How do I start a new trip?',
+      question: 'How do I start a trip in the driver app?',
       answer:
-        "To start a new trip, go to the Dashboard and tap on 'Start Trip'. Follow the prompts to enter your destination and route details.",
+        'To start a trip, navigate to the Dashboard and look for active trip assignments. Tap on a scheduled trip and follow the on-screen instructions to begin your route.',
     },
     {
-      question: 'How do I report vehicle issues?',
+      question: 'How does the speed monitoring feature work?',
       answer:
-        "You can report vehicle issues by going to the 'Check Vehicle' section in the dashboard and selecting 'Report Issue'. Describe the problem and submit the report.",
+        "The app continuously monitors your speed using GPS and compares it to posted speed limits. You'll receive alerts if you exceed the limit, and violations are automatically reported to fleet managers.",
     },
     {
-      question: 'How do I check my trip history?',
+      question: 'What should I do if I detect harsh braking or acceleration?',
       answer:
-        "Your trip history is available in the Account section. Tap on 'Trip History' to view all your past trips with details and routes.",
+        'The app automatically detects harsh driving behaviors using accelerometer data. These events are logged for safety analysis. Focus on smooth, gradual acceleration and braking to maintain safe driving scores.',
     },
     {
-      question: 'What should I do if I encounter an emergency?',
+      question: 'How can I view my driving performance?',
       answer:
-        'In case of an emergency, use the emergency button in the app or call emergency services directly. The app will automatically alert the dispatch center.',
+        'Your driving performance, including speed violations and harsh driving events, can be viewed in the Account section under your profile. This helps you track and improve your driving habits.',
     },
     {
-      question: 'How do I update my profile information?',
+      question: "What happens if there's an emergency during my trip?",
       answer:
-        'Profile information can be updated by contacting your fleet manager or through the web portal. Some basic information can be viewed in the Account section.',
+        'Use the emergency features in the app or contact emergency services directly. The app includes location tracking that can help dispatchers locate you quickly in case of emergencies.',
+    },
+    {
+      question: 'Can I pause a trip if needed?',
+      answer:
+        'Yes, you can pause an active trip using the pause button on the active trip screen. Make sure to resume the trip when you continue driving to maintain accurate tracking.',
     },
   ];
 
@@ -136,13 +143,6 @@ export default function HelpScreen() {
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Contact Support</Text>
           <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
             <HelpItem
-              icon={Mail}
-              title="Email Support"
-              subtitle="support@samfms.com"
-              onPress={openEmail}
-              theme={theme}
-            />
-            <HelpItem
               icon={Phone}
               title="Phone Support"
               subtitle="+27 84 261 1935"
@@ -158,9 +158,16 @@ export default function HelpScreen() {
           <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
             <HelpItem
               icon={FileText}
-              title="User Guide"
+              title="User Manual"
               subtitle="Complete guide for using the app"
               onPress={openUserGuide}
+              theme={theme}
+            />
+            <HelpItem
+              icon={Github}
+              title="GitHub Repository"
+              subtitle="View source code and project info"
+              onPress={openGitHub}
               theme={theme}
             />
           </View>

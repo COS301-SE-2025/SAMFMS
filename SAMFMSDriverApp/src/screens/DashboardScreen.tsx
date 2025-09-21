@@ -10,7 +10,16 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MapPin, Clock, Play, CheckCircle, Eye, AlertCircle, RefreshCw } from 'lucide-react-native';
+import {
+  MapPin,
+  Clock,
+  Play,
+  Eye,
+  AlertCircle,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react-native';
 import {
   getUserData,
   setUserData as saveUserData,
@@ -145,6 +154,7 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
 }) => {
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Use ActiveTripContext in the UpcomingTrips component
   const { checkForActiveTrip } = useActiveTripContext();
@@ -387,111 +397,137 @@ const UpcomingTrips: React.FC<UpcomingTripsProps> = ({
 
   return (
     <View style={[styles.sectionContainer, { backgroundColor: theme.cardBackground }]}>
-      <View style={styles.sectionHeader}>
+      <TouchableOpacity style={styles.sectionHeader} onPress={() => setIsCollapsed(!isCollapsed)}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Upcoming Trips</Text>
-        <MapPin size={20} color={theme.accent} />
-      </View>
-
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={theme.accent} />
-          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Loading trips...</Text>
+        <View style={styles.sectionHeaderRight}>
+          <MapPin size={20} color={theme.accent} />
+          {isCollapsed ? (
+            <ChevronDown size={20} color={theme.textSecondary} />
+          ) : (
+            <ChevronUp size={20} color={theme.textSecondary} />
+          )}
         </View>
-      ) : trips.length > 0 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tripsScroll}>
-          {trips.map((trip: any) => (
-            <View
-              key={trip.id}
-              style={[
-                styles.tripCard,
-                { backgroundColor: theme.background, borderColor: theme.border },
-              ]}
-            >
-              <View style={styles.tripHeader}>
-                <Text style={[styles.tripName, { color: theme.text }]} numberOfLines={1}>
-                  {trip.name}
-                </Text>
-                <View style={[styles.statusBadgeTrip, { backgroundColor: theme.accent + '20' }]}>
-                  <Text style={[styles.statusBadgeText, { color: theme.accent }]}>
-                    {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
-                  </Text>
-                </View>
-              </View>
+      </TouchableOpacity>
 
-              <View style={styles.routeContainer}>
-                <View style={styles.locationItem}>
-                  <View style={[styles.locationDot, styles.startDot]} />
-                  <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1}>
-                    {trip.pickupShort}
-                  </Text>
-                </View>
-                <View style={[styles.routeLine, { backgroundColor: theme.border }]} />
-                <View style={styles.locationItem}>
-                  <View style={[styles.locationDot, styles.endDot]} />
-                  <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1}>
-                    {trip.destinationShort}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={[styles.timeContainer, { backgroundColor: theme.cardBackground }]}>
-                <View style={styles.timeSection}>
-                  <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>Start</Text>
-                  <Text style={[styles.timeValue, { color: theme.text }]}>{trip.startTime}</Text>
-                  <Text style={[styles.dateValue, { color: theme.textSecondary }]}>
-                    {trip.startDate}
-                  </Text>
-                </View>
-                <View style={[styles.timeDivider, { backgroundColor: theme.border }]} />
-                <View style={styles.timeSection}>
-                  <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>End</Text>
-                  <Text style={[styles.timeValue, { color: theme.text }]}>{trip.endTime}</Text>
-                  <Text style={[styles.dateValue, { color: theme.textSecondary }]}>
-                    {trip.endDate}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.tripFooter}>
-                <View style={styles.distanceContainer}>
-                  <MapPin size={14} color={theme.textSecondary} />
-                  <Text style={[styles.distanceText, { color: theme.textSecondary }]}>
-                    {trip.distance}
-                  </Text>
-                </View>
-                {trip.canStart ? (
-                  <TouchableOpacity
-                    style={[styles.startButton, { backgroundColor: trip.buttonColor || '#10b981' }]}
-                    onPress={() => handleStartTrip(trip.id)}
-                  >
-                    {trip.buttonState === 'start_late' ? (
-                      <AlertCircle size={14} color="#ffffff" />
-                    ) : (
-                      <Play size={14} color="#ffffff" />
-                    )}
-                    <Text style={styles.startButtonText}>{trip.buttonText || 'Start'}</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={[
-                      styles.viewButton,
-                      {
-                        backgroundColor: trip.buttonColor || '#3b82f6',
-                        borderColor: trip.buttonColor || '#3b82f6',
-                      },
-                    ]}
-                    onPress={() => handleViewTrip(trip)}
-                  >
-                    <Eye size={14} color="#ffffff" />
-                    <Text style={styles.viewButtonText}>{trip.buttonText || 'View'}</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+      {!isCollapsed && (
+        <>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={theme.accent} />
+              <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+                Loading trips...
+              </Text>
             </View>
-          ))}
-        </ScrollView>
-      ) : (
-        <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No upcoming trips</Text>
+          ) : trips.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.tripsScroll}
+            >
+              {trips.map((trip: any) => (
+                <View
+                  key={trip.id}
+                  style={[
+                    styles.tripCard,
+                    { backgroundColor: theme.background, borderColor: theme.border },
+                  ]}
+                >
+                  <View style={styles.tripHeader}>
+                    <Text style={[styles.tripName, { color: theme.text }]} numberOfLines={1}>
+                      {trip.name}
+                    </Text>
+                    <View
+                      style={[styles.statusBadgeTrip, { backgroundColor: theme.accent + '20' }]}
+                    >
+                      <Text style={[styles.statusBadgeText, { color: theme.accent }]}>
+                        {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.routeContainer}>
+                    <View style={styles.locationItem}>
+                      <View style={[styles.locationDot, styles.startDot]} />
+                      <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1}>
+                        {trip.pickupShort}
+                      </Text>
+                    </View>
+                    <View style={[styles.routeLine, { backgroundColor: theme.border }]} />
+                    <View style={styles.locationItem}>
+                      <View style={[styles.locationDot, styles.endDot]} />
+                      <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1}>
+                        {trip.destinationShort}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={[styles.timeContainer, { backgroundColor: theme.cardBackground }]}>
+                    <View style={styles.timeSection}>
+                      <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>Start</Text>
+                      <Text style={[styles.timeValue, { color: theme.text }]}>
+                        {trip.startTime}
+                      </Text>
+                      <Text style={[styles.dateValue, { color: theme.textSecondary }]}>
+                        {trip.startDate}
+                      </Text>
+                    </View>
+                    <View style={[styles.timeDivider, { backgroundColor: theme.border }]} />
+                    <View style={styles.timeSection}>
+                      <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>End</Text>
+                      <Text style={[styles.timeValue, { color: theme.text }]}>{trip.endTime}</Text>
+                      <Text style={[styles.dateValue, { color: theme.textSecondary }]}>
+                        {trip.endDate}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.tripFooter}>
+                    <View style={styles.distanceContainer}>
+                      <MapPin size={14} color={theme.textSecondary} />
+                      <Text style={[styles.distanceText, { color: theme.textSecondary }]}>
+                        {trip.distance}
+                      </Text>
+                    </View>
+                    {trip.canStart ? (
+                      <TouchableOpacity
+                        style={[
+                          styles.startButton,
+                          { backgroundColor: trip.buttonColor || '#10b981' },
+                        ]}
+                        onPress={() => handleStartTrip(trip.id)}
+                      >
+                        {trip.buttonState === 'start_late' ? (
+                          <AlertCircle size={14} color="#ffffff" />
+                        ) : (
+                          <Play size={14} color="#ffffff" />
+                        )}
+                        <Text style={styles.startButtonText}>{trip.buttonText || 'Start'}</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity
+                        style={[
+                          styles.viewButton,
+                          {
+                            backgroundColor: trip.buttonColor || '#3b82f6',
+                            borderColor: trip.buttonColor || '#3b82f6',
+                          },
+                        ]}
+                        onPress={() => handleViewTrip(trip)}
+                      >
+                        <Eye size={14} color="#ffffff" />
+                        <Text style={styles.viewButtonText}>{trip.buttonText || 'View'}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+              No upcoming trips
+            </Text>
+          )}
+        </>
       )}
     </View>
   );
@@ -507,6 +543,7 @@ interface RecentTripsProps {
 const RecentTrips: React.FC<RecentTripsProps> = ({ theme, userData, navigation }) => {
   const [recentTrips, setRecentTrips] = useState<any[]>([]);
   const [_loading, setLoading] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     const getEmployeeID = async (security_id: string) => {
@@ -679,90 +716,110 @@ const RecentTrips: React.FC<RecentTripsProps> = ({ theme, userData, navigation }
 
   return (
     <View style={[styles.sectionContainer, { backgroundColor: theme.cardBackground }]}>
-      <View style={styles.sectionHeader}>
+      <TouchableOpacity style={styles.sectionHeader} onPress={() => setIsCollapsed(!isCollapsed)}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Trips</Text>
-        <Clock size={20} color={theme.accent} />
-      </View>
-
-      {recentTrips.length > 0 ? (
-        <View style={styles.recentTripsContainer}>
-          {recentTrips.map((trip: any) => (
-            <View
-              key={trip.id}
-              style={[
-                styles.recentTripCard,
-                { backgroundColor: theme.background, borderColor: theme.border },
-              ]}
-            >
-              <View style={styles.tripHeader}>
-                <Text style={[styles.tripName, { color: theme.text }]} numberOfLines={1}>
-                  {trip.name || 'Recent Trip'}
-                </Text>
-                <View
-                  style={[styles.statusBadgeTrip, { backgroundColor: trip.priorityColor + '20' }]}
-                >
-                  <Text style={[styles.statusBadgeText, { color: trip.priorityColor }]}>
-                    {trip.priorityDisplay}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={[styles.timeContainer, { backgroundColor: theme.cardBackground }]}>
-                <View style={styles.timeSection}>
-                  <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>Started</Text>
-                  <Text style={[styles.timeValue, { color: theme.text }]}>{trip.startTime}</Text>
-                  <Text style={[styles.dateValue, { color: theme.textSecondary }]}>
-                    {trip.startDate}
-                  </Text>
-                  <View style={styles.locationItem}>
-                    <View style={[styles.locationDot, styles.startDot]} />
-                    <Text style={[styles.locationText, { color: theme.text }]}>
-                      {trip.pickupShort || trip.route.split(' → ')[0] || 'Unknown'}
-                    </Text>
-                  </View>
-                </View>
-                <View style={[styles.timeDivider, { backgroundColor: theme.border }]} />
-                <View style={styles.timeSection}>
-                  <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>Completed</Text>
-                  <Text style={[styles.timeValue, { color: theme.text }]}>{trip.endTime}</Text>
-                  <Text style={[styles.dateValue, { color: theme.textSecondary }]}>
-                    {trip.endDate}
-                  </Text>
-                  <View style={styles.locationItem}>
-                    <View style={[styles.locationDot, styles.endDot]} />
-                    <Text style={[styles.locationText, { color: theme.text }]}>
-                      {trip.destinationShort || trip.route.split(' → ')[1] || 'Unknown'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.tripFooter}>
-                <View style={styles.distanceContainer}>
-                  <MapPin size={14} color={theme.textSecondary} />
-                  <Text style={[styles.distanceText, { color: theme.textSecondary }]}>
-                    {trip.distance}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={[
-                    styles.viewButton,
-                    {
-                      backgroundColor: '#3b82f6',
-                      borderColor: '#3b82f6',
-                    },
-                  ]}
-                  onPress={() => handleViewTrip(trip)}
-                >
-                  <Eye size={14} color="#ffffff" />
-                  <Text style={styles.viewButtonText}>View</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
+        <View style={styles.sectionHeaderRight}>
+          <Clock size={20} color={theme.accent} />
+          {isCollapsed ? (
+            <ChevronDown size={20} color={theme.textSecondary} />
+          ) : (
+            <ChevronUp size={20} color={theme.textSecondary} />
+          )}
         </View>
-      ) : (
-        <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No recent trips</Text>
+      </TouchableOpacity>
+
+      {!isCollapsed && (
+        <>
+          {recentTrips.length > 0 ? (
+            <View style={styles.recentTripsContainer}>
+              {recentTrips.map((trip: any) => (
+                <View
+                  key={trip.id}
+                  style={[
+                    styles.recentTripCard,
+                    { backgroundColor: theme.background, borderColor: theme.border },
+                  ]}
+                >
+                  <View style={styles.tripHeader}>
+                    <Text style={[styles.tripName, { color: theme.text }]} numberOfLines={1}>
+                      {trip.name || 'Recent Trip'}
+                    </Text>
+                    <View
+                      style={[
+                        styles.statusBadgeTrip,
+                        { backgroundColor: trip.priorityColor + '20' },
+                      ]}
+                    >
+                      <Text style={[styles.statusBadgeText, { color: trip.priorityColor }]}>
+                        {trip.priorityDisplay}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={[styles.timeContainer, { backgroundColor: theme.cardBackground }]}>
+                    <View style={styles.timeSection}>
+                      <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>
+                        Started
+                      </Text>
+                      <Text style={[styles.timeValue, { color: theme.text }]}>
+                        {trip.startTime}
+                      </Text>
+                      <Text style={[styles.dateValue, { color: theme.textSecondary }]}>
+                        {trip.startDate}
+                      </Text>
+                      <View style={styles.locationItem}>
+                        <View style={[styles.locationDot, styles.startDot]} />
+                        <Text style={[styles.locationText, { color: theme.text }]}>
+                          {trip.pickupShort || trip.route.split(' → ')[0] || 'Unknown'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={[styles.timeDivider, { backgroundColor: theme.border }]} />
+                    <View style={styles.timeSection}>
+                      <Text style={[styles.timeLabel, { color: theme.textSecondary }]}>
+                        Completed
+                      </Text>
+                      <Text style={[styles.timeValue, { color: theme.text }]}>{trip.endTime}</Text>
+                      <Text style={[styles.dateValue, { color: theme.textSecondary }]}>
+                        {trip.endDate}
+                      </Text>
+                      <View style={styles.locationItem}>
+                        <View style={[styles.locationDot, styles.endDot]} />
+                        <Text style={[styles.locationText, { color: theme.text }]}>
+                          {trip.destinationShort || trip.route.split(' → ')[1] || 'Unknown'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={styles.tripFooter}>
+                    <View style={styles.distanceContainer}>
+                      <MapPin size={14} color={theme.textSecondary} />
+                      <Text style={[styles.distanceText, { color: theme.textSecondary }]}>
+                        {trip.distance}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.viewButton,
+                        {
+                          backgroundColor: '#3b82f6',
+                          borderColor: '#3b82f6',
+                        },
+                      ]}
+                      onPress={() => handleViewTrip(trip)}
+                    >
+                      <Eye size={14} color="#ffffff" />
+                      <Text style={styles.viewButtonText}>View</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No recent trips</Text>
+          )}
+        </>
       )}
     </View>
   );
@@ -866,53 +923,53 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
           const apiUserData = await response.json();
           console.log('API userData:', apiUserData);
 
-          // Preserve existing employee ID if present
-          if (localUserData?.employee_id) {
-            apiUserData.employee_id = localUserData.employee_id;
-          } else if (localUserData?.employeeId) {
-            apiUserData.employee_id = localUserData.employeeId;
-          }
+          // Handle the response data structure properly
+          const mergedData = {
+            full_name:
+              apiUserData.full_name ||
+              apiUserData.name ||
+              localUserData?.full_name ||
+              localUserData?.name ||
+              '',
+            email: apiUserData.email || localUserData?.email || '',
+            role: apiUserData.role || localUserData?.role || '',
+            phoneNo:
+              apiUserData.phoneNo ||
+              apiUserData.phone_number ||
+              apiUserData.phone ||
+              localUserData?.phoneNo ||
+              localUserData?.phone ||
+              '',
+            employeeId: localUserData?.employeeId || localUserData?.employee_id || '',
+            // Preserve additional fields that might be needed
+            id:
+              apiUserData.id || apiUserData.user_id || localUserData?.id || localUserData?.user_id,
+            user_id:
+              apiUserData.user_id || apiUserData.id || localUserData?.user_id || localUserData?.id,
+            profile_picture_url:
+              apiUserData.profile_picture_url || localUserData?.profile_picture_url,
+          };
 
-          // If we have user ID, fetch the employee ID if not already present
-          if (apiUserData?.id && !apiUserData.employee_id) {
-            console.log('No employee ID found, fetching for user ID:', apiUserData.id);
-            const employeeId = await getEmployeeID(apiUserData.id);
+          console.log('Merged data:', mergedData);
+          setUserData(mergedData);
+
+          // Fetch employee ID if we have a user ID and don't have employee ID cached
+          if ((mergedData.id || mergedData.user_id) && !mergedData.employeeId) {
+            const employeeId = await getEmployeeID(mergedData.id || mergedData.user_id);
             if (employeeId) {
-              console.log('Successfully fetched employee ID:', employeeId);
-              console.log('Type of employeeId:', typeof employeeId);
-              // Add employee_id to userData
-              apiUserData.employee_id = employeeId;
-              apiUserData.employeeId = employeeId; // Also set with alternate property name for compatibility
-
-              // Save updated user data with employee ID
-              await saveUserData(apiUserData);
+              const updatedData = {
+                ...mergedData,
+                employeeId: employeeId,
+                employee_id: employeeId, // Also set with alternate property name for compatibility
+              };
+              setUserData(updatedData);
+              await saveUserData(updatedData);
               console.log('Saved user data with employee ID:', employeeId);
-              console.log(
-                'Full apiUserData after setting employee ID:',
-                JSON.stringify(apiUserData, null, 2)
-              );
-            } else {
-              console.log('Failed to fetch employee ID for user:', apiUserData.id);
             }
-          } else if (apiUserData.employee_id) {
-            console.log('Employee ID already present:', apiUserData.employee_id);
-          } else {
-            console.log(
-              'No user ID available to fetch employee ID, apiUserData.id:',
-              apiUserData?.id
-            );
           }
 
-          setUserData(apiUserData);
-          console.log(
-            'Final userData employee ID check:',
-            'employee_id:',
-            apiUserData.employee_id,
-            'employeeId:',
-            apiUserData.employeeId,
-            'Display value:',
-            apiUserData?.employee_id || apiUserData?.employeeId || 'Unknown'
-          );
+          // Update local storage with fresh data
+          await saveUserData(mergedData);
         }
       }
     } catch (error) {
@@ -922,7 +979,6 @@ export default function DashboardScreen({ navigation }: { navigation?: any }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
   const fetchPerformanceData = useCallback(async () => {
     try {
       const token = await getToken();
@@ -1413,6 +1469,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  sectionHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   sectionTitle: {
     fontSize: 16,

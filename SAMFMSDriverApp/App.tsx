@@ -17,15 +17,19 @@ import {
   Animated,
   Alert,
   Linking,
+  Dimensions,
 } from 'react-native';
+import { Github, FileText } from 'lucide-react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import SamfmsLogo from './src/components/SamfmsLogo';
+import SamfmsHorizontalLogo from './src/components/SamfmsHorizontalLogo';
 import LoginModal from './src/components/LoginModal';
 import LoadingScreen from './src/components/LoadingScreen';
 import MainNavigator from './src/navigation/MainNavigator';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { requestAppPermissions } from './src/utils/PermissionUtils';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 function AppContent() {
   const { theme, isDarkMode } = useTheme();
@@ -150,11 +154,32 @@ function SAMFMSLanding({ onLoginSuccess }: { onLoginSuccess: () => void }) {
   const fadeAnim = useMemo(() => new Animated.Value(1), []);
 
   const slogans = [
-    'Smart Fleet Management',
-    'Optimize Vehicle Operations',
-    'Track Assets in Real-time',
-    'Streamline Operations',
+    { text: 'Smart Fleet Management', blueWord: 'Smart' },
+    { text: 'Optimize Vehicle Operations', blueWord: 'Optimize' },
+    { text: 'Track Assets in Real-time', blueWord: 'Track' },
+    { text: 'Streamline Operations', blueWord: 'Streamline' },
   ];
+
+  const renderSloganText = (slogan: { text: string; blueWord: string }) => {
+    const parts = slogan.text.split(slogan.blueWord);
+    return (
+      <Text style={[styles.heroTitle, { color: theme.text }]}>
+        {parts[0]}
+        <Text style={{ color: theme.accent }}>{slogan.blueWord}</Text>
+        {parts[1]}
+      </Text>
+    );
+  };
+
+  const handleGitHubPress = () => {
+    Linking.openURL('https://github.com/COS301-SE-2025/SAMFMS');
+  };
+
+  const handleUserManualPress = () => {
+    Linking.openURL(
+      'https://github.com/COS301-SE-2025/SAMFMS/blob/main/docs/Demo3/SAMFMS%20User%20Manual.pdf'
+    );
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -181,54 +206,78 @@ function SAMFMSLanding({ onLoginSuccess }: { onLoginSuccess: () => void }) {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={{ paddingTop: safeAreaInsets.top }}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: safeAreaInsets.top }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header Section */}
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <View style={styles.logoPlaceholder}>
-              <SamfmsLogo width={250} height={75} />
+        <View style={styles.content}>
+          {/* Header Section */}
+          <View style={styles.header}>
+            <View style={styles.logoContainer}>
+              <View style={styles.logoBackground}>
+                <SamfmsHorizontalLogo width={300} height={80} />
+              </View>
+              <Text style={[styles.companyText, { color: theme.textSecondary }]}>
+                by Firewall Five
+              </Text>
             </View>
-            <Text style={[styles.companyText, { color: theme.textSecondary }]}>
-              by Firewall Five
-            </Text>
           </View>
-        </View>
 
-        {/* Hero Section */}
-        <View style={styles.heroSection}>
-          <Animated.View style={[styles.sloganContainer, { opacity: fadeAnim }]}>
-            <Text style={[styles.heroTitle, { color: theme.text }]}>{slogans[currentSlogan]}</Text>
-          </Animated.View>
+          {/* Hero Section */}
+          <View style={styles.heroSection}>
+            <Animated.View style={[styles.sloganContainer, { opacity: fadeAnim }]}>
+              {renderSloganText(slogans[currentSlogan])}
+            </Animated.View>
 
-          <Text style={[styles.heroSubtitle, { color: theme.textSecondary }]}>
-            Streamline your fleet operations, optimize vehicle maintenance, and track your assets
-            with our comprehensive management system.
-          </Text>
+            <Text style={[styles.heroSubtitle, { color: theme.textSecondary }]}>
+              Streamline your fleet operations, optimize vehicle maintenance, and track your assets
+              with our comprehensive management system.
+            </Text>
 
-          <TouchableOpacity
-            style={[styles.primaryButton, { backgroundColor: theme.accent }]}
-            onPress={() => setShowLoginModal(true)}
-          >
-            <Text style={styles.buttonText}>Login</Text>
-          </TouchableOpacity>
-
-          <View style={styles.secondaryButtons}>
-            <TouchableOpacity style={[styles.secondaryButton, { borderColor: theme.border }]}>
-              <Text style={[styles.secondaryButtonText, { color: theme.text }]}>📖 User Guide</Text>
+            <TouchableOpacity
+              style={[styles.primaryButton, { backgroundColor: theme.accent }]}
+              onPress={() => setShowLoginModal(true)}
+            >
+              <Text style={styles.buttonText}>Login</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.secondaryButton, { borderColor: theme.border }]}>
-              <Text style={[styles.secondaryButtonText, { color: theme.text }]}>🔗 GitHub</Text>
-            </TouchableOpacity>
+
+            <View style={styles.secondaryButtons}>
+              <TouchableOpacity
+                style={[styles.secondaryButton, { borderColor: theme.border }]}
+                onPress={handleUserManualPress}
+              >
+                <FileText size={16} color={theme.text} style={styles.buttonIcon} />
+                <Text style={[styles.secondaryButtonText, { color: theme.text }]}>User Manual</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.secondaryButton, { borderColor: theme.border }]}
+                onPress={handleGitHubPress}
+              >
+                <Github size={16} color={theme.text} />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
         {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: theme.textSecondary }]}>
-            © 2025 SAMFMS by Firewall Five. All rights reserved.
-          </Text>
+        <View style={[styles.footer, { backgroundColor: theme.cardBackground }]}>
+          <View style={styles.footerContent}>
+            <Text style={[styles.footerTitle, { color: theme.text }]}>SAMFMS</Text>
+            <Text style={[styles.footerSubtitle, { color: theme.textSecondary }]}>
+              Smart Automotive Fleet Management System
+            </Text>
+            <View style={styles.footerDivider} />
+            <Text style={[styles.footerText, { color: theme.textSecondary }]}>
+              © 2025 SAMFMS created by team{' '}
+              <Text style={[styles.footerHighlight, { color: theme.accent }]}>Firewall Five</Text>
+              {'\n'}in collaboration with{' '}
+              <Text style={[styles.footerHighlight, { color: theme.accent }]}>Tyto Insights</Text>
+              {'\n'}for the Capstone Project at the{' '}
+              <Text style={[styles.footerHighlight, { color: theme.accent }]}>
+                University of Pretoria
+              </Text>
+              .{'\n'}All rights reserved.
+            </Text>
+          </View>
         </View>
       </ScrollView>
 
@@ -252,9 +301,15 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  content: {
+    flex: 1,
+  },
   header: {
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 40,
   },
   logoContainer: {
     alignItems: 'center',
@@ -265,6 +320,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  logoBackground: {
+    backgroundColor: '#010E54',
+    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    width: screenWidth,
+    marginHorizontal: -20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 120,
   },
   logoText: {
     fontSize: 28,
@@ -321,6 +387,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
   secondaryButtonText: {
     fontSize: 14,
@@ -330,10 +402,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 30,
     alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  footerContent: {
+    alignItems: 'center',
+    maxWidth: 320,
+  },
+  footerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  footerSubtitle: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginBottom: 16,
+  },
+  footerDivider: {
+    width: 60,
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    marginBottom: 16,
   },
   footerText: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
+    lineHeight: 16,
+  },
+  footerHighlight: {
+    fontWeight: '600',
   },
 });
 

@@ -587,17 +587,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 8,
   },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#10b981',
-    marginRight: 6,
-  },
   statusText: {
     fontSize: 14,
   },

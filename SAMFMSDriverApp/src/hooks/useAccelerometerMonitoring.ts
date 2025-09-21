@@ -378,6 +378,17 @@ export const useAccelerometerMonitoring = (
     gyroscopeDataRef.current = { x, y, z };
   }, []);
 
+  // Use refs to store the latest versions of the processing functions
+  // This prevents them from being recreated on every render and causing startMonitoring to restart
+  const processAccelerometerDataRef = useRef(processAccelerometerData);
+  const processGyroscopeDataRef = useRef(processGyroscopeData);
+
+  // Update refs when functions change
+  useEffect(() => {
+    processAccelerometerDataRef.current = processAccelerometerData;
+    processGyroscopeDataRef.current = processGyroscopeData;
+  }, [processAccelerometerData, processGyroscopeData]);
+
   // Start monitoring accelerometer with sensor fusion
   const startMonitoring = useCallback(() => {
     if (isMonitoring) {
@@ -397,12 +408,23 @@ export const useAccelerometerMonitoring = (
 
     console.log('🎯 Starting enhanced accelerometer monitoring with sensor fusion and filtering');
 
-    // Reset sensor fusion and filters
-    sensorFusionRef.current = new SensorFusion();
-    // Start calibration process
-    sensorFusionRef.current.startCalibration();
+    // Only reset sensor fusion if it doesn't exist or if we're forcing a restart
+    // This prevents constant recalibration during normal operation
+    if (!sensorFusionRef.current || !sensorFusionRef.current.isCalibrated()) {
+      console.log('🔄 Initializing new sensor fusion instance (was not calibrated)');
+      sensorFusionRef.current = new SensorFusion();
+      // Start calibration process
+      sensorFusionRef.current.startCalibration();
 
-    if (settings.enableMultistageFiltering) {
+      // Reset calibration status since we're starting fresh
+      setIsCalibrated(false);
+      setCalibrationProgress(0);
+    } else {
+      console.log('✅ Reusing existing calibrated sensor fusion instance');
+    }
+
+    // Initialize multistage filter if needed
+    if (settings.enableMultistageFiltering && !multistageFilterRef.current) {
       multistageFilterRef.current = new MultistageFilter(
         settings.processNoise,
         settings.measurementNoise,
@@ -412,33 +434,40 @@ export const useAccelerometerMonitoring = (
       );
     }
 
-    // Reset state
+    // Reset monitoring state (but preserve calibration if it exists)
     setExcessiveAcceleration(false);
     setExcessiveBraking(false);
     setCurrentAcceleration(0);
-    setIsCalibrated(false);
-    setCalibrationProgress(0);
     setDataQuality(0);
+
+    // Update calibration display from current sensor fusion state
+    if (sensorFusionRef.current) {
+      setCalibrationProgress(sensorFusionRef.current.getCalibrationProgress());
+      setIsCalibrated(sensorFusionRef.current.isCalibrated());
+    }
 
     // Set update interval based on settings
     setUpdateIntervalForType(SensorTypes.accelerometer, settings.samplingRate);
 
-    // Subscribe to accelerometer data
+    // Subscribe to accelerometer data using ref to avoid dependency issues
     accelerometerSubscriptionRef.current = accelerometer.subscribe(
-      processAccelerometerData,
+      data => processAccelerometerDataRef.current(data),
       error => {
         console.error('Accelerometer error:', error);
         setIsMonitoring(false);
       }
     );
 
-    // Subscribe to gyroscope if sensor fusion is enabled
+    // Subscribe to gyroscope if sensor fusion is enabled using ref
     if (settings.enableSensorFusion) {
       setUpdateIntervalForType(SensorTypes.gyroscope, settings.samplingRate);
-      gyroscopeSubscriptionRef.current = gyroscope.subscribe(processGyroscopeData, error => {
-        console.warn('Gyroscope error (non-critical):', error);
-        // Don't stop monitoring if gyroscope fails, just log the error
-      });
+      gyroscopeSubscriptionRef.current = gyroscope.subscribe(
+        data => processGyroscopeDataRef.current(data),
+        error => {
+          console.warn('Gyroscope error (non-critical):', error);
+          // Don't stop monitoring if gyroscope fails, just log the error
+        }
+      );
     }
 
     // Set monitoring state AFTER successful subscription setup
@@ -453,7 +482,16 @@ export const useAccelerometerMonitoring = (
 
     // Reset gyroscope data
     gyroscopeDataRef.current = null;
-  }, [isMonitoring, settings, processAccelerometerData, processGyroscopeData]);
+  }, [
+    isMonitoring,
+    settings.enableSensorFusion,
+    settings.enableMultistageFiltering,
+    settings.processNoise,
+    settings.measurementNoise,
+    settings.cutoffFrequency,
+    settings.movingAverageWindow,
+    settings.samplingRate,
+  ]); // More specific dependencies without function references
 
   // Stop monitoring accelerometer
   const stopMonitoring = useCallback(() => {
