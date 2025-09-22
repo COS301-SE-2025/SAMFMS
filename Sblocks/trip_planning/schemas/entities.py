@@ -442,3 +442,41 @@ class DriverPingSession(BaseModel):
     
     class Config:
         populate_by_name = True
+
+
+class RiskLevel(str, Enum):
+    """Driver risk level enum"""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class DriverHistory(BaseModel):
+    """Driver performance history and metrics"""
+    id: Optional[str] = Field(None, alias="_id", description="History record ID")
+    driver_id: str = Field(..., description="Driver ID")
+    employee_id: Optional[str] = Field(None, description="Employee ID")
+    driver_name: str = Field(..., description="Driver full name")
+    
+    # Trip statistics
+    total_assigned_trips: int = Field(default=0, description="Total number of assigned trips")
+    completed_trips: int = Field(default=0, description="Number of trips completed")
+    cancelled_trips: int = Field(default=0, description="Number of cancelled trips")
+    trip_completion_rate: float = Field(default=0.0, description="Trip completion rate as percentage")
+    
+    # Violation counts
+    braking_violations: int = Field(default=0, description="Number of excessive braking violations")
+    acceleration_violations: int = Field(default=0, description="Number of excessive acceleration violations")
+    phone_usage_violations: int = Field(default=0, description="Number of phone usage violations")
+    speeding_violations: int = Field(default=0, description="Number of speeding violations")
+    
+    # Safety metrics
+    driver_safety_score: float = Field(default=100.0, description="Driver safety score (0-100)")
+    driver_risk_level: RiskLevel = Field(default=RiskLevel.LOW, description="Driver risk level")
+    
+    # Metadata
+    last_updated: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Record creation timestamp")
+    
+    class Config:
+        populate_by_name = True

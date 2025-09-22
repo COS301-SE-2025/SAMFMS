@@ -97,7 +97,7 @@ class DatabaseManager:
             collections = ["trips", "trip_constraints", "driver_assignments", 
                           "trip_analytics", "notifications", "notification_preferences",
                           "phone_usage_violations", "speed_violations", "excessive_braking_violations", 
-                          "excessive_acceleration_violations", "driver_ping_sessions"]
+                          "excessive_acceleration_violations", "driver_ping_sessions", "driver_history"]
             
             metrics = {
                 "status": "connected",
@@ -186,6 +186,13 @@ class DatabaseManager:
             await self.driver_ping_sessions.create_index("driver_id")
             await self.driver_ping_sessions.create_index("is_active")
             await self.driver_ping_sessions.create_index("started_at")
+            
+            # Driver history indexes
+            await self.driver_history.create_index("driver_id", unique=True)
+            await self.driver_history.create_index("driver_risk_level")
+            await self.driver_history.create_index("driver_safety_score")
+            await self.driver_history.create_index("last_updated")
+            await self.driver_history.create_index([("driver_safety_score", -1), ("driver_risk_level", 1)])
             
             # Compound indexes for common queries
             await self.trips.create_index([
@@ -282,6 +289,13 @@ class DatabaseManager:
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.driver_ping_sessions
+    
+    @property
+    def driver_history(self):
+        """Get driver history collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.driver_history
     
     async def create_trip_with_transaction(self, trip_data: dict, constraints: list = None):
         """Create a trip with constraints in a transaction"""

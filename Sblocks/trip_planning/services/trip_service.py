@@ -6,11 +6,12 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from bson import ObjectId
 
-from repositories.database import db_manager, db_manager_gps
+from repositories.database import db_manager, db_manager_gps, db_manager_management
 from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation, RouteInfo, TurnByTurnInstruction, RoadDetail, DetailedRouteInfo
 from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest
 from events.publisher import event_publisher
 from services.routing_service import routing_service
+from services.driver_history_service import DriverHistoryService
 
 logger = logging.getLogger(__name__)
 
@@ -651,6 +652,19 @@ class TripService:
             # Remove from active trips collection
             await self.db.trips.delete_one({"_id": ObjectId(trip_id)})
             
+            # Update driver history
+            if trip.driver_assignment:
+                try:
+                    driver_history_service = DriverHistoryService(db_manager, db_manager_management)
+                    await driver_history_service.update_driver_history_on_trip_completion(
+                        driver_id=trip.driver_assignment,
+                        trip_id=trip_id,
+                        trip_status="cancelled"
+                    )
+                    logger.info(f"Updated driver history for driver {trip.driver_assignment} after trip cancellation")
+                except Exception as e:
+                    logger.error(f"Failed to update driver history for cancelled trip {trip_id}: {e}")
+            
             # Create trip object for event publishing
             trip_doc["_id"] = str(trip_doc["_id"])
             cancelled_trip = Trip(**trip_doc)
@@ -728,6 +742,19 @@ class TripService:
             
             # Remove from active trips collection
             await self.db.trips.delete_one({"_id": ObjectId(trip_id)})
+            
+            # Update driver history
+            if trip.driver_assignment:
+                try:
+                    driver_history_service = DriverHistoryService(db_manager, db_manager_management)
+                    await driver_history_service.update_driver_history_on_trip_completion(
+                        driver_id=trip.driver_assignment,
+                        trip_id=trip_id,
+                        trip_status="completed"
+                    )
+                    logger.info(f"Updated driver history for driver {trip.driver_assignment} after trip completion")
+                except Exception as e:
+                    logger.error(f"Failed to update driver history for completed trip {trip_id}: {e}")
             
             # Create trip object for event publishing
             trip_doc["_id"] = str(trip_doc["_id"])

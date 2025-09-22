@@ -203,6 +203,18 @@ export const API_ENDPOINTS = {
     },
   },
 
+  // Driver History & Behavior
+  DRIVER_BEHAVIOR: {
+    LIST: '/trips/driver-history',
+    GET: id => `/trips/driver-history/${id}`,
+    SUMMARY: id => `/trips/driver-history/${id}/summary`,
+    RISK_DISTRIBUTION: '/trips/driver-history/analytics/risk-distribution',
+    RECENT_ALERTS: '/trips/driver-history/analytics/recent-alerts',
+    RECALCULATE: '/trips/driver-history/recalculate',
+    UPDATE: id => `/trips/driver-history/${id}/update`,
+    TRIPS: id => `/trips/driver-history/${id}/trips`,
+  },
+
   PLUGINSTATUS: {
     STATUS: '/health/healthy-services',
   },
