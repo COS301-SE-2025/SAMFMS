@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -35,6 +35,7 @@ import { getVehicles } from '../../backend/api/vehicles';
 import { listGeofences, deleteGeofence, addGeofence, updateGeofence } from '../../backend/api/geofences';
 import { listLocations, getVehicleLocation } from '../../backend/api/locations';
 import { getGeofence } from '../../backend/api/geofences';
+
 
 
 // Fix for marker icons in React-Leaflet
@@ -95,7 +96,7 @@ const getGeofenceOptions = type => {
 };
 
 // Map updater component to center on selected items
-const MapUpdater = ({ center, zoom = 13 }) => {
+const MapUpdater = ({center, zoom = 13}) => {
   const map = useMap();
 
   useEffect(() => {
@@ -108,7 +109,7 @@ const MapUpdater = ({ center, zoom = 13 }) => {
 };
 
 // Map controller for centering and follow mode
-const MapController = ({ followMode, focusLocation }) => {
+const MapController = ({followMode, focusLocation}) => {
   const map = useMap();
   useEffect(() => {
     if (followMode && focusLocation) {
@@ -535,7 +536,7 @@ const TrackingMapWithSidebar = () => {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           position => {
-            const { latitude, longitude } = position.coords;
+            const {latitude, longitude} = position.coords;
             const locationArray = [latitude, longitude];
             setUserLocation(locationArray);
             setMapCenter(locationArray);
@@ -564,7 +565,7 @@ const TrackingMapWithSidebar = () => {
       setLoading(true);
 
       // Load vehicles
-      const vehiclesResponse = await getVehicles({ limit: 100 });
+      const vehiclesResponse = await getVehicles({limit: 100});
 
       const vehiclesData =
         vehiclesResponse.data?.data?.vehicles ||
@@ -881,7 +882,7 @@ const TrackingMapWithSidebar = () => {
         const vehicleData = await getVehicleLocation(item.id);
         console.log("Full response:", vehicleData);
 
-        const { latitude, longitude } = vehicleData;
+        const {latitude, longitude} = vehicleData;
         setMapCenter([latitude, longitude]);
       } else {
         if (geofence.geometry.type === 'Point') {
@@ -976,7 +977,7 @@ const TrackingMapWithSidebar = () => {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           position => {
-            const { latitude, longitude } = position.coords;
+            const {latitude, longitude} = position.coords;
             const locationArray = [latitude, longitude];
             setUserLocation(locationArray);
             setMapCenter(locationArray);
@@ -1000,7 +1001,7 @@ const TrackingMapWithSidebar = () => {
     return (
       <div
         className="w-full flex items-center justify-center"
-        style={{ height: 'calc(100vh - 70px)' }}
+        style={{height: 'calc(100vh - 70px)'}}
       >
         <div className="flex items-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-3"></div>
@@ -1014,7 +1015,7 @@ const TrackingMapWithSidebar = () => {
     return (
       <div
         className="w-full flex items-center justify-center p-6"
-        style={{ height: 'calc(100vh - 70px)' }}
+        style={{height: 'calc(100vh - 70px)'}}
       >
         <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded max-w-md w-full text-center">
           <p>{error}</p>
@@ -1024,7 +1025,7 @@ const TrackingMapWithSidebar = () => {
   }
 
   return (
-    <div className="w-full" style={{ height: 'calc(100vh - 70px)' }}>
+    <div className="w-full" style={{height: 'calc(100vh - 70px)'}}>
       <div className="relative h-full">
         {/* Map - Full Width */}
         <div className="w-full h-full border border-border overflow-hidden relative">
@@ -1089,7 +1090,7 @@ const TrackingMapWithSidebar = () => {
                             key={suggestion.place_id}
                             onClick={() => handleAddressSelect(suggestion)}
                             className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 border-b border-gray-100 dark:border-gray-600 last:border-b-0 focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-700 transform hover:translate-x-1"
-                            style={{ animationDelay: `${index * 50}ms` }}
+                            style={{animationDelay: `${index * 50}ms`}}
                           >
                             <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate transition-colors duration-200">
                               {suggestion.display_name}
@@ -1174,7 +1175,7 @@ const TrackingMapWithSidebar = () => {
           <MapContainer
             center={mapCenter}
             zoom={13}
-            style={{ height: '100%', width: '100%' }}
+            style={{height: '100%', width: '100%'}}
             zoomControl={false}
             ref={mapRef}
           >
@@ -1477,25 +1478,25 @@ const TrackingMapWithSidebar = () => {
                 filteredItems.map((item, index) => (
                   <div
                     key={item.id}
-                    className={`w-full p-3 border border-border cursor-pointer transition-all duration-300 ease-in-out hover:bg-accent hover:scale-[1.02] hover:shadow-md transform animate-in fade-in slide-in-from-left-2 rounded-xl ${selectedItem?.id === item.id
-                      ? 'bg-primary/10 border-primary scale-[1.02] shadow-md'
-                      : ''
+                    className={`w-full max-w-full p-3 border border-border cursor-pointer 
+           transition-all duration-300 ease-in-out 
+           hover:bg-accent hover:shadow-md transform hover:scale-[1.02] 
+           rounded-xl overflow-hidden ${selectedItem?.id === item.id
+                        ? 'bg-primary/10 border-primary scale-[1.02] shadow-md'
+                        : ''
                       }`}
-                    style={{ animationDelay: `${index * 50}ms` }}
+                    style={{animationDelay: `${index * 50}ms`}}
                     onClick={() => handleItemSelect(item)}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <h4 className="font-medium text-sm truncate transition-colors duration-200">
-                          {item.name}
+                          {item.license_plate}
                         </h4>
                         {activeTab === 'vehicles' ? (
                           <div className="mt-1 space-y-1">
                             <p className="text-xs text-muted-foreground transition-colors duration-200">
                               {item.make} {item.model}
-                            </p>
-                            <p className="text-xs text-muted-foreground transition-colors duration-200">
-                              Plate: {item.license_plate}
                             </p>
                             <div className="flex items-center mt-1">
                               <div

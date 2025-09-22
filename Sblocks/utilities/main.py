@@ -6,6 +6,9 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from typing import Dict, Any
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Import local modules
 from services.rabbitmq_service import rabbitmq_service
@@ -103,33 +106,40 @@ def health_check():
     return health_status
 
 # Email test endpoint for development/debugging
-@app.post("/api/email/test", tags=["Email"])
-async def test_email(request: Request):
+@app.post("/api/email", tags=["Email"])
+async def send_email(request: Request):
     try:
         # Get JSON body
         data = await request.json()
         
         # Validate required fields
-        required_fields = ["to_email", "full_name", "subject", "message"]
+        required_fields = ["to_email", "subject", "message"]
         for field in required_fields:
             if field not in data:
                 raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+            
+
+        smtp_server = "smtp.gmail.com"
+        smtp_port = 587
+        smtp_username = "u22550055@tuks.co.za"
+        smtp_password = "uxul haoo lror zcou"
         
         # Publish test email to RabbitMQ
-        message = {
-            "email_type": "custom",
-            "to_email": data["to_email"],
-            "full_name": data["full_name"],
-            "subject": data["subject"],
-            "message": data["message"]
-        }
+        msg = MIMEMultipart()
+        msg["From"] = smtp_username
+        msg["To"] = data["to_email"]
+        msg["Subject"] = data["subject"]
         
-        result = rabbitmq_service.publish_email_request(message)
+        body = {data['message']}
+        msg.attach(MIMEText(body, "plain"))
+
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()  # Upgrade the connection to secure
+            server.login(smtp_username, smtp_password)  # Log in to the SMTP server
+            server.sendmail(smtp_username, data["to_email"], msg.as_string())
         
-        if result:
-            return {"status": "success", "message": "Email request queued successfully"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to queue email request")
+        
+        return {"status": "success", "message": "Email sent successfully"}
     except HTTPException:
         raise
     except Exception as e:

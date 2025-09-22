@@ -112,21 +112,52 @@ export const deleteVehicle = async vehicleId => {
   }
 };
 
+const unwrapVehicles = (res) => {
+  const candidates = [
+    res?.data?.data?.data?.vehicles, 
+    res?.data?.data?.vehicles,
+    res?.data?.vehicles,
+    res?.vehicles,
+    Array.isArray(res) ? res : null,
+  ];
+  return candidates.find(Array.isArray) || [];
+};
+
+const toLower = (v) => (v ?? '').toString().toLowerCase();
+
+const getPlate = (v) =>
+  v?.license_plate ?? v?.licensePlate ?? v?.registration_number ?? '';
+
+
+
 /**
  * Search vehicles by query
  * @param {string} query - Search query
  * @returns {Promise<Array>} Array of matching vehicles
  */
-export const searchVehicles = async query => {
+export const searchVehicles = async (query, { limit = 1000 } = {}) => {
   try {
-    if (!query) {
-      throw new Error('Search query is required');
+    const res = await httpClient.get(VEHICLE_ENDPOINTS.list, { params: { limit } });
+    const all = unwrapVehicles(res);
+
+    if (!query || !query.trim()) {
+      return all;
     }
 
-    const result = await httpClient.get(VEHICLE_ENDPOINTS.search(encodeURIComponent(query)));
+    const q = toLower(query.trim());
 
-    // Return the vehicles array or the whole result if it's already an array
-    return result.vehicles || result || [];
+    const filtered = all.filter((v) => {
+      const fields = [
+        getPlate(v),
+        v?.make,
+        v?.model,
+        v?.vin,
+      ].map(toLower);
+
+      return fields.some((f) => f.includes(q));
+    });
+
+    return filtered;
   } catch (error) {
     console.error(`Error searching vehicles with query "${query}":`, error);
     throw error;

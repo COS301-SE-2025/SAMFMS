@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Request, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from models.api_models import SignupRequest, LoginRequest, TokenResponse, MessageResponse, ProfileUpdateRequest, ChangePasswordRequest
+from models.api_models import SignupRequest, LoginRequest, TokenResponse, MessageResponse, ProfileUpdateRequest, ChangePasswordRequest, ForgotPasswordRequest
 from services.auth_service import AuthService
 from services.user_service import UserService
 from repositories.user_repository import UserRepository
@@ -325,6 +325,55 @@ async def change_password(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to change password"
         )
+    
+
+
+
+@router.post("/forgot-password") #POST /auth/forgot-password?email=user@example.com || POST /auth/forgot-password?otp=user@example.com
+async def forgot_password(request: ForgotPasswordRequest):
+
+    """Forgot-password: Endpoint to start forgot password sequence"""
+    email = request.email
+    otp = request.otp
+    password = request.password
+
+    user = ""
+    try:    
+
+        
+
+        if email and not otp and not password:
+            #return {"email": email}
+            user = await AuthService.get_user_by_email(email)
+            if user:
+                user_secret = AuthService.generate_user_secret()
+                otp = await AuthService.generate_otp(email, user_secret)
+                if otp == "Error":
+                    return {"message": "OTP not generated"}, 400
+
+                message = "Someone requested to reset your password for SAMFMS. If it was not you, ignore this email. \n\nYour OTP is: " + otp
+                
+                sent = await AuthService.send_email({
+                    "to_email": email,
+                    "subject": "SAMFMS: Forgot password",
+                    "message": message
+                })
+                
+                if sent == {}:
+                    return {"message": "OTP sent to email real"}, 200
+            return {"message": "OTP sent to email fake"}, 200
+        
+        elif email and otp and password:
+            is_valid_otp = await AuthService.verify_otp(email, otp)
+            user = await AuthService.get_user_by_email(email)
+            if is_valid_otp:
+                await AuthService.update_user_password(user["user_id"], password)
+                return {"message": "Password changed successfully"}
+
+        return {"error": "Invalid pee pee"}, 400
+    except Exception as e:
+        return {"error": {str(e)}}, 400
+
 
 
 @router.post("/upload-profile-picture")

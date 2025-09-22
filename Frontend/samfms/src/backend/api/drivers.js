@@ -213,33 +213,98 @@ export const deleteDriver = async driverId => {
 
 /**
  * Search drivers by query
- * Uses the auth service and filters drivers by name, email, etc.
+ * Uses the trip planning service and filters drivers by:
+ *  - employee_id
+ *  - license number (license_id, license_number, etc.)
+ *  - name (first_name / last_name / full name)
+ *
  * @param {string} query - Search query
  * @returns {Promise<Array>} Array of matching drivers
  */
-export const searchDrivers = async query => {
+export const searchDrivers = async (query) => {
   try {
-    if (!query) {
+    if (!query || typeof query !== 'string' || !query.trim()) {
       throw new Error('Search query is required');
     }
 
-    // Get all users from the auth service directly
-    const allUsers = await httpClient.get('/auth/users');
+    const searchTerm = query.trim().toLowerCase();
 
-    // Filter for drivers first
-    const drivers = allUsers.filter(user => user.role === 'driver');
+    const pageLimit = 1000;
+    let skip = 0;
+    let hasMore = true;
+    const matching = [];
 
-    // Search within drivers by name, email, etc.
-    const searchTerm = query.toLowerCase();
-    const matchingDrivers = drivers.filter(
-      driver =>
-        driver.full_name?.toLowerCase().includes(searchTerm) ||
-        driver.email?.toLowerCase().includes(searchTerm) ||
-        driver.phoneNo?.includes(searchTerm)
-    );
+    while (hasMore) {
+      const res = await getTripPlanningDrivers({ limit: pageLimit, skip });
 
-    console.log(`Found ${matchingDrivers.length} drivers matching "${query}"`);
-    return matchingDrivers;
+      let drivers = [];
+      let total = 0;
+      let pageHasMore;
+      let effectiveLimit = pageLimit;
+
+      if (res && Array.isArray(res.drivers)) {
+        drivers = res.drivers;
+        total = res.total ?? 0;
+        pageHasMore = res.has_more;
+        effectiveLimit = res.limit ?? pageLimit;
+      } else if (res && res.data && res.data.data && Array.isArray(res.data.data.drivers)) {
+        drivers = res.data.data.drivers;
+        total = res.data.data.total ?? 0;
+        pageHasMore = res.data.data.has_more;
+        effectiveLimit = res.data.data.limit ?? pageLimit;
+      } else if (Array.isArray(res)) {
+        drivers = res;
+        total = res.length;
+      } else {
+        console.warn('Unexpected response shape from getTripPlanningDrivers:', res);
+        break; 
+      }
+
+      const pageMatches = drivers.filter((d) => {
+        const employeeId = (d.employee_id ?? '').toString().toLowerCase();
+
+        const licenseCandidates = [
+          d.license_id,
+          d.license_number,
+          d.licenseNo,
+          d.license_no,
+          d.license?.id,
+          d.license?.number,
+        ]
+          .filter(Boolean)
+          .map((v) => v.toString().toLowerCase());
+
+        const first = (d.first_name ?? d.firstName ?? '').toString().toLowerCase();
+        const last = (d.last_name ?? d.lastName ?? '').toString().toLowerCase();
+        const full = `${first} ${last}`.trim();
+
+        return (
+          (employeeId && employeeId.includes(searchTerm)) ||
+          licenseCandidates.some((lic) => lic.includes(searchTerm)) ||
+          (first && first.includes(searchTerm)) ||
+          (last && last.includes(searchTerm)) ||
+          (full && full.includes(searchTerm))
+        );
+      });
+
+      matching.push(...pageMatches);
+
+      if (typeof pageHasMore === 'boolean') {
+        hasMore = pageHasMore;
+      } else {
+        hasMore = drivers.length === pageLimit;
+      }
+
+      skip += effectiveLimit || pageLimit;
+
+      if (!drivers.length) break;
+
+      if (drivers.length < pageLimit) hasMore = false;
+    }
+
+    console.log(`Found ${matching.length} drivers matching "${query}"`);
+    console.log(matching);
+    return matching;
   } catch (error) {
     console.error(`Error searching drivers with query "${query}":`, error);
     throw error;
