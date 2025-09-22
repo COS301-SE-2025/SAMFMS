@@ -304,8 +304,10 @@ class DatabaseManager:
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.driver_history
+    
+    @property
     def smarttrips(self):
-        """Get driver ping sessions collection"""
+        """Get smart trips collection"""
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.smart_trips
