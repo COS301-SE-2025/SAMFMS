@@ -5,7 +5,6 @@ import LoginForm from '../components/auth/LoginForm';
 
 import {TypewriterEffectSmooth} from '../components/ui/typewriter-effect';
 import {Spotlight} from '../components/ui/spotlight-new';
-import {Timeline} from '../components/ui/timeline';
 import CardSwap, {Card} from '../components/ui/CardSwap';
 import {useNavigate} from 'react-router-dom';
 import {
@@ -19,7 +18,8 @@ import {
     Map,
     BarChart,
     Zap,
-    ChevronRight
+    ChevronRight,
+    Github
 } from 'lucide-react';
 
 const FeatureCard = ({icon, title, description}) => (
@@ -40,7 +40,7 @@ const Landing = () => {
     const [hasExistingUsers, setHasExistingUsers] = useState(null);
     const [showLoginModal, setShowLoginModal] = useState(false);
 
-    const [currentHeadingIndex, setCurrentHeadingIndex] = useState(0);
+    const [currentHeadingIndex] = useState(0);
 
     const headings = [
         [
@@ -132,9 +132,10 @@ const Landing = () => {
     }
 
     return (
-        <div className="bg-background">
-            {/* Hero Section - Fixed */}
-            <div className="fixed top-0 left-0 w-full h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 group z-10">
+        <>
+            <div className="bg-background">
+                {/* Hero Section - Fixed */}
+                <div className="fixed top-0 left-0 w-full h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 group z-10">
                 <Spotlight
                     className="top-0 left-0 w-full h-full"
                     gradientFirst="radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(210, 100%, 85%, .12) 0, hsla(210, 100%, 55%, .04) 50%, hsla(210, 100%, 45%, 0) 80%)"
@@ -362,43 +363,43 @@ const Landing = () => {
                 </div>
             </div>
 
-                {/* Footer */}
-                <footer className="bg-card border-t border-border">
-                    <div className="container mx-auto px-4 py-8">
-                        <div className="flex flex-col md:flex-row justify-between items-center">
-                            <div className="mb-4 md:mb-0">
-                                <img
-                                    src="/logo/logo_horisontal_light.svg"
-                                    alt="SAMFMS Logo"
-                                    className="h-8 dark:hidden"
-                                />
-                                <img
-                                    src="/logo/logo_horisontal_dark.svg"
-                                    alt="SAMFMS Logo"
-                                    className="h-8 hidden dark:block"
-                                />
-                            </div>
-                            <div className="text-muted-foreground text-sm">
-                                &copy; {new Date().getFullYear()} SAMFMS. All rights reserved.
-                            </div>
+            {/* Footer */}
+            <footer className="bg-card border-t border-border">
+                <div className="container mx-auto px-4 py-8">
+                    <div className="flex flex-col md:flex-row justify-between items-center">
+                        <div className="mb-4 md:mb-0">
+                            <img
+                                src="/logo/logo_horisontal_light.svg"
+                                alt="SAMFMS Logo"
+                                className="h-8 dark:hidden"
+                            />
+                            <img
+                                src="/logo/logo_horisontal_dark.svg"
+                                alt="SAMFMS Logo"
+                                className="h-8 hidden dark:block"
+                            />
+                        </div>
+                        <div className="text-muted-foreground text-sm">
+                            &copy; {new Date().getFullYear()} SAMFMS. All rights reserved.
                         </div>
                     </div>
-                </footer>
+                </div>
+            </footer>
 
-                {/* Login Modal */}
-                <Modal
-                    isOpen={showLoginModal}
+            {/* Login Modal */}
+            <Modal
+                isOpen={showLoginModal}
+                onClose={handleCloseModal}
+
+                title="Log in to your account"
+            >
+                <LoginForm
+                    onSuccess={handleLoginSuccess}
                     onClose={handleCloseModal}
-
-                    title="Log in to your account"
-                >
-                    <LoginForm
-                        onSuccess={handleLoginSuccess}
-                        onClose={handleCloseModal}
-                    />
-                </Modal>
-            </div>
+                />
+            </Modal>
         </div>
+        </>
     );
 };
 
