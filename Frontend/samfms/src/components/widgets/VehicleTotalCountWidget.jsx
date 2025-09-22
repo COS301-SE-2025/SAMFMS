@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { BaseWidget } from '../dashboard/BaseWidget';
-import { getVehicles } from '../../backend/api/vehicles';
-import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
-import { Truck } from 'lucide-react';
+import React, {useState, useEffect} from 'react';
+import {BaseWidget} from '../dashboard/BaseWidget';
+import {getVehicles} from '../../backend/api/vehicles';
+import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
+import {Truck} from 'lucide-react';
 
-const VehicleTotalCountWidget = ({ id, config = {} }) => {
-  const [vehicleData, setVehicleData] = useState({ total: 0 });
+const VehicleTotalCountWidget = ({id, config = {}}) => {
+  const [vehicleData, setVehicleData] = useState({total: 0});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -15,26 +15,13 @@ const VehicleTotalCountWidget = ({ id, config = {} }) => {
         setLoading(true);
         setError(null);
 
-        const response = await getVehicles({ limit: 1000 });
+        const response = await getVehicles({limit: 1000});
+        const vehiclesData =
+          response.data?.data?.vehicles || response.vehicles || response.data?.vehicles || [];
 
-        let vehiclesArray = [];
-        if (response) {
-          if (Array.isArray(response)) {
-            vehiclesArray = response;
-          } else if (response.vehicles && Array.isArray(response.vehicles)) {
-            vehiclesArray = response.vehicles;
-          } else if (response.data && Array.isArray(response.data)) {
-            vehiclesArray = response.data;
-          } else if (response.items && Array.isArray(response.items)) {
-            vehiclesArray = response.items;
-          }
-        }
+        const transformedVehicles = vehiclesData.filter(vehicle => vehicle !== null);
 
-        if (!Array.isArray(vehiclesArray)) {
-          vehiclesArray = [];
-        }
-
-        setVehicleData({ total: vehiclesArray.length });
+        setVehicleData({total: transformedVehicles.length});
       } catch (err) {
         console.error('Failed to fetch vehicle status:', err);
         setError('Failed to load vehicle data');
@@ -95,9 +82,9 @@ registerWidget(WIDGET_TYPES.VEHICLE_TOTAL_COUNT, VehicleTotalCountWidget, {
       default: 60,
     },
   },
-  defaultSize: { w: 3, h: 2 },
-  minSize: { w: 2, h: 1 },
-  maxSize: { w: 4, h: 3 },
+  defaultSize: {w: 3, h: 2},
+  minSize: {w: 2, h: 1},
+  maxSize: {w: 4, h: 3},
 });
 
 export default VehicleTotalCountWidget;
