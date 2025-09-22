@@ -456,3 +456,40 @@ async def get_all_recent_trips(
     
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to get recent trips")
+
+
+@router.get("/{trip_id}/live", response_model=Dict[str, Any])
+async def get_live_tracking_data(
+    trip_id: str,
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Get live tracking data for a trip to display on a map
+    
+    Returns real-time information including:
+    - Current vehicle position and movement
+    - Complete route polyline and remaining route
+    - Progress information and navigation instructions
+    - Trip status and metadata
+    
+    The simulation continues running in the background while serving this data.
+    """
+    try:
+        # Validate trip access
+        await validate_trip_access(trip_id, current_user)
+        
+        # Get live tracking data
+        tracking_data = await trip_service.get_live_tracking_data(trip_id)
+        
+        if not tracking_data:
+            raise HTTPException(status_code=404, detail="Trip not found or no tracking data available")
+        
+        return ResponseBuilder.success(
+            data=tracking_data,
+            message="Live tracking data retrieved successfully"
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to get live tracking data")

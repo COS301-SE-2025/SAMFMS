@@ -11,10 +11,9 @@ from bson import ObjectId
 from repositories.database import db_manager
 from schemas.entities import (
     DriverPingSession, PhoneUsageViolation, PhoneUsageViolationType,
-    SpeedViolation, SpeedViolationType, LocationPoint, TripStatus
+    LocationPoint, TripStatus
 )
 from events.publisher import event_publisher
-from services.speed_limit_service import speed_limit_service
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,6 @@ class DriverPingService:
     """Service for tracking driver phone pings and violations"""
     
     PING_TIMEOUT_SECONDS = 30  # 30 seconds timeout for violations
-    SPEED_VIOLATION_THRESHOLD = 10.0  # km/h over speed limit to trigger violation
     
     def __init__(self):
         self.db = db_manager
@@ -154,42 +152,11 @@ class DriverPingService:
                     "status": "inactive",
                     "message": f"Ping session is inactive because trip status is '{trip_status}' (not 'in_progress')",
                     "trip_status": trip_status,
-                    "session_active": False,
-                    "speed_limit": None,
-                    "current_speed": None
+                    "session_active": False
                 }
             
             # Process ping for active session
             logger.info(f"[DriverPingService] Processing ping for active session {session.id}")
-            
-            # Get speed limit for current location (always returns valid data)
-            speed_limit_info = await speed_limit_service.get_speed_limit(location)
-            current_speed_limit = speed_limit_info.speed_limit
-            logger.info(f"[DriverPingService] Speed limit info: {speed_limit_info.speed_limit} km/h, place: {speed_limit_info.place_id}")
-            
-            # Calculate current speed if we have previous location data
-            current_speed = None
-            if session.last_ping_location and session.last_ping_time:
-                logger.info(f"[DriverPingService] Previous location: {session.last_ping_location}, time: {session.last_ping_time}")
-                logger.info(f"[DriverPingService] Current location: {location}, time: {ping_time}")
-                
-                # Ensure last_ping_location is a LocationPoint object
-                prev_location = session.last_ping_location
-                if isinstance(prev_location, dict):
-                    prev_location = LocationPoint(**prev_location)
-                
-                current_speed = speed_limit_service.calculate_speed_kmh(
-                    prev_location,
-                    location,
-                    session.last_ping_time,
-                    ping_time
-                )
-                logger.info(f"[DriverPingService] Calculated speed: {current_speed} km/h")
-            else:
-                logger.info(f"[DriverPingService] No previous location data available for speed calculation")
-            
-            # Check for speed violations if we have previous location data
-            await self._check_speed_violation(session, location, ping_time)
             
             # Update session with ping data
             await self._update_session_ping(session.id, location, ping_time)
@@ -205,7 +172,7 @@ class DriverPingService:
             
             next_expected = ping_time + timedelta(seconds=self.PING_TIMEOUT_SECONDS)
             
-            # Prepare response with speed limit data
+            # Prepare response
             response_data = {
                 "status": "success",
                 "message": "Ping processed successfully",
@@ -214,20 +181,6 @@ class DriverPingService:
                 "session_active": True,
                 "violations_count": session.total_violations
             }
-            
-            # Add speed limit data to response (always include these fields)
-            response_data["speed_limit"] = current_speed_limit
-            response_data["speed_limit_units"] = "km/h"
-            
-            response_data["current_speed"] = round(current_speed, 2) if current_speed is not None else 0.0
-            response_data["current_speed_units"] = "km/h"
-            
-            if current_speed_limit and current_speed:
-                response_data["is_speeding"] = current_speed > (current_speed_limit + self.SPEED_VIOLATION_THRESHOLD)
-                response_data["speed_over_limit"] = max(0, current_speed - current_speed_limit)
-            else:
-                response_data["is_speeding"] = False
-                response_data["speed_over_limit"] = 0.0
             
             return response_data
             
@@ -483,105 +436,6 @@ class DriverPingService:
             
         except Exception as e:
             logger.error(f"[DriverPingService] Failed to get trip violations: {e}")
-            raise
-    
-    async def _check_speed_violation(self, session: DriverPingSession, current_location: LocationPoint, current_time: datetime) -> None:
-        """Check for speed violations and create if necessary"""
-        try:
-            # Need previous location and time to calculate speed
-            if not session.last_ping_location or not session.last_ping_time:
-                logger.debug(f"[DriverPingService] No previous location data for speed calculation in session {session.id}")
-                return
-            
-            # Calculate vehicle speed
-            # Ensure last_ping_location is a LocationPoint object
-            prev_location = session.last_ping_location
-            if isinstance(prev_location, dict):
-                prev_location = LocationPoint(**prev_location)
-                
-            speed_kmh = speed_limit_service.calculate_speed_kmh(
-                prev_location,
-                current_location,
-                session.last_ping_time,
-                current_time
-            )
-            
-            # Get speed limit for current location (always returns valid data)
-            speed_limit_info = await speed_limit_service.get_speed_limit(current_location)
-            speed_limit = speed_limit_info.speed_limit
-            speed_over_limit = speed_kmh - speed_limit
-            
-            logger.debug(f"[DriverPingService] Speed check: {speed_kmh:.1f} km/h vs {speed_limit} km/h limit (over by {speed_over_limit:.1f})")
-            
-            # Check if violating speed limit by more than threshold
-            if speed_over_limit > self.SPEED_VIOLATION_THRESHOLD:
-                await self._create_speed_violation(
-                    session=session,
-                    location=current_location,
-                    timestamp=current_time,
-                    actual_speed=speed_kmh,
-                    speed_limit=speed_limit,
-                    speed_over_limit=speed_over_limit,
-                    place_id=speed_limit_info.place_id
-                )
-                
-                logger.warning(f"[DriverPingService] Speed violation created: {speed_kmh:.1f} km/h in {speed_limit} km/h zone (over by {speed_over_limit:.1f} km/h)")
-            
-        except Exception as e:
-            logger.error(f"[DriverPingService] Error checking speed violation: {e}")
-            # Don't re-raise - speed checking is not critical to ping processing
-    
-    async def _create_speed_violation(self, 
-                                    session: DriverPingSession,
-                                    location: LocationPoint,
-                                    timestamp: datetime,
-                                    actual_speed: float,
-                                    speed_limit: float,
-                                    speed_over_limit: float,
-                                    place_id: Optional[str] = None) -> SpeedViolation:
-        """Create a new speed violation record"""
-        try:
-            violation_data = {
-                "trip_id": session.trip_id,
-                "driver_id": session.driver_id,
-                "violation_type": SpeedViolationType.SPEED_LIMIT_EXCEEDED,
-                "actual_speed": actual_speed,
-                "speed_limit": speed_limit,
-                "speed_over_limit": speed_over_limit,
-                "location": location.dict(),
-                "timestamp": timestamp,
-                "place_id": place_id,
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
-            }
-            
-            result = await self.db.speed_violations.insert_one(violation_data)
-            violation_data["_id"] = str(result.inserted_id)
-            
-            violation = SpeedViolation(**violation_data)
-            
-            # Publish speed violation event
-            try:
-                await event_publisher.publish_speed_violation_created(
-                    trip_id=session.trip_id,
-                    driver_id=session.driver_id,
-                    violation_data={
-                        "violation_id": violation.id,
-                        "actual_speed": actual_speed,
-                        "speed_limit": speed_limit,
-                        "speed_over_limit": speed_over_limit,
-                        "location": location.dict(),
-                        "timestamp": timestamp.isoformat()
-                    }
-                )
-            except Exception as e:
-                logger.warning(f"[DriverPingService] Failed to publish speed violation event: {e}")
-            
-            logger.info(f"[DriverPingService] Created speed violation {violation.id} for trip {session.trip_id}")
-            return violation
-            
-        except Exception as e:
-            logger.error(f"[DriverPingService] Failed to create speed violation: {e}")
             raise
 
     async def _get_trip_status(self, trip_id: str) -> Optional[str]:

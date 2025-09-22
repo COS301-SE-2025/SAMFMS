@@ -9,7 +9,7 @@ import logging
 import os
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any
+from typing import Dict, Any, List
 import aio_pika
 from aio_pika.abc import AbstractIncomingMessage
 
@@ -231,6 +231,12 @@ class ServiceRequestConsumer:
             if endpoint == "health" or endpoint == "":
                 logger.info(f"[_route_request] Routing to _handle_health_request()")
                 return await self._handle_health_request(method, user_context)
+            elif "driver-history" in endpoint or "driver_history" in endpoint:
+                logger.info(f"[_route_request] Routing to _handle_driver_history_request()")
+                return await self._handle_driver_history_request(method, user_context)
+            elif "driver-behavior" in endpoint:
+                logger.info(f"Routing to driver behavior analytics")
+                return await self._handle_driver_behavior_analytics_requests(method, user_context)
             elif "traffic" in endpoint:
                 logger.info("Routing to traffic handler")
                 return await self._handle_traffic_requests(method, user_context)
@@ -246,6 +252,15 @@ class ServiceRequestConsumer:
             elif "driver/ping" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_driver_ping_request()")
                 return await self._handle_driver_ping_request(method, user_context)
+            elif "speed-violations" in endpoint or "speed_violations" in endpoint:
+                logger.info(f"[_route_request] Routing to _handle_speed_violations_request()")
+                return await self._handle_speed_violations_request(method, user_context)
+            elif "excessive-braking-violations" in endpoint or "excessive_braking_violations" in endpoint:
+                logger.info(f"[_route_request] Routing to _handle_excessive_braking_violations_request()")
+                return await self._handle_excessive_braking_violations_request(method, user_context)
+            elif "excessive-acceleration-violations" in endpoint or "excessive_acceleration_violations" in endpoint:
+                logger.info(f"[_route_request] Routing to _handle_excessive_acceleration_violations_request()")
+                return await self._handle_excessive_acceleration_violations_request(method, user_context)
             elif "monitor" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_monitor_request()")
                 return await self._handle_monitor_request(method, user_context)
@@ -427,6 +442,21 @@ class ServiceRequestConsumer:
                     return ResponseBuilder.success(
                         data=polyline,
                         message="Successfully retrieved polyline"
+                    )
+
+                if "live" in endpoint:
+                    trip_id = endpoint.split('/')[-1] if '/' in endpoint else None
+                    logger.info(f"Trip ID extracted for live tracking: {trip_id}")
+                    if trip_id is None:
+                        return ResponseBuilder.error(
+                            error="Error while processing live tracking request",
+                            message="Trip ID was not included",
+                        )
+                    
+                    live_data = await trip_service.get_live_tracking_data(trip_id)
+                    return ResponseBuilder.success(
+                        data=live_data,
+                        message="Successfully retrieved live tracking data"
                     )
 
                 if "upcomming" in endpoint:
@@ -751,7 +781,7 @@ class ServiceRequestConsumer:
 
                     logger.info(f"[_handle_trips_request] trip_service.create_trip() succeeded for trip {trip.id}")
                     return ResponseBuilder.success(
-                        data=trip.model_dump(),
+                        data=trip.dict(),
                         message="Trip created successfully"
                     ).model_dump()
                 
@@ -949,6 +979,9 @@ class ServiceRequestConsumer:
 
         except Exception as e:
             logger.error(f"[_handle_trips_request] Exception: {e}")
+            logger.error(f"[_handle_trips_request] Exception type: {type(e)}")
+            import traceback
+            logger.error(f"[_handle_trips_request] Traceback: {traceback.format_exc()}")
             return ResponseBuilder.error(
                 error="TripsRequestError",
                 message=f"Failed to process trips request: {str(e)}"
@@ -1319,6 +1352,70 @@ class ServiceRequestConsumer:
                 message=f"Failed to process analytics request: {str(e)}"
             ).model_dump()
 
+    async def _handle_driver_behavior_analytics_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle driver behavior analytics requests"""
+        try:
+            from schemas.responses import ResponseBuilder
+            from fastapi import Request
+            
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            user_id = user_context.get("user_id", "")
+            logger.info(f"[DriverBehaviorAnalytics] Processing endpoint: {endpoint}")
+            
+            # Import analytics router and make a direct call
+            from api.routes.analytics import router as analytics_router
+            
+            # Create a mock request object for FastAPI route handling
+            from fastapi.testclient import TestClient
+            from main import app
+            
+            # Extract the specific analytics endpoint from the URL
+            # Expected format: driver-behavior/violation-trends, driver-behavior/risk-distribution, etc.
+            path_parts = endpoint.split('/')
+            
+            if len(path_parts) < 2:
+                raise ValueError(f"Invalid driver-behavior endpoint format: {endpoint}")
+                
+            # Get the specific endpoint (e.g., violation-trends, risk-distribution)
+            analytics_endpoint = '/'.join(path_parts[1:])  # Remove 'driver-behavior' prefix
+            
+            # Add query parameters if they exist
+            query_params = ""
+            if data.get('period'):
+                query_params = f"?period={data.get('period')}"
+            elif 'period=' in endpoint:
+                # Extract period from endpoint if it's already there
+                if '?' in endpoint:
+                    query_params = '?' + endpoint.split('?')[1]
+            
+            # Construct the full endpoint path
+            full_endpoint = f"/driver-behavior/{analytics_endpoint}{query_params}"
+            
+            logger.info(f"[DriverBehaviorAnalytics] Calling endpoint: {full_endpoint}")
+            
+            # Use TestClient to make internal API call
+            client = TestClient(app)
+            headers = {"Authorization": f"Bearer {user_context.get('token', '')}"}
+            
+            response = client.get(full_endpoint, headers=headers)
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.error(f"[DriverBehaviorAnalytics] API call failed with status {response.status_code}: {response.text}")
+                return ResponseBuilder.error(
+                    error="DriverBehaviorAnalyticsError",
+                    message=f"Failed to retrieve driver behavior analytics: {response.text}"
+                ).model_dump()
+                
+        except Exception as e:
+            logger.error(f"[DriverBehaviorAnalytics] Error processing request: {e}")
+            return ResponseBuilder.error(
+                error="DriverBehaviorAnalyticsRequestError",
+                message=f"Failed to process driver behavior analytics request: {str(e)}"
+            ).model_dump()
+
     async def _handle_analytics_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle analytics requests"""
         logger.info(f"[_handle_trips_request] Entered with method={method}, endpoint={user_context.get('endpoint')}")
@@ -1622,6 +1719,630 @@ class ServiceRequestConsumer:
                 error="DriverPingRequestError",
                 message=f"Failed to process driver ping request: {str(e)}"
             ).model_dump()
+
+    async def _handle_speed_violations_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle speed violations requests"""
+        try:
+            from schemas.responses import ResponseBuilder
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            logger.info(f"[_handle_speed_violations_request] Method: {method}, Endpoint: {endpoint}")
+            
+            if method == "POST":
+                # Create a new speed violation
+                from schemas.requests import CreateSpeedViolationRequest
+                from schemas.entities import SpeedViolation, LocationPoint
+                from repositories.database import db_manager
+                
+                try:
+                    # Validate request data
+                    request_data = CreateSpeedViolationRequest(**data)
+                    
+                    # Create violation record
+                    violation_data = {
+                        "trip_id": request_data.trip_id,
+                        "driver_id": request_data.driver_id,
+                        "speed": request_data.speed,
+                        "speed_limit": request_data.speed_limit,
+                        "location": request_data.location.dict(),
+                        "time": request_data.time,
+                        "created_at": datetime.utcnow()
+                    }
+                    
+                    result = await db_manager.speed_violations.insert_one(violation_data)
+                    violation_data["_id"] = str(result.inserted_id)
+                    
+                    # Create response object
+                    violation = SpeedViolation(**violation_data)
+                    
+                    logger.info(f"[_handle_speed_violations_request] Created speed violation {violation.id}")
+                    
+                    return ResponseBuilder.success(
+                        message="Speed violation created successfully",
+                        data=violation.dict()
+                    ).model_dump()
+                    
+                except Exception as e:
+                    logger.error(f"[_handle_speed_violations_request] Failed to create speed violation: {e}")
+                    return ResponseBuilder.error(
+                        error="ValidationError",
+                        message=f"Invalid speed violation data: {str(e)}"
+                    ).model_dump()
+            
+            else:
+                return ResponseBuilder.error(
+                    error="MethodNotAllowed",
+                    message=f"Method {method} not allowed for speed violations endpoint"
+                ).model_dump()
+                
+        except Exception as e:
+            logger.error(f"[_handle_speed_violations_request] Exception: {e}")
+            return ResponseBuilder.error(
+                error="SpeedViolationsRequestError",
+                message=f"Failed to process speed violations request: {str(e)}"
+            ).model_dump()
+
+    async def _handle_excessive_braking_violations_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle excessive braking violations requests"""
+        try:
+            from schemas.responses import ResponseBuilder
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            logger.info(f"[_handle_excessive_braking_violations_request] Method: {method}, Endpoint: {endpoint}")
+            
+            if method == "POST":
+                # Create a new excessive braking violation
+                from schemas.requests import CreateExcessiveBrakingViolationRequest
+                from schemas.entities import ExcessiveBrakingViolation, LocationPoint
+                from repositories.database import db_manager
+                
+                try:
+                    # Validate request data
+                    request_data = CreateExcessiveBrakingViolationRequest(**data)
+                    
+                    # Create violation record
+                    violation_data = {
+                        "trip_id": request_data.trip_id,
+                        "driver_id": request_data.driver_id,
+                        "deceleration": request_data.deceleration,
+                        "threshold": request_data.threshold,
+                        "location": request_data.location.dict(),
+                        "time": request_data.time,
+                        "created_at": datetime.utcnow()
+                    }
+                    
+                    result = await db_manager.excessive_braking_violations.insert_one(violation_data)
+                    violation_data["_id"] = str(result.inserted_id)
+                    
+                    # Create response object
+                    violation = ExcessiveBrakingViolation(**violation_data)
+                    
+                    logger.info(f"[_handle_excessive_braking_violations_request] Created excessive braking violation {violation.id}")
+                    
+                    return ResponseBuilder.success(
+                        message="Excessive braking violation created successfully",
+                        data=violation.dict()
+                    ).model_dump()
+                    
+                except Exception as e:
+                    logger.error(f"[_handle_excessive_braking_violations_request] Failed to create excessive braking violation: {e}")
+                    return ResponseBuilder.error(
+                        error="ValidationError",
+                        message=f"Invalid excessive braking violation data: {str(e)}"
+                    ).model_dump()
+            
+            else:
+                return ResponseBuilder.error(
+                    error="MethodNotAllowed",
+                    message=f"Method {method} not allowed for excessive braking violations endpoint"
+                ).model_dump()
+                
+        except Exception as e:
+            logger.error(f"[_handle_excessive_braking_violations_request] Exception: {e}")
+            return ResponseBuilder.error(
+                error="ExcessiveBrakingViolationsRequestError",
+                message=f"Failed to process excessive braking violations request: {str(e)}"
+            ).model_dump()
+
+    async def _handle_excessive_acceleration_violations_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle excessive acceleration violations requests"""
+        try:
+            from schemas.responses import ResponseBuilder
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            logger.info(f"[_handle_excessive_acceleration_violations_request] Method: {method}, Endpoint: {endpoint}")
+            
+            if method == "POST":
+                # Create a new excessive acceleration violation
+                from schemas.requests import CreateExcessiveAccelerationViolationRequest
+                from schemas.entities import ExcessiveAccelerationViolation, LocationPoint
+                from repositories.database import db_manager
+                
+                try:
+                    # Validate request data
+                    request_data = CreateExcessiveAccelerationViolationRequest(**data)
+                    
+                    # Create violation record
+                    violation_data = {
+                        "trip_id": request_data.trip_id,
+                        "driver_id": request_data.driver_id,
+                        "acceleration": request_data.acceleration,
+                        "threshold": request_data.threshold,
+                        "location": request_data.location.dict(),
+                        "time": request_data.time,
+                        "created_at": datetime.utcnow()
+                    }
+                    
+                    result = await db_manager.excessive_acceleration_violations.insert_one(violation_data)
+                    violation_data["_id"] = str(result.inserted_id)
+                    
+                    # Create response object
+                    violation = ExcessiveAccelerationViolation(**violation_data)
+                    
+                    logger.info(f"[_handle_excessive_acceleration_violations_request] Created excessive acceleration violation {violation.id}")
+                    
+                    return ResponseBuilder.success(
+                        message="Excessive acceleration violation created successfully",
+                        data=violation.dict()
+                    ).model_dump()
+                    
+                except Exception as e:
+                    logger.error(f"[_handle_excessive_acceleration_violations_request] Failed to create excessive acceleration violation: {e}")
+                    return ResponseBuilder.error(
+                        error="ValidationError",
+                        message=f"Invalid excessive acceleration violation data: {str(e)}"
+                    ).model_dump()
+            
+            else:
+                return ResponseBuilder.error(
+                    error="MethodNotAllowed",
+                    message=f"Method {method} not allowed for excessive acceleration violations endpoint"
+                ).model_dump()
+                
+        except Exception as e:
+            logger.error(f"[_handle_excessive_acceleration_violations_request] Exception: {e}")
+            return ResponseBuilder.error(
+                error="ExcessiveAccelerationViolationsRequestError",
+                message=f"Failed to process excessive acceleration violations request: {str(e)}"
+            ).model_dump()
+
+    async def _handle_driver_history_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle driver history requests"""
+        try:
+            from schemas.responses import ResponseBuilder
+            from services.driver_history_service import DriverHistoryService
+            from repositories.database import db_manager, db_manager_management
+            
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+            
+            logger.info(f"[_handle_driver_history_request] Method: {method}, Endpoint: {endpoint}")
+            
+            # Initialize driver history service
+            driver_history_service = DriverHistoryService(db_manager, db_manager_management)
+            
+            if method == "GET":
+                # Parse endpoint to determine the specific action
+                if "/trips" in endpoint:
+                    # GET /driver-history/{driver_id}/trips
+                    driver_id = self._extract_id_from_endpoint(endpoint, "driver-history/", "/trips")
+                    if not driver_id:
+                        return ResponseBuilder.error(
+                            error="InvalidRequest",
+                            message="Driver ID is required for trips endpoint"
+                        ).model_dump()
+                    
+                    logger.info(f"[_handle_driver_history_request] Getting trips for driver: {driver_id}")
+                    
+                    # Import the dependencies and create the service
+                    from services.driver_history_service import DriverHistoryService
+                    
+                    # Extract query parameters from data
+                    skip = int(data.get("skip", 0))
+                    limit = int(data.get("limit", 50))
+                    status = data.get("status")
+                    
+                    # Create the service instance (already created above)
+                    service = driver_history_service
+                    
+                    # Call the route function logic directly (without FastAPI dependencies)
+                    try:
+                        # Get trips from database using the same logic as in the route
+                        query_filter = {
+                            "$or": [
+                                {"driver_assignment": driver_id},
+                                {"driver_id": driver_id}
+                            ]
+                        }
+                        
+                        if status:
+                            query_filter["status"] = status
+                        
+                        # Get trips from database
+                        trips_collection = db_manager.trip_history
+                        
+                        # Count total trips for pagination
+                        total_count = await trips_collection.count_documents(query_filter)
+                        
+                        # Get trips with pagination, sorted by created_at descending
+                        cursor = trips_collection.find(query_filter).sort("created_at", -1).skip(skip).limit(limit)
+                        trips = []
+                        
+                        async for trip_doc in cursor:
+                            trip_data = dict(trip_doc)
+                            trip_data["_id"] = str(trip_data["_id"])  # Convert ObjectId to string
+                            
+                            # Map database field names to frontend expected names
+                            trip_data["trip_id"] = trip_data["_id"]
+                            trip_data["trip_name"] = trip_data.get("name", f"Trip {trip_data['_id'][:8]}")
+                            
+                            # Get driver name if driver_assignment exists
+                            driver_id = trip_data.get("driver_assignment") or trip_data.get("driver_id")
+                            if driver_id:
+                                try:
+                                    # Try to get driver name from management database
+                                    driver_doc = await db_manager_management.users.find_one({"employee_id": driver_id})
+                                    if driver_doc:
+                                        trip_data["driver_name"] = f"{driver_doc.get('first_name', '')} {driver_doc.get('last_name', '')}".strip()
+                                    else:
+                                        trip_data["driver_name"] = driver_id  # Fallback to ID
+                                except Exception as e:
+                                    logger.warning(f"Could not fetch driver name for {driver_id}: {e}")
+                                    trip_data["driver_name"] = driver_id  # Fallback to ID
+                            else:
+                                trip_data["driver_name"] = "Unknown Driver"
+                            
+                            # Get actual violation documents for this trip
+                            trip_id = trip_data.get("_id")
+                            violations = await self._get_trip_violations(trip_id)
+                            
+                            # Add violation data to trip
+                            trip_data.update({
+                                "violations": violations,
+                                "total_violations": sum(len(v) for v in violations.values())
+                            })
+                            
+                            trips.append(trip_data)
+                        
+                        # Build response
+                        response_data = {
+                            "trips": trips,
+                            "pagination": {
+                                "skip": skip,
+                                "limit": limit,
+                                "total": total_count,
+                                "count": len(trips),
+                                "has_more": (skip + len(trips)) < total_count
+                            },
+                            "filters": {
+                                "driver_id": driver_id,
+                                "status": status
+                            }
+                        }
+                        
+                        return ResponseBuilder.success(
+                            data=response_data,
+                            message=f"Retrieved {len(trips)} trips for driver {driver_id}"
+                        ).model_dump()
+                        
+                    except Exception as e:
+                        logger.error(f"Error getting trips for driver {driver_id}: {e}")
+                        return ResponseBuilder.error(
+                            error="InternalError",
+                            message=f"Failed to retrieve trips for driver {driver_id}: {str(e)}"
+                        ).model_dump()
+                
+                elif "/summary" in endpoint:
+                    # GET /driver-history/{driver_id}/summary
+                    driver_id = self._extract_id_from_endpoint(endpoint, "/driver-history/", "/summary")
+                    if not driver_id:
+                        return ResponseBuilder.error(
+                            error="InvalidRequest",
+                            message="Driver ID is required for summary endpoint"
+                        ).model_dump()
+                    
+                    history = await driver_history_service.get_driver_history(driver_id)
+                    if not history:
+                        return ResponseBuilder.error(
+                            error="NotFound",
+                            message=f"Driver history not found for driver {driver_id}"
+                        ).model_dump()
+                    
+                    # Create summary
+                    total_violations = (
+                        history.speeding_violations + 
+                        history.braking_violations + 
+                        history.acceleration_violations + 
+                        history.phone_usage_violations
+                    )
+                    
+                    summary = {
+                        "driver_id": driver_id,
+                        "driver_name": history.driver_name,
+                        "safety_score": history.driver_safety_score,
+                        "risk_level": history.driver_risk_level.value,
+                        "completion_rate": history.trip_completion_rate,
+                        "total_trips": history.completed_trips,
+                        "total_violations": total_violations,
+                        "last_updated": history.last_updated.isoformat()
+                    }
+                    
+                    return ResponseBuilder.success(
+                        message="Driver summary retrieved successfully",
+                        data=summary
+                    ).model_dump()
+                
+                elif "/analytics/risk-distribution" in endpoint:
+                    # GET /driver-history/analytics/risk-distribution
+                    all_histories = await driver_history_service.get_all_driver_histories(limit=1000)
+                    
+                    # Calculate distribution
+                    risk_counts = {"low": 0, "medium": 0, "high": 0}
+                    total_drivers = len(all_histories)
+                    
+                    for history in all_histories:
+                        risk_counts[history.driver_risk_level.value] += 1
+                    
+                    # Calculate percentages
+                    risk_percentages = {}
+                    for risk_level, count in risk_counts.items():
+                        risk_percentages[risk_level] = {
+                            "count": count,
+                            "percentage": (count / total_drivers * 100) if total_drivers > 0 else 0
+                        }
+                    
+                    return ResponseBuilder.success(
+                        message="Risk distribution retrieved successfully",
+                        data={
+                            "total_drivers": total_drivers,
+                            "distribution": risk_percentages
+                        }
+                    ).model_dump()
+                
+                elif "/scheduler/status" in endpoint:
+                    # GET /driver-history/scheduler/status
+                    from services.driver_history_scheduler import get_scheduler
+                    
+                    scheduler = get_scheduler()
+                    
+                    if scheduler is None:
+                        return ResponseBuilder.success(
+                            message="Scheduler status retrieved",
+                            data={
+                                "status": "not_running",
+                                "message": "Driver history scheduler is not running"
+                            }
+                        ).model_dump()
+                    
+                    stats = scheduler.get_stats()
+                    
+                    return ResponseBuilder.success(
+                        message="Scheduler status retrieved successfully",
+                        data={
+                            "status": "running" if stats["is_running"] else "stopped",
+                            "statistics": stats
+                        }
+                    ).model_dump()
+                
+                elif "/" in endpoint and endpoint.count("/") == 1:
+                    # GET /driver-history/{driver_id}
+                    driver_id = endpoint.split("/")[1] if "/" in endpoint else None
+                    if not driver_id:
+                        return ResponseBuilder.error(
+                            error="InvalidRequest",
+                            message="Driver ID is required"
+                        ).model_dump()
+                    
+                    stats = await driver_history_service.get_driver_statistics(driver_id)
+                    if "error" in stats:
+                        return ResponseBuilder.error(
+                            error="NotFound",
+                            message=f"Driver history not found for driver {driver_id}"
+                        ).model_dump()
+                    
+                    return ResponseBuilder.success(
+                        message="Driver history retrieved successfully",
+                        data=stats
+                    ).model_dump()
+                
+                else:
+                    # GET /driver-history - get all histories with optional filtering
+                    skip = int(data.get("skip", 0))
+                    limit = int(data.get("limit", 100))
+                    risk_level = data.get("risk_level")
+                    
+                    histories = await driver_history_service.get_all_driver_histories(
+                        skip=skip,
+                        limit=limit,
+                        risk_level=risk_level
+                    )
+                    
+                    # Convert to dictionaries for response
+                    history_data = []
+                    for history in histories:
+                        history_dict = history.model_dump(by_alias=True)
+                        history_data.append(history_dict)
+                    
+                    return ResponseBuilder.success(
+                        message=f"Retrieved {len(history_data)} driver histories",
+                        data={
+                            "histories": history_data,
+                            "pagination": {
+                                "skip": skip,
+                                "limit": limit,
+                                "count": len(history_data),
+                                "has_more": len(history_data) == limit
+                            },
+                            "filters": {
+                                "risk_level": risk_level
+                            }
+                        }
+                    ).model_dump()
+            
+            elif method == "POST":
+                if "/recalculate" in endpoint:
+                    # POST /driver-history/recalculate
+                    results = await driver_history_service.recalculate_all_driver_histories()
+                    
+                    return ResponseBuilder.success(
+                        message="Driver histories recalculation completed",
+                        data=results
+                    ).model_dump()
+                
+                elif "/update" in endpoint:
+                    # POST /driver-history/{driver_id}/update
+                    driver_id = self._extract_id_from_endpoint(endpoint, "/driver-history/", "/update")
+                    if not driver_id:
+                        return ResponseBuilder.error(
+                            error="InvalidRequest",
+                            message="Driver ID is required for update endpoint"
+                        ).model_dump()
+                    
+                    # Trigger recalculation for this specific driver
+                    await driver_history_service._recalculate_driver_history(driver_id)
+                    
+                    # Get updated statistics
+                    updated_stats = await driver_history_service.get_driver_statistics(driver_id)
+                    
+                    return ResponseBuilder.success(
+                        message=f"Driver history updated successfully for driver {driver_id}",
+                        data=updated_stats
+                    ).model_dump()
+                
+                elif "/scheduler/force-update" in endpoint:
+                    # POST /driver-history/scheduler/force-update
+                    from services.driver_history_scheduler import get_scheduler
+                    
+                    scheduler = get_scheduler()
+                    
+                    if scheduler is None:
+                        return ResponseBuilder.error(
+                            error="ServiceUnavailable",
+                            message="Driver history scheduler is not running"
+                        ).model_dump()
+                    
+                    result = await scheduler.force_update()
+                    
+                    if result["status"] == "success":
+                        return ResponseBuilder.success(
+                            message="Forced update completed successfully",
+                            data=result
+                        ).model_dump()
+                    else:
+                        return ResponseBuilder.error(
+                            error="UpdateFailed",
+                            message=f"Forced update failed: {result['message']}"
+                        ).model_dump()
+                
+                else:
+                    return ResponseBuilder.error(
+                        error="MethodNotAllowed",
+                        message=f"POST method not supported for endpoint {endpoint}"
+                    ).model_dump()
+            
+            else:
+                return ResponseBuilder.error(
+                    error="MethodNotAllowed",
+                    message=f"Method {method} not allowed for driver history endpoint"
+                ).model_dump()
+                
+        except Exception as e:
+            logger.error(f"[_handle_driver_history_request] Exception: {e}")
+            return ResponseBuilder.error(
+                error="DriverHistoryRequestError",
+                message=f"Failed to process driver history request: {str(e)}"
+            ).model_dump()
+
+    def _extract_id_from_endpoint(self, endpoint: str, prefix: str, suffix: str) -> str:
+        """Helper method to extract ID from endpoint path"""
+        try:
+            if prefix in endpoint and suffix in endpoint:
+                start = endpoint.find(prefix) + len(prefix)
+                end = endpoint.find(suffix, start)
+                return endpoint[start:end]
+            return ""
+        except Exception:
+            return ""
+
+    async def _get_trip_violations(self, trip_id: str) -> Dict[str, List[Dict]]:
+        """Get all violation documents for a specific trip"""
+        try:
+            from bson import ObjectId
+            from repositories.database import db_manager
+            
+            violations = {
+                "speeding": [],
+                "braking": [],
+                "acceleration": [],
+                "phone_usage": []
+            }
+            
+            # Try both string and ObjectId formats for trip_id
+            query_filters = [
+                {"trip_id": trip_id},  # String format
+            ]
+            
+            # Also try ObjectId format if trip_id looks like an ObjectId
+            try:
+                if len(trip_id) == 24 and all(c in '0123456789abcdef' for c in trip_id.lower()):
+                    query_filters.append({"trip_id": ObjectId(trip_id)})
+            except:
+                pass
+            
+            # Query each violation collection
+            violation_collections = [
+                ("speeding", db_manager.speed_violations),
+                ("braking", db_manager.excessive_braking_violations), 
+                ("acceleration", db_manager.excessive_acceleration_violations),
+                ("phone_usage", db_manager.phone_usage_violations)
+            ]
+            
+            for violation_type, collection in violation_collections:
+                try:
+                    if collection is None:
+                        logger.warning(f"Collection for {violation_type} violations is None")
+                        continue
+                        
+                    violation_docs = []
+                    
+                    # Try each query filter
+                    for query_filter in query_filters:
+                        cursor = collection.find(query_filter)
+                        async for doc in cursor:
+                            # Convert ObjectId to string
+                            if "_id" in doc:
+                                doc["_id"] = str(doc["_id"])
+                            if "trip_id" in doc and hasattr(doc["trip_id"], "__str__"):
+                                doc["trip_id"] = str(doc["trip_id"])
+                            violation_docs.append(doc)
+                        
+                        # If we found violations with this filter, no need to try others
+                        if violation_docs:
+                            break
+                    
+                    violations[violation_type] = violation_docs
+                    logger.debug(f"Found {len(violation_docs)} {violation_type} violations for trip {trip_id}")
+                    
+                except Exception as e:
+                    logger.error(f"Error fetching {violation_type} violations for trip {trip_id}: {e}")
+                    violations[violation_type] = []
+            
+            total_violations = sum(len(v) for v in violations.values())
+            logger.info(f"Retrieved total {total_violations} violations for trip {trip_id}")
+            
+            return violations
+            
+        except Exception as e:
+            logger.error(f"Error getting violations for trip {trip_id}: {e}")
+            return {
+                "speeding": [],
+                "braking": [],
+                "acceleration": [],
+                "phone_usage": []
+            }
 
     async def _handle_monitor_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle monitoring requests"""

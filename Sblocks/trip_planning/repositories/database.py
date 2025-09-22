@@ -96,7 +96,8 @@ class DatabaseManager:
             # Get collection stats
             collections = ["trips", "trip_constraints", "driver_assignments", 
                           "trip_analytics", "notifications", "notification_preferences",
-                          "phone_usage_violations", "speed_violations", "driver_ping_sessions"]
+                          "phone_usage_violations", "speed_violations", "excessive_braking_violations", 
+                          "excessive_acceleration_violations", "driver_ping_sessions", "driver_history"]
             
             metrics = {
                 "status": "connected",
@@ -165,14 +166,33 @@ class DatabaseManager:
             # Speed violations indexes
             await self.speed_violations.create_index("trip_id")
             await self.speed_violations.create_index("driver_id")
-            await self.speed_violations.create_index([("trip_id", 1), ("timestamp", -1)])
-            await self.speed_violations.create_index("place_id")
+            await self.speed_violations.create_index([("trip_id", 1), ("time", -1)])
+            await self.speed_violations.create_index("time")
+            
+            # Excessive braking violations indexes
+            await self.excessive_braking_violations.create_index("trip_id")
+            await self.excessive_braking_violations.create_index("driver_id")
+            await self.excessive_braking_violations.create_index([("trip_id", 1), ("time", -1)])
+            await self.excessive_braking_violations.create_index("time")
+            
+            # Excessive acceleration violations indexes
+            await self.excessive_acceleration_violations.create_index("trip_id")
+            await self.excessive_acceleration_violations.create_index("driver_id")
+            await self.excessive_acceleration_violations.create_index([("trip_id", 1), ("time", -1)])
+            await self.excessive_acceleration_violations.create_index("time")
             
             # Driver ping sessions indexes
             await self.driver_ping_sessions.create_index("trip_id", unique=True)
             await self.driver_ping_sessions.create_index("driver_id")
             await self.driver_ping_sessions.create_index("is_active")
             await self.driver_ping_sessions.create_index("started_at")
+            
+            # Driver history indexes
+            await self.driver_history.create_index("driver_id", unique=True)
+            await self.driver_history.create_index("driver_risk_level")
+            await self.driver_history.create_index("driver_safety_score")
+            await self.driver_history.create_index("last_updated")
+            await self.driver_history.create_index([("driver_safety_score", -1), ("driver_risk_level", 1)])
             
             # Compound indexes for common queries
             await self.trips.create_index([
@@ -258,6 +278,20 @@ class DatabaseManager:
         return self._db.speed_violations
     
     @property
+    def excessive_braking_violations(self):
+        """Get excessive braking violations collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.excessive_braking_violations
+    
+    @property
+    def excessive_acceleration_violations(self):
+        """Get excessive acceleration violations collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.excessive_acceleration_violations
+    
+    @property
     def driver_ping_sessions(self):
         """Get driver ping sessions collection"""
         if self._db is None:
@@ -265,6 +299,11 @@ class DatabaseManager:
         return self._db.driver_ping_sessions
     
     @property
+    def driver_history(self):
+        """Get driver history collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.driver_history
     def smarttrips(self):
         """Get driver ping sessions collection"""
         if self._db is None:
