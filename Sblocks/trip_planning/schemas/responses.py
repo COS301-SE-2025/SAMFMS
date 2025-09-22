@@ -185,3 +185,15 @@ class ResponseBuilder:
             message=message,
             meta=meta
         )
+
+
+class DriverPingResponse(BaseModel):
+    """Response from driver ping endpoint"""
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat() + 'Z'})
+    
+    status: str = Field(..., description="Status of ping processing")
+    message: str = Field(..., description="Response message")
+    ping_received_at: datetime = Field(..., description="When ping was received")
+    next_ping_expected_at: datetime = Field(..., description="When next ping is expected")
+    session_active: bool = Field(..., description="Whether ping session is active")
+    violations_count: int = Field(default=0, description="Number of violations in current session")

@@ -15,3 +15,4 @@ requests
 aiohttp
 docker
 python-json-logger
+pytest-cov

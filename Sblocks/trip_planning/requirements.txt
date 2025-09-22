@@ -13,3 +13,10 @@ geopy==2.4.1
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 aiohttp==3.9.5
+flexpolyline
+requests
+aiohttp
+pytest
+pytest-asyncio
+pytest-cov
+pytest-mock

@@ -28,9 +28,11 @@ class TripStatus(str, Enum):
     """Trip status enumeration"""
     SCHEDULED = "scheduled"
     IN_PROGRESS = "in_progress"
+    PAUSED = "paused"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
     DELAYED = "delayed"
+    MISSED = "missed"
 
 
 class TripPriority(str, Enum):
@@ -163,6 +165,121 @@ class Trip(BaseModel):
     class Config:
         populate_by_name = True
 
+class ScheduledTrip(BaseModel):
+    """Scheduled trip entity"""
+    id: Optional[str] = Field(None, alias="_id", description="Trip ID")
+    name: str = Field(..., description="Trip name/title")
+    description: Optional[str] = None
+
+    start_time_window: datetime = Field(..., description="When the trip should start")
+    end_time_window: datetime = Field(..., description="When the trip should end")
+
+    # Route
+    origin: Waypoint = Field(..., description="Starting point")
+    destination: Waypoint = Field(..., description="End point")
+    waypoints: List[Waypoint] = Field(default_factory=list, description="Intermediate stops")
+    route_info: Optional[RouteInfo] = Field(None, description="Route information including distance, duration, and coordinates")
+    
+    # Trip details
+    priority: TripPriority = Field(..., description="Trip priority")
+    status: TripStatus = Field(default=TripStatus.SCHEDULED)
+    estimated_distance: Optional[float] = Field(None, description="Estimated distance in km")
+    estimated_duration: Optional[float] = Field(None, description="Estimated duration in minutes")
+
+class ScheduleInfo(BaseModel):
+    """Represents schedule information for a trip"""
+    start_time: datetime = Field(..., description="Start time of the schedule")
+    end_time: datetime = Field(..., description="End time of the schedule")
+    vehicle_id: Optional[str] = Field(None, description="Assigned vehicle ID")
+    vehicle_name: Optional[str] = Field(None, description="Assigned vehicle name")
+    driver_id: Optional[str] = Field(None, description="Assigned driver ID")
+    driver_name: Optional[str] = Field(None, description="Assigned driver name")
+
+
+class RouteSummary(BaseModel):
+    """Route summary information for the smart trip"""
+    origin: Waypoint = Field(..., description="Starting point")
+    destination: Waypoint = Field(..., description="End point")
+    waypoints: List[Waypoint] = Field(default_factory=list, description="Intermediate stops")
+    estimated_distance: Optional[float] = Field(None, description="Estimated distance in km")
+    estimated_duration: Optional[float] = Field(None, description="Estimated duration in minutes")
+
+
+class SmartTripBenefits(BaseModel):
+    """Benefits gained from smart trip optimization"""
+    time_saved: str = Field(..., description="Time saved as a formatted string")
+    fuel_efficiency: str = Field(..., description="Fuel efficiency information")
+    route_optimization: str = Field(..., description="Description of route optimization")
+    driver_utilization: str = Field(..., description="Driver utilization efficiency as formatted string")
+
+
+class SmartTrip(BaseModel):
+    """Smart trip entity with optimization details"""
+    id: str = Field(..., description="Unique Smart Trip ID")
+    trip_id: str = Field(..., description="Reference to ScheduledTrip ID")
+    trip_name: str = Field(..., description="Name of the trip")
+    description: Optional[str] = None
+    priority: TripPriority = Field(..., description="Trip priority")
+
+    original_schedule: ScheduleInfo = Field(..., description="Original schedule details")
+    optimized_schedule: ScheduleInfo = Field(..., description="Optimized schedule details")
+    route: RouteSummary = Field(..., description="Route information summary")
+    benefits: SmartTripBenefits = Field(..., description="Benefits from optimization")
+    route_info: Optional[RouteInfo] = Field(None, description="Route information including distance, duration, and coordinates")
+
+    confidence: int = Field(..., description="Confidence score of the optimization")
+    reasoning: List[str] = Field(..., description="Reasoning behind optimization decisions")
+
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp when SmartTrip was created")
+    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp when SmartTrip was last updated")
+
+    class Config:
+        populate_by_name = True
+
+
+class TrafficType(str, Enum):
+    """Traffic type enumeration"""
+    LIGHT = "light"
+    MODERATE = "moderate"
+    HEAVY = "heavy"
+    SEVERE = "severe"
+
+class RouteRecommendationStatus(str, Enum):
+    """Route Rec. Status types"""
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+
+class TrafficCondition(BaseModel):
+    """Represents current traffic condition for a route segment"""
+    segment_id: str = Field(..., description="Unique identifier for the route segment")
+    current_duration: float = Field(..., description="Current travel duration in seconds")
+    free_flow_duration: float = Field(..., description="Travel duration in free-flow traffic conditions")
+    traffic_ratio: float = Field(..., description="Current / Free flow travel duration ratio")
+    severity: TrafficType = Field(..., description="Traffic severity level")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Time when condition was recorded")
+
+    class Config:
+        populate_by_name = True
+
+
+class RouteRecommendation(BaseModel):
+    """Represents a route optimization recommendation"""
+    id: str = Field(..., description="Unique Route Recommended Trip ID")
+    trip_id: str = Field(..., description="Associated Trip ID")
+    vehicle_id: str = Field(..., description="Associated Vehicle ID")
+    current_route: RouteInfo = Field(..., description="Current route information")
+    recommended_route: RouteInfo = Field(..., description="Recommended optimized route")
+    time_savings: float = Field(..., description="Time saved in seconds if recommendation is accepted")
+    traffic_avoided: TrafficType = Field(..., description="Traffic severity avoided with the new route")
+    confidence: float = Field(..., ge=0, le=1, description="Confidence score of recommendation")
+    reason: str = Field(..., description="Reason for the recommendation")
+    class Config:
+        populate_by_name = True
+
+
+
 
 class TripAnalytics(BaseModel):
     """Trip analytics data"""
@@ -268,3 +385,93 @@ class VehicleLocation(BaseModel):
     accuracy: Optional[float] = Field(None, ge=0, description="GPS accuracy in meters")
     timestamp: datetime = Field(..., description="Location timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
+
+
+class PhoneUsageViolationType(str, Enum):
+    """Phone usage violation types"""
+    PHONE_USAGE = "phone_usage"
+
+
+class PhoneUsageViolation(BaseModel):
+    """Phone usage violation during trip"""
+    id: Optional[str] = Field(None, alias="_id", description="Violation ID")
+    trip_id: str = Field(..., description="Associated trip ID")
+    driver_id: str = Field(..., description="Driver ID")
+    violation_type: PhoneUsageViolationType = Field(default=PhoneUsageViolationType.PHONE_USAGE)
+    
+    # Start violation data
+    start_time: datetime = Field(..., description="When violation started")
+    start_location: LocationPoint = Field(..., description="Location where violation started")
+    
+    # End violation data (optional - set when violation ends)
+    end_time: Optional[datetime] = Field(None, description="When violation ended")
+    end_location: Optional[LocationPoint] = Field(None, description="Location where violation ended")
+    
+    # Metadata
+    duration_seconds: Optional[int] = Field(None, description="Violation duration in seconds")
+    is_active: bool = Field(default=True, description="Whether violation is currently active")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True
+
+
+class SpeedViolationType(str, Enum):
+    """Speed violation types"""
+    SPEED_LIMIT_EXCEEDED = "speed_limit_exceeded"
+
+
+class SpeedViolation(BaseModel):
+    """Speed limit violation during trip"""
+    id: Optional[str] = Field(None, alias="_id", description="Violation ID")
+    trip_id: str = Field(..., description="Associated trip ID")
+    driver_id: str = Field(..., description="Driver ID")
+    violation_type: SpeedViolationType = Field(default=SpeedViolationType.SPEED_LIMIT_EXCEEDED)
+    
+    # Speed data
+    actual_speed: float = Field(..., ge=0, description="Actual vehicle speed in km/h")
+    speed_limit: float = Field(..., ge=0, description="Posted speed limit in km/h")
+    speed_over_limit: float = Field(..., ge=0, description="Speed over limit in km/h")
+    
+    # Location and time
+    location: LocationPoint = Field(..., description="Location where violation occurred")
+    timestamp: datetime = Field(..., description="When violation was detected")
+    
+    # Road information (from Google Roads API)
+    place_id: Optional[str] = Field(None, description="Google Maps place ID for road segment")
+    
+    # Metadata
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True
+
+
+class DriverPingSession(BaseModel):
+    """Driver phone ping session tracking"""
+    id: Optional[str] = Field(None, alias="_id", description="Session ID")
+    trip_id: str = Field(..., description="Associated trip ID")
+    driver_id: str = Field(..., description="Driver ID")
+    
+    # Session status
+    is_active: bool = Field(default=True, description="Whether session is currently active")
+    started_at: datetime = Field(default_factory=datetime.utcnow, description="When session started")
+    ended_at: Optional[datetime] = Field(None, description="When session ended")
+    
+    # Ping tracking
+    last_ping_time: Optional[datetime] = Field(None, description="Last successful ping time")
+    last_ping_location: Optional[LocationPoint] = Field(None, description="Last ping location")
+    ping_count: int = Field(default=0, description="Total pings received")
+    
+    # Violation tracking
+    current_violation_id: Optional[str] = Field(None, description="ID of current active violation")
+    total_violations: int = Field(default=0, description="Total violations in this session")
+    
+    # Metadata
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True

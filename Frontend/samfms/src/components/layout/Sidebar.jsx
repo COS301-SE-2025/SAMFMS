@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  BarChart3,
 } from 'lucide-react';
 import { useAuth, PERMISSIONS, ROLES } from '../auth/RBACUtils';
 import { logout } from '../../backend/API.js';
@@ -47,6 +48,12 @@ const Sidebar = () => {
       path: '/drivers',
       label: 'Drivers',
       icon: <Users size={20} />,
+      permission: PERMISSIONS.DRIVERS_READ,
+    },
+    {
+      path: '/driver-behavior',
+      label: 'Driver Behavior',
+      icon: <BarChart3 size={20} />,
       permission: PERMISSIONS.DRIVERS_READ,
     },
     {

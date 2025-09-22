@@ -173,6 +173,17 @@ class EventPublisher:
         event = NotificationSentEvent.from_notification(notification_id, user_id, notification_type)
         await self.publish_event(event, "notification.sent")
     
+    # Violation-related event publishers
+    async def publish_speed_violation_created(self, trip_id: str, driver_id: str, violation_data: Dict[str, Any]):
+        """Publish speed violation created event"""
+        from events.events import SpeedViolationCreatedEvent
+        event = SpeedViolationCreatedEvent(
+            trip_id=trip_id,
+            driver_id=driver_id,
+            violation_data=violation_data
+        )
+        await self.publish_event(event, "violation.speed.created")
+    
     # Service-related event publishers
     async def publish_service_started(self, version: str, data: Dict[str, Any] = None) -> bool:
         """Publish service started event"""

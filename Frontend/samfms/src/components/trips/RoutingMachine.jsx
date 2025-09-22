@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import {useEffect, useRef} from 'react';
 import L from 'leaflet';
-import { useMap } from 'react-leaflet';
+import {useMap} from 'react-leaflet';
 
 // Fix for marker icons in React-Leaflet
 L.Marker.prototype.options.icon = L.icon({
@@ -268,9 +268,8 @@ const RoutingMachine = ({
     });
 
     // Create a stable key for the current route to prevent unnecessary re-renders
-    const routeKey = `${startLocation?.lat}-${startLocation?.lng}-${endLocation?.lat}-${
-      endLocation?.lng
-    }-${waypoints?.length || 0}`;
+    const routeKey = `${startLocation?.lat}-${startLocation?.lng}-${endLocation?.lat}-${endLocation?.lng
+      }-${waypoints?.length || 0}`;
 
     // If this is the same route we're already showing, don't recreate
     if (currentRouteRef.current === routeKey) {
@@ -281,14 +280,17 @@ const RoutingMachine = ({
     // Function to clean up any existing route display
     const cleanupRoutes = () => {
       try {
-        if (routePolylineRef.current && map) {
+        if (routePolylineRef.current && map && map.hasLayer && map.hasLayer(routePolylineRef.current)) {
           map.removeLayer(routePolylineRef.current);
-          routePolylineRef.current = null;
         }
+        routePolylineRef.current = null;
         // Clear the current route reference
         currentRouteRef.current = null;
       } catch (error) {
         console.warn('Error during route cleanup:', error);
+        // Force clear the reference even if removal failed
+        routePolylineRef.current = null;
+        currentRouteRef.current = null;
       }
     };
 
@@ -302,14 +304,27 @@ const RoutingMachine = ({
       return;
     }
 
-    // Validate coordinates
+    // Validate coordinates thoroughly
     if (
-      isNaN(startLocation.lat) ||
-      isNaN(startLocation.lng) ||
-      isNaN(endLocation.lat) ||
-      isNaN(endLocation.lng)
+      !startLocation || !endLocation ||
+      typeof startLocation.lat !== 'number' || typeof startLocation.lng !== 'number' ||
+      typeof endLocation.lat !== 'number' || typeof endLocation.lng !== 'number' ||
+      isNaN(startLocation.lat) || isNaN(startLocation.lng) ||
+      isNaN(endLocation.lat) || isNaN(endLocation.lng) ||
+      Math.abs(startLocation.lat) > 90 || Math.abs(startLocation.lng) > 180 ||
+      Math.abs(endLocation.lat) > 90 || Math.abs(endLocation.lng) > 180
     ) {
-      console.error('Invalid coordinates:', { startLocation, endLocation });
+      console.error('Invalid coordinates:', {startLocation, endLocation});
+      cleanupRoutes();
+      if (setIsCalculatingRef.current) {
+        setIsCalculatingRef.current(false);
+      }
+      return;
+    }
+
+    // Validate map state
+    if (!map.getContainer() || !map.getContainer().offsetParent) {
+      console.warn('Map container not properly initialized');
       if (setIsCalculatingRef.current) {
         setIsCalculatingRef.current(false);
       }
@@ -370,16 +385,24 @@ const RoutingMachine = ({
 
             // Validate bounds before fitting
             if (bounds && bounds.isValid && bounds.isValid()) {
-              map.fitBounds(bounds, { padding: [20, 20] });
+              map.fitBounds(bounds, {padding: [20, 20]});
             } else {
               console.warn('Invalid bounds, using alternative centering');
               // Alternative: center on start location with appropriate zoom
-              map.setView([startLocation.lat, startLocation.lng], 13);
+              if (startLocation && !isNaN(startLocation.lat) && !isNaN(startLocation.lng)) {
+                map.setView([startLocation.lat, startLocation.lng], 13);
+              }
             }
           } catch (boundsError) {
             console.error('Error fitting bounds:', boundsError);
             // Fallback to centering on start location
-            map.setView([startLocation.lat, startLocation.lng], 13);
+            try {
+              if (startLocation && !isNaN(startLocation.lat) && !isNaN(startLocation.lng)) {
+                map.setView([startLocation.lat, startLocation.lng], 13);
+              }
+            } catch (centerError) {
+              console.error('Error centering map:', centerError);
+            }
           }
 
           // Call the route calculated callback
@@ -410,50 +433,135 @@ const RoutingMachine = ({
 
     // Fallback straight line route
     const showFallbackRoute = () => {
-      console.log('SHOWING FALLBACK ROUTE - Straight line (not following roads)');
-      const straightLineCoords = [
-        [startLocation.lat, startLocation.lng],
-        [endLocation.lat, endLocation.lng],
-      ];
+      try {
+        console.log('SHOWING FALLBACK ROUTE - Straight line (not following roads)');
 
-      console.log('Fallback coordinates:', straightLineCoords);
+        // Validate coordinates before proceeding
+        if (!startLocation || !endLocation ||
+          isNaN(startLocation.lat) || isNaN(startLocation.lng) ||
+          isNaN(endLocation.lat) || isNaN(endLocation.lng)) {
+          console.error('Invalid coordinates for fallback route:', {startLocation, endLocation});
+          if (setIsCalculatingRef.current) {
+            setIsCalculatingRef.current(false);
+          }
+          return;
+        }
 
-      const fallbackPolyline = L.polyline(straightLineCoords, {
-        color: '#ef4444', // Red for fallback routes
-        weight: 4,
-        opacity: 0.7,
-        dashArray: '10, 10', // Dashed line to indicate this is not a real route
-      });
+        // Validate map is ready
+        if (!map || !map.getContainer()) {
+          console.error('Map not ready for fallback route');
+          if (setIsCalculatingRef.current) {
+            setIsCalculatingRef.current(false);
+          }
+          return;
+        }
 
-      fallbackPolyline.addTo(map);
-      routePolylineRef.current = fallbackPolyline;
-      console.log('Fallback straight-line polyline added to map');
+        const straightLineCoords = [
+          [startLocation.lat, startLocation.lng],
+          [endLocation.lat, endLocation.lng],
+        ];
 
-      // Fit map bounds
-      const bounds = fallbackPolyline.getBounds();
-      map.fitBounds(bounds, { padding: [20, 20] });
+        console.log('Fallback coordinates:', straightLineCoords);
 
-      // Calculate approximate distance for fallback
-      const distance = map.distance(
-        [startLocation.lat, startLocation.lng],
-        [endLocation.lat, endLocation.lng]
-      );
-      const estimatedDuration = (distance / 1000) * 60; // Rough estimate: 1 km per minute
+        // Validate coordinates are within valid ranges
+        const isValidCoord = (coord) => {
+          return Array.isArray(coord) &&
+            coord.length === 2 &&
+            !isNaN(coord[0]) && !isNaN(coord[1]) &&
+            Math.abs(coord[0]) <= 90 && Math.abs(coord[1]) <= 180;
+        };
 
-      console.log('Fallback route distance:', (distance / 1000).toFixed(2), 'km (straight line)');
+        if (!straightLineCoords.every(isValidCoord)) {
+          console.error('Invalid coordinate values:', straightLineCoords);
+          if (setIsCalculatingRef.current) {
+            setIsCalculatingRef.current(false);
+          }
+          return;
+        }
 
-      if (onRouteCalculatedRef.current) {
-        onRouteCalculatedRef.current({
-          distance: distance,
-          duration: estimatedDuration,
-          coordinates: straightLineCoords,
-          isFallback: true,
+        const fallbackPolyline = L.polyline(straightLineCoords, {
+          color: '#ef4444', // Red for fallback routes
+          weight: 4,
+          opacity: 0.7,
+          dashArray: '10, 10', // Dashed line to indicate this is not a real route
         });
-      }
 
-      // Clear loading state
-      if (setIsCalculatingRef.current) {
-        setIsCalculatingRef.current(false);
+        // Add to map with error handling
+        try {
+          fallbackPolyline.addTo(map);
+          routePolylineRef.current = fallbackPolyline;
+          console.log('Fallback straight-line polyline added to map');
+        } catch (addError) {
+          console.error('Error adding polyline to map:', addError);
+          if (setIsCalculatingRef.current) {
+            setIsCalculatingRef.current(false);
+          }
+          return;
+        }
+
+        // Fit map bounds with validation
+        try {
+          const bounds = fallbackPolyline.getBounds();
+          if (bounds && bounds.isValid && bounds.isValid()) {
+            map.fitBounds(bounds, {padding: [20, 20]});
+          } else {
+            console.warn('Invalid bounds, centering on start location');
+            map.setView([startLocation.lat, startLocation.lng], 13);
+          }
+        } catch (boundsError) {
+          console.error('Error fitting bounds:', boundsError);
+          // Fallback to centering on start location
+          try {
+            map.setView([startLocation.lat, startLocation.lng], 13);
+          } catch (centerError) {
+            console.error('Error centering map:', centerError);
+          }
+        }
+
+        // Calculate approximate distance for fallback
+        let distance = 0;
+        try {
+          distance = map.distance(
+            [startLocation.lat, startLocation.lng],
+            [endLocation.lat, endLocation.lng]
+          );
+        } catch (distanceError) {
+          console.error('Error calculating distance:', distanceError);
+          // Fallback distance calculation using Haversine formula
+          const R = 6371e3; // Earth's radius in meters
+          const φ1 = startLocation.lat * Math.PI / 180;
+          const φ2 = endLocation.lat * Math.PI / 180;
+          const Δφ = (endLocation.lat - startLocation.lat) * Math.PI / 180;
+          const Δλ = (endLocation.lng - startLocation.lng) * Math.PI / 180;
+
+          const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+          distance = R * c;
+        }
+
+        const estimatedDuration = (distance / 1000) * 60; // Rough estimate: 1 km per minute
+
+        console.log('Fallback route distance:', (distance / 1000).toFixed(2), 'km (straight line)');
+
+        if (onRouteCalculatedRef.current) {
+          onRouteCalculatedRef.current({
+            distance: distance,
+            duration: estimatedDuration,
+            coordinates: straightLineCoords,
+            isFallback: true,
+          });
+        }
+
+      } catch (error) {
+        console.error('Error in showFallbackRoute:', error);
+      } finally {
+        // Always clear loading state
+        if (setIsCalculatingRef.current) {
+          setIsCalculatingRef.current(false);
+        }
       }
     };
 

@@ -28,6 +28,7 @@ import Landing from './pages/Landing';
 import UserManagement from './pages/UserManagement';
 import DriverHomePage from './pages/DriverHomePage';
 import TripNavigation from './pages/TripNavigation';
+import DriverBehavior from './pages/DriverBehavior';
 
 function App() {
   return (
@@ -79,6 +80,7 @@ function App() {
                   />
                   <Route path="/driver-home" element={<DriverHomePage />} />
                   <Route path="/trip-navigation" element={<TripNavigation />} />
+                  <Route path="/driver-behavior" element={<DriverBehavior />} />
                   <Route path="/vehicles" element={<Vehicles />} />{' '}
                   <Route path="/drivers" element={<Drivers />} />
                   <Route path="/tracking" element={<Tracking />} />

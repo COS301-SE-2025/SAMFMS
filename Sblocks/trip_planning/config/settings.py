@@ -42,6 +42,12 @@ class TripsConfig(BaseModel):
     default_optimization: str = Field(default="time", description="Default optimization type (time, distance, cost)")
     max_trips_per_vehicle_per_day: int = Field(default=5, description="Maximum trips a vehicle can handle per day")
     auto_assign_vehicles: bool = Field(default=True, description="Automatically assign vehicles to trips if not provided")
+    
+    # Speed monitoring configuration
+    google_maps_api_key: str = Field(default="", description="Google Maps API key for speed limit checking")
+    geoapify_api_key: str = Field(default="8c5cae4820744254b3cb03ebd9b9ce13", description="Geoapify API key for speed limit checking")
+    speed_violation_threshold_kmh: float = Field(default=10.0, description="Speed over limit to trigger violation (km/h)")
+    speed_limit_cache_duration: int = Field(default=30, description="Speed limit cache duration in seconds")
 
 
 class ServiceConfig(BaseModel):
@@ -96,7 +102,11 @@ def load_config() -> ServiceConfig:
             trip_history_days=int(os.getenv("TRIP_HISTORY_DAYS", "180")),
             default_optimization=os.getenv("DEFAULT_TRIP_OPTIMIZATION", "time"),
             max_trips_per_vehicle_per_day=int(os.getenv("MAX_TRIPS_PER_VEHICLE_PER_DAY", "5")),
-            auto_assign_vehicles=os.getenv("AUTO_ASSIGN_VEHICLES", "true").lower() == "true"
+            auto_assign_vehicles=os.getenv("AUTO_ASSIGN_VEHICLES", "true").lower() == "true",
+            google_maps_api_key=os.getenv("GOOGLE_MAPS_API_KEY", ""),
+            geoapify_api_key=os.getenv("GEOAPIFY_API_KEY", "8c5cae4820744254b3cb03ebd9b9ce13"),
+            speed_violation_threshold_kmh=float(os.getenv("SPEED_VIOLATION_THRESHOLD_KMH", "10.0")),
+            speed_limit_cache_duration=int(os.getenv("SPEED_LIMIT_CACHE_DURATION", "30"))
         )
 
     )

@@ -36,13 +36,42 @@ class VehicleSimulator:
         self.trip_id = trip_id
         self.vehicle_id = vehicle_id
         self.route = route
-        self.speed_kmh = speed_kmh
+        self.base_speed_kmh = speed_kmh
+        self.current_speed_kmh = speed_kmh
         self.speed_ms = speed_kmh / 3.6  # Convert km/h to m/s
         self.current_position = 0  # Current position along the route (0-1)
         self.is_running = False
+        self.is_paused = False  # New: Track pause state
         self.start_time = datetime.utcnow()
         self.distance_traveled = 0.0
         self.last_location = None
+        
+        # Speed variation parameters
+        self.min_speed = 40.0  # km/h
+        self.max_speed = 140.0  # km/h
+        self.speed_change_rate = 0.5  # How quickly speed changes (km/h per update)
+        self.target_speed = speed_kmh
+        self.speed_change_timer = 0
+        self.speed_change_interval = 15  # Change target speed every 15 updates (30 seconds)
+        
+        # Note: When current_position reaches 1.0 (destination), simulation stops
+        # but trip remains active until manually completed by driver
+    
+    def pause(self):
+        """Pause the simulation"""
+        self.is_paused = True
+        logger.info(f"Paused simulation for trip {self.trip_id}")
+    
+    def resume(self):
+        """Resume the simulation"""
+        self.is_paused = False
+        logger.info(f"Resumed simulation for trip {self.trip_id}")
+    
+    def stop(self):
+        """Stop the simulation"""
+        self.is_running = False
+        self.is_paused = False
+        logger.info(f"Stopped simulation for trip {self.trip_id}")
     
     def get_distance_traveled(self) -> float:
         """Get distance traveled in meters"""
@@ -122,15 +151,61 @@ class VehicleSimulator:
         remaining_time_sec = remaining_distance / speed_ms
         return datetime.utcnow() + timedelta(seconds=remaining_time_sec)
     
+    def update_speed(self):
+        """Update current speed with realistic variation"""
+        import random
+        
+        self.speed_change_timer += 1
+        
+        # Change target speed periodically
+        if self.speed_change_timer >= self.speed_change_interval:
+            # Choose new target speed with some logic based on route progress
+            if self.current_position < 0.1:  # Starting - gradually increase
+                self.target_speed = random.uniform(50, 80)
+            elif self.current_position > 0.9:  # Near destination - slow down
+                self.target_speed = random.uniform(40, 60)
+            else:  # Middle of journey - higher speeds on highways
+                # Assume highway speeds in middle sections
+                highway_probability = 0.7
+                if random.random() < highway_probability:
+                    self.target_speed = random.uniform(80, 140)
+                else:
+                    self.target_speed = random.uniform(50, 80)
+            
+            # Ensure target is within bounds
+            self.target_speed = max(self.min_speed, min(self.max_speed, self.target_speed))
+            self.speed_change_timer = 0
+        
+        # Gradually adjust current speed toward target
+        speed_diff = self.target_speed - self.current_speed_kmh
+        if abs(speed_diff) > self.speed_change_rate:
+            if speed_diff > 0:
+                self.current_speed_kmh += self.speed_change_rate
+            else:
+                self.current_speed_kmh -= self.speed_change_rate
+        else:
+            self.current_speed_kmh = self.target_speed
+        
+        # Ensure speed stays within bounds
+        self.current_speed_kmh = max(self.min_speed, min(self.max_speed, self.current_speed_kmh))
+        
+        # Update speed_ms for calculations
+        self.speed_ms = self.current_speed_kmh / 3.6
+    
     async def update_position(self):
         """Update vehicle position and save to database"""
-        if self.current_position >= 1.0:
-            self.is_running = False
-            logger.info(f"Trip {self.trip_id} completed in simulation")
+        # Don't update position if paused
+        if self.is_paused:
+            return True
             
-            # Move trip to history when completed
-            # await self._complete_trip()
+        if self.current_position >= 1.0:
+            # Stop simulation but don't complete the trip - let driver complete manually
+            self.is_running = False
+            logger.info(f"Trip {self.trip_id} simulation reached destination - stopping location updates. Trip remains active for manual completion.")
             return False
+        
+        # Update speed with realistic variation
+        self.update_speed()
         
         # Calculate how far we should have moved in 2 seconds
         distance_moved = self.speed_ms * 2  # 2 seconds
@@ -154,7 +229,7 @@ class VehicleSimulator:
             "latitude": lat,
             "longitude": lon,
             "altitude": None,
-            "speed": self.speed_kmh,
+            "speed": self.current_speed_kmh,  # Use current variable speed
             "heading": self._calculate_heading(),
             "accuracy": None,
             "timestamp": current_time,
@@ -175,21 +250,19 @@ class VehicleSimulator:
             )
 
             
-            # Publish event
-            #await event_publisher.publish("vehicle.location_updated", {
-                #"vehicle_id": self.vehicle_id,
-                #"trip_id": self.trip_id,
-                #"location": {
-                #    "latitude": lat,
-               #     "longitude": lon,
-              #      "timestamp": location_doc["timestamp"].isoformat()
-             #   }
-            #})
-            
-            #logger.info(f"Updated location for vehicle {self.vehicle_id}: {lat:.6f}, {lon:.6f}")
-            
         except Exception as e:
             logger.error(f"Failed to update vehicle location: {e}")
+
+        # After updating position, check if this trip needs traffic analysis
+        if self.current_position > 0.1 and self.current_position < 0.9:  # Middle of journey
+            try:
+                # Import here to avoid circular imports
+                from services.smart_trip_planning_service import smart_trip_service
+                
+                # Trigger traffic analysis for this trip (non-blocking)
+                asyncio.create_task(smart_trip_service._analyze_route_traffic(self.trip_id,self.vehicle_id))
+            except Exception as e:
+                logger.warning(f"Failed to trigger traffic analysis: {e}")
         
         return True
     
@@ -360,51 +433,86 @@ class SimulationService:
             logger.warning(f"Trip {trip_id} has no vehicle_id")
             return
         
+        # Check if trip is already manually completed
+        if trip.get("actual_end_time") or trip.get("status") == "completed":
+            logger.info(f"Trip {trip_id} is already completed, skipping simulation")
+            return
+        
         if trip_id in self.active_simulators:
+            # Check if the existing simulator has reached the destination
+            simulator = self.active_simulators[trip_id]
+            if simulator.current_position >= 1.0 and not simulator.is_running:
+                logger.info(f"Trip {trip_id} simulation already reached destination, not restarting")
+                return
             #logger.info(f"Trip {trip_id} already being simulated")
             return
         
-        # Get start coordinates from origin
-        origin = trip.get("origin", {})
-        origin_location = origin.get("location", {})
-        origin_coords = origin_location.get("coordinates", [])
+        # First, try to use route_info from the scheduled trip
+        route = None
+        route_info = trip.get("route_info")
         
-        # Get end coordinates from destination
-        destination = trip.get("destination", {})
-        destination_location = destination.get("location", {})
-        destination_coords = destination_location.get("coordinates", [])
+        if route_info and route_info.get("coordinates"):
+            logger.info(f"Using route_info from scheduled trip {trip_id}")
+            
+            # Convert coordinates from [lat, lng] to (lat, lon) tuples
+            coordinates = []
+            for coord in route_info["coordinates"]:
+                if len(coord) >= 2:
+                    coordinates.append((coord[0], coord[1]))  # [lat, lng] to (lat, lon)
+            
+            if coordinates:
+                route = Route(
+                    coordinates=coordinates,
+                    distance=route_info.get("distance", 0),
+                    duration=route_info.get("duration", 0)
+                )
         
-        if len(origin_coords) < 2 or len(destination_coords) < 2:
-            logger.error(f"Trip {trip_id} missing origin or destination coordinates")
-            return
+        # Fallback to generating route from origin/destination if no route_info
+        if not route:
+            logger.info(f"No route_info found, generating route for trip {trip_id}")
+            
+            # Get start coordinates from origin
+            origin = trip.get("origin", {})
+            origin_location = origin.get("location", {})
+            origin_coords = origin_location.get("coordinates", [])
+            
+            # Get end coordinates from destination
+            destination = trip.get("destination", {})
+            destination_location = destination.get("location", {})
+            destination_coords = destination_location.get("coordinates", [])
+            
+            if len(origin_coords) < 2 or len(destination_coords) < 2:
+                logger.error(f"Trip {trip_id} missing origin or destination coordinates")
+                return
+            
+            # Coordinates are in [longitude, latitude] format (GeoJSON)
+            start_lon, start_lat = origin_coords[0], origin_coords[1]
+            end_lon, end_lat = destination_coords[0], destination_coords[1]
+            
+            # Get waypoints if they exist
+            waypoints = trip.get("waypoints", [])
+            waypoint_coords = []
+            for waypoint in waypoints:
+                wp_location = waypoint.get("location", {})
+                wp_coords = wp_location.get("coordinates", [])
+                if len(wp_coords) >= 2:
+                    waypoint_coords.append((wp_coords[1], wp_coords[0]))  # Convert to lat, lon
+            
+            # Get route including waypoints
+            route = await self.get_route_with_waypoints(start_lat, start_lon, end_lat, end_lon, waypoint_coords)
         
-        # Coordinates are in [longitude, latitude] format (GeoJSON)
-        start_lon, start_lat = origin_coords[0], origin_coords[1]
-        end_lon, end_lat = destination_coords[0], destination_coords[1]
-        
-        # Get waypoints if they exist
-        waypoints = trip.get("waypoints", [])
-        waypoint_coords = []
-        for waypoint in waypoints:
-            wp_location = waypoint.get("location", {})
-            wp_coords = wp_location.get("coordinates", [])
-            if len(wp_coords) >= 2:
-                waypoint_coords.append((wp_coords[1], wp_coords[0]))  # Convert to lat, lon
-        
-        # Get route including waypoints
-        route = await self.get_route_with_waypoints(start_lat, start_lon, end_lat, end_lon, waypoint_coords)
         if not route:
             logger.error(f"Failed to get route for trip {trip_id}")
             return
         
         # Create and start simulator
-        speed = 80.0  # Default speed since it's not in the trip structure
+        speed = 80.0  # Default starting speed
         simulator = VehicleSimulator(trip_id, vehicle_id, route, speed)
         simulator.is_running = True
         
         self.active_simulators[trip_id] = simulator
         
-        logger.info(f"Started simulation for trip {trip_id}, vehicle {vehicle_id}")
+        logger.info(f"Started simulation for trip {trip_id}, vehicle {vehicle_id} with variable speed (40-140 km/h)")
     
     async def get_route_with_waypoints(self, start_lat: float, start_lon: float, 
                                      end_lat: float, end_lon: float, 
@@ -470,18 +578,47 @@ class SimulationService:
     
     async def update_all_simulations(self):
         """Update all active simulations"""
-        completed_trips = []
-        
         for trip_id, simulator in self.active_simulators.items():
             if simulator.is_running:
                 success = await simulator.update_position()
                 if not success:
-                    completed_trips.append(trip_id)
+                    # Simulation stopped (reached destination) but keep simulator to track state
+                    logger.info(f"Simulation for trip {trip_id} stopped at destination - awaiting manual completion")
         
-        # Remove completed simulations
-        for trip_id in completed_trips:
+        # Note: We don't remove simulators that reached destination to prevent restarting
+    
+    async def pause_trip_simulation(self, trip_id: str):
+        """Pause simulation for a specific trip"""
+        if trip_id in self.active_simulators:
+            self.active_simulators[trip_id].pause()
+            logger.info(f"Paused simulation for trip {trip_id}")
+        else:
+            logger.warning(f"Cannot pause simulation - trip {trip_id} not found in active simulators")
+    
+    async def resume_trip_simulation(self, trip_id: str):
+        """Resume simulation for a specific trip"""
+        if trip_id in self.active_simulators:
+            self.active_simulators[trip_id].resume()
+            logger.info(f"Resumed simulation for trip {trip_id}")
+        else:
+            logger.warning(f"Cannot resume simulation - trip {trip_id} not found in active simulators")
+    
+    async def stop_trip_simulation(self, trip_id: str):
+        """Stop and remove simulation for a specific trip"""
+        if trip_id in self.active_simulators:
+            self.active_simulators[trip_id].stop()
             del self.active_simulators[trip_id]
-            logger.info(f"Completed simulation for trip {trip_id}")
+            logger.info(f"Stopped and removed simulation for trip {trip_id}")
+        else:
+            logger.warning(f"Cannot stop simulation - trip {trip_id} not found in active simulators")
+    
+    async def cleanup_completed_trip_simulation(self, trip_id: str):
+        """Clean up simulation for a manually completed trip"""
+        if trip_id in self.active_simulators:
+            del self.active_simulators[trip_id]
+            logger.info(f"Cleaned up simulation for manually completed trip {trip_id}")
+        else:
+            logger.warning(f"Cannot cleanup simulation - trip {trip_id} not found in active simulators")
     
     
     

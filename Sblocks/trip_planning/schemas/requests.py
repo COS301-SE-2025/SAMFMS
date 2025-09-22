@@ -1,19 +1,50 @@
 """
 Request schemas for Trip Planning service
 """
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 from .entities import (
     TripStatus, TripPriority, ConstraintType, NotificationType,
-    LocationPoint, Address, Waypoint, TripConstraint, RouteInfo
+    LocationPoint, Address, Waypoint, TripConstraint, RouteInfo,
+    ScheduleInfo, RouteSummary, SmartTripBenefits
 )
 
 
-from pydantic import BaseModel, Field, validator
-from typing import List, Dict, Any, Optional
-from datetime import datetime
+class ScheduledTripRequest(BaseModel):
+    """Request to create a scheduled trip"""
+    name: str = Field(..., min_length=1, max_length=200, description="Trip name")
+    description: Optional[str] = None
+
+    start_time_window: datetime = Field(..., description="When the trip should start")
+    end_time_window: datetime = Field(..., description="When the trip should end")
+
+    # Route
+    origin: Waypoint = Field(..., description="Starting point")
+    destination: Waypoint = Field(..., description="End point")
+    waypoints: List[Waypoint] = Field(default_factory=list, description="Intermediate stops")
+    route_info: Optional[RouteInfo] = Field(None, description="Route information including distance, duration, and coordinates")
+    
+    # Trip details
+    priority: TripPriority = Field(..., description="Trip priority")
+
+class ScheduledTripRequest(BaseModel):
+    """Request to create a scheduled trip"""
+    name: str = Field(..., min_length=1, max_length=200, description="Trip name")
+    description: Optional[str] = None
+
+    start_time_window: datetime = Field(..., description="When the trip should start")
+    end_time_window: datetime = Field(..., description="When the trip should end")
+
+    # Route
+    origin: Waypoint = Field(..., description="Starting point")
+    destination: Waypoint = Field(..., description="End point")
+    waypoints: List[Waypoint] = Field(default_factory=list, description="Intermediate stops")
+    route_info: Optional[RouteInfo] = Field(None, description="Route information including distance, duration, and coordinates")
+    
+    # Trip details
+    priority: TripPriority = Field(..., description="Trip priority")
 
 class CreateTripRequest(BaseModel):
     """Request to create a new trip"""
@@ -57,6 +88,48 @@ class CreateTripRequest(BaseModel):
             if orders != sorted(orders):
                 raise ValueError('Waypoints must be ordered correctly')
         return v
+    
+class CreateSmartTripRequest(BaseModel):
+    """Request to create a smart trip"""
+    # normal trip details
+    smart_id: str = Field(..., min_length=1, max_length=200, description="Trip name")
+    trip_id: str
+    trip_name: str = Field(..., min_length=1, max_length=200, description="Trip name")
+    description: Optional[str] = None
+
+    # Original schedule
+    original_start_time: datetime = Field(..., description="When the trip should start")
+    original_end_time: datetime = Field(..., description="When the trip should end")
+    
+    # Optimised schedule
+    optimized_start_time: datetime = Field(..., description="When the trip should start")
+    optimized_end_time: datetime = Field(..., description="When the trip should end")
+    vehicle_id: str = Field(..., description="Assigned vehicle ID")
+    vehicle_name: str
+    driver_id: str 
+    driver_name: str
+    priority: TripPriority = Field(..., description="Trip priority")
+
+    # route
+    origin: Waypoint = Field(..., description="Starting point")
+    destination: Waypoint = Field(..., description="End point")
+    waypoints: Optional[List[Waypoint]] = None
+    estimated_distance: float
+    estimated_duration: float
+    route_info: Optional[RouteInfo] = Field(None, description="Route information including distance, duration, and coordinates")
+    
+    # benefits
+    time_saved: str
+    fuel_efficiency: str
+    route_optimisation: str
+    driver_utilisation: str
+
+    confidence: str
+    reasoning: List[str]
+
+    
+
+
 
 
 
@@ -236,3 +309,12 @@ class TripProgressRequest(BaseModel):
     status: Optional[TripStatus] = None
     estimated_arrival: Optional[datetime] = None
     notes: Optional[str] = Field(None, max_length=500)
+
+
+class DriverPingRequest(BaseModel):
+    """Request from driver's phone ping"""
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat() + 'Z'})
+    
+    trip_id: str = Field(..., description="Trip ID that driver is currently on")
+    location: LocationPoint = Field(..., description="Driver's current location")
+    timestamp: Optional[datetime] = Field(default_factory=datetime.utcnow, description="Ping timestamp")

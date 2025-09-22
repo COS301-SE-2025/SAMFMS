@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { vehiclesAPI } from '../backend/api/vehicles';
+import React, {useState, useEffect} from 'react';
+import {vehiclesAPI} from '../backend/api/vehicles';
 import MaintenanceRecords from '../components/maintenance/MaintenanceRecords';
 import MaintenanceSchedules from '../components/maintenance/MaintenanceSchedules';
 import MaintenanceAnalytics from '../components/maintenance/MaintenanceAnalytics';
@@ -43,10 +43,10 @@ const Maintenance = () => {
   };
 
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'records', label: 'Maintenance Records', icon: '🔧' },
-    { id: 'schedules', label: 'Schedules', icon: '📅' },
-    { id: 'analytics', label: 'Analytics', icon: '📈' },
+    {id: 'dashboard', label: 'Dashboard', icon: '📊'},
+    {id: 'records', label: 'Maintenance Records', icon: '🔧'},
+    {id: 'schedules', label: 'Schedules', icon: '📅'},
+    {id: 'analytics', label: 'Analytics', icon: '📈'},
   ];
 
   if (loading) {
@@ -104,13 +104,11 @@ const Maintenance = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-2 px-1 border-b-2 font-medium text-sm transition ${
-                  activeTab === tab.id
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300'
-                }`}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition ${activeTab === tab.id
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300'
+                  }`}
               >
-                <span className="mr-2">{tab.icon}</span>
                 {tab.label}
               </button>
             ))}
