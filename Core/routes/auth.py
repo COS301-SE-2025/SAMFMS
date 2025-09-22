@@ -6,7 +6,6 @@ from rabbitmq.producer import publish_message
 import logging
 import requests
 import os
-from models.request_models import RemoveUser
 import aio_pika
 from .service_routing import SERVICE_BLOCKS
 

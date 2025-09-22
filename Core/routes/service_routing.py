@@ -14,7 +14,6 @@ import logging
 
 # Import RabbitMQ components
 from rabbitmq.producer import publish_message
-from rabbitmq.consumer import consume_messages
 import aio_pika
 
 # Import standardized error handling
