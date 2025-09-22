@@ -8,7 +8,11 @@ import {
   LayerGroup,
   FeatureGroup,
   useMap,
+  Polygon
 } from 'react-leaflet';
+import '@geoman-io/leaflet-geoman-free';
+import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
+
 import {
   Search,
   Navigation,
@@ -22,14 +26,17 @@ import {
   LocateFixed,
   Crosshair,
   Layers,
+  Save,
+  X
 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import {getVehicles} from '../../backend/api/vehicles';
-import {listGeofences, deleteGeofence} from '../../backend/api/geofences';
-import {listLocations, getVehicleLocation} from '../../backend/api/locations';
-import {getGeofence} from '../../backend/api/geofences';
-import GeofenceManager from './GeofenceManager';
+import { getVehicles } from '../../backend/api/vehicles';
+import { listGeofences, deleteGeofence, addGeofence, updateGeofence } from '../../backend/api/geofences';
+import { listLocations, getVehicleLocation } from '../../backend/api/locations';
+import { getGeofence } from '../../backend/api/geofences';
+
+
 
 // Fix for marker icons in React-Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -112,6 +119,324 @@ const MapController = ({followMode, focusLocation}) => {
   return null;
 };
 
+// Geoman Events Handler Component
+// WORKING VERSION - Listen to individual layer events
+const GeomanEventHandler = ({
+  onGeofenceCreated,
+  onGeofenceUpdated,
+  onGeofenceDeleted,
+  geofences,
+  isEditingMode,
+  setIsEditingMode
+}) => {
+  const map = useMap();
+  const drawnLayersRef = useRef(new Map());
+  const layerEventHandlers = useRef(new Map()); // Track layer event handlers for cleanup
+
+  useEffect(() => {
+    if (!map) return;
+
+    // Handle creation (this works on map level)
+    const handleCreate = (e) => {
+      const layer = e.layer;
+      const shape = e.shape;
+
+      let coordinates, radius;
+
+      if (shape === 'Circle') {
+        const center = layer.getLatLng();
+        radius = layer.getRadius();
+        coordinates = { lat: center.lat, lng: center.lng };
+      } else if (shape === 'Polygon' || shape === 'Rectangle') {
+        const latlngs = layer.getLatLngs()[0];
+        coordinates = latlngs.map(latlng => ({ lat: latlng.lat, lng: latlng.lng }));
+      }
+
+      onGeofenceCreated({
+        shape: shape.toLowerCase(),
+        coordinates,
+        radius,
+        layer
+      });
+    };
+
+    // Only listen for create on map level
+    map.on('pm:create', handleCreate);
+
+    return () => {
+      map.off('pm:create', handleCreate);
+    };
+  }, [map, onGeofenceCreated]);
+
+  // Conditionally add/remove toolbar controls
+  useEffect(() => {
+    if (!map) return;
+
+    if (isEditingMode) {
+      map.pm.addControls({
+        position: 'topright',
+        drawCircle: true,
+        drawMarker: false,
+        drawPolygon: true,
+        drawRectangle: true,
+        editMode: true,
+        dragMode: true,
+        cutPolygon: false,
+        drawPolyline: false,
+      });
+    } else {
+      map.pm.removeControls();
+    }
+
+    return () => {
+      map.pm.removeControls();
+    };
+  }, [map, isEditingMode]);
+
+  // Handle existing geofences
+  useEffect(() => {
+    if (!map || !isEditingMode) {
+      // Clean up layers and their event handlers
+      layerEventHandlers.current.forEach((handlers, layerId) => {
+        const layer = drawnLayersRef.current.get(layerId);
+        if (layer) {
+          // Remove layer event listeners
+          layer.off('pm:markerdragend', handlers.markerdragend);
+          layer.off('pm:dragend', handlers.dragend);
+          layer.off('pm:vertexadded', handlers.vertexadded);
+          layer.off('pm:vertexremoved', handlers.vertexremoved);
+          layer.off('pm:remove', handlers.remove);
+          
+          // Disable PM and remove from map
+          if (layer.pm) {
+            layer.pm.disable();
+          }
+          if (map.hasLayer(layer)) {
+            map.removeLayer(layer);
+          }
+        }
+      });
+      
+      drawnLayersRef.current.clear();
+      layerEventHandlers.current.clear();
+      return;
+    }
+
+    // Clear existing layers first
+    layerEventHandlers.current.forEach((handlers, layerId) => {
+      const layer = drawnLayersRef.current.get(layerId);
+      if (layer) {
+        layer.off('pm:markerdragend', handlers.markerdragend);
+        layer.off('pm:dragend', handlers.dragend);
+        layer.off('pm:vertexadded', handlers.vertexadded);
+        layer.off('pm:vertexremoved', handlers.vertexremoved);
+        layer.off('pm:remove', handlers.remove);
+        
+        if (layer.pm) {
+          layer.pm.disable();
+        }
+        if (map.hasLayer(layer)) {
+          map.removeLayer(layer);
+        }
+      }
+    });
+    
+    drawnLayersRef.current.clear();
+    layerEventHandlers.current.clear();
+
+    // Add geofences as editable layers
+    geofences.forEach((geofence) => {
+      let layer;
+
+      if (geofence.shape === 'circle') {
+        layer = L.circle(
+          [geofence.coordinates.lat, geofence.coordinates.lng],
+          { radius: geofence.radius }
+        );
+      } else if (geofence.shape === 'polygon') {
+        layer = L.polygon(geofence.latlngs);
+      }
+
+      if (layer) {
+        // Store geofence ID on layer
+        layer.geofenceId = geofence.id;
+
+        // Apply styling
+        layer.setStyle(getGeofenceOptions(geofence.type));
+
+        // Add to map
+        layer.addTo(map);
+
+        // Enable PM editing
+        if (layer.pm) {
+          layer.pm.enable({
+            allowSelfIntersection: false,
+            preventVertexEdit: false,
+            preventMarkerRemoval: false,
+          });
+
+          // CRITICAL: Create event handlers for THIS specific layer
+          const handleLayerEdit = (e) => {
+            console.log("Layer edit detected for geofence:", geofence.id);
+            
+            let coordinates, radius;
+
+            if (layer instanceof L.Circle) {
+              console.log("Is circle");
+              const center = layer.getLatLng();
+              radius = layer.getRadius();
+              coordinates = { lat: center.lat, lng: center.lng };
+            } else if (layer instanceof L.Polygon) {
+              console.log("Is polygon")
+              const latlngs = layer.getLatLngs()[0];
+              coordinates = latlngs.map(latlng => ({ lat: latlng.lat, lng: latlng.lng }));
+            }
+
+            onGeofenceUpdated(geofence.id, {
+              coordinates,
+              radius
+            });
+          };
+
+          const handleLayerRemove = (e) => {
+            console.log("Layer remove detected for geofence:", geofence.id);
+            onGeofenceDeleted(geofence.id);
+          };
+
+          // Add event listeners to the individual layer
+          layer.on('pm:markerdragend', handleLayerEdit);
+          layer.on('pm:dragend', handleLayerEdit);
+          layer.on('pm:vertexadded', handleLayerEdit);
+          layer.on('pm:vertexremoved', handleLayerEdit);
+          layer.on('pm:remove', handleLayerRemove);
+
+          // Store handlers for cleanup
+          layerEventHandlers.current.set(geofence.id, {
+            markerdragend: handleLayerEdit,
+            dragend: handleLayerEdit,
+            vertexadded: handleLayerEdit,
+            vertexremoved: handleLayerEdit,
+            remove: handleLayerRemove
+          });
+
+          console.log(`Enabled PM editing and events for geofence ${geofence.id}`);
+        }
+
+        // Store layer reference
+        drawnLayersRef.current.set(geofence.id, layer);
+      }
+    });
+
+    console.log(`Added ${drawnLayersRef.current.size} editable geofences with individual event handlers`);
+
+  }, [map, geofences, isEditingMode, onGeofenceUpdated, onGeofenceDeleted]);
+
+  return null;
+};
+
+// Geofence Creation Modal
+const GeofenceCreationModal = ({ isOpen, onClose, onSave, shapeData }) => {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [type, setType] = useState('boundary');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    onSave({
+      name: name.trim(),
+      description: description.trim(),
+      type,
+      ...shapeData
+    });
+
+    // Reset form
+    setName('');
+    setDescription('');
+    setType('boundary');
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]">
+      <div className="bg-white rounded-lg p-6 w-96 max-w-[90vw]">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">Create Geofence</h3>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 rounded"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter geofence name"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter description (optional)"
+              rows={3}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Type</label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="boundary">Boundary</option>
+              <option value="depot">Depot</option>
+              <option value="restricted">Restricted</option>
+            </select>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center space-x-2"
+            >
+              <Save size={16} />
+              <span>Save Geofence</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const calculateCenter = (latlngs) => {
+  let latSum = 0, lngSum = 0;
+  latlngs.forEach(([lat, lng]) => { latSum += lat; lngSum += lng; });
+  return [latSum / latlngs.length, lngSum / latlngs.length];
+};
+
 const TrackingMapWithSidebar = () => {
   const [activeTab, setActiveTab] = useState('vehicles');
   const [vehicles, setVehicles] = useState([]);
@@ -122,17 +447,20 @@ const TrackingMapWithSidebar = () => {
   const [geofences, setGeofences] = useState([]);
   const [showGeofences, setShowGeofences] = useState(true);
   const [showVehicles, setShowVehicles] = useState(true);
-  const [showLocations, setShowLocations] = useState(true); // New state for live locations
+  const [showLocations, setShowLocations] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [showAddGeofenceModal, setShowAddGeofenceModal] = useState(false);
-  const [editingGeofence, setEditingGeofence] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [mapCenter, setMapCenter] = useState([37.7749, -122.4194]); // Default to San Francisco, will be updated with user location
+  const [mapCenter, setMapCenter] = useState([37.7749, -122.4194]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [showUserLocation, setShowUserLocation] = useState(false);
+
+  // New states for Geoman functionality
+  const [isEditingMode, setIsEditingMode] = useState(false);
+  const [pendingGeofence, setPendingGeofence] = useState(null);
+  const [showGeofenceModal, setShowGeofenceModal] = useState(false);
 
   // Address search state
   const [addressSearch, setAddressSearch] = useState('');
@@ -140,8 +468,8 @@ const TrackingMapWithSidebar = () => {
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Ref for search container to handle click outside
   const searchContainerRef = useRef(null);
+  const mapRef = useRef(null);
 
   // Toggle follow mode
   const toggleFollowMode = useCallback(() => {
@@ -172,6 +500,7 @@ const TrackingMapWithSidebar = () => {
         };
     }
   };
+
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -268,33 +597,51 @@ const TrackingMapWithSidebar = () => {
   // Load geofences data
   const loadGeofences = useCallback(async () => {
     try {
+      setLoading(true);
+
       const response = await listGeofences();
-      // Handle nested API response structure: response.data.data
+      console.log("Geofences response:", response.data?.data || response.data || response);
+
       const geofencesData = response.data?.data || response.data || response || [];
 
-      // Transform geofences data according to API response structure
       const transformedGeofences = geofencesData
-        .map(geofence => ({
-          id: geofence.id,
-          name: geofence.name || `Geofence ${geofence.id}`,
-          description: geofence.description || '',
-          type: geofence.type || 'general',
-          // Extract coordinates from geometry.center
-          coordinates: geofence.geometry?.center
-            ? {
-              lat: geofence.geometry.center.latitude,
-              lng: geofence.geometry.center.longitude,
-            }
-            : {
-              lat: 37.7749 + (Math.random() - 0.5) * 0.1,
-              lng: -122.4194 + (Math.random() - 0.5) * 0.1,
-            },
-          radius: geofence.geometry?.radius || 1000,
-          status: geofence.status || 'active',
-        }))
-        .filter(
-          geofence => geofence.coordinates && geofence.coordinates.lat && geofence.coordinates.lng
-        );
+        .map(geofence => {
+          if (!geofence.geometry) return null;
+
+          // Circle geofence
+          if (geofence.geometry.type === 'Point' && geofence.geometry.coordinates) {
+            return {
+              id: geofence.id,
+              name: geofence.name,
+              description: geofence.description,
+              type: geofence.type,
+              shape: 'circle',
+              coordinates: {
+                lat: geofence.geometry.coordinates[1],
+                lng: geofence.geometry.coordinates[0],
+              },
+              radius: geofence.geometry.radius || 1000,
+              status: geofence.status,
+            };
+          }
+
+          // Polygon geofence
+          if (geofence.geometry.type === 'Polygon' && geofence.geometry.coordinates?.[0]?.length) {
+            const latlngs = geofence.geometry.coordinates[0].map(([lng, lat]) => [lat, lng]);
+            return {
+              id: geofence.id,
+              name: geofence.name,
+              description: geofence.description,
+              type: geofence.type,
+              shape: 'polygon',
+              latlngs,
+              status: geofence.status,
+            };
+          }
+
+          return null;
+        })
+        .filter(Boolean);
 
       setGeofences(transformedGeofences);
     } catch (err) {
@@ -305,13 +652,163 @@ const TrackingMapWithSidebar = () => {
     }
   }, []);
 
+  // Handle geofence creation from map drawing
+  const handleGeofenceCreated = useCallback((shapeData) => {
+    setPendingGeofence(shapeData);
+    setShowGeofenceModal(true);
+  }, []);
+
+  // Handle saving new geofence
+  const handleSaveGeofence = useCallback(async (geofenceData) => {
+    try {
+      const { name, description, type, shape, coordinates, radius } = geofenceData;
+
+      let geometry;
+      if (shape === 'circle') {
+        geometry = {
+          type: 'Point',
+          coordinates: [coordinates.lng, coordinates.lat],
+          radius: radius
+        };
+      } else if (shape === 'polygon' || shape === 'rectangle') {
+        let points = coordinates.map(coord => [coord.lng, coord.lat]);
+        if (points[0][0] !== points[points.length - 1][0] || points[0][1] !== points[points.length - 1][1]) {
+          points.push(points[0]);
+        }
+        geometry = {
+          type: 'Polygon',
+          coordinates: [points]
+        };
+      }
+
+      const payload = {
+        name,
+        description,
+        type,
+        geometry,
+        status: 'active'
+      };
+
+      const response = await addGeofence(payload);
+      console.log("Creation for geofence response", response.data.data)
+      await loadGeofences();
+
+      setShowGeofenceModal(false);
+      setPendingGeofence(null);
+
+      // Remove the temporary layer if it exists
+      if (pendingGeofence?.layer && mapRef.current) {
+        mapRef.current.removeLayer(pendingGeofence.layer);
+      }
+
+    } catch (error) {
+      console.error('Error creating geofence:', error);
+      alert('Failed to create geofence. Please try again.');
+    }
+  }, [pendingGeofence, loadGeofences]);
+
+  // Handle geofence update from map editing
+  const handleGeofenceUpdated = useCallback(async (geofenceId, updateData) => {
+    try {
+      console.log("Entered editing function", geofenceId, updateData)
+      const geofence = geofences.find(g => g.id === geofenceId);
+      console.log("Geofence found: ", geofence)
+      if (!geofence) return;
+
+      let geometry;
+      if (geofence.shape === 'circle') {
+        geometry = {
+          type: 'Point',
+          coordinates: [updateData.coordinates.lng, updateData.coordinates.lat],
+          radius: updateData.radius
+        };
+      } else if (geofence.shape === 'polygon') {
+        let points = updateData.coordinates.map(coord => [coord.lng, coord.lat]);
+        if (points[0][0] !== points[points.length - 1][0] || points[0][1] !== points[points.length - 1][1]) {
+          points.push(points[0]);
+        }
+        geometry = {
+          type: 'Polygon',
+          coordinates: [points]
+        };
+      }
+
+      const payload = {
+        name: geofence.name,
+        description: geofence.description,
+        type: geofence.type,
+        geometry,
+        status: geofence.status
+      };
+
+      const response = await updateGeofence(geofenceId, payload);
+      console.log("Response for updating geofence", response.data.data)
+      await loadGeofences(); // Reload geofences
+    } catch (error) {
+      console.error('Error updating geofence:', error);
+      alert('Failed to update geofence. Please try again.');
+    }
+  }, [geofences, loadGeofences]);
+
+  // Handle geofence deletion from map
+  const handleGeofenceDeleted = useCallback(async (geofenceId) => {
+    try {
+      await deleteGeofence(geofenceId);
+      await loadGeofences(); // Reload geofences
+    } catch (error) {
+      console.error('Error deleting geofence:', error);
+      alert('Failed to delete geofence. Please try again.');
+    }
+  }, [loadGeofences]);
+
+  // Handle geofence editing
+  const handleEditGeofence = (geofence, event) => {
+    console.log("handleEditGeofence entered", geofence, event);
+    event.stopPropagation();
+    setIsEditingMode(true);
+    if (geofence.shape === 'circle') {
+      setMapCenter([geofence.coordinates.lat, geofence.coordinates.lng]);
+    } else {
+      setMapCenter(calculateCenter(geofence.latlngs));
+    }
+  };
+
+  // Handle geofence deletion
+  const handleDeleteGeofence = async (geofenceId, event) => {
+    event.stopPropagation();
+
+    if (window.confirm('Are you sure you want to delete this geofence?')) {
+      try {
+        const response = await deleteGeofence(geofenceId);
+        console.log("Geofence deletion resposne", response.data.data);
+        setGeofences(prev => prev.filter(g => g.id !== geofenceId));
+        await loadGeofences();
+      } catch (error) {
+        console.error('Error deleting geofence:', error);
+        alert('Failed to delete geofence. Please try again.');
+        await loadGeofences();
+      }
+    }
+  };
+
+  // Toggle edit mode
+  const toggleEditMode = () => {
+    setIsEditingMode(prev => !prev);
+  };
+
+  // Load geofences on component mount
+  useEffect(() => {
+    loadGeofences();
+  }, [loadGeofences]);
+
+  const currentMapLayer = getMapLayer();
+
+
   // Load live locations data with auto-refresh
   useEffect(() => {
     const loadLocations = async () => {
       try {
         const response = await listLocations();
-        console.log('Response received from Core: ');
-        console.log(response);
         const locationsData = response.data?.data || [];
         setLocations(locationsData);
 
@@ -388,10 +885,12 @@ const TrackingMapWithSidebar = () => {
         const {latitude, longitude} = vehicleData;
         setMapCenter([latitude, longitude]);
       } else {
-        const latitude = geofence.geometry.center.latitude;
-        const longitude = geofence.geometry.center.longitude;
-
-        setMapCenter([latitude, longitude]);
+        if (geofence.geometry.type === 'Point') {
+          setMapCenter([geofence.geometry.coordinates[1], geofence.geometry.coordinates[0]]);
+        } else if (geofence.geometry.type === 'Polygon') {
+          const coords = geofence.geometry.coordinates[0].map(([lng, lat]) => [lat, lng]);
+          setMapCenter(calculateCenter(coords));
+        }
       }
 
     } catch (err) {
@@ -405,33 +904,6 @@ const TrackingMapWithSidebar = () => {
     setFocusLocation(location);
     setMapCenter([location.latitude, location.longitude]);
     setFollowMode(true); // Enable follow mode when selecting a live location
-  };
-
-  // Handle geofence editing
-  const handleEditGeofence = (geofence, event) => {
-    event.stopPropagation(); // Prevent item selection
-    setEditingGeofence(geofence);
-    setShowAddGeofenceModal(true);
-  };
-
-  // Handle geofence deletion
-  const handleDeleteGeofence = async (geofenceId, event) => {
-    event.stopPropagation(); // Prevent item selection
-
-    if (window.confirm('Are you sure you want to delete this geofence?')) {
-      try {
-        await deleteGeofence(geofenceId);
-        // Immediately update the state to remove the deleted geofence
-        setGeofences(prev => prev.filter(g => g.id !== geofenceId));
-        // Reload geofences to ensure we have the latest data
-        await loadGeofences();
-      } catch (error) {
-        console.error('Error deleting geofence:', error);
-        alert('Failed to delete geofence. Please try again.');
-        // Reload geofences in case of error to ensure consistency
-        await loadGeofences();
-      }
-    }
   };
 
   // Address search functionality
@@ -524,8 +996,6 @@ const TrackingMapWithSidebar = () => {
       }
     }
   };
-
-  const currentMapLayer = getMapLayer();
 
   if (loading && vehicles.length === 0 && geofences.length === 0) {
     return (
@@ -707,6 +1177,7 @@ const TrackingMapWithSidebar = () => {
             zoom={13}
             style={{height: '100%', width: '100%'}}
             zoomControl={false}
+            ref={mapRef}
           >
             <TileLayer
               attribution={currentMapLayer.attribution}
@@ -714,6 +1185,15 @@ const TrackingMapWithSidebar = () => {
             />
             <MapController followMode={followMode} focusLocation={focusLocation} />
             <MapUpdater center={mapCenter} />
+
+            <GeomanEventHandler
+              onGeofenceCreated={handleGeofenceCreated}
+              onGeofenceUpdated={handleGeofenceUpdated}
+              onGeofenceDeleted={handleGeofenceDeleted}
+              geofences={geofences}
+              isEditingMode={isEditingMode}
+              setIsEditingMode={setIsEditingMode}
+            />
 
             {/* Live vehicle locations - Main feature like TrackingMap */}
             {showLocations && locations.map(loc => (
@@ -774,8 +1254,8 @@ const TrackingMapWithSidebar = () => {
               </Marker>
             )}
 
-            {/* Geofence Circles and Markers - Always show when enabled */}
-            {showGeofences && geofences.length > 0 && (
+            {/* Geofence Circles and Polygons - Always show when enabled */}
+            {showGeofences && !isEditingMode && geofences.length > 0 && (
               <LayerGroup>
                 {geofences.map(geofence => (
                   <FeatureGroup
@@ -806,22 +1286,35 @@ const TrackingMapWithSidebar = () => {
                         )}
                       </div>
                     </Popup>
-                    {/* Circle representing the geofence area */}
-                    <Circle
-                      center={[geofence.coordinates.lat, geofence.coordinates.lng]}
-                      radius={geofence.radius || 1000}
-                    />
-                    {/* Center marker - only show when geofences tab is active */}
-                    {activeTab === 'geofences' && (
-                      <Marker
-                        position={[geofence.coordinates.lat, geofence.coordinates.lng]}
-                        icon={createGeofenceIcon(geofence.type)}
+
+                    {/* Render circle geofences as before */}
+                    {geofence.shape === 'circle' && (
+                      <>
+                        <Circle
+                          center={[geofence.coordinates.lat, geofence.coordinates.lng]}
+                          radius={geofence.radius || 1000}
+                        />
+                        {activeTab === 'geofences' && (
+                          <Marker
+                            position={[geofence.coordinates.lat, geofence.coordinates.lng]}
+                            icon={createGeofenceIcon(geofence.type)}
+                          />
+                        )}
+                      </>
+                    )}
+
+                    {/* Render polygon geofences */}
+                    {geofence.shape === 'polygon' && (
+                      <Polygon
+                        positions={geofence.latlngs} // array of [lat, lng]
+                        pathOptions={getGeofenceOptions(geofence.type)}
                       />
                     )}
                   </FeatureGroup>
                 ))}
               </LayerGroup>
             )}
+
           </MapContainer>
 
           {/* Map Controls - Bottom Right */}
@@ -938,15 +1431,18 @@ const TrackingMapWithSidebar = () => {
               />
             </div>
 
-            {/* Add Geofence Button - Only show when geofences tab is active */}
+            {/* Edit Mode Button - Only show when geofences tab is active */}
             {activeTab === 'geofences' && (
               <div className="mb-4 animate-in fade-in slide-in-from-top-2 duration-300">
                 <button
-                  onClick={() => setShowAddGeofenceModal(true)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 ease-in-out text-sm font-medium rounded-md hover:scale-105 active:scale-95"
+                  onClick={toggleEditMode}
+                  className={`w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md hover:scale-105 active:scale-95 transition-all duration-300 ease-in-out ${isEditingMode
+                    ? 'bg-red-600 text-white hover:bg-red-700'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
                 >
-                  <Plus className="w-4 h-4 transition-transform duration-200" />
-                  Add Geofence
+                  <Edit2 className="w-4 h-4 transition-transform duration-200" />
+                  {isEditingMode ? 'Exit Edit Mode' : 'Edit Geofences on Map'}
                 </button>
               </div>
             )}
@@ -1034,29 +1530,30 @@ const TrackingMapWithSidebar = () => {
                                 {item.type}
                               </span>
                             </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <button
+                                onClick={(e) => handleEditGeofence(item, e)}
+                                className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-all duration-200"
+                                title="Edit Geofence"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={(e) => handleDeleteGeofence(item.id, e)}
+                                className="p-1 text-red-600 hover:bg-red-100 rounded transition-all duration-200"
+                                title="Delete Geofence"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
                       <div className="flex items-center gap-1 ml-2 flex-shrink-0">
                         {activeTab === 'geofences' ? (
-                          <>
-                            <button
-                              onClick={e => handleEditGeofence(item, e)}
-                              className="p-1 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded transition-all duration-200 hover:scale-110"
-                              title="Edit geofence"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={e => handleDeleteGeofence(item.id, e)}
-                              className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-all duration-200 hover:scale-110"
-                              title="Delete geofence"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </>
+                          <Shield className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-hover:scale-110" />
                         ) : (
-                          <Navigation className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-hover:scale-110" />
+                          <Car className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-hover:scale-110" />
                         )}
                       </div>
                     </div>
@@ -1068,38 +1565,20 @@ const TrackingMapWithSidebar = () => {
         </div>
       </div>
 
-      {/* Add Geofence Modal */}
-      {showAddGeofenceModal && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-300"
-          onClick={(e) => {
-            // Close modal if clicking on backdrop
-            if (e.target === e.currentTarget) {
-              setShowAddGeofenceModal(false);
-              setEditingGeofence(null);
-            }
-          }}
-        >
-          <div
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-5xl w-full max-h-[90vh] overflow-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 ease-out"
-            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
-          >
-            <GeofenceManager
-              showFormOnly={true}
-              initialShowForm={true}
-              onCancel={() => {
-                console.log('Cancel button clicked'); // Debug log
-                setShowAddGeofenceModal(false);
-                setEditingGeofence(null);
-              }}
-              onSuccess={handleGeofenceSuccess}
-              onGeofenceChange={handleGeofenceChange}
-              currentGeofences={geofences}
-              editingGeofence={editingGeofence}
-            />
-          </div>
-        </div>
-      )}
+      {/* Geofence Creation Modal for drawing */}
+      <GeofenceCreationModal
+        isOpen={showGeofenceModal}
+        onClose={() => {
+          setShowGeofenceModal(false);
+          setPendingGeofence(null);
+          // Remove temporary layer if it exists
+          if (pendingGeofence?.layer && mapRef.current) {
+            mapRef.current.removeLayer(pendingGeofence.layer);
+          }
+        }}
+        onSave={handleSaveGeofence}
+        shapeData={pendingGeofence}
+      />
     </div>
   );
 };

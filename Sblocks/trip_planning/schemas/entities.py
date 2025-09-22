@@ -165,6 +165,121 @@ class Trip(BaseModel):
     class Config:
         populate_by_name = True
 
+class ScheduledTrip(BaseModel):
+    """Scheduled trip entity"""
+    id: Optional[str] = Field(None, alias="_id", description="Trip ID")
+    name: str = Field(..., description="Trip name/title")
+    description: Optional[str] = None
+
+    start_time_window: datetime = Field(..., description="When the trip should start")
+    end_time_window: datetime = Field(..., description="When the trip should end")
+
+    # Route
+    origin: Waypoint = Field(..., description="Starting point")
+    destination: Waypoint = Field(..., description="End point")
+    waypoints: List[Waypoint] = Field(default_factory=list, description="Intermediate stops")
+    route_info: Optional[RouteInfo] = Field(None, description="Route information including distance, duration, and coordinates")
+    
+    # Trip details
+    priority: TripPriority = Field(..., description="Trip priority")
+    status: TripStatus = Field(default=TripStatus.SCHEDULED)
+    estimated_distance: Optional[float] = Field(None, description="Estimated distance in km")
+    estimated_duration: Optional[float] = Field(None, description="Estimated duration in minutes")
+
+class ScheduleInfo(BaseModel):
+    """Represents schedule information for a trip"""
+    start_time: datetime = Field(..., description="Start time of the schedule")
+    end_time: datetime = Field(..., description="End time of the schedule")
+    vehicle_id: Optional[str] = Field(None, description="Assigned vehicle ID")
+    vehicle_name: Optional[str] = Field(None, description="Assigned vehicle name")
+    driver_id: Optional[str] = Field(None, description="Assigned driver ID")
+    driver_name: Optional[str] = Field(None, description="Assigned driver name")
+
+
+class RouteSummary(BaseModel):
+    """Route summary information for the smart trip"""
+    origin: Waypoint = Field(..., description="Starting point")
+    destination: Waypoint = Field(..., description="End point")
+    waypoints: List[Waypoint] = Field(default_factory=list, description="Intermediate stops")
+    estimated_distance: Optional[float] = Field(None, description="Estimated distance in km")
+    estimated_duration: Optional[float] = Field(None, description="Estimated duration in minutes")
+
+
+class SmartTripBenefits(BaseModel):
+    """Benefits gained from smart trip optimization"""
+    time_saved: str = Field(..., description="Time saved as a formatted string")
+    fuel_efficiency: str = Field(..., description="Fuel efficiency information")
+    route_optimization: str = Field(..., description="Description of route optimization")
+    driver_utilization: str = Field(..., description="Driver utilization efficiency as formatted string")
+
+
+class SmartTrip(BaseModel):
+    """Smart trip entity with optimization details"""
+    id: str = Field(..., description="Unique Smart Trip ID")
+    trip_id: str = Field(..., description="Reference to ScheduledTrip ID")
+    trip_name: str = Field(..., description="Name of the trip")
+    description: Optional[str] = None
+    priority: TripPriority = Field(..., description="Trip priority")
+
+    original_schedule: ScheduleInfo = Field(..., description="Original schedule details")
+    optimized_schedule: ScheduleInfo = Field(..., description="Optimized schedule details")
+    route: RouteSummary = Field(..., description="Route information summary")
+    benefits: SmartTripBenefits = Field(..., description="Benefits from optimization")
+    route_info: Optional[RouteInfo] = Field(None, description="Route information including distance, duration, and coordinates")
+
+    confidence: int = Field(..., description="Confidence score of the optimization")
+    reasoning: List[str] = Field(..., description="Reasoning behind optimization decisions")
+
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp when SmartTrip was created")
+    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp when SmartTrip was last updated")
+
+    class Config:
+        populate_by_name = True
+
+
+class TrafficType(str, Enum):
+    """Traffic type enumeration"""
+    LIGHT = "light"
+    MODERATE = "moderate"
+    HEAVY = "heavy"
+    SEVERE = "severe"
+
+class RouteRecommendationStatus(str, Enum):
+    """Route Rec. Status types"""
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+
+class TrafficCondition(BaseModel):
+    """Represents current traffic condition for a route segment"""
+    segment_id: str = Field(..., description="Unique identifier for the route segment")
+    current_duration: float = Field(..., description="Current travel duration in seconds")
+    free_flow_duration: float = Field(..., description="Travel duration in free-flow traffic conditions")
+    traffic_ratio: float = Field(..., description="Current / Free flow travel duration ratio")
+    severity: TrafficType = Field(..., description="Traffic severity level")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Time when condition was recorded")
+
+    class Config:
+        populate_by_name = True
+
+
+class RouteRecommendation(BaseModel):
+    """Represents a route optimization recommendation"""
+    id: str = Field(..., description="Unique Route Recommended Trip ID")
+    trip_id: str = Field(..., description="Associated Trip ID")
+    vehicle_id: str = Field(..., description="Associated Vehicle ID")
+    current_route: RouteInfo = Field(..., description="Current route information")
+    recommended_route: RouteInfo = Field(..., description="Recommended optimized route")
+    time_savings: float = Field(..., description="Time saved in seconds if recommendation is accepted")
+    traffic_avoided: TrafficType = Field(..., description="Traffic severity avoided with the new route")
+    confidence: float = Field(..., ge=0, le=1, description="Confidence score of recommendation")
+    reason: str = Field(..., description="Reason for the recommendation")
+    class Config:
+        populate_by_name = True
+
+
+
 
 class TripAnalytics(BaseModel):
     """Trip analytics data"""

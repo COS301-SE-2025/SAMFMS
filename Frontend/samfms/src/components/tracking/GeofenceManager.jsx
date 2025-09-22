@@ -1,8 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  useMapEvents,
+  useMap,
+  Polygon,
+  Circle as LeafletCircle
+} from 'react-leaflet';
 import L from 'leaflet';
+import '@geoman-io/leaflet-geoman-free';
+import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import { Search } from 'lucide-react';
-import { addGeofence, deleteGeofence, updateGeofence } from '../../backend/api/geofences';
+import { createGeofence, deleteGeofence, updateGeofence } from '../../backend/api/geofences';
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -11,6 +21,51 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
+
+const GeomanControls = ({ onShapeCreated }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    // Add Leaflet-Geoman controls
+    map.pm.addControls({
+      position: 'topleft',
+      drawMarker: false,
+      drawPolyline: false,
+      drawCircle: true,
+      drawCircleMarker: false,
+      drawPolygon: true,
+      drawRectangle: true,
+      cutPolygon: false,
+      editMode: true,
+      dragMode: false,
+      removalMode: true,
+    });
+
+    // Capture shape coordinates when user finishes drawing
+    map.on('pm:create', e => {
+      const shape = e.shape;
+      let coords, radius;
+      if (shape === 'Circle') {
+        const center = e.layer.getLatLng();
+        radius = e.layer.getRadius();
+        coords = { latitude: center.lat, longitude: center.lng };
+        onShapeCreated(coords, shape, radius);
+      } else {
+        // For Polygon or Rectangle
+        const latlngs = e.layer.getLatLngs()[0];
+        coords = latlngs.map(p => ({ latitude: p.lat, longitude: p.lng }));
+        onShapeCreated(coords, shape);
+      }
+    });
+
+    return () => {
+      map.pm.removeControls();
+      map.off('pm:create');
+    };
+  }, [map, onShapeCreated]);
+
+  return null;
+};
 
 // Component to handle map clicks
 const MapClickHandler = ({ onLocationSelect }) => {
@@ -67,25 +122,80 @@ const GeofenceManager = ({
     geometryType: 'circle',
     radius: 500,
     coordinates: { lat: 37.7749, lng: -122.4194 },
+    polygon: [],
     status: 'active',
   });
+
+  const mapRef = useRef(null);
 
   // Handle editing geofence prop changes
   useEffect(() => {
     if (editingGeofenceProp) {
-      setEditingGeofence(editingGeofenceProp);
+      const isCircle = editingGeofenceProp.shape === 'circle';
       setNewGeofence({
         name: editingGeofenceProp.name || '',
         description: editingGeofenceProp.description || '',
         type: editingGeofenceProp.type || 'depot',
-        geometryType: editingGeofenceProp.geometryType || 'circle',
-        coordinates: editingGeofenceProp.coordinates || { lat: 37.7749, lng: -122.4194 },
-        radius: editingGeofenceProp.radius || 500,
+        geometryType: isCircle ? 'circle' : 'polygon',
+        radius: isCircle ? editingGeofenceProp.radius || 500 : 500,
+        coordinates: isCircle ? editingGeofenceProp.coordinates || { lat: 37.7749, lng: -122.4194 } : { lat: 0, lng: 0 },
+        polygon: !isCircle ? editingGeofenceProp.latlngs.map(([lat, lng]) => ({ latitude: lat, longitude: lng })) : [],
         status: editingGeofenceProp.status || 'active',
       });
+      setEditingGeofence(editingGeofenceProp);
       setShowAddForm(true);
     }
   }, [editingGeofenceProp]);
+
+  // Load existing shape for editing
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !editingGeofence) return;
+
+    let layer;
+    if (editingGeofence.shape === 'circle') {
+      layer = L.circle(
+        [editingGeofence.coordinates.lat, editingGeofence.coordinates.lng],
+        { radius: editingGeofence.radius }
+      );
+    } else {
+      layer = L.polygon(editingGeofence.latlngs);
+    }
+
+    if (layer) {
+      layer.addTo(map);
+      layer.pm.enable({ allowSelfIntersection: false });
+
+      // Listen for edits
+      map.on('pm:edit', e => {
+        const editedLayer = e.layer;
+        if (editedLayer instanceof L.Circle) {
+          const center = editedLayer.getLatLng();
+          const radius = editedLayer.getRadius();
+          setNewGeofence(prev => ({
+            ...prev,
+            coordinates: { lat: center.lat, lng: center.lng },
+            radius,
+          }));
+        } else if (editedLayer instanceof L.Polygon) {
+          const latlngs = editedLayer.getLatLngs()[0];
+          const points = latlngs.map(ll => ({ latitude: ll.lat, longitude: ll.lng }));
+          setNewGeofence(prev => ({
+            ...prev,
+            polygon: points,
+          }));
+        }
+      });
+
+      // Center on layer
+      map.fitBounds(layer.getBounds());
+    }
+
+    return () => {
+      if (layer) map.removeLayer(layer);
+      map.off('pm:edit');
+    };
+  }, [editingGeofence, mapRef]);
 
   // Update local geofences when prop changes
   useEffect(() => {
@@ -218,28 +328,11 @@ const GeofenceManager = ({
           center: { latitude: lat, longitude: lng },
           radius: parseInt(newGeofence.radius),
         };
-      } else if (newGeofence.geometryType === 'rectangle') {
-        // Generate a small rectangle for demo
-        const offset = 0.001;
+      } else {
+        // For polygon or rectangle
         geometry = {
-          type: 'rectangle',
-          points: [
-            { latitude: lat + offset, longitude: lng - offset },
-            { latitude: lat + offset, longitude: lng + offset },
-            { latitude: lat - offset, longitude: lng + offset },
-            { latitude: lat - offset, longitude: lng - offset },
-          ],
-        };
-      } else if (newGeofence.geometryType === 'polygon') {
-        // Example: simple triangle around the point
-        const offset = 0.001;
-        geometry = {
-          type: 'polygon',
-          points: [
-            { latitude: lat + offset, longitude: lng },
-            { latitude: lat - offset, longitude: lng + offset },
-            { latitude: lat - offset, longitude: lng - offset },
-          ],
+          type: 'polygon',  // Treat rectangle as polygon
+          points: newGeofence.polygon,
         };
       }
 
@@ -252,7 +345,7 @@ const GeofenceManager = ({
       };
 
       console.log('Sending geofence data:', payload);
-      const response = await addGeofence(payload);
+      const response = await createGeofence(payload);
       console.log('Geofence created successfully:', response);
 
       // Immediately call onSuccess to trigger parent refresh
@@ -274,6 +367,26 @@ const GeofenceManager = ({
     }
   };
 
+  const handleShapeCreated = (coords, shape, radius = null) => {
+    if (shape === 'Circle') {
+      setNewGeofence(prev => ({
+        ...prev,
+        geometryType: 'circle',
+        coordinates: { lat: coords.latitude, lng: coords.longitude },
+        radius: radius || prev.radius,
+        polygon: [],
+      }));
+    } else {
+      // Rectangle or Polygon
+      setNewGeofence(prev => ({
+        ...prev,
+        geometryType: shape.toLowerCase() === 'rectangle' ? 'rectangle' : 'polygon',
+        polygon: coords,
+        coordinates: { lat: 0, lng: 0 },
+      }));
+    }
+  };
+
   // Handle editing a geofence
   const handleEditGeofence = async () => {
     if (!editingGeofence) return;
@@ -289,26 +402,10 @@ const GeofenceManager = ({
           center: { latitude: lat, longitude: lng },
           radius: parseInt(newGeofence.radius),
         };
-      } else if (newGeofence.geometryType === 'rectangle') {
-        const offset = 0.001;
-        geometry = {
-          type: 'rectangle',
-          points: [
-            { latitude: lat + offset, longitude: lng - offset },
-            { latitude: lat + offset, longitude: lng + offset },
-            { latitude: lat - offset, longitude: lng + offset },
-            { latitude: lat - offset, longitude: lng - offset },
-          ],
-        };
-      } else if (newGeofence.geometryType === 'polygon') {
-        const offset = 0.001;
+      } else {
         geometry = {
           type: 'polygon',
-          points: [
-            { latitude: lat + offset, longitude: lng },
-            { latitude: lat - offset, longitude: lng + offset },
-            { latitude: lat - offset, longitude: lng - offset },
-          ],
+          points: newGeofence.polygon,
         };
       }
 
@@ -343,20 +440,19 @@ const GeofenceManager = ({
     }
   };
 
-  
-  // Handle form submission for adding/editing geofences
-
   // Reset the form
   const resetForm = () => {
     setNewGeofence({
       name: '',
       description: '',
       type: 'depot',
-      geometryType: 'circle', // Always circle now
+      geometryType: 'circle',
+      radius: 500,
+      coordinates: { lat: 37.7749, lng: -122.4194 },
+      polygon: [],
       status: 'active',
-      coordinates: { lat: 0, lng: 0 },
-      radius: 500, // Default radius (within our 50-10000 range)
     });
+    setEditingGeofence(null);
   };
 
   return (
@@ -469,11 +565,31 @@ const GeofenceManager = ({
                   zoom={13}
                   style={{ height: '100%', width: '100%' }}
                   className="rounded-md"
+                  ref={mapRef}
                 >
                   <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
+                  <GeomanControls onShapeCreated={handleShapeCreated} />
+
+                  {/* Show polygon if drawn */}
+                  {newGeofence.polygon.length > 0 && (
+                    <Polygon
+                      positions={newGeofence.polygon.map(p => [p.latitude, p.longitude])}
+                      pathOptions={{ color: 'blue', weight: 2 }}
+                    />
+                  )}
+
+                  {/* Show circle if circle type */}
+                  {newGeofence.geometryType === 'circle' && newGeofence.coordinates.lat !== 0 && newGeofence.coordinates.lng !== 0 && (
+                    <LeafletCircle
+                      center={[newGeofence.coordinates.lat, newGeofence.coordinates.lng]}
+                      radius={newGeofence.radius}
+                      pathOptions={{ color: 'blue', weight: 2 }}
+                    />
+                  )}
+
                   <MapClickHandler
                     onLocationSelect={coords => {
                       setNewGeofence({
@@ -486,7 +602,7 @@ const GeofenceManager = ({
                     center={[newGeofence.coordinates.lat, newGeofence.coordinates.lng]}
                   />
                   {/* Show marker if coordinates are set */}
-                  {newGeofence.coordinates.lat !== 0 && newGeofence.coordinates.lng !== 0 && (
+                  {newGeofence.geometryType === 'circle' && newGeofence.coordinates.lat !== 0 && newGeofence.coordinates.lng !== 0 && (
                     <Marker
                       position={[newGeofence.coordinates.lat, newGeofence.coordinates.lng]}
                     />
@@ -537,9 +653,18 @@ const GeofenceManager = ({
                   </select>
                 </div>
 
-                {/* Geometry Type - Hidden as we now only support circle */}
-                <div className="hidden">
-                  <input type="hidden" value="circle" onChange={() => { }} />
+                {/* Geometry Type */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Shape</label>
+                  <select
+                    value={newGeofence.geometryType}
+                    onChange={e => setNewGeofence({ ...newGeofence, geometryType: e.target.value })}
+                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                  >
+                    <option value="circle">Circle</option>
+                    <option value="rectangle">Rectangle</option>
+                    <option value="polygon">Polygon</option>
+                  </select>
                 </div>
 
                 {/* Status */}
@@ -557,71 +682,81 @@ const GeofenceManager = ({
                 </div>
               </div>
 
-              {/* Radius Slider (always visible since we only have circle) */}
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Radius: {newGeofence.radius} meters
-                </label>
-                <input
-                  type="range"
-                  min="50"
-                  max="10000"
-                  step="50"
-                  value={newGeofence.radius}
-                  onChange={e =>
-                    setNewGeofence({ ...newGeofence, radius: parseInt(e.target.value) })
-                  }
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                  <span>50m</span>
-                  <span>10,000m</span>
-                </div>
-              </div>
+              {/* Conditional Fields */}
+              {newGeofence.geometryType === 'circle' && (
+                <>
+                  {/* Radius Slider */}
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Radius: {newGeofence.radius} meters
+                    </label>
+                    <input
+                      type="range"
+                      min="50"
+                      max="10000"
+                      step="50"
+                      value={newGeofence.radius}
+                      onChange={e =>
+                        setNewGeofence({ ...newGeofence, radius: parseInt(e.target.value) })
+                      }
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>50m</span>
+                      <span>10,000m</span>
+                    </div>
+                  </div>
 
-              {/* Coordinates Display */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Latitude</label>
-                  <input
-                    type="number"
-                    value={newGeofence.coordinates.lat}
-                    onChange={e =>
-                      setNewGeofence({
-                        ...newGeofence,
-                        coordinates: {
-                          ...newGeofence.coordinates,
-                          lat: parseFloat(e.target.value) || 0,
-                        },
-                      })
-                    }
-                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                    step="0.0001"
-                    min="-90"
-                    max="90"
-                  />
+                  {/* Coordinates */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Latitude</label>
+                      <input
+                        type="number"
+                        value={newGeofence.coordinates.lat}
+                        onChange={e =>
+                          setNewGeofence({
+                            ...newGeofence,
+                            coordinates: {
+                              ...newGeofence.coordinates,
+                              lat: parseFloat(e.target.value) || 0,
+                            },
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                        step="0.0001"
+                        min="-90"
+                        max="90"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Longitude</label>
+                      <input
+                        type="number"
+                        value={newGeofence.coordinates.lng}
+                        onChange={e =>
+                          setNewGeofence({
+                            ...newGeofence,
+                            coordinates: {
+                              ...newGeofence.coordinates,
+                              lng: parseFloat(e.target.value) || 0,
+                            },
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                        step="0.0001"
+                        min="-180"
+                        max="180"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+              {newGeofence.geometryType !== 'circle' && (
+                <div className="text-sm text-muted-foreground">
+                  Edit the {newGeofence.geometryType} shape directly on the map.
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Longitude</label>
-                  <input
-                    type="number"
-                    value={newGeofence.coordinates.lng}
-                    onChange={e =>
-                      setNewGeofence({
-                        ...newGeofence,
-                        coordinates: {
-                          ...newGeofence.coordinates,
-                          lng: parseFloat(e.target.value) || 0,
-                        },
-                      })
-                    }
-                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-                    step="0.0001"
-                    min="-180"
-                    max="180"
-                  />
-                </div>
-              </div>
+              )}
 
               {/* Buttons */}
               <div className="flex gap-2 mt-6">

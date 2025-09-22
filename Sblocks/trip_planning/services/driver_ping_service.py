@@ -29,19 +29,36 @@ class DriverPingService:
         self.db = db_manager
         self.active_sessions: Dict[str, asyncio.Task] = {}  # trip_id -> monitoring task
         
-    async def start_ping_session(self, trip_id: str, driver_id: str) -> DriverPingSession:
-        """Start a new ping session for a trip"""
-        logger.info(f"[DriverPingService] Starting ping session for trip {trip_id}, driver {driver_id}")
+    async def get_or_create_ping_session(self, trip_id: str, driver_id: str) -> DriverPingSession:
+        """Get existing ping session for trip or create new one if it doesn't exist"""
+        logger.info(f"[DriverPingService] Getting/creating ping session for trip {trip_id}, driver {driver_id}")
         
         try:
-            # End any existing session for this trip
-            await self._end_existing_session(trip_id)
+            # Check if session already exists for this trip
+            existing_session = await self._get_session_for_trip(trip_id)
             
-            # Create new session
+            if existing_session:
+                logger.info(f"[DriverPingService] Found existing ping session {existing_session.id} for trip {trip_id}")
+                # Update driver if changed
+                if existing_session.driver_id != driver_id:
+                    await self.db.driver_ping_sessions.update_one(
+                        {"trip_id": trip_id},
+                        {
+                            "$set": {
+                                "driver_id": driver_id,
+                                "updated_at": datetime.utcnow()
+                            }
+                        }
+                    )
+                    logger.info(f"[DriverPingService] Updated driver for session {existing_session.id} from {existing_session.driver_id} to {driver_id}")
+                
+                return existing_session
+            
+            # Create new session - only one per trip ever
             session_data = {
                 "trip_id": trip_id,
                 "driver_id": driver_id,
-                "is_active": True,
+                "is_active": False,  # Will be set based on trip status
                 "started_at": datetime.utcnow(),
                 "ping_count": 0,
                 "total_violations": 0,
@@ -54,15 +71,11 @@ class DriverPingService:
             
             session = DriverPingSession(**session_data)
             
-            # Start monitoring task
-            task = asyncio.create_task(self._monitor_ping_violations(session))
-            self.active_sessions[trip_id] = task
-            
-            logger.info(f"[DriverPingService] Started ping session {session.id} for trip {trip_id}")
+            logger.info(f"[DriverPingService] Created new ping session {session.id} for trip {trip_id}")
             return session
             
         except Exception as e:
-            logger.error(f"[DriverPingService] Failed to start ping session: {e}")
+            logger.error(f"[DriverPingService] Failed to get/create ping session: {e}")
             raise
     
     async def end_ping_session(self, trip_id: str) -> None:
@@ -105,13 +118,75 @@ class DriverPingService:
         logger.info(f"[DriverPingService] Processing ping for trip {trip_id}")
         
         try:
-            # Get active session
-            session = await self._get_active_session(trip_id)
-            if not session:
+            # First, check current trip status to determine if session should be active
+            trip_status = await self._get_trip_status(trip_id)
+            if not trip_status:
                 return {
                     "status": "error",
-                    "message": "No active ping session found for this trip"
+                    "message": "Trip not found"
                 }
+            
+            # Get trip info for driver assignment
+            trip_info = await self._get_trip_info(trip_id)
+            if not trip_info or not trip_info.get("driver_assignment"):
+                return {
+                    "status": "error", 
+                    "message": "Trip has no driver assigned"
+                }
+            
+            driver_id = trip_info["driver_assignment"]
+            
+            # Get or create ping session for this trip
+            session = await self.get_or_create_ping_session(trip_id, driver_id)
+            
+            # Determine if session should be active based on trip status
+            should_be_active = (trip_status == "in_progress")
+            
+            # Update session activity status if needed
+            if session.is_active != should_be_active:
+                await self._update_session_activity(session.id, should_be_active)
+                session.is_active = should_be_active
+                logger.info(f"[DriverPingService] Updated session {session.id} active status to {should_be_active} (trip status: {trip_status})")
+            
+            # If session should not be active, don't process the ping
+            if not should_be_active:
+                return {
+                    "status": "inactive",
+                    "message": f"Ping session is inactive because trip status is '{trip_status}' (not 'in_progress')",
+                    "trip_status": trip_status,
+                    "session_active": False,
+                    "speed_limit": None,
+                    "current_speed": None
+                }
+            
+            # Process ping for active session
+            logger.info(f"[DriverPingService] Processing ping for active session {session.id}")
+            
+            # Get speed limit for current location (always returns valid data)
+            speed_limit_info = await speed_limit_service.get_speed_limit(location)
+            current_speed_limit = speed_limit_info.speed_limit
+            logger.info(f"[DriverPingService] Speed limit info: {speed_limit_info.speed_limit} km/h, place: {speed_limit_info.place_id}")
+            
+            # Calculate current speed if we have previous location data
+            current_speed = None
+            if session.last_ping_location and session.last_ping_time:
+                logger.info(f"[DriverPingService] Previous location: {session.last_ping_location}, time: {session.last_ping_time}")
+                logger.info(f"[DriverPingService] Current location: {location}, time: {ping_time}")
+                
+                # Ensure last_ping_location is a LocationPoint object
+                prev_location = session.last_ping_location
+                if isinstance(prev_location, dict):
+                    prev_location = LocationPoint(**prev_location)
+                
+                current_speed = speed_limit_service.calculate_speed_kmh(
+                    prev_location,
+                    location,
+                    session.last_ping_time,
+                    ping_time
+                )
+                logger.info(f"[DriverPingService] Calculated speed: {current_speed} km/h")
+            else:
+                logger.info(f"[DriverPingService] No previous location data available for speed calculation")
             
             # Check for speed violations if we have previous location data
             await self._check_speed_violation(session, location, ping_time)
@@ -130,7 +205,8 @@ class DriverPingService:
             
             next_expected = ping_time + timedelta(seconds=self.PING_TIMEOUT_SECONDS)
             
-            return {
+            # Prepare response with speed limit data
+            response_data = {
                 "status": "success",
                 "message": "Ping processed successfully",
                 "ping_received_at": ping_time,
@@ -138,6 +214,22 @@ class DriverPingService:
                 "session_active": True,
                 "violations_count": session.total_violations
             }
+            
+            # Add speed limit data to response (always include these fields)
+            response_data["speed_limit"] = current_speed_limit
+            response_data["speed_limit_units"] = "km/h"
+            
+            response_data["current_speed"] = round(current_speed, 2) if current_speed is not None else 0.0
+            response_data["current_speed_units"] = "km/h"
+            
+            if current_speed_limit and current_speed:
+                response_data["is_speeding"] = current_speed > (current_speed_limit + self.SPEED_VIOLATION_THRESHOLD)
+                response_data["speed_over_limit"] = max(0, current_speed - current_speed_limit)
+            else:
+                response_data["is_speeding"] = False
+                response_data["speed_over_limit"] = 0.0
+            
+            return response_data
             
         except Exception as e:
             logger.error(f"[DriverPingService] Failed to process ping: {e}")
@@ -289,6 +381,11 @@ class DriverPingService:
             
             if session_doc:
                 session_doc["_id"] = str(session_doc["_id"])
+                
+                # Convert last_ping_location dict to LocationPoint if needed
+                if session_doc.get("last_ping_location") and isinstance(session_doc["last_ping_location"], dict):
+                    session_doc["last_ping_location"] = LocationPoint(**session_doc["last_ping_location"])
+                
                 return DriverPingSession(**session_doc)
             return None
             
@@ -305,6 +402,11 @@ class DriverPingService:
             
             if session_doc:
                 session_doc["_id"] = str(session_doc["_id"])
+                
+                # Convert last_ping_location dict to LocationPoint if needed
+                if session_doc.get("last_ping_location") and isinstance(session_doc["last_ping_location"], dict):
+                    session_doc["last_ping_location"] = LocationPoint(**session_doc["last_ping_location"])
+                
                 return DriverPingSession(**session_doc)
             return None
             
@@ -392,19 +494,20 @@ class DriverPingService:
                 return
             
             # Calculate vehicle speed
+            # Ensure last_ping_location is a LocationPoint object
+            prev_location = session.last_ping_location
+            if isinstance(prev_location, dict):
+                prev_location = LocationPoint(**prev_location)
+                
             speed_kmh = speed_limit_service.calculate_speed_kmh(
-                session.last_ping_location,
+                prev_location,
                 current_location,
                 session.last_ping_time,
                 current_time
             )
             
-            # Get speed limit for current location
+            # Get speed limit for current location (always returns valid data)
             speed_limit_info = await speed_limit_service.get_speed_limit(current_location)
-            if not speed_limit_info:
-                logger.debug(f"[DriverPingService] No speed limit data available for location")
-                return
-            
             speed_limit = speed_limit_info.speed_limit
             speed_over_limit = speed_kmh - speed_limit
             
@@ -479,6 +582,99 @@ class DriverPingService:
             
         except Exception as e:
             logger.error(f"[DriverPingService] Failed to create speed violation: {e}")
+            raise
+
+    async def _get_trip_status(self, trip_id: str) -> Optional[str]:
+        """Get current status of a trip"""
+        try:
+            trip_doc = await self.db.trips.find_one(
+                {"_id": ObjectId(trip_id)},
+                {"status": 1}
+            )
+            return trip_doc.get("status") if trip_doc else None
+            
+        except Exception as e:
+            logger.error(f"[DriverPingService] Failed to get trip status: {e}")
+            return None
+    
+    async def _get_trip_info(self, trip_id: str) -> Optional[Dict]:
+        """Get trip information including driver assignment"""
+        try:
+            trip_doc = await self.db.trips.find_one(
+                {"_id": ObjectId(trip_id)},
+                {"driver_assignment": 1, "status": 1}
+            )
+            return trip_doc if trip_doc else None
+            
+        except Exception as e:
+            logger.error(f"[DriverPingService] Failed to get trip info: {e}")
+            return None
+    
+    async def _get_session_for_trip(self, trip_id: str) -> Optional[DriverPingSession]:
+        """Get ping session for a trip (regardless of active status)"""
+        try:
+            session_doc = await self.db.driver_ping_sessions.find_one({
+                "trip_id": trip_id
+            })
+            
+            if session_doc:
+                session_doc["_id"] = str(session_doc["_id"])
+                
+                # Convert last_ping_location dict to LocationPoint if needed
+                if session_doc.get("last_ping_location") and isinstance(session_doc["last_ping_location"], dict):
+                    session_doc["last_ping_location"] = LocationPoint(**session_doc["last_ping_location"])
+                
+                return DriverPingSession(**session_doc)
+            return None
+            
+        except Exception as e:
+            logger.error(f"[DriverPingService] Failed to get session for trip: {e}")
+            return None
+    
+    async def _update_session_activity(self, session_id: str, is_active: bool) -> None:
+        """Update session activity status"""
+        try:
+            update_data = {
+                "is_active": is_active,
+                "updated_at": datetime.utcnow()
+            }
+            
+            if is_active:
+                # Start monitoring task if becoming active
+                update_data["activated_at"] = datetime.utcnow()
+            else:
+                # Stop monitoring and end violations if becoming inactive
+                update_data["deactivated_at"] = datetime.utcnow()
+                
+            await self.db.driver_ping_sessions.update_one(
+                {"_id": ObjectId(session_id)},
+                {"$set": update_data}
+            )
+            
+            # Manage monitoring tasks
+            session_doc = await self.db.driver_ping_sessions.find_one({"_id": ObjectId(session_id)})
+            if session_doc:
+                trip_id = session_doc["trip_id"]
+                
+                if is_active:
+                    # Start monitoring if not already running
+                    if trip_id not in self.active_sessions:
+                        session_obj = DriverPingSession(**{**session_doc, "_id": str(session_doc["_id"])})
+                        task = asyncio.create_task(self._monitor_ping_violations(session_obj))
+                        self.active_sessions[trip_id] = task
+                        logger.info(f"[DriverPingService] Started monitoring for session {session_id}")
+                else:
+                    # Stop monitoring and end violations
+                    if trip_id in self.active_sessions:
+                        task = self.active_sessions.pop(trip_id)
+                        task.cancel()
+                        logger.info(f"[DriverPingService] Stopped monitoring for session {session_id}")
+                    
+                    # End active violations
+                    await self._end_active_violations(trip_id)
+            
+        except Exception as e:
+            logger.error(f"[DriverPingService] Failed to update session activity: {e}")
             raise
 
 

@@ -193,6 +193,14 @@ class DatabaseManager:
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.trips
+    
+    @property
+    def trips_scheduled(self):
+        """Get Scheduled trips collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.trips_scheduled
+
     @property
     def trip_history(self):
         """Get trip history"""
@@ -255,6 +263,21 @@ class DatabaseManager:
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.driver_ping_sessions
+    
+    @property
+    def smarttrips(self):
+        """Get driver ping sessions collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.smart_trips
+
+    @property
+    def route_recommendations(self):
+        """Get route recommendations collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.route_recommendations
+
     
     async def create_trip_with_transaction(self, trip_data: dict, constraints: list = None):
         """Create a trip with constraints in a transaction"""

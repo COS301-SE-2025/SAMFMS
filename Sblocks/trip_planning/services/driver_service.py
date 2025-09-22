@@ -73,7 +73,7 @@ class DriverService:
             trip = Trip(**{**trip_doc, "_id": str(trip_doc["_id"])})
             
             # Check if trip is in valid status for assignment
-            if trip.status not in [TripStatus.SCHEDULED]:
+            if trip.status not in [TripStatus.SCHEDULED, TripStatus.IN_PROGRESS]:
                 raise ValueError(f"Cannot assign driver to trip with status: {trip.status}")
             
             # Check driver availability
@@ -115,12 +115,16 @@ class DriverService:
                 {"_id": ObjectId(trip_id)},
                 {
                     "$set": {
-                        "driver_assignment": assignment_data,
+                        "driver_assignment": request.driver_id,  # Store driver ID as string
                         "vehicle_id": request.vehicle_id,
                         "updated_at": datetime.utcnow()
                     }
                 }
             )
+            
+            # Ping sessions will automatically handle driver assignment updates
+            if trip.status == TripStatus.IN_PROGRESS:
+                logger.info(f"Driver {request.driver_id} assigned to in-progress trip {trip_id} - ping session will update on next ping")
             
             # Create assignment object
             assignment_data["_id"] = str(result.inserted_id)

@@ -231,6 +231,9 @@ class ServiceRequestConsumer:
             if endpoint == "health" or endpoint == "":
                 logger.info(f"[_route_request] Routing to _handle_health_request()")
                 return await self._handle_health_request(method, user_context)
+            elif "traffic" in endpoint:
+                logger.info("Routing to traffic handler")
+                return await self._handle_traffic_requests(method, user_context)
             elif "analytics/drivers" in endpoint:
                 logger.info(f"Routing to driver analytics")
                 return await self._handle_driver_analytics_requests(method, user_context)
@@ -243,6 +246,9 @@ class ServiceRequestConsumer:
             elif "driver/ping" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_driver_ping_request()")
                 return await self._handle_driver_ping_request(method, user_context)
+            elif "monitor" in endpoint:
+                logger.info(f"[_route_request] Routing to _handle_monitor_request()")
+                return await self._handle_monitor_request(method, user_context)
             elif "trips" in endpoint or endpoint.startswith("driver/") or endpoint == "recent":
                 logger.info(f"[_route_request] Routing to _handle_trips_request()")
                 return await self._handle_trips_request(method, user_context)
@@ -263,6 +269,108 @@ class ServiceRequestConsumer:
         except Exception as e:
             logger.error(f"[_route_request] Exception: {e}")
             raise
+    
+    async def _handle_traffic_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle traffic montiro requests"""
+        try:
+            from services.trip_service import trip_service
+            from schemas.responses import ResponseBuilder
+            data = user_context.get("data",{})
+            endpoint = user_context.get("endpoint", "")
+            logger.info(f"[_handle_traffic_requests] Endpoint: '{endpoint}', Data: {data}")
+            logger.info(f"[_handle_traffic_requests] Endpoint checks - contains 'trips': {'trips' in endpoint}, contains 'active': {'active' in endpoint}, contains 'upcoming': {'upcoming' in endpoint}, contains 'recent': {'recent' in endpoint}")
+            logger.info(f"[DEBUG] Full endpoint analysis: endpoint='{endpoint}', method='{method}'")
+
+            if method == "GET":
+                if "recommendations" in endpoint:
+                    # get all the traffic recommendations
+                    try:
+                        recommended_trips = await trip_service.get_route_recommendations()
+                        return_data = {
+                            "data" : recommended_trips
+                        }
+
+                        return ResponseBuilder.success(
+                            data=return_data,
+                            message="Recommended routes retrieved successfully"
+                        )
+                    except Exception as e:
+                        logger.error(f"[_handle_traffic_request] Exception in returning route recommendation: {e}")
+                        return ResponseBuilder.error(
+                            error="RouteRecommendationReturnError",
+                            message=f"Failed to process return recommended routes request: {str(e)}"
+                        ).model_dump()
+
+            elif method == "POST":
+                if "accept" in endpoint:
+                    logger.info("Entered accept route recommendation")
+
+                    recommendation_id = data["recommendation_id"]
+                    trip_id = data["trip_id"]
+
+                    logger.info(f"Extracted recommendation_id: {recommendation_id}")
+                    logger.info(f"Extracted trip_id: {trip_id}")
+
+                    # Retrieve route info
+                    # Update actual trips route info
+                    try:
+                        response = await trip_service.accept_route_recommendation(trip_id)
+                        if(response):
+                            return ResponseBuilder.success(
+                                data=None,
+                                message="Route recommendation accepted successfully"
+                            )
+                        
+                        return ResponseBuilder.error(
+                            error="RouteRecommendationAcceptionError",
+                            message=f"Failed to process accept request"
+                        ).model_dump()
+                    except Exception as e:
+                        logger.error(f"[_handle_traffic_request] Exception in accepting route recommendation: {e}")
+                        return ResponseBuilder.error(
+                            error="RouteRecommendationAcceptionError",
+                            message=f"Failed to process accept request: {str(e)}"
+                        ).model_dump()
+                    
+                if "reject" in endpoint:
+                    logger.info("Entered reject route recommendation")
+
+                    recommendation_id = data["recommendation_id"]
+                    trip_id = data["trip_id"]
+
+                    logger.info(f"Extracted recommendation_id: {recommendation_id}")
+                    logger.info(f"Extracted trip_id: {trip_id}")
+
+                    # Remove route suggestion from database
+                    try:
+                        response = await trip_service.reject_route_recommendation(trip_id,recommendation_id)
+                        if response:
+                            return ResponseBuilder.success(
+                                data=None,
+                                message="Route recommendation rejected successfully"
+                            )
+                        
+                        return ResponseBuilder.error(
+                            error="RouteRecommendationRejectionError",
+                            message=f"Failed to process accept request"
+                        ).model_dump()
+                    except Exception as e:
+                        logger.error(f"[_handle_traffic_request] Exception in rejecting route recommendation: {e}")
+                        return ResponseBuilder.error(
+                            error="RouteRecommendationRejectionError",
+                            message=f"Failed to process reject request: {str(e)}"
+                        ).model_dump()
+
+
+            else:
+                raise ValueError(f"Unsupported HTTP method: {method}")
+        
+        except Exception as e:
+            logger.error(f"[_handle_trips_request] Exception: {e}")
+            return ResponseBuilder.error(
+                error="TripsRequestError",
+                message=f"Failed to process trips request: {str(e)}"
+            ).model_dump()
 
     
     async def _handle_trips_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
@@ -277,6 +385,18 @@ class ServiceRequestConsumer:
             logger.info(f"[DEBUG] Full endpoint analysis: endpoint='{endpoint}', method='{method}'")
 
             if method == "GET":
+                if "smarttrips" in endpoint:
+                    logger.info("Entered get smart trips")
+                    smart_trips = await trip_service.get_smart_trips()
+                    return_data = {
+                        "data" : smart_trips
+                    }
+                    
+                    return ResponseBuilder.success(
+                        data=return_data,
+                        message="Smart trips retrieved successfully"
+                    )
+                    
                 if "vehicle" in endpoint:
                     vehicle_id = endpoint.split('/')[-1] if '/' in endpoint else None
                     logger.info(f"Vehicle ID extracted for trip: {vehicle_id}")
@@ -495,10 +615,123 @@ class ServiceRequestConsumer:
                     raise ValueError(f"Unknown endpoint: {endpoint.split('/')[-1] if '/' in endpoint else endpoint}")
 
             elif method == "POST":
-                if "create" in endpoint:
-                    if not data:
-                        raise ValueError("Request data is required for POST operation")
+                if not data:
+                    raise ValueError("Request data is required for POST operation")
+                if "scheduled" in endpoint:
+                    logger.info(f"Preparing schedule trip request")
+                    from schemas.requests import ScheduledTripRequest
                     
+                    # Create the request object
+                    scheduled_request = ScheduledTripRequest(**data)
+                    created_by = user_context.get("user_id", "system")
+                    
+                    try:
+                        # Create the scheduled trip first
+                        scheduled_trip = await trip_service.create_scheduled_trip(scheduled_request, created_by)
+                        logger.info(f"Scheduled trip created: {scheduled_trip.id}")
+                        
+                        # Now create smart trip from the scheduled trip
+                        from services.smart_trip_planning_service import smart_trip_service
+                        smart_trip = await smart_trip_service.create_smart_trip(scheduled_trip, created_by)
+                        logger.info(f"Smart trip created: {smart_trip}")
+                        
+                        trip_id = scheduled_trip.id
+                        
+                        return ResponseBuilder.success(
+                            data={
+                                "scheduled_trip": scheduled_trip.model_dump(),
+                                "smart_trip": smart_trip.model_dump() if hasattr(smart_trip, 'model_dump') else smart_trip
+                            },
+                            message="Scheduled Trip and Smart Trip created successfully"
+                        ).model_dump()
+                        
+                    except Exception as e:
+                        logger.error(f"Error creating scheduled trip and smart trip: {e}")
+                        return ResponseBuilder.error(
+                            error="CreateTripError",
+                            message=f"Failed to create scheduled trip: {str(e)}"
+                        ).model_dump()
+                if "activesmart" in endpoint:
+                    logger.info("Preparing to activate smart trip")
+                    data = user_context.get("data", {})
+                    created_by = user_context.get("user_id", "system")
+                    
+                    smart_trip_id = data["smart_id"]
+                    smart_trip = await trip_service.get_trip_by_id_smart(smart_trip_id)
+                    logger.info(f"Smart trip retrieved using id: {smart_trip}")
+                    
+                    if smart_trip is None:
+                        return ResponseBuilder.error(
+                            error="SmartTripNotFound",
+                            message=f"Smart trip with ID {smart_trip_id} not found"
+                        ).model_dump()
+                    
+                    try:
+                        # Change trip into actual trip and add it to trips collection
+                        corresponding_trip = await trip_service.activate_smart_trip(smart_trip, created_by)
+                        logger.info(f"Trip created from smart trip data: {corresponding_trip}")
+                        
+                        if corresponding_trip is None:
+                            return ResponseBuilder.error(
+                                error="ActivateSmartTripError",
+                                message="Failed to activate smart trip"
+                            ).model_dump()
+                        
+                        # Delete smart trip from smart trips collection
+                        deleted_smart = await trip_service.delete_smart_trip(smart_trip_id)
+                        if not deleted_smart:
+                            # Rollback: delete the created trip
+                            try:
+                                await trip_service.delete_trip(corresponding_trip.id)
+                            except Exception as rollback_error:
+                                logger.error(f"Failed to rollback trip creation: {rollback_error}")
+                            
+                            return ResponseBuilder.error(
+                                error="DeleteSmartTripError",
+                                message=f"Failed to delete smart trip during activation"
+                            ).model_dump()
+                        
+                        # Delete scheduled trip from scheduled trips collection
+                        scheduled_trip_id = smart_trip.trip_id  # Use dot notation, not dict access
+                        deleted_scheduled = await trip_service.delete_scheduled_trip(scheduled_trip_id)
+                        if not deleted_scheduled:
+                            return ResponseBuilder.error(
+                                error="DeleteScheduledTripError",
+                                message=f"Could not delete scheduled trip with ID={scheduled_trip_id}"
+                            ).model_dump()
+                        
+                        return ResponseBuilder.success(
+                            data=corresponding_trip.model_dump(),
+                            message="Smart Trip activated successfully"
+                        ).model_dump()
+                        
+                    except Exception as e:
+                        logger.error(f"Error activating smart trip: {e}")
+                        return ResponseBuilder.error(
+                            error="ActivateSmartTripError",
+                            message=f"Failed to activate smart trip: {str(e)}"
+                        ).model_dump()
+
+                if "rejectsmart" in endpoint:
+                    logger.info("Preparing to reject smart trip")
+                    data = user_context.get("data", {})
+                    created_by = user_context.get("user_id", "system")
+                    
+                    smart_trip_id = data["smart_id"]
+                    if not await trip_service.delete_smart_trip(smart_trip_id):
+                        logger.error(f"Error rejecting smart trip: {e}")
+                        return ResponseBuilder.error(
+                            error="RejectSmartTripError",
+                            message=f"Failed to reject smart trip: {str(e)}"
+                        ).model_dump()
+                    
+                    return ResponseBuilder.success(
+                        data={"deleted smart_trip_id": smart_trip_id},
+                        message="Smart Trip deleted successfully"
+                    ).model_dump()
+                    
+
+                elif "create" in endpoint:
                     logger.info(f"[_handle_trips_request] Preparing CreateTripRequest and calling trip_service.create_trip()")
                     from schemas.requests import CreateTripRequest
                     trip_request = CreateTripRequest(**data)
@@ -1299,16 +1532,25 @@ class ServiceRequestConsumer:
                             message=result["message"]
                         ).model_dump()
                     
-                    # Return success response
+                    # Return success response with speed limit data
+                    response_data = {
+                        "status": result["status"],
+                        "message": result["message"],
+                        "ping_received_at": result["ping_received_at"],
+                        "next_ping_expected_at": result["next_ping_expected_at"],
+                        "session_active": result["session_active"],
+                        "violations_count": result["violations_count"],
+                        # Always include speed-related fields
+                        "speed_limit": result.get("speed_limit", 50.0),
+                        "speed_limit_units": result.get("speed_limit_units", "km/h"),
+                        "current_speed": result.get("current_speed", 0.0),
+                        "current_speed_units": result.get("current_speed_units", "km/h"),
+                        "is_speeding": result.get("is_speeding", False),
+                        "speed_over_limit": result.get("speed_over_limit", 0.0)
+                    }
+                    
                     return ResponseBuilder.success(
-                        data={
-                            "status": result["status"],
-                            "message": result["message"],
-                            "ping_received_at": result["ping_received_at"],
-                            "next_ping_expected_at": result["next_ping_expected_at"],
-                            "session_active": result["session_active"],
-                            "violations_count": result["violations_count"]
-                        },
+                        data=response_data,
                         message="Ping processed successfully"
                     ).model_dump()
                     
@@ -1379,6 +1621,59 @@ class ServiceRequestConsumer:
             return ResponseBuilder.error(
                 error="DriverPingRequestError",
                 message=f"Failed to process driver ping request: {str(e)}"
+            ).model_dump()
+
+    async def _handle_monitor_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle monitoring requests"""
+        try:
+            from schemas.responses import ResponseBuilder
+            from services.ping_session_monitor import ping_session_monitor
+            
+            endpoint = user_context.get("endpoint", "")
+            
+            logger.info(f"[_handle_monitor_request] Endpoint: '{endpoint}', Method: '{method}'")
+            
+            if method == "GET" and "ping-sessions" in endpoint:
+                # Handle GET /monitor/ping-sessions - get ping session monitor status
+                status = await ping_session_monitor.get_status()
+                
+                return ResponseBuilder.success(
+                    data=status,
+                    message="Ping session monitor status retrieved successfully"
+                ).model_dump()
+            
+            elif method == "POST" and "ping-sessions/check" in endpoint:
+                # Handle POST /monitor/ping-sessions/check - manually trigger check
+                fixed_count = await ping_session_monitor.check_now()
+                
+                return ResponseBuilder.success(
+                    data={
+                        "sessions_created": fixed_count,
+                        "message": f"Created {fixed_count} missing ping sessions"
+                    },
+                    message="Ping session check completed"
+                ).model_dump()
+            
+            elif method == "POST" and "ping-sessions/force-create" in endpoint:
+                # Handle POST /monitor/ping-sessions/force-create - force create all ping sessions
+                result = await ping_session_monitor.force_create_all_ping_sessions()
+                
+                return ResponseBuilder.success(
+                    data=result,
+                    message="Force ping session creation completed"
+                ).model_dump()
+            
+            else:
+                return ResponseBuilder.error(
+                    error="UnsupportedEndpoint",
+                    message=f"Endpoint {method} {endpoint} not supported for monitoring"
+                ).model_dump()
+                
+        except Exception as e:
+            logger.error(f"[_handle_monitor_request] Exception: {e}")
+            return ResponseBuilder.error(
+                error="MonitorRequestError",
+                message=f"Failed to process monitor request: {str(e)}"
             ).model_dump()
 
     async def _handle_health_request(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:

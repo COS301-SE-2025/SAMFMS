@@ -163,6 +163,7 @@ export const API_ENDPOINTS = {
   TRIPS: {
     LIST: '/trips/trips',
     CREATE: '/trips/trips/create',
+    SCHEDULED: '/trips/trips/scheduled',
     UPDATE: id => `/trips/trips/${id}`,
     DELETE: id => `/trips/trips/${id}`,
     ACTIVE: '/trips/trips/active/all',
@@ -175,6 +176,9 @@ export const API_ENDPOINTS = {
     RECENTTRIPSALL: '/trips/recent',
     VEHICLEPOLYLINE: id => `/trips/trips/polyline/${id}`,
     VEHICLETRIP: id => `/trips/trips/vehicle/${id}`,
+    GETSMARTTRIPS: '/trips/trips/smarttrips',
+    ACTIVATESMARTTRIP: '/trips/trips/activesmart',
+    REJECTSMARTTRIP: '/trips/trips/rejectsmart',
     
     // Driver Availability Endpoints
     AVAILABLE_DRIVERS: '/trips/drivers/available',
@@ -183,6 +187,19 @@ export const API_ENDPOINTS = {
     // Vehicle Availability Endpoints
     AVAILABLE_VEHICLES: '/trips/vehicles/available',
     CHECK_VEHICLE_AVAILABILITY: id => `/trips/vehicles/${id}/availability`,
+
+    TRAFFIC: {
+      RECOMMENDATIONS: '/trips/traffic/recommendations',
+      RECOMMENDATION: id => `/trips/traffic/recommendation/${id}`,
+      ACCEPT: `/trips/traffic/accept`,
+      REJECT: `/trips/traffic/reject`,
+      STARTMONITOR: '/trips/traffic/startmonitor',
+      STOPMONITOR: '/trips/traffic/stopmonitor',
+      GETSTATUS: '/trips/traffic/monitorstatus',
+      RUNCYCLE: '/trips/traffic/runcycle',
+      ANALYSIS: id => `/trips/traffic/analysis/${id}`,
+      DASHBOARD: '/trips/traffic/dashboard'
+    },
     
     ANALYTICS: {
       // Trip History Statistics
