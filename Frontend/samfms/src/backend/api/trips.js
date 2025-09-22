@@ -111,7 +111,7 @@ export const deleteGeofence = async tripID => {
   }
 };
 
-export const getDriverActiveTrips = async (driver_id) => {
+export const getDriverActiveTrips = async driver_id => {
   try {
     const response = await httpClient.get(TRIPS_ENDPOINTS.DriverActive(driver_id));
     const activeTrip = response.data.data;
@@ -121,7 +121,7 @@ export const getDriverActiveTrips = async (driver_id) => {
     console.error('Error fetching active trip:', error);
     throw error;
   }
-}
+};
 
 // Replace your getActiveTrips function with this:
 export const getActiveTrips = async () => {
@@ -140,7 +140,6 @@ export const getActiveTrips = async () => {
       console.error('Unexpected API response structure:', response.data);
       return { trips: [] }; // Return empty array as fallback
     }
-
 
     // Return the raw trips data without transformation
     // since components are designed for the real API structure
@@ -164,17 +163,16 @@ export const getTripsHistory = async (page = 1, limit = 10) => {
 export const getDriverSpecificAnalytics = async (driver_id, timeframe = 'year') => {
   try {
     const driverStatsUrl = TRIPS_ENDPOINTS.ANALYTICS.DRIVERSTATS(timeframe);
-    
+
     const driverStatsResponse = await httpClient.get(driverStatsUrl, {
       params: { timeframe }, // You might not need this if timeframe is already in the URL
     });
     // Extract the data from the nested response structure
     const allDriversData = driverStatsResponse.data?.data?.total || [];
-    
+
     // Filter by specific driver_id
-    const driverAnalytics = allDriversData.find(driver => 
-      driver.driver_name === driver_id || 
-      driver.driver_name.includes(driver_id)
+    const driverAnalytics = allDriversData.find(
+      driver => driver.driver_name === driver_id || driver.driver_name.includes(driver_id)
     );
 
     if (!driverAnalytics) {
@@ -185,9 +183,8 @@ export const getDriverSpecificAnalytics = async (driver_id, timeframe = 'year') 
       status: 'success',
       data: driverAnalytics,
       message: `Analytics for ${driver_id} retrieved successfully`,
-      meta: driverStatsResponse.data?.data?.meta || null
+      meta: driverStatsResponse.data?.data?.meta || null,
     };
-
   } catch (error) {
     console.error('Error fetching driver specific analytics', error);
     throw error;
@@ -259,8 +256,8 @@ export const getVehicleAnalytics = async (timeframe = 'week') => {
       httpClient.get(vehicleStatsUrl),
     ]);
 
-    console.log("Total Distance response: ", totalDistanceResponse);
-    console.log("Vehicle Stats response: ", vehiclestatsResponse);
+    console.log('Total Distance response: ', totalDistanceResponse);
+    console.log('Vehicle Stats response: ', vehiclestatsResponse);
 
     // Combine and transform the data
     const transformedData = {
@@ -364,7 +361,6 @@ export const getUpcomingTrips = async driverId => {
     } else if (Array.isArray(response?.data)) {
       trips = response.data;
     }
-
 
     // Transform the data to match your frontend expectations
     const transformedTrips = trips.map(trip => ({
@@ -619,15 +615,81 @@ export const getTripHistoryStats = async (days = null) => {
   }
 };
 
-export const getVehiclePolyline = async (VehicleID) => {
+// Storage for last successful polylines by vehicle ID
+const lastSuccessfulPolylines = {};
+
+// Helper function to clear stored polyline (useful for testing or when vehicle changes route)
+export const clearStoredPolyline = vehicleId => {
+  if (lastSuccessfulPolylines[vehicleId]) {
+    delete lastSuccessfulPolylines[vehicleId];
+    console.log(`Cleared stored polyline for vehicle ${vehicleId}`);
+  }
+};
+
+// Helper function to clear all stored polylines
+export const clearAllStoredPolylines = () => {
+  const vehicleIds = Object.keys(lastSuccessfulPolylines);
+  vehicleIds.forEach(id => delete lastSuccessfulPolylines[id]);
+  console.log(`Cleared all stored polylines for ${vehicleIds.length} vehicles`);
+};
+
+// Helper function to get stored polylines info (for debugging)
+export const getStoredPolylinesInfo = () => {
+  const info = Object.keys(lastSuccessfulPolylines).map(vehicleId => {
+    const data = lastSuccessfulPolylines[vehicleId];
+    const age = new Date().getTime() - new Date(data.timestamp).getTime();
+    const ageMinutes = Math.round(age / (1000 * 60));
+    return {
+      vehicleId,
+      timestamp: data.timestamp,
+      ageMinutes,
+      pointCount: data.data?.data?.length || 0,
+    };
+  });
+  console.log('Stored polylines info:', info);
+  return info;
+};
+
+export const getVehiclePolyline = async VehicleID => {
   try {
     const response = await httpClient.get(TRIPS_ENDPOINTS.polyline(VehicleID));
-    console.log("Response for polyline: ", response)
+    console.log('Response for polyline: ', response);
+
+    // Store the successful polyline for future fallback
+    if (response && response.data) {
+      lastSuccessfulPolylines[VehicleID] = {
+        ...response,
+        timestamp: new Date().toISOString(), // Add timestamp for reference
+      };
+      console.log(`Stored successful polyline for vehicle ${VehicleID}`);
+    }
+
     return response;
   } catch (error) {
-    console.error("Error fetching polyline for vehicle: ", VehicleID)
-    throw error
+    console.error(`Error fetching vehicle polyline for ${VehicleID}:`, error);
+
+    // First, try to use the last successful polyline for this vehicle
+    if (lastSuccessfulPolylines[VehicleID]) {
+      const storedData = lastSuccessfulPolylines[VehicleID];
+      const age = new Date().getTime() - new Date(storedData.timestamp).getTime();
+      const ageMinutes = Math.round(age / (1000 * 60));
+
+      console.log(
+        `Falling back to last successful polyline for vehicle ${VehicleID} (${ageMinutes} minutes old)`
+      );
+      return {
+        ...storedData,
+        fallback: true, // Flag to indicate this is fallback data
+        fallback_reason: 'api_error',
+        fallback_age_minutes: ageMinutes,
+      };
+    }
+
+    // If no previous polyline exists, throw the original error
+    console.log(`No fallback polyline available for vehicle ${VehicleID}`);
+    throw error;
   }
+
 }
 
 // Driver Availability API Functions
