@@ -287,7 +287,7 @@ async def test_assign_driver_to_trip_trip_not_found():
 async def test_assign_driver_to_trip_invalid_status():
     svc, stubs = new_service()
     stubs.trips._find_one_impl.return_value = {
-        "_id": "T1", "status": TripStatus.IN_PROGRESS,
+        "_id": "T1", "status": TripStatus.COMPLETED,
         "scheduled_start_time": datetime(2025, 9, 1, tzinfo=timezone.utc),
         "scheduled_end_time": datetime(2025, 9, 1, tzinfo=timezone.utc) + timedelta(hours=1)
     }
