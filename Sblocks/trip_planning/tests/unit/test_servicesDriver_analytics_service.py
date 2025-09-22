@@ -298,14 +298,21 @@ async def test_get_driver_trip_stats_formats_names_and_counts(svc_env):
         {"_id":"D1","completed_trips":3,"cancelled_trips":1},
         {"_id":hex_id,"completed_trips":0,"cancelled_trips":2},
     ]
-    OID = svc_env["ObjectId"]
-    s.db_management.drivers.drivers_data = [
-        {"_id": OID(hex_id), "first_name":"Bo", "last_name":"Peep"}
-    ]
+    s.db_management.drivers.drivers_data = []
     out = await s.get_driver_trip_stats("week")
     out = sorted(out, key=lambda x: x["driver_name"])
-    assert out[0] == {"driver_name":"Driver 507f1f77bcf86cd799439011","completed_trips":0,"cancelled_trips":2}
-    assert out[1] == {"driver_name":"Driver D1","completed_trips":3,"cancelled_trips":1}
+    assert out[0] == {
+        "driver_id": hex_id,
+        "driver_name": f"Driver {hex_id}",
+        "completed_trips": 0,
+        "cancelled_trips": 2,
+    }
+    assert out[1] == {
+        "driver_id": "D1",
+        "driver_name": "Driver D1",
+        "completed_trips": 3,
+        "cancelled_trips": 1,
+    }
 
 @pytest.mark.asyncio
 async def test_get_driver_trip_stats_aggregate_raises(svc_env):

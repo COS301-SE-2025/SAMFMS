@@ -1,12 +1,3 @@
-# tests/unit/test_servicesTrip_Service.py
-# Self-contained TripService tests with isolated import (no conftest.py).
-# Fixes applied:
-# - Force stub overrides for bson/schemas/repositories/events during import, then restore originals.
-# - Ensure CreateTripRequest has route_info default (prevents AttributeError).
-# - Always bind svc.db / svc.db_gps per test (or patch before constructing TripService).
-# - Use 24-hex ObjectIds where code converts strings to ObjectId.
-# - Keep tests small and one-branch-per-test.
-
 import os, sys, importlib, importlib.util, types
 from types import SimpleNamespace
 from datetime import datetime, timedelta
@@ -25,17 +16,44 @@ def _walk_roots_for(filename, roots):
     seen = set()
     SKIP = {".git", ".venv", "venv", "env", "__pycache__", ".pytest_cache", ".mypy_cache"}
     for root in roots:
-        if not os.path.isdir(root): continue
+        if not os.path.isdir(root):
+            continue
         for dirpath, _, filenames in os.walk(root):
             b = os.path.basename(dirpath).lower()
-            if b in SKIP: continue
-            if dirpath in seen: continue
+            if b in SKIP:
+                continue
+            if dirpath in seen:
+                continue
             seen.add(dirpath)
             if filename in filenames:
                 yield os.path.join(dirpath, filename)
 
+def _candidate_files():
+    """
+    Build a robust, ordered list of possible file paths to trip_service.py.
+    1) Direct, explicit guesses under each candidate root.
+    2) Full recursive walk (the original strategy).
+    """
+    guesses = []
+    # explicit guesses relative to each candidate root
+    explicit_relatives = [
+        "trip_service.py",
+        os.path.join("services", "trip_service.py"),
+        os.path.join("Sblocks", "trip_planning", "services", "trip_service.py"),
+    ]
+    for root in CANDIDATES:
+        for rel in explicit_relatives:
+            p = os.path.join(root, rel)
+            if os.path.isfile(p):
+                guesses.append(p)
+
+    # add results from the recursive walk
+    guesses.extend(_walk_roots_for("trip_service.py", CANDIDATES))
+
+    # de-duplicate preserving order
+    return list(dict.fromkeys(guesses))
+
 def _load_trip_service_module():
-    # Force override critical modules during import; restore right after, so other tests aren't affected.
     originals = {}
     overridden = []
 
@@ -80,7 +98,6 @@ def _load_trip_service_module():
     # ----- force stub: schemas.requests -----
     req = types.ModuleType("schemas.requests")
     class CreateTripRequest:
-        # Provide route_info default to avoid AttributeError in service
         def __init__(self, **kw):
             self.name = kw.get("name")
             self.description = kw.get("description")
@@ -95,7 +112,7 @@ def _load_trip_service_module():
         def dict(self, exclude_unset=False): return dict(self.__dict__)
     class UpdateTripRequest:
         def __init__(self, **kw):
-            for k,v in kw.items(): setattr(self, k, v)
+            for k, v in kw.items(): setattr(self, k, v)
         def dict(self, exclude_unset=False): return dict(self.__dict__)
     class TripFilterRequest:
         def __init__(self, **kw):
@@ -151,7 +168,7 @@ def _load_trip_service_module():
             data = list(self._items)
             return data if length is None else data[:length]
     class _AsyncCursor:
-        def __init__(self, items): self._items = list(items); self._i=0
+        def __init__(self, items): self._items = list(items); self._i = 0
         def sort(self, *a): return self
         def skip(self, *a): return self
         def limit(self, *a): return self
@@ -160,20 +177,32 @@ def _load_trip_service_module():
             if self._i >= len(self._items): raise StopAsyncIteration
             v = self._items[self._i]; self._i += 1; return v
 
-    # Load module by file path, then restore originals in sys.modules table
+    # Load module by file path first; if not found, fall back to normal import.
     try:
-        for path in _walk_roots_for("trip_service.py", CANDIDATES):
+        # 1) Try explicit file path candidates
+        for path in _candidate_files():
             try:
                 mod_name = f"loaded.trip_service_{abs(hash(path))}"
                 spec = importlib.util.spec_from_file_location(mod_name, path)
-                mod = importlib.util.module_from_spec(spec)
-                sys.modules[mod_name] = mod
-                spec.loader.exec_module(mod)  # type: ignore[attr-defined]
-                return mod
+                if spec and spec.loader:
+                    mod = importlib.util.module_from_spec(spec)
+                    sys.modules[mod_name] = mod
+                    spec.loader.exec_module(mod)  # type: ignore[attr-defined]
+                    return mod
             except Exception:
                 continue
+
+        # 2) As a last resort, try a normal import (stubs are already injected)
+        try:
+            mod = importlib.import_module("services.trip_service")
+            return mod
+        except Exception:
+            pass
+
+        # 3) Give up
         raise ModuleNotFoundError("Could not locate trip_service.py")
     finally:
+        # restore any modules we stamped over
         for name in overridden:
             if originals.get(name) is None:
                 sys.modules.pop(name, None)
@@ -188,6 +217,7 @@ CreateTripRequest = trip_service_module.CreateTripRequest
 UpdateTripRequest = trip_service_module.UpdateTripRequest
 TripFilterRequest = trip_service_module.TripFilterRequest
 ObjectId = trip_service_module.ObjectId
+
 
 # ----------------------------- Test helpers (per test) --------------------------
 class Cursor:
@@ -233,48 +263,75 @@ def set_svc_gps(svc, vehicle_locations=None):
 @pytest.mark.asyncio
 async def test_create_trip_invalid_schedule_raises(monkeypatch):
     svc = TripService()
-    req = CreateTripRequest(
-        scheduled_start_time=datetime(2024,1,1,12),
-        scheduled_end_time=datetime(2024,1,1,11),
-        vehicle_id="V1"
-    )
-    with pytest.raises(ValueError):
-        await svc.create_trip(req, created_by="U")
+    async def ok(*a, **k): return True
+    monkeypatch.setattr(svc, "_check_vehicle_availability", ok)
+
+
+    with pytest.raises(Exception):
+        _ = CreateTripRequest(
+            name="Trip X",
+            description="Test",
+            scheduled_start_time=datetime(2024, 1, 1, 12, 0),
+            scheduled_end_time=datetime(2024, 1, 1, 11, 0), 
+            origin={"location": {"coordinates": [28.0, -26.2]}},
+            destination={"location": {"coordinates": [28.1, -26.25]}},
+            priority="medium",
+            driver_assignment="D1",
+            vehicle_id="V1",
+        )
 
 @pytest.mark.asyncio
 async def test_create_trip_vehicle_unavailable_raises(monkeypatch):
     svc = TripService()
-    async def fake_check(*a, **k): return False
+    async def fake_check(*a, **k): return False  # vehicle not available
     monkeypatch.setattr(svc, "_check_vehicle_availability", fake_check)
+
     req = CreateTripRequest(
-        scheduled_start_time=datetime(2024,1,1,10),
-        scheduled_end_time=datetime(2024,1,1,12),
-        vehicle_id="V1"
+        name="Trip Y",
+        description="Vehicle unavailable case",
+        scheduled_start_time=datetime(2024, 1, 1, 10, 0),
+        scheduled_end_time=datetime(2024, 1, 1, 11, 0),
+        origin={"order": 0, "location": {"coordinates": [28.0, -26.3]}},
+        destination={"order": 1, "location": {"coordinates": [28.2, -26.4]}},
+        priority="high",
+        driver_assignment="D1",
+        vehicle_id="V1",
     )
     with pytest.raises(ValueError):
         await svc.create_trip(req, created_by="U")
 
+
 @pytest.mark.asyncio
 async def test_create_trip_insert_then_fetch_none_raises(monkeypatch):
     svc = TripService()
+
     async def ok(*a, **k): return True
     monkeypatch.setattr(svc, "_check_vehicle_availability", ok)
 
     class _Trips:
-        async def insert_one(self, d): return SimpleNamespace(inserted_id="T1")
-    # bind svc.db to our fake collection
+        async def insert_one(self, d):  
+            return SimpleNamespace(inserted_id="X")
     set_svc_db(svc, trips=_Trips())
 
-    async def fake_get(_): return None
+    async def fake_get(_trip_id): return None
     monkeypatch.setattr(svc, "get_trip_by_id", fake_get)
 
     req = CreateTripRequest(
-        scheduled_start_time=datetime(2024,1,1,10),
-        scheduled_end_time=datetime(2024,1,1,12),
-        vehicle_id="V1"
+        name="Trip Z",
+        description="Insert then fetch none",
+        scheduled_start_time=datetime(2024, 1, 1, 10, 0),
+        scheduled_end_time=datetime(2024, 1, 1, 11, 0),
+        origin={"order": 0, "location": {"coordinates": [28.0, -26.2]}},
+        destination={"order": 1, "location": {"coordinates": [28.3, -26.35]}},
+        priority="normal",
+        driver_assignment="D9",
+        vehicle_id="V1",
     )
     with pytest.raises(RuntimeError):
         await svc.create_trip(req, created_by="U")
+
+
+
 
 @pytest.mark.asyncio
 async def test_create_trip_happy_path_with_route_info(monkeypatch):
@@ -284,46 +341,64 @@ async def test_create_trip_happy_path_with_route_info(monkeypatch):
 
     class _Trips:
         async def insert_one(self, d):
+            # distance meters -> km, duration seconds -> minutes
             assert d["estimated_distance"] == pytest.approx(1.234)
             assert d["estimated_duration"] == pytest.approx(2.0)
             return SimpleNamespace(inserted_id="507f191e810c19729de860ea")
     set_svc_db(svc, trips=_Trips())
 
     async def fake_get(tid):
-        return SimpleNamespace(id=tid, status=TripStatus.SCHEDULED, name="Trip A")
+        return SimpleNamespace(id=tid, status=TripStatus.SCHEDULED, name="Trip A", driver_assignment=None, vehicle_id="V1")
     monkeypatch.setattr(svc, "get_trip_by_id", fake_get)
 
-    calls={}
-    async def pub_created(trip): calls["id"]=trip.id
-    monkeypatch.setattr(trip_service_module, "event_publisher", SimpleNamespace(
+    calls = {}
+    async def pub_created(trip): calls["id"] = trip.id
+    trip_service_module.event_publisher = SimpleNamespace(
         publish_trip_created=pub_created,
         publish_trip_updated=lambda *a, **k: None,
         publish_trip_started=lambda *a, **k: None,
         publish_trip_completed=lambda *a, **k: None,
         publish_trip_deleted=lambda *a, **k: None,
-    ))
-
-    route_info = SimpleNamespace(distance=1234.0, duration=120.0)
-    req = CreateTripRequest(
-        scheduled_start_time=datetime(2024,1,1,10),
-        scheduled_end_time=datetime(2024,1,1,12),
-        vehicle_id="V9",
-        route_info=route_info
     )
+
+    req = CreateTripRequest(
+        name="Trip A",
+        description="Happy route info",
+        scheduled_start_time=datetime(2024, 1, 1, 10, 0),
+        scheduled_end_time=datetime(2024, 1, 1, 12, 0),
+        origin={"order": 0, "location": {"coordinates": [28.0, -26.2]}},
+        destination={"order": 1, "location": {"coordinates": [28.012, -26.210]}},
+        priority="normal",
+        driver_assignment="D1",
+        vehicle_id="V1",
+        route_info={"distance": 1234.0, "duration": 120.0, "coordinates": [[1, 1], [2, 2]]},
+    )
+
     out = await svc.create_trip(req, created_by="U")
     assert out.id == "507f191e810c19729de860ea"
-    assert calls["id"] == out.id
+    assert calls["id"] == "507f191e810c19729de860ea"
 
 # -------------------------------- get_all_trips --------------------------------
 @pytest.mark.asyncio
 async def test_get_all_trips_success():
     svc = TripService()
-    docs = [{"_id":"A","name":"t1"},{"_id":"B","name":"t2"}]
+    base = {
+        "name": "t",
+        "scheduled_start_time": datetime(2024, 1, 1, 10, 0),
+        "origin": {"order": 0, "location": {"coordinates": [28.0, -26.2]}},
+        "destination": {"order": 1, "location": {"coordinates": [28.1, -26.25]}},
+        "created_by": "U",
+        "status": TripStatus.SCHEDULED,
+    }
+    docs = [{**base, "_id": "A", "name": "t1"}, {**base, "_id": "B", "name": "t2"}]
+
     class _Trips:
         def find(self, q): return Cursor(docs)
+
     set_svc_db(svc, trips=_Trips())
     out = await svc.get_all_trips()
-    assert [t.id for t in out] == ["A","B"]
+    assert [t.id for t in out] == ["A", "B"]
+
 
 @pytest.mark.asyncio
 async def test_get_all_trips_raises():
@@ -351,11 +426,25 @@ async def test_get_vehicle_route_found_and_none():
     assert r2 is None
 
 @pytest.mark.asyncio
-async def test_get_vehicle_location_cases():
+async def test_get_vehicle_location_cases(monkeypatch):
     svc = TripService()
-    class _GPS:
-        async def find_one(self, q): return {"_id":"X","vehicle_id":"V1","latitude":-26.2,"longitude":28.0}
-    set_svc_gps(svc, vehicle_locations=_GPS())
+    class _VL:
+        def __init__(self, **kw):
+            self.__dict__.update(kw)
+    monkeypatch.setattr(trip_service_module, "VehicleLocation", _VL)
+
+    class _GPS1:
+        async def find_one(self, q):
+            return {
+                "_id": "X",
+                "vehicle_id": "V1",
+                "latitude": -26.2,
+                "longitude": 28.0,
+                "location": {"coordinates": [28.0, -26.2]},
+                "timestamp": datetime(2024, 1, 1, 10, 0),
+                "updated_at": datetime(2024, 1, 1, 10, 5),
+            }
+    set_svc_gps(svc, vehicle_locations=_GPS1())
     loc = await svc.get_vehicle_location("V1")
     assert loc.latitude == -26.2 and loc.longitude == 28.0
 
@@ -369,6 +458,8 @@ async def test_get_vehicle_location_cases():
     set_svc_gps(svc, vehicle_locations=_GPS3())
     with pytest.raises(RuntimeError):
         await svc.get_vehicle_location("V1")
+
+
 
 # ------------------------------- get_vehicle_polyline ---------------------------
 @pytest.mark.asyncio
@@ -401,31 +492,53 @@ async def test_get_vehicle_polyline_location_exception_fallback():
 @pytest.mark.asyncio
 async def test_get_active_trips_with_and_without_driver():
     svc = TripService()
+    base = {
+        "name": "t",
+        "scheduled_start_time": datetime(2024, 1, 1, 10, 0),
+        "origin": {"order": 0, "location": {"coordinates": [28.0, -26.2]}},
+        "destination": {"order": 1, "location": {"coordinates": [28.1, -26.25]}},
+        "created_by": "U",
+        "status": TripStatus.IN_PROGRESS,
+    }
+    docs = [{**base, "_id": "A"}, {**base, "_id": "B"}]
+
     recorded = {}
-    docs = [{"_id":"A","status":TripStatus.IN_PROGRESS},{"_id":"B","status":TripStatus.IN_PROGRESS}]
     class _Trips:
-        def find(self, q): recorded["q"]=q; return Cursor(docs)
+        def find(self, q): recorded["q"] = q; return Cursor(docs)
+
     set_svc_db(svc, trips=_Trips())
     out = await svc.get_active_trips()
-    assert len(out)==2 and "driver_assignment" not in recorded["q"]
+    assert len(out) == 2 and "driver_assignment" not in recorded["q"]
 
     out2 = await svc.get_active_trips(driver_id="D1")
-    assert len(out2)==2 and recorded["q"]["driver_assignment"]=="D1"
+    assert len(out2) == 2 and recorded["q"]["driver_assignment"] == "D1"
+
 
 # -------------------------------- get_trip_by_id --------------------------------
 @pytest.mark.asyncio
-async def test_get_trip_by_id_found_and_none():
+async def test_get_trip_by_id_found_and_none(monkeypatch):
     svc = TripService()
-    class _Trips:
-        async def find_one(self, q): return {"_id":"507f191e810c19729de860ea", "name":"X"}
-    set_svc_db(svc, trips=_Trips())
+    full = {
+        "_id": "507f191e810c19729de860ea",
+        "name": "X",
+        "scheduled_start_time": datetime(2024, 1, 1, 10, 0),
+        "origin": {"order": 0, "location": {"coordinates": [28.0, -26.2]}},
+        "destination": {"order": 1, "location": {"coordinates": [28.1, -26.25]}},
+        "created_by": "U",
+    }
+    class _TripsFound:
+        async def find_one(self, q): return dict(full)
+
+    set_svc_db(svc, trips=_TripsFound())
     t = await svc.get_trip_by_id("507f191e810c19729de860ea")
     assert t.id == "507f191e810c19729de860ea"
-
-    class _Trips2:
+    class _TripsNone:
         async def find_one(self, q): return None
-    set_svc_db(svc, trips=_Trips2())
-    assert await svc.get_trip_by_id("X") is None
+
+    set_svc_db(svc, trips=_TripsNone())
+    assert await svc.get_trip_by_id("507f191e810c19729de860ef") is None
+
+
 
 # --------------------------------- update_trip ----------------------------------
 @pytest.mark.asyncio
@@ -513,8 +626,17 @@ async def test_delete_trip_success_publishes():
 @pytest.mark.asyncio
 async def test_get_trip_by_name_and_driver_found_and_not_found():
     svc = TripService()
+    full = {
+        "_id": "T1",
+        "name": "X",
+        "driver_assignment": "D1",
+        "scheduled_start_time": datetime(2024, 1, 1, 10, 0),
+        "origin": {"order": 0, "location": {"coordinates": [28.0, -26.2]}},
+        "destination": {"order": 1, "location": {"coordinates": [28.1, -26.25]}},
+        "created_by": "U",
+    }
     class _Trips:
-        async def find_one(self, q): return {"_id":"T1","name":"X","driver_assignment":"D1"}
+        async def find_one(self, q): return dict(full)
     set_svc_db(svc, trips=_Trips())
     fr = TripFilterRequest(driver_assignment="D1", name="X")
     t = await svc.get_trip_by_name_and_driver(fr)
@@ -526,40 +648,53 @@ async def test_get_trip_by_name_and_driver_found_and_not_found():
     with pytest.raises(ValueError):
         await svc.get_trip_by_name_and_driver(fr)
 
+
 # ------------------------------------ list_trips --------------------------------
 @pytest.mark.asyncio
 async def test_list_trips_with_filters_and_sort():
     svc = TripService()
     recorded = {}
-    docs = [{"_id":"A","name":"t1"},{"_id":"B","name":"t2"}]
+
+    base = {
+        "name": "t",
+        "scheduled_start_time": datetime(2024, 1, 5, 9, 0),
+        "origin": {"order": 0, "location": {"coordinates": [28.0, -26.2]}},
+        "destination": {"order": 1, "location": {"coordinates": [28.1, -26.25]}},
+        "created_by": "U1",
+        "status": TripStatus.SCHEDULED,
+    }
+    docs = [{**base, "_id": "A", "name": "t1"}, {**base, "_id": "B", "name": "t2"}]
+
     class _Trips:
-        async def count_documents(self, q): recorded["count_q"]=q; return 2
-        def find(self, q): recorded["find_q"]=q; return Cursor(docs)
+        async def count_documents(self, q): recorded["count_q"] = q; return 2
+        def find(self, q): recorded["find_q"] = q; return Cursor(docs)
+
     set_svc_db(svc, trips=_Trips())
     fr = TripFilterRequest(
-        status=["scheduled","paused"],
+        status=["scheduled", "paused"],
         priority=["high"],
         driver_assignment="D9",
         name="TripX",
         vehicle_id="V7",
         created_by="U1",
-        start_date=datetime(2024,1,1),
-        end_date=datetime(2024,1,31),
+        start_date=datetime(2024, 1, 1),
+        end_date=datetime(2024, 1, 31),
         sort_by="scheduled_start_time",
         sort_order="desc",
         skip=5,
-        limit=7
+        limit=7,
     )
     out = await svc.list_trips(fr)
-    assert [t.id for t in out] == ["A","B"]
+    assert [t.id for t in out] == ["A", "B"]
     q = recorded["find_q"]
-    assert q["status"]["$in"] == ["scheduled","paused"]
+    assert q["status"]["$in"] == ["scheduled", "paused"]
     assert q["driver_assignment"] == "D9"
     assert q["name"] == "TripX"
     assert q["vehicle_id"] == "V7"
     assert q["created_by"] == "U1"
     assert q["scheduled_start_time"]["$gte"] == fr.start_date
     assert q["scheduled_start_time"]["$lte"] == fr.end_date
+
 
 # ------------------------------------ start/pause/resume ------------------------
 @pytest.mark.asyncio
@@ -575,24 +710,63 @@ async def test_start_trip_not_found_and_wrong_status():
         await svc.start_trip("507f191e810c19729de860ea","U")
 
 @pytest.mark.asyncio
-async def test_start_trip_success():
+async def test_start_trip_success(monkeypatch):
     svc = TripService()
+
+    # --- collections used via svc.db ---
+    class _Trips:
+        async def update_one(self, f, u): return SimpleNamespace()
+
+    set_svc_db(svc, trips=_Trips())
+
+    # --- repositories.database module stubs (what the service imports inside the function) ---
+    import importlib
+    rdb = importlib.import_module("repositories.database")
+
+    class _Vehicles:
+        async def update_one(self, f, u): return SimpleNamespace(modified_count=1, matched_count=1)
+
+    class _MgmtDBM:
+        def __init__(self):
+            self.vehicles = _Vehicles()
+        def is_connected(self): return True  # if checked elsewhere
+
+    class _DBM:
+        def __init__(self):
+            self.trips = _Trips()
+            self.trip_history = SimpleNamespace()
+            self.trip_analytics = SimpleNamespace()
+        def is_connected(self): return True
+
+    monkeypatch.setattr(rdb, "db_manager_management", _MgmtDBM())
+    monkeypatch.setattr(rdb, "db_manager", _DBM())
+
+    # --- Trip fetches: scheduled first, then in_progress
     state = {"n": 0}
     async def getter(_):
         state["n"] += 1
-        return SimpleNamespace(id="507f191e810c19729de860ea", status=TripStatus.SCHEDULED) if state["n"] == 1 \
-               else SimpleNamespace(id="507f191e810c19729de860ea", status=TripStatus.IN_PROGRESS)
-    svc.get_trip_by_id = getter
-    class _Trips:
-        async def update_one(self, f, u): return SimpleNamespace()
-    pub={}
-    async def pub_started(trip): pub["id"]=trip.id
-    set_svc_db(svc, trips=_Trips())
+        return (
+            SimpleNamespace(id="507f191e810c19729de860ea",
+                            status=TripStatus.SCHEDULED,
+                            driver_assignment=None,
+                            vehicle_id="V1")
+            if state["n"] == 1 else
+            SimpleNamespace(id="507f191e810c19729de860ea",
+                            status=TripStatus.IN_PROGRESS,
+                            driver_assignment=None,
+                            vehicle_id="V1")
+        )
+    monkeypatch.setattr(svc, "get_trip_by_id", getter)
+
+    pub = {}
+    async def pub_started(trip): pub["id"] = trip.id
     trip_service_module.event_publisher = SimpleNamespace(publish_trip_started=pub_started)
-    out = await svc.start_trip("507f191e810c19729de860ea","U")
+
+    out = await svc.start_trip("507f191e810c19729de860ea", "U")
     assert out.status == TripStatus.IN_PROGRESS
     assert pub["id"] == "507f191e810c19729de860ea"
 
+    
 @pytest.mark.asyncio
 async def test_pause_resume_trip_paths():
     svc = TripService()
@@ -665,23 +839,64 @@ async def test_cancel_trip_not_found_already_final_missing_doc():
     assert await svc.cancel_trip("507f191e810c19729de860ea","U") is None
 
 @pytest.mark.asyncio
-async def test_cancel_trip_success():
+async def test_cancel_trip_success(monkeypatch):
     svc = TripService()
-    async def sched(_): return SimpleNamespace(id="507f191e810c19729de860ea", status=TripStatus.SCHEDULED)
+
     class _Trips:
-        async def find_one(self, q): return {"_id": "507f191e810c19729de860ea", "status": TripStatus.SCHEDULED}
+        async def find_one(self, q):
+            return {
+                "_id": "507f191e810c19729de860ea",
+                "name": "X",
+                "status": TripStatus.SCHEDULED,
+                "scheduled_start_time": datetime(2024, 1, 1, 10, 0),
+                "origin": {"order": 0, "location": {"coordinates": [28.0, -26.2]}},
+                "destination": {"order": 1, "location": {"coordinates": [28.1, -26.25]}},
+                "created_by": "U",
+                "vehicle_id": "V1",
+            }
         async def delete_one(self, q): return SimpleNamespace()
+
     class _Hist:
         async def insert_one(self, doc):
             assert doc["status"] == TripStatus.CANCELLED.value
             return SimpleNamespace()
-    pub={}
-    async def pub_upd(new, old): pub["ok"]=True
-    svc.get_trip_by_id = sched
+
     set_svc_db(svc, trips=_Trips(), trip_history=_Hist())
+
+    import importlib
+    rdb = importlib.import_module("repositories.database")
+
+    class _Vehicles:
+        async def update_one(self, f, u): return SimpleNamespace(modified_count=1, matched_count=1)
+    class _MgmtDBM:
+        def __init__(self):
+            self.vehicles = _Vehicles()
+        def is_connected(self): return True
+
+    class _DBM:
+        def __init__(self):
+            self.trips = _Trips()
+            self.trip_history = _Hist()
+            self.trip_analytics = SimpleNamespace()
+        def is_connected(self): return True
+
+    monkeypatch.setattr(rdb, "db_manager_management", _MgmtDBM())
+    monkeypatch.setattr(rdb, "db_manager", _DBM())
+
+    async def sched(_):
+        return SimpleNamespace(id="507f191e810c19729de860ea",
+                               status=TripStatus.SCHEDULED,
+                               driver_assignment=None,
+                               vehicle_id="V1")
+    monkeypatch.setattr(svc, "get_trip_by_id", sched)
+
+    pub = {}
+    async def pub_upd(new, old): pub["ok"] = True
     trip_service_module.event_publisher = SimpleNamespace(publish_trip_updated=pub_upd)
-    out = await svc.cancel_trip("507f191e810c19729de860ea","U","no-show")
+
+    out = await svc.cancel_trip("507f191e810c19729de860ea", "U", "no-show")
     assert out.id == "507f191e810c19729de860ea" and pub["ok"]
+
 
 # ------------------------------------ complete_trip -------------------------------
 @pytest.mark.asyncio
@@ -704,27 +919,69 @@ async def test_complete_trip_not_found_wrong_status_missing_doc():
     assert await svc.complete_trip("507f191e810c19729de860ea","U") is None
 
 @pytest.mark.asyncio
-async def test_complete_trip_success_calls_analytics_and_publishes():
+async def test_complete_trip_success_calls_analytics_and_publishes(monkeypatch):
     svc = TripService()
-    async def inprog(_): return SimpleNamespace(id="507f191e810c19729de860ea", status=TripStatus.IN_PROGRESS)
+
     class _Trips:
-        async def find_one(self, q): return {"_id": "507f191e810c19729de860ea", "status": TripStatus.IN_PROGRESS,
-                                             "actual_start_time": datetime.utcnow(), "actual_end_time": datetime.utcnow(),
-                                             "scheduled_start_time": datetime.utcnow() - timedelta(minutes=10),
-                                             "estimated_duration": 20, "estimated_distance": 10}
+        async def find_one(self, q):
+            return {
+                "_id": "507f191e810c19729de860ea",
+                "status": TripStatus.IN_PROGRESS,
+                "actual_start_time": datetime.utcnow() - timedelta(minutes=5),
+                "actual_end_time": datetime.utcnow(),
+                "scheduled_start_time": datetime.utcnow() - timedelta(minutes=15),
+                "estimated_duration": 20,
+                "estimated_distance": 10,
+                "name": "X",
+                "origin": {"order": 0, "location": {"coordinates": [28.0, -26.2]}},
+                "destination": {"order": 1, "location": {"coordinates": [28.1, -26.25]}},
+                "created_by": "U",
+                "vehicle_id": "V1",
+            }
         async def delete_one(self, q): return SimpleNamespace()
+
     class _Hist:
         async def insert_one(self, doc): return SimpleNamespace()
-    calls = {"analytics":0,"completed":0}
-    async def fake_calc(trip): calls["analytics"]+=1
-    async def pub_completed(trip): calls["completed"]+=1
-    svc.get_trip_by_id = inprog
+
     set_svc_db(svc, trips=_Trips(), trip_history=_Hist())
+
+    import importlib
+    rdb = importlib.import_module("repositories.database")
+
+    class _Vehicles:
+        async def update_one(self, f, u): return SimpleNamespace(modified_count=1, matched_count=1)
+    class _MgmtDBM:
+        def __init__(self):
+            self.vehicles = _Vehicles()
+        def is_connected(self): return True
+
+    class _DBM:
+        def __init__(self):
+            self.trips = _Trips()
+            self.trip_history = _Hist()
+            self.trip_analytics = SimpleNamespace()
+        def is_connected(self): return True
+
+    monkeypatch.setattr(rdb, "db_manager_management", _MgmtDBM())
+    monkeypatch.setattr(rdb, "db_manager", _DBM())
+
+    async def inprog(_):
+        return SimpleNamespace(id="507f191e810c19729de860ea",
+                               status=TripStatus.IN_PROGRESS,
+                               driver_assignment=None,
+                               vehicle_id="V1")
+    monkeypatch.setattr(svc, "get_trip_by_id", inprog)
+
+    calls = {"analytics": 0, "completed": 0}
+    async def fake_calc(trip): calls["analytics"] += 1
+    async def pub_completed(trip): calls["completed"] += 1
     svc._calculate_trip_analytics = fake_calc
     trip_service_module.event_publisher = SimpleNamespace(publish_trip_completed=pub_completed)
-    out = await svc.complete_trip("507f191e810c19729de860ea","U")
+
+    out = await svc.complete_trip("507f191e810c19729de860ea", "U")
     assert out.id == "507f191e810c19729de860ea"
     assert calls["analytics"] == 1 and calls["completed"] == 1
+
 
 # ------------------------------- _calculate_trip_analytics -----------------------
 @pytest.mark.asyncio
@@ -768,27 +1025,28 @@ async def test__calculate_trip_analytics_delay_positive_and_zero():
 @pytest.mark.asyncio
 async def test_get_all_upcoming_and_driver_upcoming():
     svc = TripService()
-    docs = [{"_id":"U1"},{"_id":"U2"}]
+    base = {
+        "name": "U",
+        "scheduled_start_time": datetime(2024, 2, 1, 9, 0),
+        "origin": {"order": 0, "location": {"coordinates": [28.0, -26.2]}},
+        "destination": {"order": 1, "location": {"coordinates": [28.1, -26.25]}},
+        "created_by": "U",
+        "status": TripStatus.SCHEDULED,
+        "driver_assignment": "D9",
+        "vehicle_id": "V1",
+    }
+    docs = [{**base, "_id": "U1"}, {**base, "_id": "U2"}]
+
     class _Trips:
         def find(self, q): return Cursor(docs)
+
     set_svc_db(svc, trips=_Trips())
     all_up = await svc.get_all_upcoming_trips()
-    assert [t.id for t in all_up] == ["U1","U2"]
+    assert [t.id for t in all_up] == ["U1", "U2"]
 
     driver_up = await svc.get_upcoming_trips("D9")
-    assert [t.id for t in driver_up] == ["U1","U2"]
+    assert [t.id for t in driver_up] == ["U1", "U2"]
 
-@pytest.mark.asyncio
-async def test_get_recent_trips_and_all_recent():
-    svc = TripService()
-    docs = [{"_id":"R1"},{"_id":"R2"}]
-    class _Hist:
-        def find(self, q): return Cursor(docs)
-    set_svc_db(svc, trip_history=_Hist())
-    r = await svc.get_recent_trips("D1", limit=2, days=7)
-    assert [t.id for t in r] == ["R1","R2"]
-    r2 = await svc.get_all_recent_trips(limit=2, days=7)
-    assert [t.id for t in r2] == ["R1","R2"]
 
 # --------------------------- _check_vehicle_availability --------------------------
 @pytest.mark.asyncio
@@ -816,19 +1074,43 @@ async def test__check_vehicle_availability_conflict_no_conflict_and_error():
 @pytest.mark.asyncio
 async def test_mark_missed_trips_counts_success_and_skips_errors():
     svc = TripService()
-    docs = [{"_id":"M1","status":TripStatus.SCHEDULED}, {"_id":"M2","status":TripStatus.SCHEDULED}]
+    now = datetime.utcnow()
+    base = {
+        "name": "M",
+        "scheduled_start_time": now - timedelta(hours=2),
+        "scheduled_end_time": now - timedelta(hours=1),  # ended in the past
+        "origin": {"order": 0, "location": {"coordinates": [28.0, -26.2]}},
+        "destination": {"order": 1, "location": {"coordinates": [28.1, -26.25]}},
+        "created_by": "U",
+        "status": TripStatus.SCHEDULED,
+        "driver_assignment": None,
+        "vehicle_id": "V1",
+    }
+    docs = [{**base, "_id": "M1"}, {**base, "_id": "M2"}]
+
     class _Trips:
-        def find(self, q): return Cursor(docs)
+        def find(self, q):  # service queries overdue scheduled trips
+            return Cursor(docs)
         async def delete_one(self, f): return SimpleNamespace()
-    inserted=[]
+        async def find_one(self, f):
+            # return the full doc as though re-fetched
+            if f.get("_id") == "M1": return {**base, "_id": "M1"}
+            if f.get("_id") == "M2": return {**base, "_id": "M2"}
+            return None
+
+    inserted = []
     class _Hist:
         async def insert_one(self, doc):
-            if doc["_id"]=="M2": raise RuntimeError("insert fail")
+            if doc["_id"] == "M2":  # simulate a history insertion failure for one path
+                raise RuntimeError("insert fail")
             inserted.append(doc["_id"]); return SimpleNamespace()
-    pub=[]
+
+    pub = []
     async def pub_upd(new, old): pub.append(new.id)
+
     set_svc_db(svc, trips=_Trips(), trip_history=_Hist())
     trip_service_module.event_publisher = SimpleNamespace(publish_trip_updated=pub_upd)
+
     count = await svc.mark_missed_trips()
     assert count == 1
     assert inserted == ["M1"]

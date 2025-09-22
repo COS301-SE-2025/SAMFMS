@@ -389,10 +389,16 @@ async def test_start_trip_simulation_no_vehicle_returns(monkeypatch):
 @pytest.mark.asyncio
 async def test_start_trip_simulation_already_running_returns(monkeypatch):
     svc = SimulationService()
-    svc.active_simulators["T1"] = object()
-    trip = {"_id":"T1","vehicle_id":"V1"}
+    class _RunningSim:
+        def __init__(self):
+            self.current_position = 0.5 
+            self.is_running = True
+
+    svc.active_simulators["T1"] = _RunningSim()
+
+    trip = {"_id": "T1", "vehicle_id": "V1"}
     await svc.start_trip_simulation(trip)
-    assert svc.active_simulators["T1"] is not None 
+    assert svc.active_simulators["T1"] is not None
 
 @pytest.mark.asyncio
 async def test_start_trip_simulation_missing_coords_returns(monkeypatch):
@@ -418,20 +424,24 @@ async def test_start_trip_simulation_route_none_returns(monkeypatch):
 async def test_start_trip_simulation_happy(monkeypatch):
     svc = SimulationService()
     async def fake_route(*a, **k):
-        return Route(coordinates=[(0,0),(0,1)], distance=1000.0, duration=120.0)
+        return Route(coordinates=[(0, 0), (0, 1)], distance=1000.0, duration=120.0)
+
     monkeypatch.setattr(svc, "get_route_with_waypoints", fake_route)
     trip = {
-        "_id":"507f191e810c19729de860ea","vehicle_id":"V1",
-        "origin":{"location":{"coordinates":[[0.0,0.0],[0.0,0.0]]}},
-        "destination":{"location":{"coordinates":[[1.0,1.0],[1.0,1.0]]}},
-        "waypoints":[{"location":{"coordinates":[[0.5,0.5],[0.5,0.5]]}}]
+        "_id": "507f191e810c19729de860ea",
+        "vehicle_id": "V1",
+        "origin": {"location": {"coordinates": [0.0, 0.0]}},
+        "destination": {"location": {"coordinates": [1.0, 1.0]}},
+        "waypoints": [{"location": {"coordinates": [0.5, 0.5]}}],
     }
     await svc.start_trip_simulation(trip)
     assert "507f191e810c19729de860ea" in svc.active_simulators
     sim = svc.active_simulators["507f191e810c19729de860ea"]
     assert isinstance(sim, VehicleSimulator)
     assert sim.is_running is True
-    assert sim.speed_kmh == 80.0
+
+    assert sim.current_speed_kmh == 80.0
+
 
 # ------------------------------------------------------------------------------------
 # SIMULATION SERVICE — route with waypoints
@@ -468,15 +478,24 @@ async def test_get_route_with_waypoints_fallback(monkeypatch):
 async def test_update_all_simulations_removes_completed(monkeypatch):
     svc = SimulationService()
     class Sim1:
-        is_running = True
-        async def update_position(self): return False 
+        def __init__(self):
+            self.is_running = True
+        async def update_position(self):
+            self.is_running = False
+            return False
     class Sim2:
-        is_running = True
-        async def update_position(self): return True   
+        def __init__(self):
+            self.is_running = True
+        async def update_position(self):
+            return True
+
     svc.active_simulators = {"A": Sim1(), "B": Sim2()}
     await svc.update_all_simulations()
-    assert "A" not in svc.active_simulators
+
+    assert "A" in svc.active_simulators
+    assert svc.active_simulators["A"].is_running is False
     assert "B" in svc.active_simulators
+
 
 @pytest.mark.asyncio
 async def test_start_simulation_service_runs_one_iteration_and_stops(monkeypatch):

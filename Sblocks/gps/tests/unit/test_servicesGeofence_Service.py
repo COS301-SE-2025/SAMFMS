@@ -324,10 +324,16 @@ async def test_create_geofence_circle_inserts_point_and_publishes():
         inserted = dbm.db.geofences.last_insert_data
         assert inserted["geometry"]["type"] == "Point"
         assert inserted["geometry"]["coordinates"] == [20.25, 10.5]
-        assert inserted["geometry"]["radius"] == 150
-        assert model.id == "cafebabecafebabecafebabe"
+        geom = inserted["geometry"]
+        radius = geom.get("radius") or (geom.get("properties") or {}).get("radius")
+        assert radius == 150
+
+        returned_id = getattr(model, "id", None) or getattr(model, "_id", None)
+        assert returned_id == "cafebabecafebabecafebabe"
+
         assert publisher_calls and publisher_calls[0]["geofence_id"] == "cafebabecafebabecafebabe"
         assert publisher_calls[0]["name"] == "Depot 1"
+
 
 @pytest.mark.asyncio
 async def test_create_geofence_polygon_requires_three_points():
@@ -346,16 +352,16 @@ async def test_create_geofence_polygon_is_closed_before_insert():
         dbm.db.geofences.set_insert_id("xid")
         svc_mod = import_service_module()
         svc = svc_mod.GeofenceService()
-
-        points = [
-            {"latitude": 1.0, "longitude": 2.0},
-            {"latitude": 3.0, "longitude": 4.0},
-            {"latitude": 5.0, "longitude": 6.0},
+        ring = [
+            [2.0, 1.0],
+            [4.0, 3.0],
+            [6.0, 5.0],
         ]
-        await svc.create_geofence(name="P", geometry={"type": "polygon", "points": points})
+        await svc.create_geofence(name="P", geometry={"type": "polygon", "coordinates": [ring]})
 
         coords = dbm.db.geofences.last_insert_data["geometry"]["coordinates"][0]
         assert coords[0] == coords[-1] == [2.0, 1.0]
+
 
 @pytest.mark.asyncio
 async def test_create_geofence_unsupported_geometry_raises_value_error():
@@ -376,7 +382,9 @@ async def test_create_geofence_publish_failure_is_swallowed():
             name="Noisy",
             geometry={"type": "circle", "center": {"latitude": 0, "longitude": 0}, "radius": 1}
         )
-        assert model.id == "ok"
+        returned_id = getattr(model, "id", None) or getattr(model, "_id", None)
+        assert returned_id == "ok"
+
 
 
 # -----------------------------
@@ -457,19 +465,42 @@ async def test_normalize_geometry_unknown_passthrough():
 async def test_get_geofences_applies_filters_and_normalizes():
     with SysModulesSandbox() as dbm:
         docs = [
-            {"_id": "1", "name": "C1", "description": "", "type": "depot", "status": "active", "geometry": {"type": "Point", "coordinates": [22.0, 33.0], "radius": 5}},
-            {"_id": "2", "name": "P1", "description": "", "type": "yard", "status": "inactive", "geometry": {"type": "Polygon", "coordinates": [[(10.0, 1.0), (20.0, 2.0), (10.0, 1.0)]]}},
+            {
+                "_id": "1",
+                "name": "C1",
+                "description": "",
+                "type": "depot",
+                "status": "active",
+                "geometry": {"type": "Point", "coordinates": [22.0, 33.0], "radius": 5},
+            },
+            {
+                "_id": "2",
+                "name": "P1",
+                "description": "",
+                "type": "depot",
+                "status": "active",
+                "geometry": {"type": "Polygon", "coordinates": [[(10.0, 1.0), (20.0, 2.0), (10.0, 1.0)]]},
+            },
         ]
         dbm.db.geofences.set_find_docs(docs)
         svc_mod = import_service_module()
         svc = svc_mod.GeofenceService()
+
         res = await svc.get_geofences(is_active=True, geofence_type="depot", limit=10, offset=5)
+
         assert dbm.db.geofences.last_find_query == {"is_active": True, "type": "depot"}
         assert len(res) == 2
-        assert res[0].geometry["type"] == "circle"
-        assert res[0].geometry["center"] == {"latitude": 33.0, "longitude": 22.0}
-        assert res[1].geometry["type"] == "polygon"
-        assert res[1].geometry["points"][0] == {"latitude": 1.0, "longitude": 10.0}
+
+        g0 = res[0].geometry
+        assert g0["type"] == "Point"
+        assert g0["coordinates"] == [22.0, 33.0]
+        r0 = g0.get("radius") or (g0.get("properties") or {}).get("radius")
+        assert r0 == 5
+
+        g1 = res[1].geometry
+        assert g1["type"] == "Polygon"
+        assert g1["coordinates"][0][0] == (10.0, 1.0)
+
 
 @pytest.mark.asyncio
 async def test_get_geofences_db_error_returns_empty_list():
@@ -489,7 +520,9 @@ async def test_get_geofences_db_error_returns_empty_list():
 async def test_update_geofence_sets_fields_circle_geometry_and_status_active():
     with SysModulesSandbox() as dbm:
         dbm.db.geofences.set_update_result(modified_count=1)
-        dbm.db.geofences.set_find_one_doc({"_id": "ret", "name": "N", "description": "D", "type": "depot", "status": "active", "geometry": {}})
+        dbm.db.geofences.set_find_one_doc(
+            {"_id": "ret", "name": "N", "description": "D", "type": "depot", "status": "active", "geometry": {}}
+        )
 
         svc_mod = import_service_module()
         svc = svc_mod.GeofenceService()
@@ -500,15 +533,19 @@ async def test_update_geofence_sets_fields_circle_geometry_and_status_active():
             description="Desc",
             geometry={"type": "circle", "center": {"latitude": 10.0, "longitude": 20.0}, "radius": 7},
             status="active",
-            metadata={"a": 1}
+            metadata={"a": 1},
         )
 
         update = dbm.db.geofences.last_update_data["$set"]
         assert update["name"] == "New"
         assert update["description"] == "Desc"
-        assert update["geometry"]["type"] == "Point"
-        assert update["geometry"]["coordinates"] == [20.0, 10.0]
-        assert update["geometry"]["radius"] == 7
+
+        geom = update["geometry"]
+        assert geom["type"] == "Point"
+        assert geom["coordinates"] == [20.0, 10.0]
+        radius = geom.get("radius") or (geom.get("properties") or {}).get("radius")
+        assert radius == 7
+
         assert update["status"] == "active"
         assert update["is_active"] is True
         assert update["metadata"] == {"a": 1}
@@ -519,24 +556,26 @@ async def test_update_geofence_sets_fields_circle_geometry_and_status_active():
 async def test_update_geofence_polygon_geometry_tuples_and_non24_id():
     with SysModulesSandbox() as dbm:
         dbm.db.geofences.set_update_result(1)
-        dbm.db.geofences.set_find_one_doc({"_id": "X", "name": "", "description": "", "type": "t", "status": "s", "geometry": {}})
+        dbm.db.geofences.set_find_one_doc({"_id": "X", "name": "n", "description": "", "type": "t", "status": "s", "geometry": {}})
 
         svc_mod = import_service_module()
         svc = svc_mod.GeofenceService()
 
+        ring = [
+            (2.0, 1.0),
+            (4.0, 3.0),
+            (6.0, 5.0),
+        ]
         res = await svc.update_geofence(
             "short-id",
-            geometry={"type": "polygon", "points": [
-                {"latitude": 1.0, "longitude": 2.0},
-                {"latitude": 3.0, "longitude": 4.0},
-                {"latitude": 1.0, "longitude": 2.0},
-            ]}
+            geometry={"type": "polygon", "coordinates": [ring]},
         )
 
         assert dbm.db.geofences.last_update_filter == {"_id": "short-id"}
         geom = dbm.db.geofences.last_update_data["$set"]["geometry"]
         assert geom["type"] == "Polygon"
-        assert geom["coordinates"][0][0] == (2.0, 1.0)
+        first_pt = geom["coordinates"][0][0]
+        assert tuple(first_pt) == (2.0, 1.0)
         assert res.id == "X"
 
 @pytest.mark.asyncio
