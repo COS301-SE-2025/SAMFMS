@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
-import { maintenanceAPI } from '../../backend/api/maintenance';
-import { getVehicle } from '../../backend/api/vehicles';
+import React, {useState, useEffect} from 'react';
+import {Plus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, Group} from 'lucide-react';
+import {maintenanceAPI} from '../../backend/api/maintenance';
+import {getVehicle} from '../../backend/api/vehicles';
 
 // Component to display vehicle details with direct API calls
-const VehicleDetailDisplay = ({ vehicleId, fetchVehicleDetails }) => {
+const VehicleDetailDisplay = ({vehicleId, fetchVehicleDetails}) => {
   const [vehicleDetails, setVehicleDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -66,25 +66,117 @@ const VehicleDetailDisplay = ({ vehicleId, fetchVehicleDetails }) => {
   );
 };
 
-const MaintenanceSchedules = ({ vehicles }) => {
+const MaintenanceSchedules = ({vehicles}) => {
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
-  const [filters, setFilters] = useState({
-    vehicleId: '',
+
+  // Updated state for sorting, searching, and grouping
+  const [sorting, setSorting] = useState({
+    field: null,
+    direction: 'asc' // 'asc' or 'desc'
   });
+  const [grouping, setGrouping] = useState({
+    field: null, // 'type', 'interval', 'status'
+    groups: {}
+  });
+  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [showVehicleSearch, setShowVehicleSearch] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Calculate pagination
+  // Vehicle helper function - defined early to avoid hoisting issues
+  const getVehicleName = vehicleId => {
+    if (!vehicleId) return 'Unknown Vehicle';
+
+    // Handle both string and ObjectId formats
+    const vehicleIdStr = vehicleId.toString();
+
+    // Find vehicle in the provided vehicles prop
+    let vehicle = vehicles?.find(v => v.id?.toString() === vehicleIdStr);
+    if (!vehicle) {
+      vehicle = vehicles?.find(v => v._id?.toString() === vehicleIdStr);
+    }
+
+    if (vehicle) {
+      const parts = [];
+      if (vehicle.year) parts.push(vehicle.year);
+      if (vehicle.make) parts.push(vehicle.make);
+      if (vehicle.model) parts.push(vehicle.model);
+
+      if (parts.length === 0) parts.push('Vehicle');
+
+      const vehicleInfo = parts.join(' ');
+      const licensePlate = vehicle.license_plate || vehicle.vin;
+
+      return licensePlate ? `${vehicleInfo} (${licensePlate})` : vehicleInfo;
+    }
+
+    // If no vehicle found, return truncated ID for readability
+    return `Vehicle ${vehicleIdStr.length > 8 ? vehicleIdStr.substring(0, 8) + '...' : vehicleIdStr}`;
+  };
+
+  // Calculate pagination based on processed schedules
+  const getProcessedSchedules = () => {
+    let processedSchedules = [...schedules];
+
+    // Apply vehicle search filter
+    if (vehicleSearch.trim()) {
+      processedSchedules = processedSchedules.filter(schedule => {
+        const vehicleName = getVehicleName(schedule.vehicle_id).toLowerCase();
+        return vehicleName.includes(vehicleSearch.toLowerCase());
+      });
+    }
+
+    // Apply sorting if not grouping
+    if (sorting.field && !grouping.field) {
+      processedSchedules.sort((a, b) => {
+        let aValue, bValue;
+
+        switch (sorting.field) {
+          case 'vehicle':
+            aValue = getVehicleName(a.vehicle_id);
+            bValue = getVehicleName(b.vehicle_id);
+            break;
+          case 'type':
+            aValue = a.maintenance_type || '';
+            bValue = b.maintenance_type || '';
+            break;
+          case 'interval':
+            aValue = a.interval_value || 0;
+            bValue = b.interval_value || 0;
+            break;
+          case 'last_service':
+            aValue = new Date(a.last_service_date || 0);
+            bValue = new Date(b.last_service_date || 0);
+            break;
+          case 'next_due':
+            aValue = new Date(a.next_due_date || 0);
+            bValue = new Date(b.next_due_date || 0);
+            break;
+          default:
+            aValue = a[sorting.field] || '';
+            bValue = b[sorting.field] || '';
+        }
+
+        if (aValue < bValue) return sorting.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sorting.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return processedSchedules;
+  };
+
+  const processedSchedules = getProcessedSchedules();
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentSchedules = schedules.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(schedules.length / itemsPerPage);
+  const currentSchedules = processedSchedules.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(processedSchedules.length / itemsPerPage);
 
   // Pagination functions
   const goToNextPage = () => {
@@ -98,6 +190,74 @@ const MaintenanceSchedules = ({ vehicles }) => {
   const changeItemsPerPage = e => {
     setItemsPerPage(Number(e.target.value));
     setCurrentPage(1);
+  };
+
+  // Sorting functions
+  const handleSort = (field) => {
+    setSorting(prev => ({
+      field,
+      direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+    // Clear grouping when sorting
+    setGrouping({field: null, groups: {}});
+  };
+
+  // Grouping functions
+  const handleGroup = (field) => {
+    if (grouping.field === field) {
+      // Clear grouping if clicking same field
+      setGrouping({field: null, groups: {}});
+      return;
+    }
+
+    const groups = {};
+    schedules.forEach(schedule => {
+      let groupKey;
+      switch (field) {
+        case 'type':
+          groupKey = schedule.maintenance_type || 'Unknown';
+          break;
+        case 'interval':
+          groupKey = `${schedule.interval_type || 'Unknown'}`;
+          break;
+        case 'status':
+          // Determine status based on schedule state
+          if (!schedule.is_active) {
+            groupKey = 'Inactive';
+          } else {
+            const now = new Date();
+            const nextDueDate = schedule.next_due_date ? new Date(schedule.next_due_date) : null;
+            const daysUntilDue = nextDueDate ? Math.ceil((nextDueDate - now) / (1000 * 60 * 60 * 24)) : null;
+
+            if (daysUntilDue !== null) {
+              if (daysUntilDue < 0) groupKey = 'Overdue';
+              else if (daysUntilDue <= 7) groupKey = 'Due Soon';
+              else if (daysUntilDue <= 30) groupKey = 'Upcoming';
+              else groupKey = 'Active';
+            } else {
+              groupKey = 'Active';
+            }
+          }
+          break;
+        default:
+          groupKey = 'Unknown';
+      }
+
+      if (!groups[groupKey]) {
+        groups[groupKey] = [];
+      }
+      groups[groupKey].push(schedule);
+    });
+
+    setGrouping({field, groups});
+    // Clear sorting when grouping
+    setSorting({field: null, direction: 'asc'});
+  };
+
+  // Vehicle search function
+  const handleVehicleSearch = (searchTerm) => {
+    setVehicleSearch(searchTerm);
+    setCurrentPage(1); // Reset to first page when searching
   };
 
   const [formData, setFormData] = useState({
@@ -138,12 +298,12 @@ const MaintenanceSchedules = ({ vehicles }) => {
 
   useEffect(() => {
     loadSchedules();
-  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // Remove filters dependency
 
   const loadSchedules = async () => {
     try {
       setLoading(true);
-      const response = await maintenanceAPI.getMaintenanceSchedules(filters.vehicleId || null);
+      const response = await maintenanceAPI.getMaintenanceSchedules(null); // Remove filter parameter
 
       // Handle nested data structure from backend
       const data = response.data?.data || response.data || {};
@@ -301,11 +461,6 @@ const MaintenanceSchedules = ({ vehicles }) => {
     );
   };
 
-  const getVehicleName = vehicleId => {
-    const vehicle = vehicles.find(v => v.id === vehicleId);
-    return vehicle ? `${vehicle.make} ${vehicle.model} (${vehicle.license_plate})` : vehicleId;
-  };
-
   const getStatusIndicator = schedule => {
     const now = new Date();
     const nextDueDate = schedule.next_due_date ? new Date(schedule.next_due_date) : null;
@@ -386,7 +541,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
     ) {
       const nextDate = calculateNextDueDate();
       if (nextDate && nextDate !== formData.next_due_date) {
-        setFormData(prev => ({ ...prev, next_due_date: nextDate }));
+        setFormData(prev => ({...prev, next_due_date: nextDate}));
       }
     }
   }, [formData.last_service_date, formData.interval_value, formData.interval_type]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -399,7 +554,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
     ) {
       const nextMileage = calculateNextDueMileage();
       if (nextMileage && nextMileage !== formData.next_due_mileage) {
-        setFormData(prev => ({ ...prev, next_due_mileage: nextMileage }));
+        setFormData(prev => ({...prev, next_due_mileage: nextMileage}));
       }
     }
   }, [formData.last_service_mileage, formData.interval_value, formData.interval_type]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -420,64 +575,6 @@ const MaintenanceSchedules = ({ vehicles }) => {
         >
           <Plus size={20} />
         </button>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Filter by Vehicle</label>
-            <select
-              value={filters.vehicleId}
-              onChange={e => setFilters(prev => ({ ...prev, vehicleId: e.target.value }))}
-              className="w-full border border-border rounded-md px-3 py-2"
-            >
-              <option value="">All Vehicles</option>
-              {vehicles && vehicles.length > 0 ? (
-                vehicles.map((vehicle, index) => {
-                  // More robust vehicle ID extraction
-                  let vehicleIdStr = '';
-
-                  if (vehicle.id) {
-                    if (typeof vehicle.id === 'string') {
-                      vehicleIdStr = vehicle.id;
-                    } else if (vehicle.id.$oid) {
-                      vehicleIdStr = vehicle.id.$oid;
-                    } else {
-                      vehicleIdStr = String(vehicle.id);
-                    }
-                  } else if (vehicle._id) {
-                    if (typeof vehicle._id === 'string') {
-                      vehicleIdStr = vehicle._id;
-                    } else if (vehicle._id.$oid) {
-                      vehicleIdStr = vehicle._id.$oid;
-                    } else {
-                      vehicleIdStr = String(vehicle._id);
-                    }
-                  } else {
-                    vehicleIdStr = `vehicle-${index}`;
-                  }
-
-                  return (
-                    <option key={vehicleIdStr} value={vehicleIdStr}>
-                      {getVehicleName(vehicle.id || vehicle._id)}
-                    </option>
-                  );
-                })
-              ) : (
-                <option disabled>No vehicles available</option>
-              )}
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={() => setFilters({ vehicleId: '' })}
-              className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition"
-            >
-              Clear Filters
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Error Display */}
@@ -501,94 +598,311 @@ const MaintenanceSchedules = ({ vehicles }) => {
         </div>
       ) : (
         <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6 border border-border">
+          {/* Vehicle Search Bar */}
+          {showVehicleSearch && (
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-2">
+                <Search size={16} className="text-blue-600 dark:text-blue-400" />
+                <input
+                  type="text"
+                  placeholder="Search vehicles..."
+                  value={vehicleSearch}
+                  onChange={(e) => handleVehicleSearch(e.target.value)}
+                  className="flex-1 bg-transparent border-none outline-none text-blue-900 dark:text-blue-100 placeholder-blue-500"
+                  autoFocus
+                />
+                <button
+                  onClick={() => {
+                    setShowVehicleSearch(false);
+                    setVehicleSearch('');
+                  }}
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 font-medium">Vehicle</th>
-                  <th className="text-left py-3 px-4 font-medium">Maintenance Type</th>
-                  <th className="text-left py-3 px-4 font-medium">Interval</th>
-                  <th className="text-left py-3 px-4 font-medium">Last Service</th>
-                  <th className="text-left py-3 px-4 font-medium">Next Due</th>
-                  <th className="text-left py-3 px-4 font-medium">Status</th>
+                  {/* Vehicle Column - Sortable + Searchable */}
+                  <th className="text-left py-3 px-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleSort('vehicle')}
+                        className="flex items-center gap-1 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        Vehicle
+                        {sorting.field === 'vehicle' ? (
+                          sorting.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                        ) : (
+                          <ChevronUp size={16} className="opacity-30" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setShowVehicleSearch(!showVehicleSearch)}
+                        className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        title="Search vehicles"
+                      >
+                        <Search size={14} />
+                      </button>
+                    </div>
+                  </th>
+
+                  {/* Maintenance Type Column - Sortable + Groupable */}
+                  <th className="text-left py-3 px-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleSort('type')}
+                        className="flex items-center gap-1 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        Maintenance Type
+                        {sorting.field === 'type' ? (
+                          sorting.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                        ) : (
+                          <ChevronUp size={16} className="opacity-30" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleGroup('type')}
+                        className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        title="Group by type"
+                      >
+                        <Group size={14} className={grouping.field === 'type' ? 'text-blue-600 dark:text-blue-400' : ''} />
+                      </button>
+                    </div>
+                  </th>
+
+                  {/* Interval Column - Sortable + Groupable */}
+                  <th className="text-left py-3 px-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleSort('interval')}
+                        className="flex items-center gap-1 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        Interval
+                        {sorting.field === 'interval' ? (
+                          sorting.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                        ) : (
+                          <ChevronUp size={16} className="opacity-30" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleGroup('interval')}
+                        className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        title="Group by interval type"
+                      >
+                        <Group size={14} className={grouping.field === 'interval' ? 'text-blue-600 dark:text-blue-400' : ''} />
+                      </button>
+                    </div>
+                  </th>
+
+                  {/* Last Service Column - Sortable */}
+                  <th className="text-left py-3 px-4">
+                    <button
+                      onClick={() => handleSort('last_service')}
+                      className="flex items-center gap-1 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      Last Service
+                      {sorting.field === 'last_service' ? (
+                        sorting.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                      ) : (
+                        <ChevronUp size={16} className="opacity-30" />
+                      )}
+                    </button>
+                  </th>
+
+                  {/* Next Due Column - Sortable */}
+                  <th className="text-left py-3 px-4">
+                    <button
+                      onClick={() => handleSort('next_due')}
+                      className="flex items-center gap-1 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      Next Due
+                      {sorting.field === 'next_due' ? (
+                        sorting.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                      ) : (
+                        <ChevronUp size={16} className="opacity-30" />
+                      )}
+                    </button>
+                  </th>
+
+                  {/* Status Column - Groupable */}
+                  <th className="text-left py-3 px-4">
+                    <button
+                      onClick={() => handleGroup('status')}
+                      className="flex items-center gap-1 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      Status
+                      <Group size={16} className={grouping.field === 'status' ? 'text-blue-600 dark:text-blue-400' : 'opacity-30'} />
+                    </button>
+                  </th>
+
                   <th className="text-left py-3 px-4 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {currentSchedules.length > 0 ? (
-                  currentSchedules.map(schedule => (
-                    <tr key={schedule.id} className="border-b border-border hover:bg-accent/10">
-                      <td className="py-3 px-4">
-                        <div className="min-w-0">{getVehicleDisplay(schedule.vehicle_id)}</div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <p className="font-medium">
-                            {schedule.maintenance_type?.replace('_', ' ')}
-                          </p>
-                          {schedule.description && (
-                            <p className="text-sm text-muted-foreground">{schedule.description}</p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="text-sm">
-                          <p>
-                            Every {schedule.interval_value}{' '}
-                            {schedule.interval_type === 'mileage' ? 'km' : 'days'}
-                          </p>
-                          <p className="text-muted-foreground">({schedule.interval_type})</p>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="text-sm">
-                          {schedule.last_service_date && (
-                            <p>{new Date(schedule.last_service_date).toLocaleDateString()}</p>
-                          )}
-                          {schedule.last_service_mileage && (
-                            <p className="text-muted-foreground">
-                              {schedule.last_service_mileage.toLocaleString()} km
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="text-sm">
-                          {schedule.next_due_date && (
-                            <p>{new Date(schedule.next_due_date).toLocaleDateString()}</p>
-                          )}
-                          {schedule.next_due_mileage && (
-                            <p className="text-muted-foreground">
-                              {schedule.next_due_mileage.toLocaleString()} km
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">{getStatusIndicator(schedule)}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEdit(schedule)}
-                            className="text-blue-600 hover:text-blue-800 text-sm"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(schedule.id)}
-                            className="text-red-600 hover:text-red-800 text-sm"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                {grouping.field ? (
+                  // Grouped display
+                  Object.entries(grouping.groups).map(([groupValue, items]) => (
+                    <React.Fragment key={groupValue}>
+                      <tr className="bg-gray-100 dark:bg-gray-800">
+                        <td colSpan="7" className="py-2 px-4 font-medium text-gray-700 dark:text-gray-300">
+                          {grouping.field === 'type' && `Maintenance Type: ${groupValue}`}
+                          {grouping.field === 'interval' && `Interval Type: ${groupValue}`}
+                          {grouping.field === 'status' && `Status: ${groupValue}`}
+                          <span className="ml-2 text-sm text-gray-500">({items.length} items)</span>
+                        </td>
+                      </tr>
+                      {items.map((schedule) => (
+                        <tr key={schedule.id} className="border-b border-border hover:bg-accent/10">
+                          <td className="py-3 px-4">
+                            <div className="min-w-0">{getVehicleDisplay(schedule.vehicle_id)}</div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div>
+                              <p className="font-medium">
+                                {schedule.maintenance_type?.replace('_', ' ')}
+                              </p>
+                              {schedule.description && (
+                                <p className="text-sm text-muted-foreground">{schedule.description}</p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="text-sm">
+                              <p>
+                                Every {schedule.interval_value}{' '}
+                                {schedule.interval_type === 'mileage' ? 'km' : 'days'}
+                              </p>
+                              <p className="text-muted-foreground">({schedule.interval_type})</p>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="text-sm">
+                              {schedule.last_service_date && (
+                                <p>{new Date(schedule.last_service_date).toLocaleDateString()}</p>
+                              )}
+                              {schedule.last_service_mileage && (
+                                <p className="text-muted-foreground">
+                                  {schedule.last_service_mileage.toLocaleString()} km
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="text-sm">
+                              {schedule.next_due_date && (
+                                <p>{new Date(schedule.next_due_date).toLocaleDateString()}</p>
+                              )}
+                              {schedule.next_due_mileage && (
+                                <p className="text-muted-foreground">
+                                  {schedule.next_due_mileage.toLocaleString()} km
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">{getStatusIndicator(schedule)}</td>
+                          <td className="py-3 px-4">
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleEdit(schedule)}
+                                className="text-blue-600 hover:text-blue-800 text-sm"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(schedule.id)}
+                                className="text-red-600 hover:text-red-800 text-sm"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
                   ))
                 ) : (
-                  <tr>
-                    <td colSpan="7" className="py-8 text-center text-muted-foreground">
-                      No maintenance schedules found
-                    </td>
-                  </tr>
+                  // Regular display  
+                  currentSchedules.length > 0 ? (
+                    currentSchedules.map(schedule => (
+                      <tr key={schedule.id} className="border-b border-border hover:bg-accent/10">
+                        <td className="py-3 px-4">
+                          <div className="min-w-0">{getVehicleDisplay(schedule.vehicle_id)}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div>
+                            <p className="font-medium">
+                              {schedule.maintenance_type?.replace('_', ' ')}
+                            </p>
+                            {schedule.description && (
+                              <p className="text-sm text-muted-foreground">{schedule.description}</p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-sm">
+                            <p>
+                              Every {schedule.interval_value}{' '}
+                              {schedule.interval_type === 'mileage' ? 'km' : 'days'}
+                            </p>
+                            <p className="text-muted-foreground">({schedule.interval_type})</p>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-sm">
+                            {schedule.last_service_date && (
+                              <p>{new Date(schedule.last_service_date).toLocaleDateString()}</p>
+                            )}
+                            {schedule.last_service_mileage && (
+                              <p className="text-muted-foreground">
+                                {schedule.last_service_mileage.toLocaleString()} km
+                              </p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-sm">
+                            {schedule.next_due_date && (
+                              <p>{new Date(schedule.next_due_date).toLocaleDateString()}</p>
+                            )}
+                            {schedule.next_due_mileage && (
+                              <p className="text-muted-foreground">
+                                {schedule.next_due_mileage.toLocaleString()} km
+                              </p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">{getStatusIndicator(schedule)}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEdit(schedule)}
+                              className="text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(schedule.id)}
+                              className="text-red-600 hover:text-red-800 text-sm"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="7" className="py-8 text-center text-muted-foreground">
+                        No maintenance schedules found
+                      </td>
+                    </tr>
+                  )
                 )}
               </tbody>
             </table>
@@ -599,7 +913,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
       {/* Pagination - matching vehicles page style */}
       {totalPages > 1 && (
         <div className="mt-6 flex items-center justify-between">
-          <div>
+          <div className="flex items-center gap-4">
             <select
               value={itemsPerPage}
               onChange={changeItemsPerPage}
@@ -610,7 +924,21 @@ const MaintenanceSchedules = ({ vehicles }) => {
               <option value="20">20 per page</option>
               <option value="50">50 per page</option>
             </select>
+
+            {/* Context information */}
+            <div className="text-sm text-muted-foreground">
+              {vehicleSearch && (
+                <span className="mr-3">🔍 Searching: "{vehicleSearch}"</span>
+              )}
+              {grouping.field && (
+                <span className="mr-3">📁 Grouped by: {grouping.field}</span>
+              )}
+              {sorting.field && (
+                <span>↕️ Sorted by: {sorting.field} ({sorting.direction})</span>
+              )}
+            </div>
           </div>
+
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
               Page {currentPage} of {totalPages}
@@ -619,9 +947,8 @@ const MaintenanceSchedules = ({ vehicles }) => {
               <button
                 onClick={goToPrevPage}
                 disabled={currentPage === 1}
-                className={`p-1 rounded ${
-                  currentPage === 1 ? 'text-muted-foreground cursor-not-allowed' : 'hover:bg-accent'
-                }`}
+                className={`p-1 rounded ${currentPage === 1 ? 'text-muted-foreground cursor-not-allowed' : 'hover:bg-accent'
+                  }`}
                 title="Previous page"
               >
                 <ChevronLeft size={18} />
@@ -629,11 +956,10 @@ const MaintenanceSchedules = ({ vehicles }) => {
               <button
                 onClick={goToNextPage}
                 disabled={currentPage === totalPages}
-                className={`p-1 rounded ${
-                  currentPage === totalPages
-                    ? 'text-muted-foreground cursor-not-allowed'
-                    : 'hover:bg-accent'
-                }`}
+                className={`p-1 rounded ${currentPage === totalPages
+                  ? 'text-muted-foreground cursor-not-allowed'
+                  : 'hover:bg-accent'
+                  }`}
                 title="Next page"
               >
                 <ChevronRight size={18} />
@@ -657,7 +983,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
                   <label className="block text-sm font-medium mb-1">Vehicle *</label>
                   <select
                     value={formData.vehicle_id}
-                    onChange={e => setFormData(prev => ({ ...prev, vehicle_id: e.target.value }))}
+                    onChange={e => setFormData(prev => ({...prev, vehicle_id: e.target.value}))}
                     required
                     className="w-full border border-border rounded-md px-3 py-2"
                   >
@@ -704,7 +1030,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
                   <select
                     value={formData.maintenance_type}
                     onChange={e =>
-                      setFormData(prev => ({ ...prev, maintenance_type: e.target.value }))
+                      setFormData(prev => ({...prev, maintenance_type: e.target.value}))
                     }
                     required
                     className="w-full border border-border rounded-md px-3 py-2"
@@ -723,7 +1049,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
                   <input
                     type="text"
                     value={formData.title}
-                    onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                    onChange={e => setFormData(prev => ({...prev, title: e.target.value}))}
                     required
                     className="w-full border border-border rounded-md px-3 py-2"
                     placeholder="Enter schedule title (e.g., Oil Change Schedule)"
@@ -736,7 +1062,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
                     type="date"
                     value={formData.scheduled_date}
                     onChange={e =>
-                      setFormData(prev => ({ ...prev, scheduled_date: e.target.value }))
+                      setFormData(prev => ({...prev, scheduled_date: e.target.value}))
                     }
                     required
                     className="w-full border border-border rounded-md px-3 py-2"
@@ -748,7 +1074,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
                   <select
                     value={formData.interval_type}
                     onChange={e =>
-                      setFormData(prev => ({ ...prev, interval_type: e.target.value }))
+                      setFormData(prev => ({...prev, interval_type: e.target.value}))
                     }
                     required
                     className="w-full border border-border rounded-md px-3 py-2"
@@ -769,7 +1095,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
                     type="number"
                     value={formData.interval_value}
                     onChange={e =>
-                      setFormData(prev => ({ ...prev, interval_value: e.target.value }))
+                      setFormData(prev => ({...prev, interval_value: e.target.value}))
                     }
                     required
                     className="w-full border border-border rounded-md px-3 py-2"
@@ -783,7 +1109,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
                     type="date"
                     value={formData.last_service_date}
                     onChange={e =>
-                      setFormData(prev => ({ ...prev, last_service_date: e.target.value }))
+                      setFormData(prev => ({...prev, last_service_date: e.target.value}))
                     }
                     className="w-full border border-border rounded-md px-3 py-2"
                   />
@@ -797,7 +1123,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
                     type="number"
                     value={formData.last_service_mileage}
                     onChange={e =>
-                      setFormData(prev => ({ ...prev, last_service_mileage: e.target.value }))
+                      setFormData(prev => ({...prev, last_service_mileage: e.target.value}))
                     }
                     className="w-full border border-border rounded-md px-3 py-2"
                     placeholder="e.g., 50000"
@@ -810,7 +1136,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
                     type="date"
                     value={formData.next_due_date}
                     onChange={e =>
-                      setFormData(prev => ({ ...prev, next_due_date: e.target.value }))
+                      setFormData(prev => ({...prev, next_due_date: e.target.value}))
                     }
                     className="w-full border border-border rounded-md px-3 py-2"
                   />
@@ -822,7 +1148,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
                     type="number"
                     value={formData.next_due_mileage}
                     onChange={e =>
-                      setFormData(prev => ({ ...prev, next_due_mileage: e.target.value }))
+                      setFormData(prev => ({...prev, next_due_mileage: e.target.value}))
                     }
                     className="w-full border border-border rounded-md px-3 py-2"
                     placeholder="e.g., 60000"
@@ -834,7 +1160,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
                 <label className="block text-sm font-medium mb-1">Description</label>
                 <textarea
                   value={formData.description}
-                  onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  onChange={e => setFormData(prev => ({...prev, description: e.target.value}))}
                   className="w-full border border-border rounded-md px-3 py-2"
                   rows="3"
                   placeholder="Describe the scheduled maintenance..."
@@ -846,7 +1172,7 @@ const MaintenanceSchedules = ({ vehicles }) => {
                   type="checkbox"
                   id="is_active"
                   checked={formData.is_active}
-                  onChange={e => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
+                  onChange={e => setFormData(prev => ({...prev, is_active: e.target.checked}))}
                   className="rounded border-border"
                 />
                 <label htmlFor="is_active" className="ml-2 text-sm font-medium">

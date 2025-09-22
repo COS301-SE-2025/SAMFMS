@@ -302,21 +302,19 @@ class VehicleSimulator:
             )
 
             
-            # Publish event
-            #await event_publisher.publish("vehicle.location_updated", {
-                #"vehicle_id": self.vehicle_id,
-                #"trip_id": self.trip_id,
-                #"location": {
-                #    "latitude": lat,
-               #     "longitude": lon,
-              #      "timestamp": location_doc["timestamp"].isoformat()
-             #   }
-            #})
-            
-            #logger.info(f"Updated location for vehicle {self.vehicle_id}: {lat:.6f}, {lon:.6f}")
-            
         except Exception as e:
             logger.error(f"Failed to update vehicle location: {e}")
+
+        # After updating position, check if this trip needs traffic analysis
+        if self.current_position > 0.1 and self.current_position < 0.9:  # Middle of journey
+            try:
+                # Import here to avoid circular imports
+                from services.smart_trip_planning_service import smart_trip_service
+                
+                # Trigger traffic analysis for this trip (non-blocking)
+                asyncio.create_task(smart_trip_service._analyze_route_traffic(self.trip_id,self.vehicle_id))
+            except Exception as e:
+                logger.warning(f"Failed to trigger traffic analysis: {e}")
         
         return True
     

@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
-import { maintenanceAPI } from '../../backend/api/maintenance';
-import { getVehicle } from '../../backend/api/vehicles';
+import React, {useState, useEffect} from 'react';
+import {Plus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, Group} from 'lucide-react';
+import {maintenanceAPI} from '../../backend/api/maintenance';
+import {getVehicle} from '../../backend/api/vehicles';
 
 // Component to display vehicle details with direct API calls
-const VehicleDetailDisplay = ({ vehicleId, fetchVehicleDetails }) => {
+const VehicleDetailDisplay = ({vehicleId, fetchVehicleDetails}) => {
   const [vehicleDetails, setVehicleDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -66,23 +66,28 @@ const VehicleDetailDisplay = ({ vehicleId, fetchVehicleDetails }) => {
   );
 };
 
-const MaintenanceRecords = ({ vehicles }) => {
+const MaintenanceRecords = ({vehicles}) => {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
-  const [filters, setFilters] = useState({
-    vehicleId: '',
-    status: '',
-    page: 1,
-    size: 5,
+
+  // Updated state for sorting, searching, and grouping
+  const [sorting, setSorting] = useState({
+    field: null,
+    direction: 'asc' // 'asc' or 'desc'
   });
-  const [pagination, setPagination] = useState({
-    total: 0,
-    pages: 0,
-    current_page: 1,
+  const [grouping, setGrouping] = useState({
+    field: null, // 'type', 'status', 'priority'
+    groups: {}
   });
+  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [showVehicleSearch, setShowVehicleSearch] = useState(false);
+
+  // Simple pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const [formData, setFormData] = useState({
     vehicle_id: '',
@@ -123,14 +128,21 @@ const MaintenanceRecords = ({ vehicles }) => {
 
   useEffect(() => {
     loadRecords();
-  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset to page 1 when sorting or grouping changes
+  useEffect(() => {
+    if (sorting.field || grouping.field) {
+      setCurrentPage(1);
+    }
+  }, [sorting.field, grouping.field]);
 
   // Debug vehicles prop
   useEffect(() => {
     console.log('MaintenanceRecords: Vehicles prop updated:', {
       count: vehicles?.length,
       sampleVehicle: vehicles?.[0],
-      vehicleIds: vehicles?.slice(0, 3).map(v => ({ id: v.id, _id: v._id })),
+      vehicleIds: vehicles?.slice(0, 3).map(v => ({id: v.id, _id: v._id})),
     });
   }, [vehicles]);
 
@@ -139,44 +151,10 @@ const MaintenanceRecords = ({ vehicles }) => {
       setLoading(true);
       setError(null);
 
-      // Calculate skip for pagination
-      const skip = (filters.page - 1) * filters.size;
+      console.log('Loading all maintenance records...');
 
-      // Build query parameters matching the API
-      const params = {
-        skip,
-        limit: filters.size,
-      };
-
-      // Only add vehicle_id if it exists and is valid
-      if (filters.vehicleId && filters.vehicleId.trim()) {
-        params.vehicle_id = filters.vehicleId.trim();
-      }
-
-      if (filters.status && filters.status.trim()) {
-        params.status = filters.status.trim();
-      }
-
-      console.log('API Request Parameters:', params);
-      console.log('Final API URL will be constructed with:', JSON.stringify(params, null, 2));
-
-      // Call the API with individual parameters instead of an object
-      const vehicleIdParam =
-        filters.vehicleId && filters.vehicleId.trim() ? filters.vehicleId.trim() : null;
-      const statusParam = filters.status && filters.status.trim() ? filters.status.trim() : null;
-
-      console.log('Calling maintenanceAPI.getMaintenanceRecords with parameters:');
-      console.log('- vehicleIdParam:', vehicleIdParam, '(type:', typeof vehicleIdParam, ')');
-      console.log('- statusParam:', statusParam, '(type:', typeof statusParam, ')');
-      console.log('- page:', filters.page);
-      console.log('- size:', filters.size);
-
-      const response = await maintenanceAPI.getMaintenanceRecords(
-        vehicleIdParam,
-        statusParam,
-        filters.page,
-        filters.size
-      );
+      // Call the API to get all records (no pagination at API level)
+      const response = await maintenanceAPI.getMaintenanceRecords();
 
       console.log('Maintenance Records API Response:', response);
 
@@ -186,21 +164,170 @@ const MaintenanceRecords = ({ vehicles }) => {
       const records = innerData.maintenance_records || innerData.records || innerData || [];
 
       console.log('Extracted records:', records);
-      console.log('Total from API:', innerData.total);
+      console.log('Total records loaded:', records.length);
 
       setRecords(records);
-      setPagination({
-        total: innerData.total || 0,
-        pages: Math.ceil((innerData.total || 0) / filters.size),
-        current_page: filters.page || 1,
-        has_more: innerData.has_more || false,
-      });
     } catch (err) {
       console.error('Error loading maintenance records:', err);
       setError('Failed to load maintenance records. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Sorting functions
+  const handleSort = (field) => {
+    setSorting(prev => ({
+      field,
+      direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+    // Clear grouping when sorting
+    setGrouping({field: null, groups: {}});
+  };
+
+  // Grouping functions
+  const handleGroup = (field) => {
+    if (grouping.field === field) {
+      // Clear grouping if clicking same field
+      setGrouping({field: null, groups: {}});
+      return;
+    }
+
+    const groups = {};
+    records.forEach(record => {
+      let groupKey;
+      switch (field) {
+        case 'type':
+          groupKey = record.maintenance_type || 'Unknown';
+          break;
+        case 'status':
+          groupKey = record.status || 'Unknown';
+          break;
+        case 'priority':
+          groupKey = record.priority || 'Unknown';
+          break;
+        default:
+          groupKey = 'Unknown';
+      }
+
+      if (!groups[groupKey]) {
+        groups[groupKey] = [];
+      }
+      groups[groupKey].push(record);
+    });
+
+    setGrouping({field, groups});
+    // Clear sorting when grouping
+    setSorting({field: null, direction: 'asc'});
+  };
+
+  // Vehicle search function
+  const handleVehicleSearch = (searchTerm) => {
+    setVehicleSearch(searchTerm);
+    // Reset to first page when searching
+    setCurrentPage(1);
+  };
+
+  // Simple pagination functions
+  const handlePageSizeChange = (newSize) => {
+    const newSizeNum = Number(newSize);
+    setPageSize(newSizeNum);
+    setCurrentPage(1); // Reset to first page when changing page size
+  };
+
+  const handlePageChange = (newPage) => {
+    const totalRecords = getFilteredRecords().length;
+    const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  // Get records with search and sort filters applied
+  const getFilteredRecords = () => {
+    let filteredRecords = [...records];
+
+    // Apply vehicle search filter
+    if (vehicleSearch.trim()) {
+      filteredRecords = filteredRecords.filter(record => {
+        const vehicleName = getVehicleName(record.vehicle_id).toLowerCase();
+        return vehicleName.includes(vehicleSearch.toLowerCase());
+      });
+    }
+
+    // Apply sorting if not grouping
+    if (sorting.field && !grouping.field) {
+      filteredRecords.sort((a, b) => {
+        let aValue, bValue;
+
+        switch (sorting.field) {
+          case 'vehicle':
+            aValue = getVehicleName(a.vehicle_id);
+            bValue = getVehicleName(b.vehicle_id);
+            break;
+          case 'date':
+            aValue = new Date(a.scheduled_date || 0);
+            bValue = new Date(b.scheduled_date || 0);
+            break;
+          case 'cost':
+            aValue = a.actual_cost || a.estimated_cost || 0;
+            bValue = b.actual_cost || b.estimated_cost || 0;
+            break;
+          default:
+            aValue = a[sorting.field] || '';
+            bValue = b[sorting.field] || '';
+        }
+
+        if (aValue < bValue) return sorting.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sorting.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filteredRecords;
+  };
+
+  // Get paginated records for display
+  const getPaginatedRecords = () => {
+    const filteredRecords = getFilteredRecords();
+
+    // If grouping is active, handle it separately
+    if (grouping.field) {
+      return filteredRecords; // Don't paginate when grouping
+    }
+
+    // Apply pagination
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+
+    console.log('Simple Pagination:', {
+      totalRecords: filteredRecords.length,
+      currentPage,
+      pageSize,
+      startIndex,
+      endIndex,
+      resultCount: filteredRecords.slice(startIndex, endIndex).length
+    });
+
+    return filteredRecords.slice(startIndex, endIndex);
+  };
+
+  // Calculate pagination info for current view  
+  const getPaginationInfo = () => {
+    const filteredRecords = getFilteredRecords();
+    const totalRecords = filteredRecords.length;
+    const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+    const startRecord = totalRecords > 0 ? Math.min((currentPage - 1) * pageSize + 1, totalRecords) : 0;
+    const endRecord = Math.min(currentPage * pageSize, totalRecords);
+
+    return {
+      total: totalRecords,
+      pages: totalPages,
+      current_page: Math.min(currentPage, totalPages),
+      startRecord,
+      endRecord
+    };
   };
 
   const handleSubmit = async e => {
@@ -327,9 +454,8 @@ const MaintenanceRecords = ({ vehicles }) => {
     }
 
     // If no vehicle found, return truncated ID for readability
-    return `Vehicle ${
-      vehicleIdStr.length > 8 ? vehicleIdStr.substring(0, 8) + '...' : vehicleIdStr
-    }`;
+    return `Vehicle ${vehicleIdStr.length > 8 ? vehicleIdStr.substring(0, 8) + '...' : vehicleIdStr
+      }`;
   };
 
   const formatVehicleDisplay = vehicle => {
@@ -360,28 +486,6 @@ const MaintenanceRecords = ({ vehicles }) => {
 
     const vehicleIdStr = vehicleId.toString();
 
-    // Check if we have this vehicle in the fallback data first
-    const fallbackVehicle = vehicles?.find(v => {
-      const vId = v.id?.toString() || v._id?.toString();
-      return vId === vehicleIdStr;
-    });
-
-    if (fallbackVehicle) {
-      console.log(`Using fallback vehicle for ${vehicleIdStr}:`, fallbackVehicle);
-      return (
-        <div className="text-sm">
-          <div className="font-medium">
-            {fallbackVehicle.year && `${fallbackVehicle.year} `}
-            {fallbackVehicle.make && `${fallbackVehicle.make} `}
-            {fallbackVehicle.model || 'Vehicle'}
-          </div>
-          {fallbackVehicle.license_plate && (
-            <div className="text-xs text-muted-foreground">{fallbackVehicle.license_plate}</div>
-          )}
-        </div>
-      );
-    }
-
     // Return a component that will fetch and display vehicle details
     return (
       <VehicleDetailDisplay vehicleId={vehicleIdStr} fetchVehicleDetails={fetchVehicleDetails} />
@@ -398,9 +502,8 @@ const MaintenanceRecords = ({ vehicles }) => {
 
     return (
       <span
-        className={`px-2 py-1 rounded-full text-xs ${
-          statusConfig[status] || statusConfig.scheduled
-        }`}
+        className={`px-2 py-1 rounded-full text-xs ${statusConfig[status] || statusConfig.scheduled
+          }`}
       >
         {status}
       </span>
@@ -417,9 +520,8 @@ const MaintenanceRecords = ({ vehicles }) => {
 
     return (
       <span
-        className={`px-2 py-1 rounded-full text-xs ${
-          priorityConfig[priority] || priorityConfig.medium
-        }`}
+        className={`px-2 py-1 rounded-full text-xs ${priorityConfig[priority] || priorityConfig.medium
+          }`}
       >
         {priority}
       </span>
@@ -444,95 +546,6 @@ const MaintenanceRecords = ({ vehicles }) => {
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Filter by Vehicle</label>
-            <select
-              value={filters.vehicleId}
-              onChange={e => {
-                const selectedValue = e.target.value;
-                console.log(
-                  'Vehicle filter changed to:',
-                  selectedValue,
-                  '(type:',
-                  typeof selectedValue,
-                  ')'
-                );
-                setFilters(prev => ({ ...prev, vehicleId: selectedValue, page: 1 }));
-              }}
-              className="w-full border border-border rounded-md px-3 py-2"
-            >
-              <option value="">All Vehicles</option>
-              {vehicles && vehicles.length > 0 ? (
-                vehicles.map((vehicle, index) => {
-                  // More robust vehicle ID extraction
-                  let vehicleIdStr = '';
-
-                  if (vehicle.id) {
-                    if (typeof vehicle.id === 'string') {
-                      vehicleIdStr = vehicle.id;
-                    } else if (vehicle.id.$oid) {
-                      vehicleIdStr = vehicle.id.$oid;
-                    } else {
-                      vehicleIdStr = String(vehicle.id);
-                    }
-                  } else if (vehicle._id) {
-                    if (typeof vehicle._id === 'string') {
-                      vehicleIdStr = vehicle._id;
-                    } else if (vehicle._id.$oid) {
-                      vehicleIdStr = vehicle._id.$oid;
-                    } else {
-                      vehicleIdStr = String(vehicle._id);
-                    }
-                  } else {
-                    vehicleIdStr = `vehicle-${index}`;
-                  }
-
-                  console.log(`Vehicle ${index}:`, {
-                    original: vehicle,
-                    extractedId: vehicleIdStr,
-                    idType: typeof vehicleIdStr,
-                  });
-
-                  return (
-                    <option key={vehicleIdStr} value={vehicleIdStr}>
-                      {getVehicleName(vehicle.id || vehicle._id)}
-                    </option>
-                  );
-                })
-              ) : (
-                <option disabled>No vehicles available</option>
-              )}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Filter by Status</label>
-            <select
-              value={filters.status}
-              onChange={e => setFilters(prev => ({ ...prev, status: e.target.value, page: 1 }))}
-              className="w-full border border-border rounded-md px-3 py-2"
-            >
-              <option value="">All Statuses</option>
-              {statusOptions.map(status => (
-                <option key={status} value={status}>
-                  {status.replace('_', ' ').toUpperCase()}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={() => setFilters({ vehicleId: '', status: '', page: 1, size: 5 })}
-              className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition"
-            >
-              Clear Filters
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Error Display */}
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
@@ -554,186 +567,382 @@ const MaintenanceRecords = ({ vehicles }) => {
         </div>
       ) : (
         <>
-          {/* Records Table - matching vehicles page structure */}
+          {/* Records Table - with interactive headers */}
           <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6 border border-border">
+            {/* Vehicle Search Bar */}
+            {showVehicleSearch && (
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-2">
+                  <Search size={16} className="text-blue-600 dark:text-blue-400" />
+                  <input
+                    type="text"
+                    placeholder="Search vehicles..."
+                    value={vehicleSearch}
+                    onChange={(e) => handleVehicleSearch(e.target.value)}
+                    className="flex-1 bg-transparent border-none outline-none text-blue-900 dark:text-blue-100 placeholder-blue-500"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => {
+                      setShowVehicleSearch(false);
+                      setVehicleSearch('');
+                    }}
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 font-medium">Vehicle</th>
-                    <th className="text-left py-3 px-4 font-medium">Type</th>
-                    <th className="text-left py-3 px-4 font-medium">Date</th>
-                    <th className="text-left py-3 px-4 font-medium">Cost</th>
-                    <th className="text-left py-3 px-4 font-medium">Status</th>
-                    <th className="text-left py-3 px-4 font-medium">Priority</th>
+                    {/* Vehicle Column - Sortable + Searchable */}
+                    <th className="text-left py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleSort('vehicle')}
+                          className="flex items-center gap-1 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                          Vehicle
+                          {sorting.field === 'vehicle' ? (
+                            sorting.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                          ) : (
+                            <ChevronUp size={16} className="opacity-30" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setShowVehicleSearch(!showVehicleSearch)}
+                          className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          title="Search vehicles"
+                        >
+                          <Search size={14} />
+                        </button>
+                      </div>
+                    </th>
+
+                    {/* Type Column - Groupable */}
+                    <th className="text-left py-3 px-4">
+                      <button
+                        onClick={() => handleGroup('type')}
+                        className="flex items-center gap-1 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        Type
+                        <Group size={16} className={grouping.field === 'type' ? 'text-blue-600 dark:text-blue-400' : 'opacity-30'} />
+                      </button>
+                    </th>
+
+                    {/* Date Column - Sortable */}
+                    <th className="text-left py-3 px-4">
+                      <button
+                        onClick={() => handleSort('date')}
+                        className="flex items-center gap-1 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        Date
+                        {sorting.field === 'date' ? (
+                          sorting.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                        ) : (
+                          <ChevronUp size={16} className="opacity-30" />
+                        )}
+                      </button>
+                    </th>
+
+                    {/* Cost Column - Sortable */}
+                    <th className="text-left py-3 px-4">
+                      <button
+                        onClick={() => handleSort('cost')}
+                        className="flex items-center gap-1 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        Cost
+                        {sorting.field === 'cost' ? (
+                          sorting.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                        ) : (
+                          <ChevronUp size={16} className="opacity-30" />
+                        )}
+                      </button>
+                    </th>
+
+                    {/* Status Column - Groupable */}
+                    <th className="text-left py-3 px-4">
+                      <button
+                        onClick={() => handleGroup('status')}
+                        className="flex items-center gap-1 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        Status
+                        <Group size={16} className={grouping.field === 'status' ? 'text-blue-600 dark:text-blue-400' : 'opacity-30'} />
+                      </button>
+                    </th>
+
+                    {/* Priority Column - Groupable */}
+                    <th className="text-left py-3 px-4">
+                      <button
+                        onClick={() => handleGroup('priority')}
+                        className="flex items-center gap-1 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        Priority
+                        <Group size={16} className={grouping.field === 'priority' ? 'text-blue-600 dark:text-blue-400' : 'opacity-30'} />
+                      </button>
+                    </th>
+
                     <th className="text-left py-3 px-4 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {records.length > 0 ? (
-                    records.map(record => (
-                      <tr key={record.id} className="border-b border-border hover:bg-accent/10">
-                        <td className="py-3 px-4">
-                          <div className="min-w-0">{getVehicleDisplay(record.vehicle_id)}</div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div>
-                            <p className="font-medium">
-                              {record.title ||
-                                record.maintenance_type?.replace('_', ' ') ||
-                                'Unknown Type'}
-                            </p>
-                            {record.description && (
-                              <p
-                                className="text-sm text-muted-foreground truncate max-w-xs"
-                                title={record.description}
-                              >
-                                {record.description}
-                              </p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div>
-                            <p className="text-sm">
-                              <span className="font-medium">Scheduled:</span>{' '}
-                              {record.scheduled_date
-                                ? new Date(record.scheduled_date).toLocaleDateString()
-                                : 'Not set'}
-                            </p>
-                            {record.completed_date && (
-                              <p className="text-sm text-muted-foreground">
-                                <span className="font-medium">Completed:</span>{' '}
-                                {new Date(record.completed_date).toLocaleDateString()}
-                              </p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div>
-                            {record.actual_cost && (
-                              <p className="font-medium">R{record.actual_cost?.toLocaleString()}</p>
-                            )}
-                            {record.estimated_cost && (
-                              <p className="text-sm text-muted-foreground">
-                                Est: R{record.estimated_cost?.toLocaleString()}
-                              </p>
-                            )}
-                            {!record.actual_cost && !record.estimated_cost && (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">{getStatusBadge(record.status)}</td>
-                        <td className="py-3 px-4">{getPriorityBadge(record.priority)}</td>
-                        <td className="py-3 px-4">
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleEdit(record)}
-                              className="text-blue-600 hover:text-blue-800 text-sm"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(record.id)}
-                              className="text-red-600 hover:text-red-800 text-sm"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                  {grouping.field ? (
+                    // Grouped display
+                    Object.entries(grouping.groups).map(([groupKey, groupRecords]) => (
+                      <React.Fragment key={groupKey}>
+                        {/* Group Header */}
+                        <tr className="bg-blue-50 dark:bg-blue-900/30">
+                          <td colSpan="7" className="py-3 px-4 font-semibold text-blue-800 dark:text-blue-200">
+                            {grouping.field.charAt(0).toUpperCase() + grouping.field.slice(1)}: {groupKey.replace('_', ' ').toUpperCase()}
+                            <span className="ml-2 text-sm font-normal">({groupRecords.length} record{groupRecords.length !== 1 ? 's' : ''})</span>
+                          </td>
+                        </tr>
+                        {/* Group Records */}
+                        {groupRecords.map(record => (
+                          <tr key={record.id} className="border-b border-border hover:bg-accent/10">
+                            <td className="py-3 px-4">
+                              <div className="min-w-0">{getVehicleDisplay(record.vehicle_id)}</div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div>
+                                <p className="font-medium">
+                                  {record.title ||
+                                    record.maintenance_type?.replace('_', ' ') ||
+                                    'Unknown Type'}
+                                </p>
+                                {record.description && (
+                                  <p
+                                    className="text-sm text-muted-foreground truncate max-w-xs"
+                                    title={record.description}
+                                  >
+                                    {record.description}
+                                  </p>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div>
+                                <p className="text-sm">
+                                  <span className="font-medium">Scheduled:</span>{' '}
+                                  {record.scheduled_date
+                                    ? new Date(record.scheduled_date).toLocaleDateString()
+                                    : 'Not set'}
+                                </p>
+                                {record.completed_date && (
+                                  <p className="text-sm text-muted-foreground">
+                                    <span className="font-medium">Completed:</span>{' '}
+                                    {new Date(record.completed_date).toLocaleDateString()}
+                                  </p>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div>
+                                {record.actual_cost && (
+                                  <p className="font-medium">R{record.actual_cost?.toLocaleString()}</p>
+                                )}
+                                {record.estimated_cost && (
+                                  <p className="text-sm text-muted-foreground">
+                                    Est: R{record.estimated_cost?.toLocaleString()}
+                                  </p>
+                                )}
+                                {!record.actual_cost && !record.estimated_cost && (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">{getStatusBadge(record.status)}</td>
+                            <td className="py-3 px-4">{getPriorityBadge(record.priority)}</td>
+                            <td className="py-3 px-4">
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleEdit(record)}
+                                  className="text-blue-600 hover:text-blue-800 text-sm"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(record.id)}
+                                  className="text-red-600 hover:text-red-800 text-sm"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
                     ))
                   ) : (
-                    <tr>
-                      <td colSpan="7" className="py-8 text-center text-muted-foreground">
-                        No maintenance records found
-                      </td>
-                    </tr>
+                    // Regular display (sorted/filtered) - use paginated records
+                    getPaginatedRecords().length > 0 ? (
+                      getPaginatedRecords().map(record => (
+                        <tr key={record.id} className="border-b border-border hover:bg-accent/10">
+                          <td className="py-3 px-4">
+                            <div className="min-w-0">{getVehicleDisplay(record.vehicle_id)}</div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div>
+                              <p className="font-medium">
+                                {record.title ||
+                                  record.maintenance_type?.replace('_', ' ') ||
+                                  'Unknown Type'}
+                              </p>
+                              {record.description && (
+                                <p
+                                  className="text-sm text-muted-foreground truncate max-w-xs"
+                                  title={record.description}
+                                >
+                                  {record.description}
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div>
+                              <p className="text-sm">
+                                <span className="font-medium">Scheduled:</span>{' '}
+                                {record.scheduled_date
+                                  ? new Date(record.scheduled_date).toLocaleDateString()
+                                  : 'Not set'}
+                              </p>
+                              {record.completed_date && (
+                                <p className="text-sm text-muted-foreground">
+                                  <span className="font-medium">Completed:</span>{' '}
+                                  {new Date(record.completed_date).toLocaleDateString()}
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div>
+                              {record.actual_cost && (
+                                <p className="font-medium">R{record.actual_cost?.toLocaleString()}</p>
+                              )}
+                              {record.estimated_cost && (
+                                <p className="text-sm text-muted-foreground">
+                                  Est: R{record.estimated_cost?.toLocaleString()}
+                                </p>
+                              )}
+                              {!record.actual_cost && !record.estimated_cost && (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">{getStatusBadge(record.status)}</td>
+                          <td className="py-3 px-4">{getPriorityBadge(record.priority)}</td>
+                          <td className="py-3 px-4">
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleEdit(record)}
+                                className="text-blue-600 hover:text-blue-800 text-sm"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(record.id)}
+                                className="text-red-600 hover:text-red-800 text-sm"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="7" className="py-8 text-center text-muted-foreground">
+                          {vehicleSearch ? 'No maintenance records found matching your search' : 'No maintenance records found'}
+                        </td>
+                      </tr>
+                    )
                   )}
                 </tbody>
               </table>
             </div>
 
-            {/* Pagination - Enhanced */}
-            {pagination.total > 0 && (
-              <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <select
-                    value={filters.size}
-                    onChange={e =>
-                      setFilters(prev => ({ ...prev, size: Number(e.target.value), page: 1 }))
-                    }
-                    className="border border-border rounded-md bg-background py-1 pl-2 pr-8"
-                  >
-                    <option value="5">5 per page</option>
-                    <option value="10">10 per page</option>
-                    <option value="20">20 per page</option>
-                    <option value="50">50 per page</option>
-                  </select>
-                  <div className="text-sm text-muted-foreground">
-                    Showing {(filters.page - 1) * filters.size + 1} to{' '}
-                    {Math.min(filters.page * filters.size, pagination.total)} of {pagination.total}{' '}
-                    records
+            {/* Pagination Controls */}
+            {(() => {
+              const paginationInfo = getPaginationInfo();
+              return paginationInfo.total > 0 && !grouping.field && (
+                <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <select
+                      value={pageSize}
+                      onChange={e => handlePageSizeChange(e.target.value)}
+                      className="border border-border rounded-md bg-background py-1 pl-2 pr-8"
+                    >
+                      <option value="5">5 per page</option>
+                      <option value="10">10 per page</option>
+                      <option value="20">20 per page</option>
+                      <option value="50">50 per page</option>
+                    </select>
+                    <div className="text-sm text-muted-foreground">
+                      Showing {paginationInfo.startRecord} to{' '}
+                      {paginationInfo.endRecord} of {paginationInfo.total}{' '}
+                      records
+                      {vehicleSearch && <span className="text-blue-600"> (filtered)</span>}
+                      {sorting.field && <span className="text-blue-600"> (sorted by {sorting.field})</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      Page {paginationInfo.current_page} of {paginationInfo.pages}
+                    </span>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handlePageChange(1)}
+                        disabled={paginationInfo.current_page <= 1}
+                        className={`px-2 py-1 rounded text-sm ${paginationInfo.current_page <= 1
+                          ? 'text-muted-foreground cursor-not-allowed'
+                          : 'hover:bg-accent cursor-pointer'
+                          }`}
+                        title="First page"
+                      >
+                        First
+                      </button>
+                      <button
+                        onClick={() => handlePageChange(paginationInfo.current_page - 1)}
+                        disabled={paginationInfo.current_page <= 1}
+                        className={`p-1 rounded ${paginationInfo.current_page <= 1
+                          ? 'text-muted-foreground cursor-not-allowed'
+                          : 'hover:bg-accent cursor-pointer'
+                          }`}
+                        title="Previous page"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <button
+                        onClick={() => handlePageChange(paginationInfo.current_page + 1)}
+                        disabled={paginationInfo.current_page >= paginationInfo.pages}
+                        className={`p-1 rounded ${paginationInfo.current_page >= paginationInfo.pages
+                          ? 'text-muted-foreground cursor-not-allowed'
+                          : 'hover:bg-accent cursor-pointer'
+                          }`}
+                        title="Next page"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                      <button
+                        onClick={() => handlePageChange(paginationInfo.pages)}
+                        disabled={paginationInfo.current_page >= paginationInfo.pages}
+                        className={`px-2 py-1 rounded text-sm ${paginationInfo.current_page >= paginationInfo.pages
+                          ? 'text-muted-foreground cursor-not-allowed'
+                          : 'hover:bg-accent cursor-pointer'
+                          }`}
+                        title="Last page"
+                      >
+                        Last
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">
-                    Page {pagination.current_page} of {pagination.pages}
-                  </span>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => setFilters(prev => ({ ...prev, page: 1 }))}
-                      disabled={pagination.current_page <= 1}
-                      className={`px-2 py-1 rounded text-sm ${
-                        pagination.current_page <= 1
-                          ? 'text-muted-foreground cursor-not-allowed'
-                          : 'hover:bg-accent'
-                      }`}
-                      title="First page"
-                    >
-                      First
-                    </button>
-                    <button
-                      onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
-                      disabled={pagination.current_page <= 1}
-                      className={`p-1 rounded ${
-                        pagination.current_page <= 1
-                          ? 'text-muted-foreground cursor-not-allowed'
-                          : 'hover:bg-accent'
-                      }`}
-                      title="Previous page"
-                    >
-                      <ChevronLeft size={18} />
-                    </button>
-                    <button
-                      onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
-                      disabled={pagination.current_page >= pagination.pages}
-                      className={`p-1 rounded ${
-                        pagination.current_page >= pagination.pages
-                          ? 'text-muted-foreground cursor-not-allowed'
-                          : 'hover:bg-accent'
-                      }`}
-                      title="Next page"
-                    >
-                      <ChevronRight size={18} />
-                    </button>
-                    <button
-                      onClick={() => setFilters(prev => ({ ...prev, page: pagination.pages }))}
-                      disabled={pagination.current_page >= pagination.pages}
-                      className={`px-2 py-1 rounded text-sm ${
-                        pagination.current_page >= pagination.pages
-                          ? 'text-muted-foreground cursor-not-allowed'
-                          : 'hover:bg-accent'
-                      }`}
-                      title="Last page"
-                    >
-                      Last
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </>
       )}
@@ -752,7 +961,7 @@ const MaintenanceRecords = ({ vehicles }) => {
                   <label className="block text-sm font-medium mb-1">Vehicle *</label>
                   <select
                     value={formData.vehicle_id}
-                    onChange={e => setFormData(prev => ({ ...prev, vehicle_id: e.target.value }))}
+                    onChange={e => setFormData(prev => ({...prev, vehicle_id: e.target.value}))}
                     required
                     className="w-full border border-border rounded-md px-3 py-2"
                   >
@@ -799,7 +1008,7 @@ const MaintenanceRecords = ({ vehicles }) => {
                   <select
                     value={formData.maintenance_type}
                     onChange={e =>
-                      setFormData(prev => ({ ...prev, maintenance_type: e.target.value }))
+                      setFormData(prev => ({...prev, maintenance_type: e.target.value}))
                     }
                     required
                     className="w-full border border-border rounded-md px-3 py-2"
@@ -818,7 +1027,7 @@ const MaintenanceRecords = ({ vehicles }) => {
                   <input
                     type="text"
                     value={formData.title}
-                    onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                    onChange={e => setFormData(prev => ({...prev, title: e.target.value}))}
                     required
                     className="w-full border border-border rounded-md px-3 py-2"
                     placeholder="Enter maintenance title (e.g., Oil Change Service)"
@@ -831,7 +1040,7 @@ const MaintenanceRecords = ({ vehicles }) => {
                     type="date"
                     value={formData.scheduled_date}
                     onChange={e =>
-                      setFormData(prev => ({ ...prev, scheduled_date: e.target.value }))
+                      setFormData(prev => ({...prev, scheduled_date: e.target.value}))
                     }
                     required
                     className="w-full border border-border rounded-md px-3 py-2"
@@ -844,7 +1053,7 @@ const MaintenanceRecords = ({ vehicles }) => {
                     type="number"
                     step="0.01"
                     value={formData.cost}
-                    onChange={e => setFormData(prev => ({ ...prev, cost: e.target.value }))}
+                    onChange={e => setFormData(prev => ({...prev, cost: e.target.value}))}
                     className="w-full border border-border rounded-md px-3 py-2"
                     placeholder="0.00"
                   />
@@ -856,7 +1065,7 @@ const MaintenanceRecords = ({ vehicles }) => {
                     type="date"
                     value={formData.date_performed}
                     onChange={e =>
-                      setFormData(prev => ({ ...prev, date_performed: e.target.value }))
+                      setFormData(prev => ({...prev, date_performed: e.target.value}))
                     }
                     className="w-full border border-border rounded-md px-3 py-2"
                   />
@@ -868,7 +1077,7 @@ const MaintenanceRecords = ({ vehicles }) => {
                     type="date"
                     value={formData.next_due_date}
                     onChange={e =>
-                      setFormData(prev => ({ ...prev, next_due_date: e.target.value }))
+                      setFormData(prev => ({...prev, next_due_date: e.target.value}))
                     }
                     className="w-full border border-border rounded-md px-3 py-2"
                   />
@@ -878,7 +1087,7 @@ const MaintenanceRecords = ({ vehicles }) => {
                   <label className="block text-sm font-medium mb-1">Priority</label>
                   <select
                     value={formData.priority}
-                    onChange={e => setFormData(prev => ({ ...prev, priority: e.target.value }))}
+                    onChange={e => setFormData(prev => ({...prev, priority: e.target.value}))}
                     className="w-full border border-border rounded-md px-3 py-2"
                   >
                     {priorityOptions.map(priority => (
@@ -893,7 +1102,7 @@ const MaintenanceRecords = ({ vehicles }) => {
                   <label className="block text-sm font-medium mb-1">Status</label>
                   <select
                     value={formData.status}
-                    onChange={e => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                    onChange={e => setFormData(prev => ({...prev, status: e.target.value}))}
                     className="w-full border border-border rounded-md px-3 py-2"
                   >
                     {statusOptions.map(status => (
@@ -909,7 +1118,7 @@ const MaintenanceRecords = ({ vehicles }) => {
                 <label className="block text-sm font-medium mb-1">Description</label>
                 <textarea
                   value={formData.description}
-                  onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  onChange={e => setFormData(prev => ({...prev, description: e.target.value}))}
                   className="w-full border border-border rounded-md px-3 py-2"
                   rows="3"
                   placeholder="Describe the maintenance work..."
@@ -920,7 +1129,7 @@ const MaintenanceRecords = ({ vehicles }) => {
                 <label className="block text-sm font-medium mb-1">Notes</label>
                 <textarea
                   value={formData.notes}
-                  onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  onChange={e => setFormData(prev => ({...prev, notes: e.target.value}))}
                   className="w-full border border-border rounded-md px-3 py-2"
                   rows="2"
                   placeholder="Additional notes..."

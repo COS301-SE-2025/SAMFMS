@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 from bson import ObjectId
 
 from repositories.database import db_manager, db_manager_gps, db_manager_management
-from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation, RouteInfo, TurnByTurnInstruction, RoadDetail, DetailedRouteInfo
-from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest
+from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation, RouteInfo, TurnByTurnInstruction, RoadDetail, DetailedRouteInfo, ScheduledTrip, SmartTrip, RouteRecommendation
+from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest, ScheduledTripRequest, CreateSmartTripRequest
 from events.publisher import event_publisher
 from services.routing_service import routing_service
 from services.driver_history_service import DriverHistoryService
@@ -22,6 +22,428 @@ class TripService:
     def __init__(self):
         self.db = db_manager
         self.db_gps = db_manager_gps
+    
+    async def create_scheduled_trip(
+        self,
+        request: ScheduledTripRequest,
+        created_by: str
+    ) -> ScheduledTrip:
+        """Create a new scheduled trip"""
+        try:
+            if request.end_time_window:
+                if request.end_time_window <= request.start_time_window:
+                    logger.warning("[TripService.create_schduled_trip] Invalid schedule: end <= start")
+                    raise ValueError("End time must be after start time")
+                
+            trip_data = request.model_dump(exclude_unset=True)
+
+            if request.route_info:
+                trip_data["estimated_distance"] = request.route_info.distance / 1000
+                # Convert duration from seconds to minutes for estimated_duration
+                trip_data["estimated_duration"] = request.route_info.duration / 60
+                logger.debug(f"[TripService.create_trip] Extracted from route_info: distance={trip_data['estimated_distance']}km, duration={trip_data['estimated_duration']}min")
+
+            trip_data.update({
+                "created_by": created_by,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "status": TripStatus.SCHEDULED
+            })
+
+            result = await self.db.trips_scheduled.insert_one(trip_data)
+
+            trip = await self.get_trip_by_id_scheduled(str(result.inserted_id))
+            if not trip:
+                logger.error(f"[TripService.create_scheduled] Failed to retrieve trip after insert (ID={result.inserted_id})")
+                raise RuntimeError("Failed to retrieve created trip")
+            
+            return trip
+        except Exception as e:
+            logger.error(f"[TripService.create_trip_scheduled] Failed: {e}")
+            raise
+
+    async def create_smart_trip(
+        self,
+        request: CreateSmartTripRequest,
+        created_by: str
+    ) -> SmartTrip:
+        """Create a new scheduled trip"""
+        try:
+            if request.optimized_end_time:
+                if request.optimized_end_time <= request.optimized_start_time:
+                    logger.warning("[TripService.smart_trip] Invalid schedule: end <= start")
+                    raise ValueError("End time must be after start time")
+                
+            trip_data = request.model_dump(exclude_unset=True)
+
+            if request.route_info:
+                trip_data["estimated_distance"] = request.route_info.distance
+                # Convert duration from seconds to minutes for estimated_duration
+                trip_data["estimated_duration"] = request.route_info.duration 
+                logger.debug(f"[TripService.create_smart_trip] Extracted from route_info: distance={trip_data['estimated_distance']}km, duration={trip_data['estimated_duration']}min")
+
+            trip_data.update({
+                "created_by": created_by,
+                "created_at": datetime.utcnow()
+            })
+
+            result = await self.db.smarttrips.insert_one(trip_data)
+
+            trip = await self.get_trip_by_id_smart(str(result.inserted_id))
+            if not trip:
+                logger.error(f"[TripService.create_smart] Failed to retrieve trip after insert (ID={result.inserted_id})")
+                raise RuntimeError("Failed to retrieve created smart trip")
+            
+            return trip
+        except Exception as e:
+            logger.error(f"[TripService.create_trip_smart] Failed: {e}")
+            raise
+
+    async def get_scheduled_trips(self) -> list[ScheduledTrip]:
+        """Return all scheduled trips"""
+        logger.info("Enter get all scheduled trips")
+        try:
+            cursor = self.db.trips_scheduled.find({})
+            scheduled_trips = []
+            async for scheduled_trip_doc in cursor:
+                scheduled_trip_doc["_id"] = str(scheduled_trip_doc["_id"])
+                scheduled_trips.append(ScheduledTrip(**scheduled_trip_doc))
+            return scheduled_trips
+        except Exception as e:
+            logger.error(f"[TripService.get_scheduled_trips] Failed: {e}")
+            raise
+    
+
+    async def delete_scheduled_trip(self, trip_id: str) -> bool:
+        """Delete a scheduled trip by its ID"""
+        try:
+            logger.info(f"[TripService.delete_scheduled_trip] Deleting scheduled trip with ID={trip_id}")
+
+            # Validate ObjectId
+            try:
+                object_id = ObjectId(trip_id)
+            except Exception:
+                logger.error(f"[TripService.delete_scheduled_trip] Invalid trip_id: {trip_id}")
+                return False
+
+            # Perform deletion
+            result = await self.db.trips_scheduled.delete_one({"_id": object_id})
+
+            if result.deleted_count == 1:
+                logger.info(f"[TripService.delete_scheduled_trip] Successfully deleted scheduled trip ID={trip_id}")
+                return True
+            else:
+                logger.warning(f"[TripService.delete_scheduled_trip] No scheduled trip found with ID={trip_id}")
+                return False
+
+        except Exception as e:
+            logger.error(f"[TripService.delete_scheduled_trip] Failed: {e}")
+            raise
+
+
+    async def delete_smart_trip(self, smart_trip_id: str) -> bool:
+        """Delete a smart trip by its ID."""
+        try:
+            logger.info(f"[TripService.delete_smart_trip] Deleting smart trip with ID={smart_trip_id}")
+            
+            # Validate ObjectId
+            try:
+                object_id = ObjectId(smart_trip_id)
+            except Exception:
+                logger.error(f"[TripService.delete_smart_trip] Invalid smart_trip_id: {smart_trip_id}")
+                return False
+
+            # Attempt deletion
+            result = await self.db.smarttrips.delete_one({"_id": object_id})
+
+            if result.deleted_count == 1:
+                logger.info(f"[TripService.delete_smart_trip] Successfully deleted smart trip ID={smart_trip_id}")
+                return True
+            else:
+                logger.warning(f"[TripService.delete_smart_trip] No smart trip found with ID={smart_trip_id}")
+                return False
+
+        except Exception as e:
+            logger.error(f"[TripService.delete_smart_trip] Failed: {e}")
+            raise
+
+
+    def _transform_smart_trip_document(self, smart_trips_doc: dict) -> dict:
+        """
+        Transform MongoDB document structure to match SmartTrip Pydantic schema
+        """
+        return {
+            "id": str(smart_trips_doc["_id"]),
+            "trip_id": smart_trips_doc["trip_id"],
+            "trip_name": smart_trips_doc["trip_name"],
+            "description": smart_trips_doc.get("description", ""),
+            "priority": smart_trips_doc["priority"],
+            
+            # Transform original schedule
+            "original_schedule": {
+                "start_time": smart_trips_doc["original_start_time"],
+                "end_time": smart_trips_doc["original_end_time"],
+                "vehicle_id": smart_trips_doc.get("vehicle_id"),
+                "vehicle_name": smart_trips_doc.get("vehicle_name"),
+                "driver_id": smart_trips_doc.get("driver_id"),
+                "driver_name": smart_trips_doc.get("driver_name")
+            },
+            
+            # Transform optimized schedule
+            "optimized_schedule": {
+                "start_time": smart_trips_doc["optimized_start_time"],
+                "end_time": smart_trips_doc["optimized_end_time"],
+                "vehicle_id": smart_trips_doc.get("vehicle_id"),
+                "vehicle_name": smart_trips_doc.get("vehicle_name"),
+                "driver_id": smart_trips_doc.get("driver_id"),
+                "driver_name": smart_trips_doc.get("driver_name")
+            },
+            
+            # Transform route information
+            "route": {
+                "origin": smart_trips_doc["origin"],
+                "destination": smart_trips_doc["destination"],
+                "waypoints": smart_trips_doc.get("waypoints", []),
+                "estimated_distance": smart_trips_doc.get("estimated_distance"),
+                "estimated_duration": smart_trips_doc.get("estimated_duration")
+            },
+            
+            # Transform benefits
+            "benefits": {
+                "time_saved": smart_trips_doc.get("time_saved", "No data"),
+                "fuel_efficiency": smart_trips_doc.get("fuel_efficiency", "No data"),
+                "route_optimization": smart_trips_doc.get("route_optimisation", "No data"),  # Note: your doc has 'optimisation'
+                "driver_utilization": smart_trips_doc.get("driver_utilisation", "No data")  # Note: your doc has 'utilisation'
+            },
+            
+            # Optional route_info (already structured correctly)
+            "route_info": smart_trips_doc.get("route_info"),
+            
+            # Other fields
+            "confidence": int(smart_trips_doc.get("confidence", 0)),
+            "reasoning": smart_trips_doc.get("reasoning", []),
+            "created_at": smart_trips_doc.get("created_at", datetime.utcnow()),
+            "updated_at": smart_trips_doc.get("updated_at", datetime.utcnow())
+        }
+
+    async def get_trip_by_id_smart(self, trip_id: str) -> Optional[SmartTrip]:
+        """Get smart trip by ID"""
+        try:
+            logger.info(f"[TripService.get_trip_by_id_smart] Getting smart trip with ID={trip_id}")
+            
+            # Validate ObjectId
+            try:
+                object_id = ObjectId(trip_id)
+            except Exception:
+                logger.error(f"[TripService.get_trip_by_id_smart] Invalid trip_id: {trip_id}")
+                return None
+
+            trip_doc = await self.db.smarttrips.find_one({"_id": object_id})
+            
+            if not trip_doc:
+                logger.warning(f"[TripService.get_trip_by_id_smart] No smart trip found with ID={trip_id}")
+                return None
+            
+            # Transform the document and create SmartTrip object
+            transformed_doc = self._transform_smart_trip_document(trip_doc)
+            return SmartTrip(**transformed_doc)
+            
+        except Exception as e:
+            logger.error(f"[TripService.get_trip_by_id_smart] Failed to get trip {trip_id}: {e}")
+            raise
+
+    async def get_smart_trips(self) -> list[SmartTrip]:
+        """Return all smart trips"""
+        logger.info("[TripService.get_smart_trips] Enter get all smart trips")
+        try:
+            cursor = self.db.smarttrips.find({})
+            smart_trips = []
+            
+            async for smart_trips_doc in cursor:
+                # Transform the document and create SmartTrip object
+                transformed_doc = self._transform_smart_trip_document(smart_trips_doc)
+                smart_trips.append(SmartTrip(**transformed_doc))
+                
+            logger.info(f"[TripService.get_smart_trips] Retrieved {len(smart_trips)} smart trips")
+            return smart_trips
+            
+        except Exception as e:
+            logger.error(f"[TripService.get_smart_trips] Failed: {e}")
+            raise
+    
+    async def activate_smart_trip(self, smart_trip: SmartTrip, created_by: str) -> Trip:
+        """After accepting a smart trip it will be turned into an actual trip"""
+        try:
+            logger.info(f"[TripService.activate_smart_trip] Activating smart trip ID={smart_trip.id}")
+
+            request = CreateTripRequest(
+                name=smart_trip.trip_name,
+                description=smart_trip.description,
+                scheduled_start_time=smart_trip.optimized_schedule.start_time,
+                scheduled_end_time=smart_trip.optimized_schedule.end_time,
+                origin=smart_trip.route.origin,
+                destination=smart_trip.route.destination,
+                waypoints=smart_trip.route.waypoints,
+                route_info=smart_trip.route_info,
+                priority=smart_trip.priority,
+                vehicle_id=smart_trip.optimized_schedule.vehicle_id,
+                driver_assignment=smart_trip.optimized_schedule.driver_id
+            )
+
+            try:
+                new_trip = await self.create_trip(request, created_by)
+                logger.info(f"[TripService.activate_smart_trip] Successfully created trip ID={new_trip.id} from smart trip ID={smart_trip.id}")
+                return new_trip 
+            except Exception as e:
+                logger.error(f"[TripService.activate_smart_trip] Failed to create actual trip: {e}")
+                raise
+
+        except Exception as e:
+            logger.error(f"[TripService.activate_smart_trip] Failed: {e}")
+            raise
+    
+    async def _store_route_recommendation(self, recommendation: RouteRecommendation):
+        """Store route recommendation in database for later retrieval"""
+        try:
+            recommendation_doc = {
+                "trip_id": recommendation.trip_id,
+                "vehicle_id": recommendation.vehicle_id,
+                "recommended_route": recommendation.recommended_route.model_dump() if recommendation.recommended_route else None,
+                "time_savings": recommendation.time_savings,
+                "traffic_avoided": recommendation.traffic_avoided,
+                "confidence": recommendation.confidence,
+                "reason": recommendation.reason,
+                "status": "pending",  # pending, accepted, rejected, expired
+                "created_at": recommendation.created_at,
+                "expires_at": recommendation.created_at + timedelta(minutes=120)  # Expire after 30 minutes
+            }
+            
+            # Store in route_recommendations collection
+            await self.db.route_recommendations.update_one(
+                {"trip_id": recommendation.trip_id},
+                {"$set": recommendation_doc},
+                upsert=True
+            )
+            
+            logger.info(f"Stored route recommendation for trip {recommendation.trip_id}")
+            
+        except Exception as e:
+            logger.error(f"Error storing route recommendation: {e}")
+    
+    async def get_route_recommendations(self, trip_id: str = None) -> List[RouteRecommendation]:
+        """Get active route recommendations, optionally filtered by trip_id"""
+        try:
+            query = {
+                "status": "pending",
+                "expires_at": {"$gt": datetime.utcnow()}
+            }
+            
+            if trip_id:
+                query["trip_id"] = trip_id
+            
+            cursor = self.db.route_recommendations.find(query)
+            recommendations = []
+
+            async for recommendation in cursor:
+                recommendation["_id"] = str(recommendation["_id"])
+                recommendations.append(RouteRecommendation(**recommendation))
+            
+            
+            return recommendations
+            
+        except Exception as e:
+            logger.error(f"Error getting route recommendations: {e}")
+            return []
+
+    async def accept_route_recommendation(self, trip_id: str, recommendation_id: str) -> bool:
+        """Accept a route recommendation and update the trip's route"""
+        try:
+            # Get the recommendation
+            recommendation = await self.db.route_recommendations.find_one({
+                "_id": ObjectId(recommendation_id),
+                "trip_id": trip_id,
+                "status": "pending"
+            })
+            
+            if not recommendation:
+                logger.warning(f"Route recommendation {recommendation_id} not found or not pending")
+                return False
+            
+            # Update trip with new route
+            new_route_info = recommendation["recommended_route"]
+            
+            update_result = await self.db.trips.update_one(
+                {"_id": ObjectId(trip_id)},
+                {
+                    "$set": {
+                        "route_info": new_route_info,
+                        "estimated_duration": new_route_info["duration"] / 60,  # Convert to minutes
+                        "route_updated_at": datetime.utcnow(),
+                        "route_update_reason": "traffic_optimization"
+                    }
+                }
+            )
+            
+            if update_result.modified_count > 0:
+                # Mark recommendation as accepted
+                await self.db.route_recommendations.update_one(
+                    {"_id": ObjectId(recommendation_id)},
+                    {
+                        "$set": {
+                            "status": "accepted",
+                            "accepted_at": datetime.utcnow()
+                        }
+                    }
+                )
+                
+                logger.info(f"Route recommendation {recommendation_id} accepted for trip {trip_id}")
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error accepting route recommendation: {e}")
+            return False
+    
+    async def reject_route_recommendation(self, trip_id: str, recommendation_id: str) -> bool:
+        """Reject a pending route recommendation for a trip"""
+        try:
+            # Find the recommendation for this trip
+            recommendation = await self.db.route_recommendations.find_one({
+                "_id": ObjectId(recommendation_id),
+                "trip_id": trip_id,
+                "status": "pending"
+            })
+
+            if not recommendation:
+                logger.warning(f"Recommendation {recommendation_id} for trip {trip_id} not found or not pending")
+                return False
+
+            # Update the recommendation status to rejected
+            update_result = await self.db.route_recommendations.update_one(
+                {
+                    "_id": ObjectId(recommendation_id),
+                    "trip_id": trip_id,
+                    "status": "pending"
+                },
+                {
+                    "$set": {
+                        "status": "rejected",
+                        "rejected_at": datetime.utcnow()
+                    }
+                }
+            )
+
+            if update_result.modified_count > 0:
+                logger.info(f"Route recommendation {recommendation_id} rejected for trip {trip_id}")
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Error rejecting route recommendation for trip {trip_id}: {e}")
+            return False
+
 
     async def close(self):
         """Clean up resources"""
@@ -294,6 +716,38 @@ class TripService:
         except Exception as e:
             logger.error(f"Failed to get trip {trip_id}: {e}")
             raise
+    
+
+    async def get_trip_destination(self, trip_id: str) -> Optional[Dict[str, Any]]:
+        """Get the destination object for a given trip_id."""
+        try:
+            trip_doc = await self.db.trips.find_one(
+                {"_id": ObjectId(trip_id)},
+                {"destination": 1}  # Only fetch the destination field
+            )
+            if trip_doc and "destination" in trip_doc:
+                return trip_doc["destination"]
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get destination for trip {trip_id}: {e}")
+            raise
+    
+
+
+    
+    async def get_trip_by_id_scheduled(self, trip_id: str) -> ScheduledTrip:
+        """Get trip by ID"""
+        try:
+            trip_doc = await self.db.trips_scheduled.find_one({"_id": ObjectId(trip_id)})
+            if trip_doc:
+                trip_doc["_id"] = str(trip_doc["_id"])
+                return ScheduledTrip(**trip_doc)
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get trip {trip_id}: {e}")
+            raise
+    
     
     async def update_trip(
         self,
@@ -811,7 +1265,7 @@ class TripService:
                 "actual_start_time": {"$in": [None, ""]}  # not yet started
             }
             
-            logger.debug(f"[TripService.get_all_upcoming_trips] Query: {query}")
+            logger.info(f"[TripService.get_all_upcoming_trips] Query: {query}")
             
             # Sort by scheduled start time ascending
             cursor = self.db.trips.find(query).sort("scheduled_start_time", 1)

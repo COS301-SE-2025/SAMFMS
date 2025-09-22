@@ -1,0 +1,51 @@
+name: Management Unit Tests
+
+on:
+  push:
+    branches: [main, development]
+    paths:
+      - 'Sblocks/management/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main, development]
+    paths:
+      - 'Sblocks/management/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Sblocks/management
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: Sblocks/management/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run unit tests (quiet) with coverage (no repo files)
+        env:
+          # Hide warnings completely
+          PYTHONWARNINGS: ignore
+          # Avoid __pycache__ in workspace
+          PYTHONDONTWRITEBYTECODE: '1'
+          # Put coverage data in the runner's temp dir (not in the repo)
+          COVERAGE_FILE: ${{ runner.temp }}/.coverage
+        run: |
+          pytest tests/unit \
+            -q --disable-warnings --maxfail=1 \
+            -p no:cacheprovider \
+            --cov=. --cov-report=term

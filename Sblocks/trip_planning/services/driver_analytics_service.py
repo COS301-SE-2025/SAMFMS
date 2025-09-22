@@ -180,6 +180,7 @@ class DriverAnalyticsService:
         for stat in stats:
             driver_id = stat["_id"]
             formatted_stats.append({
+                "driver_id": str(driver_id) if isinstance(driver_id, ObjectId) else driver_id,
                 "driver_name": driver_names.get(driver_id, f"Driver {driver_id}"),
                 "completed_trips": stat["completed_trips"],
                 "cancelled_trips": stat["cancelled_trips"]

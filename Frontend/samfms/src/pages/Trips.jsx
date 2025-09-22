@@ -1,5 +1,5 @@
-import React, {useState, useEffect, useCallback} from 'react';
-import {Plus} from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus } from 'lucide-react';
 import TripsAnalytics from '../components/trips/TripsAnalytics';
 import TripSchedulingModal from '../components/trips/TripSchedulingModal';
 import Notification from '../components/common/Notification';
@@ -9,8 +9,11 @@ import UpcomingTripsStats from '../components/trips/UpcomingTripsStats';
 import UpcomingTripsTable from '../components/trips/UpcomingTripsTable';
 import RecentTripsStats from '../components/trips/RecentTripsStats';
 import RecentTripsTable from '../components/trips/RecentTripsTable';
+import SmartTripSuggestions from '../components/trips/SmartTripSuggestions';
+import RouteRecommendations from '../components/trips/RouteRecommendations';
 import {
   createTrip,
+  createScheduledTrip,
   getActiveTrips,
   getDriverAnalytics,
   getVehicleAnalytics,
@@ -18,8 +21,8 @@ import {
   getTripHistoryStats,
   getAllUpcommingTrip,
 } from '../backend/api/trips';
-import {getVehicles} from '../backend/api/vehicles';
-import {getTripPlanningDrivers} from '../backend/api/drivers';
+import { getVehicles } from '../backend/api/vehicles';
+import { getTripPlanningDrivers } from '../backend/api/drivers';
 
 const Trips = () => {
   // Existing state
@@ -87,11 +90,11 @@ const Trips = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   const tabs = [
-    {id: 'overview', label: 'Overview'},
-    {id: 'active', label: 'Active'},
-    {id: 'upcoming', label: 'Upcoming'},
-    {id: 'recent', label: 'Recent'},
-    {id: 'analytics', label: 'Analytics'},
+    { id: 'overview', label: 'Overview' },
+    { id: 'active', label: 'Active' },
+    { id: 'upcoming', label: 'Upcoming' },
+    { id: 'recent', label: 'Recent' },
+    { id: 'analytics', label: 'Analytics' },
   ];
 
   // Helper function to show notifications
@@ -353,10 +356,7 @@ const Trips = () => {
     scheduledEndDate: '',
     scheduledEndTime: '',
     priority: 'normal',
-    temperatureControl: false,
     driverNote: '',
-    timeWindowStart: '',
-    timeWindowEnd: '',
   });
 
   // Store coordinates for selected locations
@@ -529,7 +529,6 @@ const Trips = () => {
       scheduledEndDate: '',
       scheduledEndTime: '',
       priority: 'normal',
-      temperatureControl: false,
       driverNote: '',
     });
     // Reset location coordinates
@@ -551,145 +550,75 @@ const Trips = () => {
       [field]: value,
     }));
   };
-  const formatTripData = () => {
-    const startDateTime = `${tripForm.scheduledStartDate}T${tripForm.scheduledStartTime}:00Z`;
-    const endDateTime = `${tripForm.scheduledEndDate}T${tripForm.scheduledEndTime}:00Z`;
-
-    return {
-      name: tripForm.name,
-      description: tripForm.description,
-      scheduled_start_time: startDateTime,
-      scheduled_end_time: endDateTime,
-      origin: {
-        location: {
-          type: 'Point',
-          coordinates: [locationCoords.start?.lng, locationCoords.start?.lat],
-        },
-        name: tripForm.startLocation,
-        order: 0,
-      },
-      destination: {
-        location: {
-          type: 'Point',
-          coordinates: [locationCoords.end?.lng, locationCoords.end?.lat],
-        },
-        name: tripForm.endLocation,
-        order: 99,
-      },
-      waypoints: [], // Can be extended later for intermediate stops
-      priority: tripForm.priority,
-      vehicle_id: tripForm.vehicleId,
-      driver_assignment: tripForm.driverId,
-      constraints: [], // Time window constraints removed as per requirements
-      custom_fields: {
-        driver_note: tripForm.driverNote,
-      },
-    };
-  };
 
   const handleSubmitTrip = async enhancedTripData => {
-    // If called from form event, prevent default and use old logic
-    if (enhancedTripData && enhancedTripData.preventDefault) {
-      enhancedTripData.preventDefault();
-
-      // Validate required fields for old form
-      if (
-        !tripForm.name ||
-        !tripForm.vehicleId ||
-        !tripForm.startLocation ||
-        !tripForm.endLocation ||
-        !tripForm.scheduledStartDate ||
-        !tripForm.scheduledStartTime ||
-        !tripForm.scheduledEndDate ||
-        !tripForm.scheduledEndTime
-      ) {
-        showNotification('Please fill in all required fields', 'error');
-        return;
-      }
-
-      if (!locationCoords.start || !locationCoords.end) {
-        showNotification('Please select valid locations from the dropdown suggestions', 'error');
-        return;
-      }
-
-      // Use old data format
-      enhancedTripData = null;
-    }
-
     setIsSubmitting(true);
 
     try {
-      // Use enhanced trip data if provided, otherwise format current trip form
-      let tripData;
-      if (enhancedTripData) {
-        // Enhanced data from the new modal with route information
-        // Handle both old field names (scheduledStartDate) and new ones (startDate)
-        const startDate = enhancedTripData.startDate || enhancedTripData.scheduledStartDate;
-        const startTime = enhancedTripData.startTime || enhancedTripData.scheduledStartTime;
-        const endDate = enhancedTripData.endDate || enhancedTripData.scheduledEndDate;
-        const endTime = enhancedTripData.endTime || enhancedTripData.scheduledEndTime;
+      const isScheduled = enhancedTripData.tripType === 'scheduled';
 
-        // Ensure proper datetime format (ISO 8601)
-        const startDateTime = startDate && startTime ? `${startDate}T${startTime}:00Z` : null;
-        const endDateTime = endDate && endTime ? `${endDate}T${endTime}:00Z` : null;
+      // Format waypoints with order
+      const formattedWaypoints = (enhancedTripData.waypoints || []).map((waypoint, index) => ({
+        name: `Waypoint ${index + 1}`,
+        location: {
+          type: 'Point',
+          coordinates: [waypoint.lng, waypoint.lat],
+          address: `Waypoint ${index + 1}`,
+        },
+        order: index + 1,
+      }));
 
-        tripData = {
-          name: enhancedTripData.name,
-          description: enhancedTripData.description || '',
-          scheduled_start_time: startDateTime,
-          scheduled_end_time: endDateTime,
-          origin: {
-            name: enhancedTripData.startLocation,
-            location: {
-              type: 'Point',
-              coordinates: [
-                enhancedTripData.coordinates?.start?.lng || locationCoords.start?.lng,
-                enhancedTripData.coordinates?.start?.lat || locationCoords.start?.lat,
-              ],
-              address: enhancedTripData.startLocation,
-            },
-            order: 1,
+      let tripData = {
+        name: enhancedTripData.name,
+        description: enhancedTripData.description || '',
+        origin: {
+          name: enhancedTripData.startLocation,
+          location: {
+            type: 'Point',
+            coordinates: [
+              enhancedTripData.coordinates?.start?.lng,
+              enhancedTripData.coordinates?.start?.lat,
+            ],
+            address: enhancedTripData.startLocation,
           },
-          destination: {
-            name: enhancedTripData.endLocation,
-            location: {
-              type: 'Point',
-              coordinates: [
-                enhancedTripData.coordinates?.end?.lng || locationCoords.end?.lng,
-                enhancedTripData.coordinates?.end?.lat || locationCoords.end?.lat,
-              ],
-              address: enhancedTripData.endLocation,
-            },
-            order: 2,
+          order: 0,
+        },
+        destination: {
+          name: enhancedTripData.endLocation,
+          location: {
+            type: 'Point',
+            coordinates: [
+              enhancedTripData.coordinates?.end?.lng,
+              enhancedTripData.coordinates?.end?.lat,
+            ],
+            address: enhancedTripData.endLocation,
           },
-          priority: enhancedTripData.priority || 'normal',
-          vehicle_id: enhancedTripData.vehicleId,
-          driver_assignment: enhancedTripData.driverId,
-          // Enhanced route information with properly formatted waypoints
-          waypoints: (enhancedTripData.waypoints || []).map((waypoint, index) => ({
-            name: `Waypoint ${index + 1}`,
-            location: {
-              type: 'Point',
-              coordinates: [waypoint.lng, waypoint.lat],
-              address: `Waypoint ${index + 1}`,
-            },
-            order: index + 3, // Start from 3 since origin is 1, destination is 2
-          })),
-          route_info: enhancedTripData.routeInfo || null,
-          driver_note: enhancedTripData.driverNotes || enhancedTripData.driverNote || '',
-        };
+          order: 99,
+        },
+        waypoints: formattedWaypoints,
+        route_info: enhancedTripData.routeInfo || null,
+        priority: enhancedTripData.priority || 'normal',
+      };
+
+      if (isScheduled) {
+        tripData.start_time_window = `${enhancedTripData.startTimeWindow}:00Z`;
+        tripData.end_time_window = `${enhancedTripData.endTimeWindow}:00Z`;
       } else {
-        // Fallback to existing format method
-        tripData = formatTripData();
+        const startDateTime = `${enhancedTripData.startDate}T${enhancedTripData.startTime}:00Z`;
+        const endDateTime = `${enhancedTripData.endDate}T${enhancedTripData.endTime}:00Z`;
+        tripData.scheduled_start_time = startDateTime;
+        tripData.scheduled_end_time = endDateTime;
+        tripData.vehicle_id = enhancedTripData.vehicleId;
+        tripData.driver_assignment = enhancedTripData.driverId;
+        tripData.custom_fields = {
+          driver_note: enhancedTripData.driverNotes || '',
+        };
+        tripData.constraints = [];
       }
 
       console.log('Creating trip with data:', tripData);
 
-      // Validate the trip data before sending
-      if (!tripData.scheduled_start_time || !tripData.scheduled_end_time) {
-        throw new Error('Start and end times are required');
-      }
-
+      // Common validations
       if (!tripData.origin?.location || !tripData.destination?.location) {
         throw new Error('Start and end locations are required');
       }
@@ -716,15 +645,26 @@ const Trips = () => {
         throw new Error('Invalid end location coordinates');
       }
 
-      if (!tripData.vehicle_id || !tripData.driver_assignment) {
-        throw new Error('Vehicle and driver selection are required');
+      // Type-specific validations
+      if (isScheduled) {
+        if (!tripData.start_time_window || !tripData.end_time_window) {
+          throw new Error('Time windows are required');
+        }
+      } else {
+        if (!tripData.scheduled_start_time || !tripData.scheduled_end_time) {
+          throw new Error('Start and end times are required');
+        }
+        if (!tripData.vehicle_id || !tripData.driver_assignment) {
+          throw new Error('Vehicle and driver selection are required');
+        }
       }
 
-      const response = await createTrip(tripData);
+      const response = isScheduled ? await createScheduledTrip(tripData) : await createTrip(tripData);
       console.log('Trip created successfully:', response);
 
       if (response.data.status === 'success') {
         showNotification('Trip scheduled successfully!', 'success');
+        fetchUpcomingTrips(); // Refresh upcoming trips list
       } else {
         showNotification(`Failed to create trip: ${response.data.message}`, 'error');
       }
@@ -740,7 +680,6 @@ const Trips = () => {
   // More permissive filtering to include vehicles with different status formats
   const availableVehicles = vehicles.filter(v => {
     // Check if vehicle exists and has a valid structure
-    console.log('Entered available vehicle, ', v);
     if (!v) return false;
 
     // More inclusive filtering logic - accept available, operational, and inactive vehicles
@@ -842,9 +781,30 @@ const Trips = () => {
                 availableVehicles={availableVehicles.length}
                 availableDrivers={availableDriversCount}
               />
+
+              {/* Smart Trip Suggestions - NEW ADDITION */}
+              <div className="animate-fade-in animate-delay-100">
+                <SmartTripSuggestions
+                  onAccept={(suggestionId) => {
+                    // Handle suggestion acceptance
+                    console.log('Accepted suggestion:', suggestionId);
+                    // Optionally refresh upcoming trips or show notification
+                    fetchUpcomingTrips();
+                    showNotification('Trip suggestion accepted successfully!', 'success');
+                  }}
+                  onDecline={(suggestionId) => {
+                    // Handle suggestion decline
+                    console.log('Declined suggestion:', suggestionId);
+                    showNotification('Trip suggestion declined', 'info');
+                  }}
+                  onRefresh={() => {
+                    // Handle refresh - could trigger a general refresh of trip data
+                    console.log('Smart suggestions refreshed');
+                  }}
+                />
+              </div>
             </div>
           )}
-
           {/* Active Tab */}
           {activeTab === 'active' && (
             <div className="space-y-6 animate-fade-in">
@@ -852,6 +812,62 @@ const Trips = () => {
               <div className="animate-fade-in animate-delay-200">
                 <ActiveTripsMap activeLocations={transformTripsForMap(activeTrips)} />
               </div>
+              {/* Route Optimization Suggestions - NEW ADDITION */}
+              <div className="animate-fade-in animate-delay-100">
+                <RouteRecommendations
+                  activeTrips={activeTrips}
+                  onAccept={(tripId, recommendationId) => {
+                    // Handle route recommendation acceptance
+                    console.log('Accepted route recommendation:', { tripId, recommendationId });
+
+                    // Show success notification
+                    showNotification(
+                      'Route updated successfully! Vehicle will be notified of the new route.',
+                      'success'
+                    );
+
+                    // Optionally refresh active trips to show updated route
+                    const loadActiveTrips = async () => {
+                      try {
+                        const response = await getActiveTrips();
+                        const tripsData = Array.isArray(response.data) ? response.data : [];
+                        setActiveTrips(tripsData);
+                      } catch (error) {
+                        console.error('Error reloading active trips:', error);
+                      }
+                    };
+                    loadActiveTrips();
+                  }}
+                  onReject={(tripId, recommendationId) => {
+                    // Handle route recommendation rejection
+                    console.log('Rejected route recommendation:', { tripId, recommendationId });
+
+                    // Show info notification
+                    showNotification(
+                      'Route recommendation declined. Current route will continue as planned.',
+                      'info'
+                    );
+                  }}
+                  onRefresh={() => {
+                    // Handle refresh - reload active trips and recommendations
+                    console.log('Refreshing route recommendations');
+
+                    const loadActiveTrips = async () => {
+                      try {
+                        const response = await getActiveTrips();
+                        const tripsData = Array.isArray(response.data) ? response.data : [];
+                        setActiveTrips(tripsData);
+                      } catch (error) {
+                        console.error('Error reloading active trips:', error);
+                      }
+                    };
+                    loadActiveTrips();
+
+                    showNotification('Route recommendations refreshed', 'info');
+                  }}
+                />
+              </div>
+
             </div>
           )}
 

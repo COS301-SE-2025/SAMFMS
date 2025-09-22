@@ -2,7 +2,11 @@ import React, {useState, useEffect} from 'react';
 import {Button} from '../components/ui/button';
 import Modal from '../components/ui/Modal';
 import LoginForm from '../components/auth/LoginForm';
-import { TypewriterEffectSmooth } from '../components/ui/typewriter-effect';
+
+import {TypewriterEffectSmooth} from '../components/ui/typewriter-effect';
+import {Spotlight} from '../components/ui/spotlight-new';
+import {Timeline} from '../components/ui/timeline';
+import CardSwap, {Card} from '../components/ui/CardSwap';
 import {useNavigate} from 'react-router-dom';
 import {
     checkUserExistence,
@@ -35,6 +39,34 @@ const Landing = () => {
     const [checkingStatus, setCheckingStatus] = useState(true);
     const [hasExistingUsers, setHasExistingUsers] = useState(null);
     const [showLoginModal, setShowLoginModal] = useState(false);
+
+    const [currentHeadingIndex, setCurrentHeadingIndex] = useState(0);
+
+    const headings = [
+        [
+            {text: "Smart"},
+            {text: "Fleet", className: "text-blue-500 dark:text-blue-400"},
+            {text: "Management", className: "text-blue-500 dark:text-blue-400"},
+            {text: "at your"},
+            {text: "fingertips"}
+        ],
+        [
+            {text: "Optimize"},
+            {text: "Vehicle", className: "text-green-500 dark:text-green-400"},
+            {text: "Utilization", className: "text-green-500 dark:text-green-400"},
+        ],
+        [
+            {text: "Track"},
+            {text: "Assets", className: "text-purple-500 dark:text-purple-400"},
+            {text: "in", className: "text-purple-500 dark:text-purple-400"},
+            {text: "real-time"}
+        ],
+        [
+            {text: "Streamline"},
+            {text: "Operations", className: "text-orange-500 dark:text-orange-400"},
+            {text: "effortlessly", className: "text-orange-500 dark:text-orange-400"}
+        ]
+    ];
 
     useEffect(() => {
         // If user is already authenticated, redirect to dashboard
@@ -100,17 +132,19 @@ const Landing = () => {
     }
 
     return (
-        <div className="min-h-screen bg-background">
-            {/* Hero Section */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-                <div
-                    className="absolute inset-0 z-0 opacity-10"
-                    style={{
-                        backgroundImage: 'url("/logo/logo_icon_dark.svg")',
-                        backgroundSize: '200px',
-                        backgroundRepeat: 'repeat',
-                        filter: 'blur(1px)',
-                    }}
+        <div className="bg-background">
+            {/* Hero Section - Fixed */}
+            <div className="fixed top-0 left-0 w-full h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 group z-10">
+                <Spotlight
+                    className="top-0 left-0 w-full h-full"
+                    gradientFirst="radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(210, 100%, 85%, .12) 0, hsla(210, 100%, 55%, .04) 50%, hsla(210, 100%, 45%, 0) 80%)"
+                    gradientSecond="radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, .08) 0, hsla(210, 100%, 55%, .04) 80%, transparent 100%)"
+                    gradientThird="radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, .06) 0, hsla(210, 100%, 45%, .04) 80%, transparent 100%)"
+                    width={800}
+                    height={600}
+                    smallWidth={400}
+                    translateY={-200}
+                    xOffset={200}
                 />
                 <div className="container mx-auto px-4 py-24 lg:py-32 relative z-10">
                     <div className="flex flex-col md:flex-row items-center justify-between">
@@ -136,6 +170,15 @@ const Landing = () => {
                                 ]}
                                 className="mb-6"
                             />
+
+                            <div className='text-sm text-muted-foreground pl-14 mb-4'><p>by Firewall Five</p></div>
+                            <div className="w-full">
+                                <TypewriterEffectSmooth
+                                    key={currentHeadingIndex} // Force re-render when heading changes
+                                    words={headings[currentHeadingIndex]}
+                                    className="mb-6"
+                                />
+                            </div>
                             <p className="text-xl text-muted-foreground mb-8">
                                 Streamline your fleet operations, optimize vehicle maintenance, and track your assets with our comprehensive management system.
                             </p>
@@ -143,11 +186,131 @@ const Landing = () => {
                                 <Button
                                     size="lg"
                                     onClick={handleGetStarted}
-                                    className="bg-primary hover:bg-primary/90 text-white px-8 py-6 h-auto text-lg font-medium flex items-center gap-2 transform transition-all duration-300 hover:scale-105"
+
+                                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-12 py-4 h-auto text-lg font-semibold flex items-center gap-3 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 border-0 relative overflow-hidden group"
                                 >
                                     {hasExistingUsers ? 'Login to Account' : 'Create First Account'}
                                     <ChevronRight size={20} />
                                 </Button>
+
+
+                                <div className="flex gap-3">
+                                    <Button
+                                        variant="outline"
+                                        size="lg"
+                                        onClick={() => window.open('https://github.com/COS301-SE-2025/SAMFMS', '_blank')}
+                                        className="border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 px-6 py-3 h-auto text-base font-medium flex items-center gap-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                                    >
+                                        <Github size={20} />
+                                        GitHub
+                                    </Button>
+
+                                    <Button
+                                        variant="outline"
+                                        size="lg"
+                                        onClick={() => window.open('https://github.com/COS301-SE-2025/SAMFMS/blob/main/docs/Demo3/SAMFMS%20User%20Manual.pdf', '_blank')}
+                                        className="border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 px-6 py-3 h-auto text-base font-medium flex items-center gap-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                                    >
+                                        <BarChart size={20} />
+                                        Guide
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right side - Card Swap */}
+                        <div className="w-full md:w-1/2 relative flex items-end justify-start min-h-[600px] pt-8">
+                            <div className="relative w-full h-full -ml-8">
+                                <CardSwap
+                                    width={520}
+                                    height={380}
+                                    cardDistance={60}
+                                    verticalDistance={80}
+                                    delay={3000}
+                                    pauseOnHover={false}
+                                    easing="elastic"
+                                >
+                                    <Card>
+                                        <div className="card-content">
+                                            <img
+                                                src="/images/image.png"
+                                                alt="Fleet Management"
+                                                className="w-full h-64 object-cover rounded-t-sm"
+                                            />
+                                            <div className="p-3">
+                                                <div className="card-icon">
+                                                    <Car size={20} />
+                                                </div>
+                                                <h3 className="card-title text-sm font-medium">Vehicle Tracking</h3>
+                                                <p className="card-description text-xs">Real-time GPS tracking and route optimization.</p>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                    <Card>
+                                        <div className="card-content">
+                                            <img
+                                                src="/images/image.png"
+                                                alt="Security & Safety"
+                                                className="w-full h-64 object-cover rounded-t-sm"
+                                            />
+                                            <div className="p-3">
+                                                <div className="card-icon">
+                                                    <Shield size={20} />
+                                                </div>
+                                                <h3 className="card-title text-sm font-medium">Security & Safety</h3>
+                                                <p className="card-description text-xs">Advanced security features and driver safety monitoring.</p>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                    <Card>
+                                        <div className="card-content">
+                                            <img
+                                                src="/images/image.png"
+                                                alt="Analytics & Reports"
+                                                className="w-full h-64 object-cover rounded-t-sm"
+                                            />
+                                            <div className="p-3">
+                                                <div className="card-icon">
+                                                    <BarChart size={20} />
+                                                </div>
+                                                <h3 className="card-title text-sm font-medium">Analytics & Reports</h3>
+                                                <p className="card-description text-xs">Comprehensive analytics and reporting for data-driven decisions.</p>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                    <Card>
+                                        <div className="card-content">
+                                            <img
+                                                src="/images/image.png"
+                                                alt="Smart Automation"
+                                                className="w-full h-64 object-cover rounded-t-sm"
+                                            />
+                                            <div className="p-3">
+                                                <div className="card-icon">
+                                                    <Zap size={20} />
+                                                </div>
+                                                <h3 className="card-title text-sm font-medium">Smart Automation</h3>
+                                                <p className="card-description text-xs">Automated maintenance scheduling and intelligent alerts.</p>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                    <Card>
+                                        <div className="card-content">
+                                            <img
+                                                src="/images/image.png"
+                                                alt="Fleet Optimization"
+                                                className="w-full h-64 object-cover rounded-t-sm"
+                                            />
+                                            <div className="p-3">
+                                                <div className="card-icon">
+                                                    <Map size={20} />
+                                                </div>
+                                                <h3 className="card-title text-sm font-medium">Fleet Optimization</h3>
+                                                <p className="card-description text-xs">Route planning and fuel efficiency optimization.</p>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                </CardSwap>
                             </div>
                         </div>
                     </div>
@@ -199,40 +362,42 @@ const Landing = () => {
                 </div>
             </div>
 
-            {/* Footer */}
-            <footer className="bg-card border-t border-border">
-                <div className="container mx-auto px-4 py-8">
-                    <div className="flex flex-col md:flex-row justify-between items-center">
-                        <div className="mb-4 md:mb-0">
-                            <img
-                                src="/logo/logo_horisontal_light.svg"
-                                alt="SAMFMS Logo"
-                                className="h-8 dark:hidden"
-                            />
-                            <img
-                                src="/logo/logo_horisontal_dark.svg"
-                                alt="SAMFMS Logo"
-                                className="h-8 hidden dark:block"
-                            />
-                        </div>
-                        <div className="text-muted-foreground text-sm">
-                            &copy; {new Date().getFullYear()} SAMFMS. All rights reserved.
+                {/* Footer */}
+                <footer className="bg-card border-t border-border">
+                    <div className="container mx-auto px-4 py-8">
+                        <div className="flex flex-col md:flex-row justify-between items-center">
+                            <div className="mb-4 md:mb-0">
+                                <img
+                                    src="/logo/logo_horisontal_light.svg"
+                                    alt="SAMFMS Logo"
+                                    className="h-8 dark:hidden"
+                                />
+                                <img
+                                    src="/logo/logo_horisontal_dark.svg"
+                                    alt="SAMFMS Logo"
+                                    className="h-8 hidden dark:block"
+                                />
+                            </div>
+                            <div className="text-muted-foreground text-sm">
+                                &copy; {new Date().getFullYear()} SAMFMS. All rights reserved.
+                            </div>
                         </div>
                     </div>
-                </div>
-            </footer>
+                </footer>
 
-            {/* Login Modal */}
-            <Modal 
-                isOpen={showLoginModal} 
-                onClose={handleCloseModal}
-                title="Log in to your account"
-            >
-                <LoginForm 
-                    onSuccess={handleLoginSuccess}
+                {/* Login Modal */}
+                <Modal
+                    isOpen={showLoginModal}
                     onClose={handleCloseModal}
-                />
-            </Modal>
+
+                    title="Log in to your account"
+                >
+                    <LoginForm
+                        onSuccess={handleLoginSuccess}
+                        onClose={handleCloseModal}
+                    />
+                </Modal>
+            </div>
         </div>
     );
 };
