@@ -19,7 +19,8 @@ import {
     Map,
     BarChart,
     Zap,
-    ChevronRight
+    ChevronRight,
+    Github
 } from 'lucide-react';
 
 const FeatureCard = ({icon, title, description}) => (
@@ -398,7 +399,6 @@ const Landing = () => {
                     />
                 </Modal>
             </div>
-        </div>
     );
 };
 
