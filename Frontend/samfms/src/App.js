@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import {BrowserRouter as Router, Routes, Route, Navigate} from 'react-router-dom';
 import './App.css';
 import 'leaflet/dist/leaflet.css';
 
@@ -12,8 +12,6 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import AuthErrorBoundary from './components/auth/AuthErrorBoundary';
 
 // Import pages
-import Login from './pages/Login';
-import Signup from './pages/Signup';
 import UserActivation from './components/auth/UserActivation';
 import Dashboard from './pages/Dashboard';
 import Account from './pages/Account';
@@ -40,23 +38,6 @@ function App() {
               {/* Public landing page as default route */}
               <Route path="/" element={<Landing />} />
 
-              {/* Public routes - wrapped in AuthErrorBoundary for auth-related errors */}
-              <Route
-                path="/login"
-                element={
-                  <AuthErrorBoundary>
-                    <Login />
-                  </AuthErrorBoundary>
-                }
-              />
-              <Route
-                path="/signup"
-                element={
-                  <AuthErrorBoundary>
-                    <Signup />
-                  </AuthErrorBoundary>
-                }
-              />
               <Route
                 path="/activate"
                 element={
