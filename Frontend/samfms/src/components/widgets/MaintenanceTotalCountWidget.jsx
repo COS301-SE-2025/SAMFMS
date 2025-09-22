@@ -1,56 +1,50 @@
-import React, { useState, useEffect } from 'react';
-import { BaseWidget } from '../dashboard/BaseWidget';
-import { maintenanceAPI } from '../../backend/api/maintenance';
-import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
-import { ClipboardList } from 'lucide-react';
+import React, {useState, useEffect} from 'react';
+import {BaseWidget} from '../dashboard/BaseWidget';
+import {maintenanceAPI} from '../../backend/api/maintenance';
+import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
+import {ClipboardList} from 'lucide-react';
 
-const MaintenanceTotalCountWidget = ({ id, config = {} }) => {
-  const [rawAnalyticsData, setRawAnalyticsData] = useState(null);
+const MaintenanceTotalCountWidget = ({id, config = {}}) => {
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchAnalyticsData = async () => {
+    const fetchMaintenanceData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const response = await maintenanceAPI.getMaintenanceAnalytics(
-          config.vehicleId || null,
-          config.startDate || null,
-          config.endDate || null
-        );
+        const response = await maintenanceAPI.getMaintenanceDashboard();
+        console.log('MaintenanceTotalCountWidget - Full API Response:', response);
 
-        let analyticsData = {};
-        if (response?.data?.data?.analytics) {
-          analyticsData = response.data.data.analytics;
-        } else if (response?.data?.analytics) {
-          analyticsData = response.data.analytics;
-        } else if (response?.data) {
-          analyticsData = response.data;
-        }
+        // Use the exact same data path as MaintenanceDashboard
+        const dashboardData = response.data?.data || response.data || {};
+        const analytics = dashboardData.analytics || {};
+        const totalRecords = analytics.maintenance_summary?.total_records || 0;
 
-        setRawAnalyticsData(analyticsData);
+        console.log('MaintenanceTotalCountWidget - Dashboard Data:', dashboardData);
+        console.log('MaintenanceTotalCountWidget - Analytics:', analytics);
+        console.log('MaintenanceTotalCountWidget - Total Records:', totalRecords);
+
+        setTotalCount(totalRecords);
+
       } catch (err) {
-        console.error('Failed to fetch maintenance analytics:', err);
-        setError('Failed to load maintenance analytics data');
+        console.error('Failed to fetch maintenance dashboard data:', err);
+        setError('Failed to load maintenance data');
+        setTotalCount(0);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAnalyticsData();
+    fetchMaintenanceData();
 
     const refreshInterval = (config.refreshInterval || 300) * 1000;
-    const interval = setInterval(fetchAnalyticsData, refreshInterval);
+    const interval = setInterval(fetchMaintenanceData, refreshInterval);
 
     return () => clearInterval(interval);
-  }, [config.refreshInterval, config.vehicleId, config.startDate, config.endDate]);
-
-  const upcomingCount = rawAnalyticsData?.maintenance_summary?.upcoming_count || 0;
-  const overdueCount = rawAnalyticsData?.maintenance_summary?.overdue_count || 0;
-  const totalCount = upcomingCount + overdueCount;
-  const onTimePercentage = totalCount > 0 ? Math.round((upcomingCount / totalCount) * 100) : 100;
+  }, [config.refreshInterval]);
 
   return (
     <BaseWidget
@@ -66,10 +60,7 @@ const MaintenanceTotalCountWidget = ({ id, config = {} }) => {
             {totalCount}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            {totalCount === 1 ? 'Total Task' : 'Total Tasks'}
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            {onTimePercentage}% on-time performance
+            {totalCount === 1 ? 'Total Record' : 'Total Records'}
           </div>
         </div>
         <div className="flex-shrink-0">
@@ -84,14 +75,11 @@ const MaintenanceTotalCountWidget = ({ id, config = {} }) => {
 
 registerWidget(WIDGET_TYPES.MAINTENANCE_TOTAL_COUNT, MaintenanceTotalCountWidget, {
   title: 'Total Maintenance Count',
-  description: 'Total count of scheduled maintenance tasks with performance metrics',
+  description: 'Total count of maintenance records',
   category: WIDGET_CATEGORIES.MAINTENANCE,
   icon: ClipboardList,
   defaultConfig: {
     refreshInterval: 300,
-    vehicleId: null,
-    startDate: null,
-    endDate: null,
   },
   configSchema: {
     refreshInterval: {
@@ -101,25 +89,10 @@ registerWidget(WIDGET_TYPES.MAINTENANCE_TOTAL_COUNT, MaintenanceTotalCountWidget
       max: 3600,
       default: 300,
     },
-    vehicleId: {
-      type: 'string',
-      label: 'Vehicle ID (optional)',
-      default: null,
-    },
-    startDate: {
-      type: 'date',
-      label: 'Start Date (optional)',
-      default: null,
-    },
-    endDate: {
-      type: 'date',
-      label: 'End Date (optional)',
-      default: null,
-    },
   },
-  defaultSize: { w: 3, h: 2 },
-  minSize: { w: 2, h: 1 },
-  maxSize: { w: 4, h: 3 },
+  defaultSize: {w: 3, h: 2},
+  minSize: {w: 2, h: 1},
+  maxSize: {w: 4, h: 3},
 });
 
 export default MaintenanceTotalCountWidget;
