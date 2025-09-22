@@ -23,6 +23,9 @@ const TRIPS_ENDPOINTS = {
   getSmartTrips: API_ENDPOINTS.TRIPS.GETSMARTTRIPS,
   activeSmartTrip: API_ENDPOINTS.TRIPS.ACTIVATESMARTTRIP,
   rejectSmartTrip: API_ENDPOINTS.TRIPS.REJECTSMARTTRIP,
+  getUpcomingRecommendations: API_ENDPOINTS.TRIPS.UPCOMING.UPCOMINGRECOMMENDATIONS,
+  acceptUpcomingRecommendation: API_ENDPOINTS.TRIPS.UPCOMING.ACCEPT,
+  rejectUpcomingRecommendation: API_ENDPOINTS.TRIPS.UPCOMING.REJECT,
   ANALYTICS: {
     HISTORY_STATS: API_ENDPOINTS.TRIPS.ANALYTICS.HISTORY_STATS,
     DRIVERSTATS: API_ENDPOINTS.TRIPS.ANALYTICS.DRiVERSTATS,
@@ -742,3 +745,39 @@ export const declineSmartTripSuggestion = async (suggestionId) => {
     throw error
   }
 };
+
+export const getUpcomingTripsRecommendations = async () => {
+  try {
+    const response = httpClient.get(API_ENDPOINTS.getUpcomingRecommendations)
+    return response
+  } catch (error){
+    console.error(`Error fetching recommended upcomming trip`)
+    throw error
+  }
+}
+
+export const acceptTripCombinationRecommendation = async (recommendationId) => {
+  try {
+    const data = {
+      recommendation_id: recommendationId
+    }
+    const response = httpClient.post(API_ENDPOINTS.acceptUpcomingRecommendation, data)
+    return response
+  } catch (error){
+    console.error(`Error accepting recommended upcomming trip`)
+    throw error
+  }
+}
+
+export const rejectTripCombinationRecommendation = async (recommendationId) => {
+  try {
+    const data = {
+      recommendation_id: recommendationId
+    }
+    const response = httpClient.post(API_ENDPOINTS.getUpcomingRecommendations, data)
+    return response
+  } catch (error){
+    console.error(`Error rejecting recommended upcomming trip`)
+    throw error
+  }
+}

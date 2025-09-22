@@ -200,6 +200,12 @@ export const API_ENDPOINTS = {
       ANALYSIS: id => `/trips/traffic/analysis/${id}`,
       DASHBOARD: '/trips/traffic/dashboard'
     },
+
+    UPCOMING: {
+      UPCOMINGRECOMMENDATIONS: '/trips/upcomingrecommendations/get',
+      ACCEPT: '/trips/upcomingrecommendations/accept',
+      REJECT: '/trips/upcomingrecommendations/reject'
+    },
     
     ANALYTICS: {
       // Trip History Statistics
