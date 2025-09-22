@@ -197,3 +197,6 @@ class ForgotPasswordRequest(BaseModel):
 
 class ForgotPasswordChangePassword(BaseModel):
     password: str = None
+
+class RemoveUser(BaseModel):
+    email: str = None

@@ -434,7 +434,21 @@ class AuthService:
         except Exception as e:
             logger.error(f"Error in test email endpoint: {e}")
             raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        
+
+    @staticmethod
+    async def remove_user(email: str):
+        try:
+            
+
+            T1 = UserRepository.move_user_to_removed(email)
+            T2 = UserRepository.remove_user(email)
+
+            return (T1 and T2)
 
 
-
-
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error in test email endpoint: {e}")
+            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

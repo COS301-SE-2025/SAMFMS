@@ -1,4 +1,4 @@
-from config.database import security_users_collection, otp_collection
+from config.database import security_users_collection, otp_collection, removed_users
 from models.database_models import SecurityUser
 from typing import Optional, Dict, Any
 from bson import ObjectId
@@ -60,6 +60,48 @@ class UserRepository:
             return result.matched_count > 0
         except Exception as e:
             logger.error(f"Failed to update user: {e}")
+            raise
+
+
+    @staticmethod
+    async def remove_user(email: str) -> bool:
+        """Remove user"""
+        try:
+            logger.info(f"UserRepository.remove user called with email: {email}")
+            
+            result = await security_users_collection.delete_one(
+                {"email": email},
+            )
+            
+            
+            if result.matched_count == 0:
+                logger.warning(f"No user found with email: {email}")
+                return False
+            
+            return result.matched_count > 0
+        except Exception as e:
+            logger.error(f"Failed to remove user: {e}")
+            raise    
+
+    @staticmethod
+    async def move_user_to_removed(email: str) -> bool:
+        """Copy user to passed collection"""
+        try:
+            
+            result = await security_users_collection.find_one(
+                {"email": email},
+            )
+            
+            
+            if result.matched_count == 0:
+                logger.warning(f"No user found with email: {email}")
+                return False
+            
+            result2 = await removed_users.insert_one(result)
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to remove user: {e}")
             raise
     
     @staticmethod
