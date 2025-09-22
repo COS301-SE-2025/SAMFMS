@@ -2,10 +2,10 @@ import React, {useState, useEffect} from 'react';
 import {Button} from '../components/ui/button';
 import Modal from '../components/ui/Modal';
 import LoginForm from '../components/auth/LoginForm';
-import { TypewriterEffectSmooth } from '../components/ui/typewriter-effect';
-import { Spotlight } from '../components/ui/spotlight-new';
-import { Timeline } from '../components/ui/timeline';
-import CardSwap, { Card } from '../components/ui/CardSwap';
+import {TypewriterEffectSmooth} from '../components/ui/typewriter-effect';
+import {Spotlight} from '../components/ui/spotlight-new';
+import {Timeline} from '../components/ui/timeline';
+import CardSwap, {Card} from '../components/ui/CardSwap';
 import {useNavigate} from 'react-router-dom';
 import {
     checkUserExistence,
@@ -31,27 +31,27 @@ const Landing = () => {
 
     const headings = [
         [
-            { text: "Smart" },
-            { text: "Fleet", className: "text-blue-500 dark:text-blue-400" },
-            { text: "Management", className: "text-blue-500 dark:text-blue-400" },
-            { text: "at your" },
-            { text: "fingertips" }
+            {text: "Smart"},
+            {text: "Fleet", className: "text-blue-500 dark:text-blue-400"},
+            {text: "Management", className: "text-blue-500 dark:text-blue-400"},
+            {text: "at your"},
+            {text: "fingertips"}
         ],
         [
-            { text: "Optimize" },
-            { text: "Vehicle", className: "text-green-500 dark:text-green-400" },
-            { text: "Utilization", className: "text-green-500 dark:text-green-400" },
+            {text: "Optimize"},
+            {text: "Vehicle", className: "text-green-500 dark:text-green-400"},
+            {text: "Utilization", className: "text-green-500 dark:text-green-400"},
         ],
         [
-            { text: "Track" },
-            { text: "Assets", className: "text-purple-500 dark:text-purple-400" },
-            { text: "in", className: "text-purple-500 dark:text-purple-400" },
-            { text: "real-time" }
+            {text: "Track"},
+            {text: "Assets", className: "text-purple-500 dark:text-purple-400"},
+            {text: "in", className: "text-purple-500 dark:text-purple-400"},
+            {text: "real-time"}
         ],
         [
-            { text: "Streamline" },
-            { text: "Operations", className: "text-orange-500 dark:text-orange-400" },
-            { text: "effortlessly", className: "text-orange-500 dark:text-orange-400" }
+            {text: "Streamline"},
+            {text: "Operations", className: "text-orange-500 dark:text-orange-400"},
+            {text: "effortlessly", className: "text-orange-500 dark:text-orange-400"}
         ]
     ];
 
@@ -131,7 +131,7 @@ const Landing = () => {
         <div className="bg-background">
             {/* Hero Section - Fixed */}
             <div className="fixed top-0 left-0 w-full h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 group z-10">
-                <Spotlight 
+                <Spotlight
                     className="top-0 left-0 w-full h-full"
                     gradientFirst="radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(210, 100%, 85%, .12) 0, hsla(210, 100%, 55%, .04) 50%, hsla(210, 100%, 45%, 0) 80%)"
                     gradientSecond="radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, .08) 0, hsla(210, 100%, 55%, .04) 80%, transparent 100%)"
@@ -157,7 +157,7 @@ const Landing = () => {
                             />
                             <div className='text-sm text-muted-foreground pl-14 mb-4'><p>by Firewall Five</p></div>
                             <div className="w-full">
-                                <TypewriterEffectSmooth 
+                                <TypewriterEffectSmooth
                                     key={currentHeadingIndex} // Force re-render when heading changes
                                     words={headings[currentHeadingIndex]}
                                     className="mb-6"
@@ -170,7 +170,7 @@ const Landing = () => {
                                 <Button
                                     size="lg"
                                     onClick={handleGetStarted}
-                                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-10 py-4 h-auto text-lg font-semibold flex items-center gap-3 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 border-0 relative overflow-hidden group"
+                                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-12 py-4 h-auto text-lg font-semibold flex items-center gap-3 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 border-0 relative overflow-hidden group"
                                 >
                                     <span className="relative z-10 flex items-center gap-3">
                                         {hasExistingUsers ? 'Login to Account' : 'Create First Account'}
@@ -178,7 +178,7 @@ const Landing = () => {
                                     </span>
                                     <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-blue-800 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                 </Button>
-                                
+
                                 <div className="flex gap-3">
                                     <Button
                                         variant="outline"
@@ -189,7 +189,7 @@ const Landing = () => {
                                         <Github size={20} />
                                         GitHub
                                     </Button>
-                                    
+
                                     <Button
                                         variant="outline"
                                         size="lg"
@@ -202,7 +202,7 @@ const Landing = () => {
                                 </div>
                             </div>
                         </div>
-                        
+
                         {/* Right side - Card Swap */}
                         <div className="w-full md:w-1/2 relative flex items-end justify-start min-h-[600px] pt-8">
                             <div className="relative w-full h-full -ml-8">
@@ -217,8 +217,8 @@ const Landing = () => {
                                 >
                                     <Card>
                                         <div className="card-content">
-                                            <img 
-                                                src="/images/image.png" 
+                                            <img
+                                                src="/images/image.png"
                                                 alt="Fleet Management"
                                                 className="w-full h-64 object-cover rounded-t-sm"
                                             />
@@ -233,8 +233,8 @@ const Landing = () => {
                                     </Card>
                                     <Card>
                                         <div className="card-content">
-                                            <img 
-                                                src="/images/image.png" 
+                                            <img
+                                                src="/images/image.png"
                                                 alt="Security & Safety"
                                                 className="w-full h-64 object-cover rounded-t-sm"
                                             />
@@ -249,8 +249,8 @@ const Landing = () => {
                                     </Card>
                                     <Card>
                                         <div className="card-content">
-                                            <img 
-                                                src="/images/image.png" 
+                                            <img
+                                                src="/images/image.png"
                                                 alt="Analytics & Reports"
                                                 className="w-full h-64 object-cover rounded-t-sm"
                                             />
@@ -265,8 +265,8 @@ const Landing = () => {
                                     </Card>
                                     <Card>
                                         <div className="card-content">
-                                            <img 
-                                                src="/images/image.png" 
+                                            <img
+                                                src="/images/image.png"
                                                 alt="Smart Automation"
                                                 className="w-full h-64 object-cover rounded-t-sm"
                                             />
@@ -281,8 +281,8 @@ const Landing = () => {
                                     </Card>
                                     <Card>
                                         <div className="card-content">
-                                            <img 
-                                                src="/images/image.png" 
+                                            <img
+                                                src="/images/image.png"
                                                 alt="Fleet Optimization"
                                                 className="w-full h-64 object-cover rounded-t-sm"
                                             />
@@ -593,40 +593,40 @@ const Landing = () => {
                     },
                 ]} />
 
-            {/* Footer */}
-            <footer className="bg-card border-t border-border">
-                <div className="container mx-auto px-4 py-8">
-                    <div className="flex flex-col md:flex-row justify-between items-center">
-                        <div className="mb-4 md:mb-0">
-                            <img
-                                src="/logo/logo_horisontal_light.svg"
-                                alt="SAMFMS Logo"
-                                className="h-8 dark:hidden"
-                            />
-                            <img
-                                src="/logo/logo_horisontal_dark.svg"
-                                alt="SAMFMS Logo"
-                                className="h-8 hidden dark:block"
-                            />
-                        </div>
-                        <div className="text-muted-foreground text-sm">
-                            &copy; {new Date().getFullYear()} SAMFMS. All rights reserved.
+                {/* Footer */}
+                <footer className="bg-card border-t border-border">
+                    <div className="container mx-auto px-4 py-8">
+                        <div className="flex flex-col md:flex-row justify-between items-center">
+                            <div className="mb-4 md:mb-0">
+                                <img
+                                    src="/logo/logo_horisontal_light.svg"
+                                    alt="SAMFMS Logo"
+                                    className="h-8 dark:hidden"
+                                />
+                                <img
+                                    src="/logo/logo_horisontal_dark.svg"
+                                    alt="SAMFMS Logo"
+                                    className="h-8 hidden dark:block"
+                                />
+                            </div>
+                            <div className="text-muted-foreground text-sm">
+                                &copy; {new Date().getFullYear()} SAMFMS. All rights reserved.
+                            </div>
                         </div>
                     </div>
-                </div>
-            </footer>
+                </footer>
 
-            {/* Login Modal */}
-            <Modal 
-                isOpen={showLoginModal} 
-                onClose={handleCloseModal}
-                title="Log in to your account"
-            >
-                <LoginForm 
-                    onSuccess={handleLoginSuccess}
+                {/* Login Modal */}
+                <Modal
+                    isOpen={showLoginModal}
                     onClose={handleCloseModal}
-                />
-            </Modal>
+                    title="Log in to your account"
+                >
+                    <LoginForm
+                        onSuccess={handleLoginSuccess}
+                        onClose={handleCloseModal}
+                    />
+                </Modal>
             </div>
         </div>
     );
