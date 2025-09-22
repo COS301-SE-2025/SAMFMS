@@ -11,6 +11,7 @@ import RecentTripsStats from '../components/trips/RecentTripsStats';
 import RecentTripsTable from '../components/trips/RecentTripsTable';
 import SmartTripSuggestions from '../components/trips/SmartTripSuggestions';
 import RouteRecommendations from '../components/trips/RouteRecommendations';
+import UpcomingTripsRecommendations from '../components/trips/UpcomingTripsRecommendations';
 import {
   createTrip,
   createScheduledTrip,
@@ -695,6 +696,25 @@ const Trips = () => {
 
   console.log('Filtered available vehicles:', availableVehicles);
 
+  // Handlers for recommendations
+  const handleAcceptRecommendation = (recommendationId) => {
+    console.log('Accepted recommendation:', recommendationId);
+    showNotification('Trip combination accepted successfully!', 'success');
+    fetchUpcomingTrips();
+  };
+
+  const handleRejectRecommendation = (recommendationId) => {
+    console.log('Rejected recommendation:', recommendationId);
+    showNotification('Trip combination rejected.', 'info');
+    fetchUpcomingTrips();
+  };
+
+  const handleRefreshRecommendations = () => {
+    console.log('Refreshing recommendations');
+    showNotification('Recommendations refreshed.', 'info');
+    fetchUpcomingTrips();
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -883,6 +903,23 @@ const Trips = () => {
                   </div>
                 ) : (
                   <UpcomingTripsStats upcomingTrips={upcomingTrips} />
+                )}
+              </div>
+
+              {/* Trip Recommendations */}
+              <div className="animate-fade-in animate-delay-150">
+                {upcomingTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading trip recommendations...</span>
+                  </div>
+                ) : (
+                  <UpcomingTripsRecommendations
+                    upcomingTrips={upcomingTrips}
+                    onAccept={handleAcceptRecommendation}
+                    onReject={handleRejectRecommendation}
+                    onRefresh={handleRefreshRecommendations}
+                  />
                 )}
               </div>
 
