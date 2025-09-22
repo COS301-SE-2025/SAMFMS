@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { maintenanceAPI } from '../../backend/api/maintenance';
+import React, {useState, useEffect, useCallback} from 'react';
+import {maintenanceAPI} from '../../backend/api/maintenance';
 import Chart from 'react-apexcharts';
 
-const MaintenanceAnalytics = ({ vehicles }) => {
+const MaintenanceAnalytics = ({vehicles}) => {
   const [analyticsData, setAnalyticsData] = useState(null);
   const [rawAnalyticsData, setRawAnalyticsData] = useState(null);
   const [costAnalytics, setCostAnalytics] = useState(null);
@@ -98,7 +98,7 @@ const MaintenanceAnalytics = ({ vehicles }) => {
   };
 
   const formatCurrency = amount => {
-    return `R${(amount || 0).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`;
+    return `R${(amount || 0).toLocaleString('en-ZA', {minimumFractionDigits: 2})}`;
   };
 
   const getMaintenanceTypeColor = index => {
@@ -157,50 +157,6 @@ const MaintenanceAnalytics = ({ vehicles }) => {
 
     return (
       <div className="space-y-6">
-        {/* Header and Filters */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="flex flex-wrap gap-4">
-            <select
-              value={filters.vehicleId}
-              onChange={e => setFilters(prev => ({ ...prev, vehicleId: e.target.value }))}
-              className="border border-border rounded-md px-3 py-2"
-            >
-              <option value="">All Vehicles</option>
-              {vehicles.map(vehicle => (
-                <option key={vehicle.id} value={vehicle.id}>
-                  {getVehicleName(vehicle.id)}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={filters.period}
-              onChange={e => setFilters(prev => ({ ...prev, period: e.target.value }))}
-              className="border border-border rounded-md px-3 py-2"
-            >
-              <option value="monthly">Monthly</option>
-              <option value="quarterly">Quarterly</option>
-              <option value="yearly">Yearly</option>
-            </select>
-
-            <input
-              type="date"
-              value={filters.startDate}
-              onChange={e => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-              className="border border-border rounded-md px-3 py-2"
-              placeholder="Start Date"
-            />
-
-            <input
-              type="date"
-              value={filters.endDate}
-              onChange={e => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-              className="border border-border rounded-md px-3 py-2"
-              placeholder="End Date"
-            />
-          </div>
-        </div>
-
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-md p-6">

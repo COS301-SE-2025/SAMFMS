@@ -20,3 +20,4 @@ pytest-cov
 httpx
 fakeredis
 mongomock
+pyotp
