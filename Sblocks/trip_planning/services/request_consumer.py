@@ -231,6 +231,9 @@ class ServiceRequestConsumer:
             if endpoint == "health" or endpoint == "":
                 logger.info(f"[_route_request] Routing to _handle_health_request()")
                 return await self._handle_health_request(method, user_context)
+            elif "upcomingrecommendations" in endpoint:
+                logger.info("Routing to upcomming recommendations handler")
+                return await self._upcoming_recommendation_requests(method, user_context)
             elif "traffic" in endpoint:
                 logger.info("Routing to traffic handler")
                 return await self._handle_traffic_requests(method, user_context)
@@ -269,6 +272,97 @@ class ServiceRequestConsumer:
         except Exception as e:
             logger.error(f"[_route_request] Exception: {e}")
             raise
+
+    async def _upcoming_recommendation_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Hanlde upcoming recommendation requests"""
+        try:
+            from services.upcoming_recommendations_service import upcoming_recommendation_service
+            from schemas.responses import ResponseBuilder
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+
+            if method == "GET":
+                if "get" in endpoint:
+                    # get all the upcoming recommendations
+                    try:
+                        recommendations = await upcoming_recommendation_service.get_combination_recommendations()
+
+                        return_data = {
+                            "data" : recommendations
+                        }
+
+                        return ResponseBuilder.success(
+                            data=return_data,
+                            message="Upcoming recommendations retrieved successfully"
+                        )
+
+                    except Exception as e:
+                        return ResponseBuilder.error(
+                            error="GetUpcomingRecommendationReturnError",
+                            message=f"Failed to process return upcoming recommendation request: {str(e)}"
+                        ).model_dump()
+                else:
+                    raise ValueError(f"Unsupported HTTP method: {method}")
+                    
+            elif method == "POST":
+                if "accept" in endpoint:
+                    recommendation_id = data["recommendation_id"]
+                    try:
+                        response = upcoming_recommendation_service.accept_combination_recommendation(recommendation_id)
+                        if(response):
+                            return ResponseBuilder.success(
+                                data=None,
+                                message="Upcomming recommendation accepted successfully"
+                            )
+                        
+                        return ResponseBuilder.error(
+                            error="UpcomingRecommendationAcceptionError",
+                            message=f"Failed to process accept request"
+                        ).model_dump()
+                    except Exception as e:
+                        logger.error(f"[_upcoming_recommendation_requests] Exception in accepting upcoming recommendation: {e}")
+                        return ResponseBuilder.error(
+                            error="UpcomingRecommendationAcceptionError",
+                            message=f"Failed to process accept request: {str(e)}"
+                        ).model_dump()
+                            
+                elif "reject" in endpoint:
+                    recommendation_id = data["recommendation_id"]
+                    try:
+                        response = upcoming_recommendation_service.reject_combination_recommendation(recommendation_id)
+                        if response:
+                            return ResponseBuilder.success(
+                                data=None,
+                                message="Upcoming recommendation rejected successfully"
+                            )
+                        
+                        return ResponseBuilder.error(
+                            error="UpcomingRecommendationRejectionError",
+                            message=f"Failed to process accept upcoming recommendation request"
+                        ).model_dump()
+                    except Exception as e:
+                        logger.error(f"[_upcoming_recommendation_requests] Exception in rejecting route upcoming recommendation: {e}")
+                        return ResponseBuilder.error(
+                            error="UpcomingRecommendationRejectionError",
+                            message=f"Failed to process reject request: {str(e)}"
+                        ).model_dump()
+                else:
+                    raise ValueError(f"Unsupported HTTP method: {method}")
+                
+            else:
+                raise ValueError(f"Unsupported HTTP endpoint: {endpoint}")
+            
+        except Exception as e:
+            logger.error(f"[_upcoming_recommendation_requests] Exception: {e}")
+            return ResponseBuilder.error(
+                error="UpcomingRecommendationError",
+                message=f"Failed to process upcoming recommendation request: {str(e)}"
+            ).model_dump()
+
+
+
+
+
     
     async def _handle_traffic_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle traffic montiro requests"""

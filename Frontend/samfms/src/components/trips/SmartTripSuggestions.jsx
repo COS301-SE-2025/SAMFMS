@@ -328,11 +328,11 @@ const SuggestionCard = ({
             </div>
             <div className="flex items-center gap-2">
               <Truck className="h-3 w-3" />
-              <span>{suggestion.original_schedule.vehicle_name || 'No vehicle assigned'}</span>
+              <span>{'No vehicle assigned'}</span>
             </div>
             <div className="flex items-center gap-2">
               <User className="h-3 w-3" />
-              <span>{suggestion.original_schedule.driver_name || 'No driver assigned'}</span>
+              <span>{'No driver assigned'}</span>
             </div>
           </div>
         </div>

@@ -475,3 +475,24 @@ class DriverPingSession(BaseModel):
     
     class Config:
         populate_by_name = True
+
+class TripCombinationRecommendation(BaseModel):
+    """Schema for trip combination recommendations"""
+    id: str
+    primary_trip_id: str
+    secondary_trip_id: str
+    primary_trip_name: str
+    secondary_trip_name: str
+    recommended_driver: str
+    recommended_vehicle: str
+    combined_route: Optional[RouteInfo]
+    travel_distance_km: float
+    time_gap_hours: float
+    benefits: Dict[str, Any]
+    confidence_score: float  # 0-1
+    reasoning: List[str]
+    created_at: datetime
+    expires_at: datetime
+    
+    class Config:
+        from_attributes = True

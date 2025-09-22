@@ -277,6 +277,13 @@ class DatabaseManager:
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.route_recommendations
+    
+    @property
+    def upcoming_recommendations(self):
+        """Get upcoming recommendations"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.upcoming_recommendations
 
     
     async def create_trip_with_transaction(self, trip_data: dict, constraints: list = None):

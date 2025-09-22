@@ -9,8 +9,6 @@ from bson import ObjectId
 from dataclasses import dataclass
 import math
 
-
-
 from repositories.database import db_manager, db_manager_gps
 from services.trip_service import trip_service
 from events.publisher import event_publisher
