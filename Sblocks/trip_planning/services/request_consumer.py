@@ -309,7 +309,7 @@ class ServiceRequestConsumer:
                 if "accept" in endpoint:
                     recommendation_id = data["recommendation_id"]
                     try:
-                        response = upcoming_recommendation_service.accept_combination_recommendation(recommendation_id)
+                        response = await upcoming_recommendation_service.accept_combination_recommendation(recommendation_id)
                         if(response):
                             return ResponseBuilder.success(
                                 data=None,
@@ -330,7 +330,7 @@ class ServiceRequestConsumer:
                 elif "reject" in endpoint:
                     recommendation_id = data["recommendation_id"]
                     try:
-                        response = upcoming_recommendation_service.reject_combination_recommendation(recommendation_id)
+                        response = await upcoming_recommendation_service.reject_combination_recommendation(recommendation_id)
                         if response:
                             return ResponseBuilder.success(
                                 data=None,

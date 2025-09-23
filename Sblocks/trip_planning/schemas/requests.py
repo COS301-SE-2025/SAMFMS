@@ -8,7 +8,7 @@ from datetime import datetime
 from .entities import (
     TripStatus, TripPriority, ConstraintType, NotificationType,
     LocationPoint, Address, Waypoint, TripConstraint, RouteInfo,
-    ScheduleInfo, RouteSummary, SmartTripBenefits
+    ScheduleInfo, RouteSummary, SmartTripBenefits, CombinationInfo, Savings
 )
 
 
@@ -71,6 +71,9 @@ class CreateTripRequest(BaseModel):
     
     # Custom fields
     custom_fields: Optional[Dict[str, Any]] = None
+
+    # combination info
+    combination_info: Optional[CombinationInfo]
     
     @validator('scheduled_end_time')
     def validate_end_time(cls, v, values):

@@ -496,3 +496,16 @@ class TripCombinationRecommendation(BaseModel):
     
     class Config:
         from_attributes = True
+
+class Savings(BaseModel):
+    time_minutes: float
+    distance_km: float
+    cost: str
+
+class CombinationInfo(BaseModel):
+    is_combined: bool
+    original_primary_trip: str
+    original_secondary_trip: str
+    recommendation_id: str
+    combined_at: datetime
+    savings: Savings

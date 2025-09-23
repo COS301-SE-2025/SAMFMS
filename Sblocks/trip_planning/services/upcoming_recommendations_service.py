@@ -6,8 +6,10 @@ from datetime import datetime, timedelta
 from math import radians, sin, cos, sqrt, atan2
 from bson import ObjectId
 import asyncio
+import polyline
 
-from schemas.entities import Trip, TripCombinationRecommendation, RouteInfo, Waypoint, LocationPoint, RouteBounds
+from schemas.entities import Trip, TripCombinationRecommendation, RouteInfo, Waypoint, LocationPoint, RouteBounds, CombinationInfo, Savings
+from schemas.requests import CreateTripRequest
 from repositories.database import db_manager
 from services.trip_service import trip_service
 
@@ -163,72 +165,49 @@ class UpcomingRecommendationsService:
 
             try:
                 logger.debug(f"Making ORS API request to {url}")
-                logger.debug(f"Request headers: {headers}")
-                logger.debug(f"Request params: {params}")
-                
                 resp = requests.post(url, headers=headers, json=params)
-                logger.debug(f"Response status code: {resp.status_code}")
-                logger.debug(f"Response headers: {dict(resp.headers)}")
-                
-                # Log the raw response text for debugging
-                response_text = resp.text
-                logger.debug(f"Raw response text: {response_text[:500]}...")  # First 500 chars
-                
                 resp.raise_for_status()
                 data = resp.json()
                 
                 # Check if response has expected structure (ORS returns 'routes' not 'features')
-                if "routes" not in data:
-                    logger.error(f"ORS response missing 'routes' key. Full response: {data}")
-                    return None
-                    
-                if not data["routes"]:
-                    logger.error(f"ORS response has empty routes array. Full response: {data}")
-                    return None
-                    
-                if "segments" not in data["routes"][0]:
-                    logger.error(f"ORS response missing 'segments'. Full response: {data}")
+                if "routes" not in data or not data["routes"]:
+                    logger.error(f"ORS response missing routes. Full response: {data}")
                     return None
                 
-                # Get the first segment (should contain the route summary)
-                route = data["routes"][0]["segments"][0]
+                route = data["routes"][0]
+                total_distance = route["summary"]["distance"]  # meters
+                total_duration = route["summary"]["duration"]   # seconds
                 
-                # For coordinates, we need to decode the geometry or use way_points
-                # The response includes encoded polyline geometry, let's use the summary data
-                total_distance = data["routes"][0]["summary"]["distance"]  # meters
-                total_duration = data["routes"][0]["summary"]["duration"]   # seconds
+                # Get the full route coordinates by decoding the geometry
+                coords = []
+                if "geometry" in route and route["geometry"]:
+                    # Decode the polyline geometry to get actual coordinates
+                    coords = self._decode_polyline_geometry(route["geometry"])
                 
-                # Create a simplified route object
+                # If decoding fails, fall back to simple start/end coordinates
+                if not coords:
+                    coords = [
+                        [start_location_lat, start_location_long],
+                        [end_location_lat, end_location_long]
+                    ]
+                    logger.warning("Using fallback coordinates - polyline decode failed")
+                
+                # Create route summary
                 route_summary = {
                     "distance": total_distance,
                     "duration": total_duration
                 }
                 
-                # For coordinates, we can create a simple line between start and end points
-                # In a production system, you'd want to decode the geometry properly
-                coords = [
-                    [start_location_lat, start_location_long],
-                    [end_location_lat, end_location_long]
-                ] 
-                
-                logger.debug(f"ORS response: distance={route_summary.get('distance', 'N/A')}m, duration={route_summary.get('duration', 'N/A')}s")
+                logger.debug(f"ORS response: distance={total_distance}m, duration={total_duration}s, coord_count={len(coords)}")
                 return route_summary, coords
                 
             except requests.exceptions.HTTPError as e:
                 logger.error(f"ORS API HTTP error: {e}")
-                logger.error(f"Response status: {resp.status_code}")
-                logger.error(f"Response content: {resp.text}")
+                if hasattr(e, 'response') and e.response:
+                    logger.error(f"Response status: {e.response.status_code}, content: {e.response.text}")
                 return None
-            except requests.exceptions.RequestException as e:
-                logger.error(f"ORS API request failed: {e}")
-                return None
-            except KeyError as e:
-                logger.error(f"ORS response structure error: {e}")
-                logger.error(f"Full ORS response: {data}")
-                return None
-            except ValueError as e:
-                logger.error(f"ORS JSON parsing error: {e}")
-                logger.error(f"Response text: {response_text}")
+            except Exception as e:
+                logger.error(f"ORS API error: {e}")
                 return None
                 
         except Exception as e:
@@ -237,7 +216,7 @@ class UpcomingRecommendationsService:
 
 
     async def _calculate_combined_route_info(self, primary_trip: Trip, secondary_trip: Trip) -> Optional[RouteInfo]:
-        """Calculate route information for combined trip"""
+        """Calculate route information for combined trip with full coordinates"""
         try:
             # Create waypoint coordinates: origin -> destination1 -> origin2 -> destination2
             # The waypoints array should be [lng, lat] pairs, not Waypoint objects
@@ -259,11 +238,11 @@ class UpcomingRecommendationsService:
                 waypoint_coordinates  # Pass coordinate pairs, not Waypoint objects
             )
             
-            if route:
+            if route and coords:
                 return RouteInfo(
                     distance=route["distance"],
                     duration=route["duration"],
-                    coordinates=coords,
+                    coordinates=coords,  # Now contains full route coordinates
                     bounds=self._calculate_bounds(coords)
                 )
                 
@@ -560,9 +539,21 @@ class UpcomingRecommendationsService:
         except Exception as e:
             logger.error(f"Error getting combination recommendations: {e}")
             return []
+        
+
+    def _decode_polyline_geometry(self, encoded_geometry: str) -> List[List[float]]:
+        """Decode ORS encoded polyline geometry to coordinates"""
+        try:
+            # ORS uses encoded polylines, decode them to get actual coordinates
+            decoded_coords = polyline.decode(encoded_geometry)
+            # Convert from [(lat, lng), ...] to [[lat, lng], ...]
+            return [[lat, lng] for lat, lng in decoded_coords]
+        except Exception as e:
+            logger.warning(f"Error decoding polyline geometry: {e}")
+            return []
 
     async def accept_combination_recommendation(self, recommendation_id: str) -> bool:
-        """Accept a trip combination recommendation"""
+        """Accept a trip combination recommendation by creating a new combined trip"""
         try:
             # Get the recommendation
             recommendation = await self.db.upcoming_recommendations.find_one({
@@ -571,9 +562,9 @@ class UpcomingRecommendationsService:
             })
             
             if not recommendation:
+                logger.error(f"Recommendation {recommendation_id} not found or not pending")
                 return False
             
-            # Update the primary trip to include secondary trip as waypoints
             primary_trip_id = recommendation["primary_trip_id"]
             secondary_trip_id = recommendation["secondary_trip_id"]
             
@@ -582,54 +573,75 @@ class UpcomingRecommendationsService:
             secondary_trip = await self.db.trips.find_one({"_id": ObjectId(secondary_trip_id)})
             
             if not primary_trip or not secondary_trip:
+                logger.error(f"Could not find primary trip {primary_trip_id} or secondary trip {secondary_trip_id}")
                 return False
             
-            # Create combined trip by updating primary trip
+            # Create waypoints from secondary trip's origin and destination
             combined_waypoints = [
                 {
+                    "location": {
+                        "type": "Point",
+                        "coordinates": secondary_trip["origin"]["location"]["coordinates"]
+                    },
                     "name": secondary_trip["origin"]["name"],
-                    "location": secondary_trip["origin"]["location"],
                     "order": 1
                 },
                 {
-                    "name": secondary_trip["destination"]["name"], 
-                    "location": secondary_trip["destination"]["location"],
+                    "location": {
+                        "type": "Point", 
+                        "coordinates": secondary_trip["destination"]["location"]["coordinates"]
+                    },
+                    "name": secondary_trip["destination"]["name"],
                     "order": 2
                 }
             ]
-            
-            # Update primary trip
-            update_result = await self.db.trips.update_one(
-                {"_id": ObjectId(primary_trip_id)},
-                {
-                    "$set": {
-                        "waypoints": combined_waypoints,
-                        "route_info": recommendation["combined_route"],
-                        "estimated_distance": recommendation["benefits"]["combined_distance_km"],
-                        "estimated_duration": recommendation["benefits"]["combined_duration_minutes"],
-                        "scheduled_end_time": secondary_trip["scheduled_end_time"],
-                        "combination_info": {
-                            "is_combined": True,
-                            "original_secondary_trip": secondary_trip_id,
-                            "combined_at": datetime.utcnow()
-                        },
-                        "updated_at": datetime.utcnow()
-                    }
-                }
+
+            savings_data = Savings(
+                time_minutes=recommendation["benefits"]["time_savings_minutes"],
+                distance_km=recommendation["benefits"]["distance_savings_km"],
+                cost=recommendation["benefits"]["cost_savings"]
+            )
+
+            combination_info_data = CombinationInfo(
+                is_combined=True,
+                original_primary_trip= primary_trip_id,
+                original_secondary_trip= secondary_trip_id,
+                recommendation_id= recommendation_id,
+                combined_at=datetime.utcnow(),
+                savings=savings_data
+            )
+
+            # Create new combined trip document
+            combined_trip = CreateTripRequest(
+                name= f" Combined: {primary_trip['name']} + {secondary_trip['name']}",
+                description= f"Combined trip from recommendation {recommendation_id}",
+                scheduled_start_time= primary_trip["scheduled_start_time"],
+                scheduled_end_time= secondary_trip["scheduled_end_time"],
+                origin= primary_trip["origin"],
+                destination= secondary_trip["destination"],
+                waypoints= combined_waypoints,
+                route_info= recommendation["combined_route"],
+                priority= max(primary_trip.get("priority", "normal"), secondary_trip.get("priority", "normal")),
+                estimated_distance= recommendation["benefits"]["combined_distance_km"],
+                estimated_duration= recommendation["benefits"]["combined_duration_minutes"],
+                driver_assignment= recommendation["recommended_driver"],
+                vehicle_id= recommendation["recommended_vehicle"],
+                constraints= primary_trip.get("constraints", []) + secondary_trip.get("constraints", []),
+                combination_info=combination_info_data,
+                custom_fields= {}
             )
             
-            # Cancel the secondary trip
-            await self.db.trips.update_one(
-                {"_id": ObjectId(secondary_trip_id)},
-                {
-                    "$set": {
-                        "status": "cancelled",
-                        "cancellation_reason": "combined_with_other_trip",
-                        "combined_into": primary_trip_id,
-                        "updated_at": datetime.utcnow()
-                    }
-                }
-            )
+            # Insert the new combined trip
+            result = await trip_service.create_trip(combined_trip, "system")
+            new_trip_id = result.id
+            
+            logger.info(f"Created new combined trip with ID: {new_trip_id}")
+            
+            # Delete the original trips
+            primary_delete = await self.db.trips.delete_one({"_id": ObjectId(primary_trip_id)})
+            secondary_delete = await self.db.trips.delete_one({"_id": ObjectId(secondary_trip_id)})
+            
+            logger.info(f"Deleted original trips - Primary: {primary_delete.deleted_count}, Secondary: {secondary_delete.deleted_count}")
             
             # Mark recommendation as accepted
             await self.db.upcoming_recommendations.update_one(
@@ -637,12 +649,14 @@ class UpcomingRecommendationsService:
                 {
                     "$set": {
                         "status": "accepted",
-                        "accepted_at": datetime.utcnow()
+                        "accepted_at": datetime.utcnow(),
+                        "combined_trip_id": new_trip_id
                     }
                 }
             )
             
-            return update_result.modified_count > 0
+            logger.info(f"Successfully accepted recommendation {recommendation_id} and created combined trip {new_trip_id}")
+            return True
             
         except Exception as e:
             logger.error(f"Error accepting combination recommendation: {e}")
@@ -665,7 +679,10 @@ class UpcomingRecommendationsService:
             recommendations = await self.find_combination_opportunities()
             
             for recommendation in recommendations:
-                await self.store_recommendation(recommendation)
+                try:
+                    await self.store_recommendation(recommendation)
+                except Exception as e:
+                    logger.error(f"Failed to store recommendation: {recommendation}, exception: {e}")
             
             logger.info(f"Analyzed and stored {len(recommendations)} combination recommendations")
             return len(recommendations)
