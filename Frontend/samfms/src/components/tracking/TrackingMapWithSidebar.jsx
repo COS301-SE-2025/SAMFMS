@@ -865,8 +865,8 @@ const TrackingMapWithSidebar = () => {
     await loadGeofences();
 
     // Close modal
-    setShowAddGeofenceModal(false);
-    setEditingGeofence(null);
+    //setShowAddGeofenceModal(false);
+    //setEditingGeofence(null);
   }, [loadGeofences]);
 
   // Handle item selection and map centering

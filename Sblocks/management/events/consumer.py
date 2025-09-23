@@ -158,7 +158,6 @@ class EventConsumer:
         await queue.bind(vehicles_exchange, "vehicle.updated")
         await queue.bind(vehicles_exchange, "vehicle.deleted")
         await queue.bind(vehicles_exchange, "vehicle.status_changed")
-        await queue.bind()
         
         # Bind to user events from Security service
         security_exchange = await self.channel.declare_exchange(
@@ -166,10 +165,20 @@ class EventConsumer:
             aio_pika.ExchangeType.TOPIC,
             durable=True
         )
-        
+
         await queue.bind(security_exchange, "user.created")
         await queue.bind(security_exchange, "user.updated")
         await queue.bind(security_exchange, "user.role_changed")
+        
+
+
+        user_remove_exchange = await self.channel.declare_exchange(
+            "removed_user",
+            aio_pika.ExchangeType.FANOUT,
+            durable=True
+        )
+        
+        await queue.bind(user_remove_exchange)
         
         logger.info("Setup event bindings")
     
@@ -301,6 +310,9 @@ class EventConsumer:
             body = json.loads(message.body.decode())
             routing_key = message.routing_key
             event_type = message.headers.get("event_type", routing_key) if message.headers else routing_key
+
+            if routing_key == "":
+                routing_key = "removed_user"
             
             logger.info(f"Processing event: {event_type} (routing_key: {routing_key})")
             
@@ -678,6 +690,11 @@ class ManagementEventHandlers:
             logger.error(f"Event data: {data}")
             raise
 
+    async def handle_removed_user(self, data: Dict[str, Any], routing_key: str, headers: Dict[str, Any]):
+        email = data["email"]
+
+
+
 
 # Global consumer instance
 event_consumer = EventConsumer()
@@ -691,3 +708,4 @@ async def setup_event_handlers():
     event_consumer.register_handler("vehicle.deleted", event_handlers.handle_vehicle_deleted)
     event_consumer.register_handler("user.created", event_handlers.handle_user_created)
     event_consumer.register_handler("user.role_changed", event_handlers.handle_user_role_changed)
+    event_consumer.register_handler("removed_user", event_handlers.handle_removed_user)
