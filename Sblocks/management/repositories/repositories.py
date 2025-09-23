@@ -172,6 +172,12 @@ class VehicleAssignmentRepository(BaseRepository):
             sort=[("created_at", -1)]
         )
     
+    async def cancel_driver_assignments(self, driver_id: str) -> List[Dict[str, Any]]:
+        """Get all active assignments"""
+        return await self.delete_many(
+            filter_query={"driver_id": driver_id}
+        )
+    
     async def complete_assignment(self, assignment_id: str, end_mileage: float = None) -> bool:
         """Complete an assignment"""
         updates = {

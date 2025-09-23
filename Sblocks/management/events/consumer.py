@@ -13,6 +13,9 @@ import traceback
 from .events import VehicleEvent, UserEvent
 # Import standardized config
 from config.rabbitmq_config import RabbitMQConfig
+from services.drivers_service import DriversService
+from services.driver_service import DriverService
+from services.assignment_service import VehicleAssignmentService
 
 logger = logging.getLogger(__name__)
 
@@ -692,6 +695,13 @@ class ManagementEventHandlers:
 
     async def handle_removed_user(self, data: Dict[str, Any], routing_key: str, headers: Dict[str, Any]):
         email = data["email"]
+        #get driver_id
+        driver = DriverService.get_driver_id_by_email(email)
+        ID = driver["_id"]
+        EMPID = driver["employee_id"]
+        DriverService.delete_driver(ID)
+        VehicleAssignmentService.cancel_driver_assignments(EMPID)
+        #cancel schedules trips
 
 
 
