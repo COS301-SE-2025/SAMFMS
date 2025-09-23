@@ -43,7 +43,7 @@ class TestCoreRoutesComplete:
             from routes.api.assignments import router as assignments_router
             
             # Check that routers have routes
-            assert len(vehicles_router.routes) > 0, "Vehicle routes should exist"
+            assert len(.routes) > 0, "Vehicle routes should exist"
             assert len(drivers_router.routes) > 0, "Driver routes should exist"
             assert len(maintenance_router.routes) > 0, "Maintenance routes should exist"
             assert len(assignments_router.routes) > 0, "Assignment routes should exist"

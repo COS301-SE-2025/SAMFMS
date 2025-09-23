@@ -22,11 +22,18 @@ from services.constraint_service import constraint_service
 from services.driver_service import driver_service
 from services.notification_service import notification_service
 from services.trip_service import trip_service
+from services.smart_trip_planning_service import smart_trip_service
 from services.request_consumer import service_request_consumer
 from api.routes.analytics import router as analytics_router
 from api.routes.drivers import router as drivers_router
 from api.routes.trips import router as trips_router
+from api.routes.vehicles import router as vehicles_router
 from api.routes.notifications import router as notifications_router
+from api.routes.speed_violations import router as speed_violations_router
+from api.routes.driver_ping import router as driver_ping_router
+from api.routes.excessive_braking_violations import router as excessive_braking_violations_router
+from api.routes.excessive_acceleration_violations import router as excessive_acceleration_violations_router
+from api.routes.driver_history import router as driver_history_router
 
 # Import middleware and exception handlers
 from middleware import (
@@ -41,6 +48,9 @@ from schemas.responses import ResponseBuilder
 
 # Import the simulation service
 from services.simulation_service import simulation_service
+from services.missed_trip_scheduler import missed_trip_scheduler
+from services.ping_session_monitor import ping_session_monitor
+from services.driver_history_scheduler import start_scheduler as start_driver_history_scheduler, stop_scheduler as stop_driver_history_scheduler
 
 # Setup logging
 logging.basicConfig(
@@ -110,6 +120,55 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Database connection failed: {e}")
             raise DatabaseConnectionError(f"Failed to connect to database: {e}")
+        
+        # Start database for Management
+        logger.info("Connecting to database Management...")
+        try:
+            await db_manager_management.connect()
+            logger.info("Database Management connected successfully")
+        except Exception as e:
+            logger.error(f"Database Management connection failed: {e}")
+            raise DatabaseConnectionError(f"Failed to connect to database Management: {e}")
+
+        # Start database for GPS
+        logger.info("Connecting to database GPS...")
+        try:
+            await db_manager_gps.connect()
+            logger.info("Database GPS connected successfully")
+        except Exception as e:
+            logger.error(f"Database GPS connection failed: {e}")
+            raise DatabaseConnectionError(f"Failed to connect to database GPS: {e}")
+        
+        # Start the traffic monitor
+        logger.info("Starting the traffic monitor...")
+        try:
+            asyncio.create_task(smart_trip_service.start_traffic_monitoring())
+            logger.info("Traffic monitor started successfully")
+        except Exception as e:
+            logger.error(f"Failed to start the traffic monitor: {e}")
+
+        # Start the simulation service
+        try:
+            asyncio.create_task(simulation_service.start_simulation_service())
+        except Exception as e:
+            logger.error(f"Failed to start missed simulation service: {e}")
+
+
+        # Start the missed trip scheduler
+        logger.info("Starting missed trip scheduler...")
+        try:
+            asyncio.create_task(missed_trip_scheduler.start())
+            logger.info("Missed trip scheduler started successfully")
+        except Exception as e:
+            logger.error(f"Failed to start missed trip scheduler: {e}")
+
+        # Start the ping session monitor
+        logger.info("Starting ping session monitor...")
+        try:
+            asyncio.create_task(ping_session_monitor.start())
+            logger.info("Ping session monitor started successfully")
+        except Exception as e:
+            logger.error(f"Failed to start ping session monitor: {e}")
         
         # Connect to RabbitMQ for event publishing
         logger.info("Connecting to RabbitMQ for event publishing...")
@@ -184,26 +243,15 @@ async def lifespan(app: FastAPI):
         # Store start time for uptime calculation
         app.state.start_time = datetime.now(timezone.utc)
         metrics_middleware.app = app
+        
 
-        # Start database for Management
-        logger.info("Connecting to database Management...")
+        # Start the driver history scheduler
+        logger.info("Starting driver history scheduler...")
         try:
-            await db_manager_management.connect()
-            logger.info("Database Management connected successfully")
+            await start_driver_history_scheduler(update_interval=60)
+            logger.info("Driver history scheduler started successfully")
         except Exception as e:
-            logger.error(f"Database Management connection failed: {e}")
-            raise DatabaseConnectionError(f"Failed to connect to database Management: {e}")
-
-        # Start database for GPS
-        logger.info("Connecting to database GPS...")
-        try:
-            await db_manager_gps.connect()
-            logger.info("Database GPS connected successfully")
-        except Exception as e:
-            logger.error(f"Database GPS connection failed: {e}")
-            raise DatabaseConnectionError(f"Failed to connect to database GPS: {e}")
-        # Start the simulation service
-        await simulation_service.start_simulation_service()
+            logger.error(f"Failed to start driver history scheduler: {e}")
 
         logger.info("Trips Service Startup Completed Successfully")
         
@@ -217,6 +265,38 @@ async def lifespan(app: FastAPI):
         # Cleanup on shutdown
         logger.info("Trips Service Shutting Down...")
         try:
+            # Stop the missed trip scheduler
+            logger.info("Stopping missed trip scheduler...")
+            try:
+                await missed_trip_scheduler.stop()
+                logger.info("Missed trip scheduler stopped")
+            except Exception as e:
+                logger.warning(f"Error stopping missed trip scheduler: {e}")
+
+            # Stop the ping session monitor
+            logger.info("Stopping ping session monitor...")
+            try:
+                await ping_session_monitor.stop()
+                logger.info("Ping session monitor stopped")
+            except Exception as e:
+                logger.warning(f"Error stopping ping session monitor: {e}")
+
+            # Stop the driver history scheduler
+            logger.info("Stopping driver history scheduler...")
+            try:
+                await stop_driver_history_scheduler()
+                logger.info("Driver history scheduler stopped")
+            except Exception as e:
+                logger.warning(f"Error stopping driver history scheduler: {e}")
+
+            # Close trip service and routing service
+            logger.info("Closing trip service...")
+            try:
+                await trip_service.close()
+                logger.info("Trip service closed")
+            except Exception as e:
+                logger.warning(f"Error closing trip service: {e}")
+
             # Publish service stopped event
             try:
                 await event_publisher.publish_service_stopped(
@@ -287,6 +367,7 @@ app.add_middleware(
 )
 
 # Add custom middleware in order
+app.add_middleware(HealthCheckMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(MetricsMiddleware)
@@ -301,7 +382,13 @@ for exception_type, handler in EXCEPTION_HANDLERS.items():
 app.include_router(analytics_router, tags=["analytics"])
 app.include_router(trips_router, tags=["trips"])
 app.include_router(drivers_router, prefix="/drivers", tags=["drivers"])
+app.include_router(vehicles_router, prefix="/vehicles", tags=["vehicles"])
 app.include_router(notifications_router, tags=["notifications"])
+app.include_router(speed_violations_router, tags=["speed_violations"])
+app.include_router(driver_ping_router, tags=["driver_ping"])
+app.include_router(excessive_braking_violations_router, tags=["excessive_braking_violations"])
+app.include_router(excessive_acceleration_violations_router, tags=["excessive_acceleration_violations"])
+app.include_router(driver_history_router, tags=["driver_history"])
 
 @app.get("/")
 async def root():

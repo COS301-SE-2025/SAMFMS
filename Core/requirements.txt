@@ -1,12 +1,12 @@
-fastapi>=0.95.0
-starlette>=0.26.0
+fastapi>=0.110.0
+starlette>=0.32.0
 uvicorn[standard]>=0.20.0
 websockets>=10.0
 motor
 aio_pika
 pyjwt
 bcrypt
-python-multipart
+python-multipart>=0.0.7
 email-validator
 pytest
 pytest-asyncio
@@ -15,3 +15,4 @@ requests
 aiohttp
 docker
 python-json-logger
+pytest-cov

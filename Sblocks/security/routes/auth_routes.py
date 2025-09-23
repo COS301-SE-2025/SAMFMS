@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Request, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from models.api_models import SignupRequest, LoginRequest, TokenResponse, MessageResponse, ProfileUpdateRequest, ChangePasswordRequest
+from models.api_models import SignupRequest, LoginRequest, TokenResponse, MessageResponse, ProfileUpdateRequest, ChangePasswordRequest, ForgotPasswordRequest, RemoveUser
 from services.auth_service import AuthService
 from services.user_service import UserService
 from repositories.user_repository import UserRepository
@@ -25,7 +25,8 @@ def get_default_preferences():
         "push_notifications": "true",
         "two_factor": "false",
         "activity_log": "true",
-        "session_timeout": "30 minutes"
+        "session_timeout": "30 minutes",
+        "dashboard_layout": "%7B%22widgets%22%3A%5B%7B%22id%22%3A%22widget_23ba593d3c63a399b2095570fea6aa1d%22%2C%22type%22%3A%22tracking_map%22%2C%22config%22%3A%7B%22title%22%3A%22tracking_map%22%7D%7D%2C%7B%22id%22%3A%22widget_474da9b9d8015c036d5d66c688c03219%22%2C%22type%22%3A%22plugin_health%22%2C%22config%22%3A%7B%22title%22%3A%22System%20Health%22%7D%7D%2C%7B%22id%22%3A%22widget_c5ecfb711b9871b95b2322b347c08010%22%2C%22type%22%3A%22vehicle_status_bar_chart%22%2C%22config%22%3A%7B%22title%22%3A%22Vehicle%20Status%20Bar%20Chart%22%7D%7D%2C%7B%22id%22%3A%22widget_ec77f7c8eb5ef0c6575d9f5740dbd27b%22%2C%22type%22%3A%22my_notifications%22%2C%22config%22%3A%7B%22title%22%3A%22My%20Notifications%22%7D%7D%5D%2C%22layout%22%3A%5B%7B%22i%22%3A%22widget_23ba593d3c63a399b2095570fea6aa1d%22%2C%22x%22%3A0%2C%22y%22%3A0%2C%22w%22%3A40%2C%22h%22%3A8%7D%2C%7B%22i%22%3A%22widget_474da9b9d8015c036d5d66c688c03219%22%2C%22x%22%3A0%2C%22y%22%3A8%2C%22w%22%3A10%2C%22h%22%3A6%7D%2C%7B%22i%22%3A%22widget_c5ecfb711b9871b95b2322b347c08010%22%2C%22x%22%3A10%2C%22y%22%3A8%2C%22w%22%3A10%2C%22h%22%3A6%7D%2C%7B%22i%22%3A%22widget_ec77f7c8eb5ef0c6575d9f5740dbd27b%22%2C%22x%22%3A20%2C%22y%22%3A8%2C%22w%22%3A10%2C%22h%22%3A6%7D%5D%2C%22isEditing%22%3Afalse%2C%22lastSaved%22%3A%222025-09-15T11%3A13%3A08.495Z%22%2C%22version%22%3A%221.0%22%7D"#default layout
     }
 
 
@@ -324,6 +325,68 @@ async def change_password(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to change password"
         )
+    
+
+
+
+@router.post("/forgot-password") 
+async def forgot_password(request: ForgotPasswordRequest):
+
+    """Forgot-password: Endpoint to start forgot password sequence"""
+    email = request.email
+    otp = request.otp
+    password = request.password
+
+    user = ""
+    try:            
+        if email and not otp and not password:
+            #return {"email": email}
+            user = await AuthService.get_user_by_email(email)
+            if user:
+                user_secret = AuthService.generate_user_secret()
+                otp = await AuthService.generate_otp(email, user_secret)
+                if otp == "Error":
+                    return {"message": "OTP sent to email"}, 200 
+
+                message = "Someone requested to reset your password for SAMFMS. If it was not you, ignore this email. \n\nYour OTP is: " + otp
+                
+                sent = await AuthService.send_email({
+                    "to_email": email,
+                    "subject": "SAMFMS: Forgot password",
+                    "message": message
+                })
+                
+                if sent == {}:
+                    return {"message": "OTP sent to email"}, 200
+            return {"message": "OTP sent to email"}, 200
+        
+        elif email and otp and password:
+            is_valid_otp = await AuthService.verify_otp(email, otp)
+            user = await AuthService.get_user_by_email(email)
+            if is_valid_otp:
+                await AuthService.update_user_password(user["user_id"], password)
+                return {"message": "Password changed successfully"}
+
+        return {"error": "Invalid"}, 400
+    except Exception as e:
+        return {"error": "Invalid"}, 400
+    
+
+@router.post("/remove-user") 
+async def remove_user(request: RemoveUser):
+
+    """Remove-user: Endpoint to remove user from database and tell rest of system to remove the user"""
+    email = request.email
+
+    try:            
+        if email:
+            if AuthService.remove_user(email):
+                return {"message": "user removed"}, 200
+
+        return {"error": "Server error"}, 500
+    except Exception as e:
+        return {"error": {str: e}}, 500
+
 
 
 @router.post("/upload-profile-picture")

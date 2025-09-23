@@ -1,4 +1,4 @@
-from config.database import security_users_collection
+from config.database import security_users_collection, otp_collection, removed_users
 from models.database_models import SecurityUser
 from typing import Optional, Dict, Any
 from bson import ObjectId
@@ -60,6 +60,48 @@ class UserRepository:
             return result.matched_count > 0
         except Exception as e:
             logger.error(f"Failed to update user: {e}")
+            raise
+
+
+    @staticmethod
+    async def remove_user(email: str) -> bool:
+        """Remove user"""
+        try:
+            logger.info(f"UserRepository.remove user called with email: {email}")
+            
+            result = await security_users_collection.delete_one(
+                {"email": email},
+            )
+            
+            
+            if result.matched_count == 0:
+                logger.warning(f"No user found with email: {email}")
+                return False
+            
+            return result.matched_count > 0
+        except Exception as e:
+            logger.error(f"Failed to remove user: {e}")
+            raise    
+
+    @staticmethod
+    async def move_user_to_removed(email: str) -> bool:
+        """Copy user to passed collection"""
+        try:
+            
+            result = await security_users_collection.find_one(
+                {"email": email},
+            )
+            
+            
+            if result.matched_count == 0:
+                logger.warning(f"No user found with email: {email}")
+                return False
+            
+            result2 = await removed_users.insert_one(result)
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to remove user: {e}")
             raise
     
     @staticmethod
@@ -136,4 +178,54 @@ class UserRepository:
             return result.deleted_count > 0
         except Exception as e:
             logger.error(f"Failed to delete user: {e}")
+            raise
+
+    @staticmethod
+    async def insert_otp(email: str, otp: str) -> bool:
+        """Insert OTP for an email and make it expire after 15 minutes."""
+        try:
+            result = await otp_collection.insert_one({
+                "email": email,
+                "otp": otp,
+                "created_at": datetime.utcnow()
+            })
+            return result.acknowledged
+        except Exception as e:
+            logger.error(f"Failed to save OTP: {e}")
+            raise
+
+    @staticmethod
+    async def verify_otp(email: str, otp: str) -> bool:
+        """Verify otp for a specific email address"""
+        try:
+            result = await otp_collection.find_one({
+                "email": email
+            })
+            if (result and result['otp'] == otp):
+                return True
+            else:
+                return False
+        except Exception as e:
+            logger.error(f"OTP error: {e}")
+            raise
+
+    @staticmethod
+    async def delete_otp(email: str) -> bool:
+        """Delete used otp"""
+        try:
+            return otp_collection.delete_one({"email": email})
+        except Exception as e:
+            logger.error(f"OTP error: {e}")
+            raise
+
+    @staticmethod
+    async def update_user_password(user_id: str, password: str) -> bool:
+        """Delete used otp"""
+        try:
+            return security_users_collection.update_one(
+                {"user_id": user_id},     
+                {"$set": {"password_hash": password}}
+            )
+        except Exception as e:
+            logger.error(f"OTP error: {e}")
             raise

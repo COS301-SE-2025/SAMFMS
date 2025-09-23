@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, User } from 'lucide-react';
+import { User, KeyRound } from 'lucide-react';
 
 const OverviewStatsCards = ({ availableVehicles = 0, availableDrivers = 0 }) => {
   return (
@@ -20,7 +20,7 @@ const OverviewStatsCards = ({ availableVehicles = 0, availableDrivers = 0 }) => 
             </div>
           </div>
           <div className="h-14 w-14 bg-blue-500 dark:bg-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
-            <MapPin className="h-7 w-7 text-white" />
+            <KeyRound />
           </div>
         </div>
       </div>

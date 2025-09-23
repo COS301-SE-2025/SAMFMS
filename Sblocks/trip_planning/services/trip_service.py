@@ -6,10 +6,12 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from bson import ObjectId
 
-from repositories.database import db_manager, db_manager_gps
-from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation
-from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest
+from repositories.database import db_manager, db_manager_gps, db_manager_management
+from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation, RouteInfo, TurnByTurnInstruction, RoadDetail, DetailedRouteInfo, ScheduledTrip, SmartTrip, RouteRecommendation
+from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest, ScheduledTripRequest, CreateSmartTripRequest
 from events.publisher import event_publisher
+from services.routing_service import routing_service
+from services.driver_history_service import DriverHistoryService
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,436 @@ class TripService:
     def __init__(self):
         self.db = db_manager
         self.db_gps = db_manager_gps
+    
+    async def create_scheduled_trip(
+        self,
+        request: ScheduledTripRequest,
+        created_by: str
+    ) -> ScheduledTrip:
+        """Create a new scheduled trip"""
+        try:
+            if request.end_time_window:
+                if request.end_time_window <= request.start_time_window:
+                    logger.warning("[TripService.create_schduled_trip] Invalid schedule: end <= start")
+                    raise ValueError("End time must be after start time")
+                
+            trip_data = request.model_dump(exclude_unset=True)
+
+            if request.route_info:
+                trip_data["estimated_distance"] = request.route_info.distance / 1000
+                # Convert duration from seconds to minutes for estimated_duration
+                trip_data["estimated_duration"] = request.route_info.duration / 60
+                logger.debug(f"[TripService.create_trip] Extracted from route_info: distance={trip_data['estimated_distance']}km, duration={trip_data['estimated_duration']}min")
+
+            trip_data.update({
+                "created_by": created_by,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "status": TripStatus.SCHEDULED
+            })
+
+            result = await self.db.trips_scheduled.insert_one(trip_data)
+
+            trip = await self.get_trip_by_id_scheduled(str(result.inserted_id))
+            if not trip:
+                logger.error(f"[TripService.create_scheduled] Failed to retrieve trip after insert (ID={result.inserted_id})")
+                raise RuntimeError("Failed to retrieve created trip")
+            
+            return trip
+        except Exception as e:
+            logger.error(f"[TripService.create_trip_scheduled] Failed: {e}")
+            raise
+
+    async def create_smart_trip(
+        self,
+        request: CreateSmartTripRequest,
+        created_by: str
+    ) -> SmartTrip:
+        """Create a new scheduled trip"""
+        try:
+            if request.optimized_end_time:
+                if request.optimized_end_time <= request.optimized_start_time:
+                    logger.warning("[TripService.smart_trip] Invalid schedule: end <= start")
+                    raise ValueError("End time must be after start time")
+                
+            trip_data = request.model_dump(exclude_unset=True)
+
+            if request.route_info:
+                trip_data["estimated_distance"] = request.route_info.distance
+                # Convert duration from seconds to minutes for estimated_duration
+                trip_data["estimated_duration"] = request.route_info.duration 
+                logger.debug(f"[TripService.create_smart_trip] Extracted from route_info: distance={trip_data['estimated_distance']}km, duration={trip_data['estimated_duration']}min")
+
+            trip_data.update({
+                "created_by": created_by,
+                "created_at": datetime.utcnow()
+            })
+
+            result = await self.db.smarttrips.insert_one(trip_data)
+
+            trip = await self.get_trip_by_id_smart(str(result.inserted_id))
+            if not trip:
+                logger.error(f"[TripService.create_smart] Failed to retrieve trip after insert (ID={result.inserted_id})")
+                raise RuntimeError("Failed to retrieve created smart trip")
+            
+            return trip
+        except Exception as e:
+            logger.error(f"[TripService.create_trip_smart] Failed: {e}")
+            raise
+
+    async def get_scheduled_trips(self) -> list[ScheduledTrip]:
+        """Return all scheduled trips"""
+        logger.info("Enter get all scheduled trips")
+        try:
+            cursor = self.db.trips_scheduled.find({})
+            scheduled_trips = []
+            async for scheduled_trip_doc in cursor:
+                scheduled_trip_doc["_id"] = str(scheduled_trip_doc["_id"])
+                scheduled_trips.append(ScheduledTrip(**scheduled_trip_doc))
+            return scheduled_trips
+        except Exception as e:
+            logger.error(f"[TripService.get_scheduled_trips] Failed: {e}")
+            raise
+    
+
+    async def delete_scheduled_trip(self, trip_id: str) -> bool:
+        """Delete a scheduled trip by its ID"""
+        try:
+            logger.info(f"[TripService.delete_scheduled_trip] Deleting scheduled trip with ID={trip_id}")
+
+            # Validate ObjectId
+            try:
+                object_id = ObjectId(trip_id)
+            except Exception:
+                logger.error(f"[TripService.delete_scheduled_trip] Invalid trip_id: {trip_id}")
+                return False
+
+            # Perform deletion
+            result = await self.db.trips_scheduled.delete_one({"_id": object_id})
+
+            if result.deleted_count == 1:
+                logger.info(f"[TripService.delete_scheduled_trip] Successfully deleted scheduled trip ID={trip_id}")
+                return True
+            else:
+                logger.warning(f"[TripService.delete_scheduled_trip] No scheduled trip found with ID={trip_id}")
+                return False
+
+        except Exception as e:
+            logger.error(f"[TripService.delete_scheduled_trip] Failed: {e}")
+            raise
+
+
+    async def delete_smart_trip(self, smart_trip_id: str) -> bool:
+        """Delete a smart trip by its ID."""
+        try:
+            logger.info(f"[TripService.delete_smart_trip] Deleting smart trip with ID={smart_trip_id}")
+            
+            # Validate ObjectId
+            try:
+                object_id = ObjectId(smart_trip_id)
+            except Exception:
+                logger.error(f"[TripService.delete_smart_trip] Invalid smart_trip_id: {smart_trip_id}")
+                return False
+
+            # Attempt deletion
+            result = await self.db.smarttrips.delete_one({"_id": object_id})
+
+            if result.deleted_count == 1:
+                logger.info(f"[TripService.delete_smart_trip] Successfully deleted smart trip ID={smart_trip_id}")
+                return True
+            else:
+                logger.warning(f"[TripService.delete_smart_trip] No smart trip found with ID={smart_trip_id}")
+                return False
+
+        except Exception as e:
+            logger.error(f"[TripService.delete_smart_trip] Failed: {e}")
+            raise
+
+
+    def _transform_smart_trip_document(self, smart_trips_doc: dict) -> dict:
+        """
+        Transform MongoDB document structure to match SmartTrip Pydantic schema
+        """
+        return {
+            "id": str(smart_trips_doc["_id"]),
+            "trip_id": smart_trips_doc["trip_id"],
+            "trip_name": smart_trips_doc["trip_name"],
+            "description": smart_trips_doc.get("description", ""),
+            "priority": smart_trips_doc["priority"],
+            
+            # Transform original schedule
+            "original_schedule": {
+                "start_time": smart_trips_doc["original_start_time"],
+                "end_time": smart_trips_doc["original_end_time"],
+                "vehicle_id": smart_trips_doc.get("vehicle_id"),
+                "vehicle_name": smart_trips_doc.get("vehicle_name"),
+                "driver_id": smart_trips_doc.get("driver_id"),
+                "driver_name": smart_trips_doc.get("driver_name")
+            },
+            
+            # Transform optimized schedule
+            "optimized_schedule": {
+                "start_time": smart_trips_doc["optimized_start_time"],
+                "end_time": smart_trips_doc["optimized_end_time"],
+                "vehicle_id": smart_trips_doc.get("vehicle_id"),
+                "vehicle_name": smart_trips_doc.get("vehicle_name"),
+                "driver_id": smart_trips_doc.get("driver_id"),
+                "driver_name": smart_trips_doc.get("driver_name")
+            },
+            
+            # Transform route information
+            "route": {
+                "origin": smart_trips_doc["origin"],
+                "destination": smart_trips_doc["destination"],
+                "waypoints": smart_trips_doc.get("waypoints", []),
+                "estimated_distance": smart_trips_doc.get("estimated_distance"),
+                "estimated_duration": smart_trips_doc.get("estimated_duration")
+            },
+            
+            # Transform benefits
+            "benefits": {
+                "time_saved": smart_trips_doc.get("time_saved", "No data"),
+                "fuel_efficiency": smart_trips_doc.get("fuel_efficiency", "No data"),
+                "route_optimization": smart_trips_doc.get("route_optimisation", "No data"),  # Note: your doc has 'optimisation'
+                "driver_utilization": smart_trips_doc.get("driver_utilisation", "No data")  # Note: your doc has 'utilisation'
+            },
+            
+            # Optional route_info (already structured correctly)
+            "route_info": smart_trips_doc.get("route_info"),
+            
+            # Other fields
+            "confidence": int(smart_trips_doc.get("confidence", 0)),
+            "reasoning": smart_trips_doc.get("reasoning", []),
+            "created_at": smart_trips_doc.get("created_at", datetime.utcnow()),
+            "updated_at": smart_trips_doc.get("updated_at", datetime.utcnow())
+        }
+
+    async def get_trip_by_id_smart(self, trip_id: str) -> Optional[SmartTrip]:
+        """Get smart trip by ID"""
+        try:
+            logger.info(f"[TripService.get_trip_by_id_smart] Getting smart trip with ID={trip_id}")
+            
+            # Validate ObjectId
+            try:
+                object_id = ObjectId(trip_id)
+            except Exception:
+                logger.error(f"[TripService.get_trip_by_id_smart] Invalid trip_id: {trip_id}")
+                return None
+
+            trip_doc = await self.db.smarttrips.find_one({"_id": object_id})
+            
+            if not trip_doc:
+                logger.warning(f"[TripService.get_trip_by_id_smart] No smart trip found with ID={trip_id}")
+                return None
+            
+            # Transform the document and create SmartTrip object
+            transformed_doc = self._transform_smart_trip_document(trip_doc)
+            return SmartTrip(**transformed_doc)
+            
+        except Exception as e:
+            logger.error(f"[TripService.get_trip_by_id_smart] Failed to get trip {trip_id}: {e}")
+            raise
+
+    async def get_smart_trips(self) -> list[SmartTrip]:
+        """Return all smart trips"""
+        logger.info("[TripService.get_smart_trips] Enter get all smart trips")
+        try:
+            cursor = self.db.smarttrips.find({})
+            smart_trips = []
+            
+            async for smart_trips_doc in cursor:
+                # Transform the document and create SmartTrip object
+                transformed_doc = self._transform_smart_trip_document(smart_trips_doc)
+                smart_trips.append(SmartTrip(**transformed_doc))
+                
+            logger.info(f"[TripService.get_smart_trips] Retrieved {len(smart_trips)} smart trips")
+            return smart_trips
+            
+        except Exception as e:
+            logger.error(f"[TripService.get_smart_trips] Failed: {e}")
+            raise
+    
+    async def activate_smart_trip(self, smart_trip: SmartTrip, created_by: str) -> Trip:
+        """After accepting a smart trip it will be turned into an actual trip"""
+        try:
+            logger.info(f"[TripService.activate_smart_trip] Activating smart trip ID={smart_trip.id}")
+
+            request = CreateTripRequest(
+                name=smart_trip.trip_name,
+                description=smart_trip.description,
+                scheduled_start_time=smart_trip.optimized_schedule.start_time,
+                scheduled_end_time=smart_trip.optimized_schedule.end_time,
+                origin=smart_trip.route.origin,
+                destination=smart_trip.route.destination,
+                waypoints=smart_trip.route.waypoints,
+                route_info=smart_trip.route_info,
+                priority=smart_trip.priority,
+                vehicle_id=smart_trip.optimized_schedule.vehicle_id,
+                driver_assignment=smart_trip.optimized_schedule.driver_id
+            )
+
+            try:
+                new_trip = await self.create_trip(request, created_by)
+                logger.info(f"[TripService.activate_smart_trip] Successfully created trip ID={new_trip.id} from smart trip ID={smart_trip.id}")
+                return new_trip 
+            except Exception as e:
+                logger.error(f"[TripService.activate_smart_trip] Failed to create actual trip: {e}")
+                raise
+
+        except Exception as e:
+            logger.error(f"[TripService.activate_smart_trip] Failed: {e}")
+            raise
+    
+    async def _store_route_recommendation(self, recommendation: RouteRecommendation):
+        """Store route recommendation in database for later retrieval"""
+        try:
+            recommendation_doc = {
+                "trip_id": recommendation.trip_id,
+                "vehicle_id": recommendation.vehicle_id,
+                "recommended_route": recommendation.recommended_route.model_dump() if recommendation.recommended_route else None,
+                "time_savings": recommendation.time_savings,
+                "traffic_avoided": recommendation.traffic_avoided,
+                "confidence": recommendation.confidence,
+                "reason": recommendation.reason,
+                "status": "pending",  # pending, accepted, rejected, expired
+                "created_at": recommendation.created_at,
+                "expires_at": recommendation.created_at + timedelta(minutes=120)  # Expire after 30 minutes
+            }
+            
+            # Store in route_recommendations collection
+            await self.db.route_recommendations.update_one(
+                {"trip_id": recommendation.trip_id},
+                {"$set": recommendation_doc},
+                upsert=True
+            )
+            
+            logger.info(f"Stored route recommendation for trip {recommendation.trip_id}")
+            
+        except Exception as e:
+            logger.error(f"Error storing route recommendation: {e}")
+    
+    async def get_route_recommendations(self, trip_id: str = None) -> List[RouteRecommendation]:
+        """Get active route recommendations, optionally filtered by trip_id"""
+        try:
+            query = {
+                "status": "pending",
+                "expires_at": {"$gt": datetime.utcnow()}
+            }
+            
+            if trip_id:
+                query["trip_id"] = trip_id
+            
+            cursor = self.db.route_recommendations.find(query)
+            recommendations = []
+
+            async for recommendation in cursor:
+                recommendation["_id"] = str(recommendation["_id"])
+                recommendations.append(RouteRecommendation(**recommendation))
+            
+            
+            return recommendations
+            
+        except Exception as e:
+            logger.error(f"Error getting route recommendations: {e}")
+            return []
+
+    async def accept_route_recommendation(self, trip_id: str, recommendation_id: str) -> bool:
+        """Accept a route recommendation and update the trip's route"""
+        try:
+            # Get the recommendation
+            recommendation = await self.db.route_recommendations.find_one({
+                "_id": ObjectId(recommendation_id),
+                "trip_id": trip_id,
+                "status": "pending"
+            })
+            
+            if not recommendation:
+                logger.warning(f"Route recommendation {recommendation_id} not found or not pending")
+                return False
+            
+            # Update trip with new route
+            new_route_info = recommendation["recommended_route"]
+            
+            update_result = await self.db.trips.update_one(
+                {"_id": ObjectId(trip_id)},
+                {
+                    "$set": {
+                        "route_info": new_route_info,
+                        "estimated_duration": new_route_info["duration"] / 60,  # Convert to minutes
+                        "route_updated_at": datetime.utcnow(),
+                        "route_update_reason": "traffic_optimization"
+                    }
+                }
+            )
+            
+            if update_result.modified_count > 0:
+                # Mark recommendation as accepted
+                await self.db.route_recommendations.update_one(
+                    {"_id": ObjectId(recommendation_id)},
+                    {
+                        "$set": {
+                            "status": "accepted",
+                            "accepted_at": datetime.utcnow()
+                        }
+                    }
+                )
+                
+                logger.info(f"Route recommendation {recommendation_id} accepted for trip {trip_id}")
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error accepting route recommendation: {e}")
+            return False
+    
+    async def reject_route_recommendation(self, trip_id: str, recommendation_id: str) -> bool:
+        """Reject a pending route recommendation for a trip"""
+        try:
+            # Find the recommendation for this trip
+            recommendation = await self.db.route_recommendations.find_one({
+                "_id": ObjectId(recommendation_id),
+                "trip_id": trip_id,
+                "status": "pending"
+            })
+
+            if not recommendation:
+                logger.warning(f"Recommendation {recommendation_id} for trip {trip_id} not found or not pending")
+                return False
+
+            # Update the recommendation status to rejected
+            update_result = await self.db.route_recommendations.update_one(
+                {
+                    "_id": ObjectId(recommendation_id),
+                    "trip_id": trip_id,
+                    "status": "pending"
+                },
+                {
+                    "$set": {
+                        "status": "rejected",
+                        "rejected_at": datetime.utcnow()
+                    }
+                }
+            )
+
+            if update_result.modified_count > 0:
+                logger.info(f"Route recommendation {recommendation_id} rejected for trip {trip_id}")
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Error rejecting route recommendation for trip {trip_id}: {e}")
+            return False
+
+
+    async def close(self):
+        """Clean up resources"""
+        try:
+            await routing_service.close()
+            logger.info("[TripService] Closed routing service session")
+        except Exception as e:
+            logger.error(f"[TripService] Error closing routing service: {e}")
 
     async def create_trip(
         self, 
@@ -36,16 +468,53 @@ class TripService:
                     logger.warning("[TripService.create_trip] Invalid schedule: end <= start")
                     raise ValueError("End time must be after start time")
 
+            # Validate vehicle availability
+            logger.debug(f"[TripService.create_trip] Validating vehicle availability for vehicle_id={request.vehicle_id}")
+            is_available = await self._check_vehicle_availability(request.vehicle_id, request.scheduled_start_time, request.scheduled_end_time)
+            if not is_available:
+                logger.warning(f"[TripService.create_trip] Vehicle {request.vehicle_id} is not available for the requested time slot")
+                raise ValueError(f"Vehicle {request.vehicle_id} is not available for the requested time period")
+
             # Create trip entity
             trip_data = request.dict(exclude_unset=True)
             
-            # If route_info is provided, extract estimated distance and duration
-            if request.route_info:
+                        # Always fetch raw route information from Geoapify API for simulation and navigation
+            logger.info("[TripService.create_trip] Fetching raw route information from Geoapify API")
+            try:
+                raw_route_data, basic_route_info = await self._fetch_raw_route_info(request.origin, request.destination, request.waypoints)
+                if raw_route_data and basic_route_info:
+                    # Store the raw route response for detailed navigation/simulation
+                    trip_data["raw_route_response"] = raw_route_data
+                    logger.info(f"[TripService.create_trip] Successfully stored raw route response")
+                    
+                    # Populate route_info from the raw response if not provided
+                    if not request.route_info:
+                        trip_data["route_info"] = basic_route_info
+                        logger.info(f"[TripService.create_trip] Populated route_info from raw response: {basic_route_info['distance']}m, {basic_route_info['duration']}s, {len(basic_route_info['coordinates'])} coordinates")
+                else:
+                    logger.warning("[TripService.create_trip] Failed to fetch raw route information, continuing without it")
+            except Exception as e:
+                logger.error(f"[TripService.create_trip] Error fetching raw route info: {e}, continuing without it")
+            
+            # Extract estimated distance and duration from available route info
+            # Handle both object and dict forms of route_info
+            route_info = trip_data.get("route_info") or request.route_info
+            if route_info:
+                # Handle both Pydantic object and dict forms
+                if hasattr(route_info, 'distance'):
+                    # It's a Pydantic object
+                    distance = route_info.distance
+                    duration = route_info.duration
+                else:
+                    # It's a dictionary
+                    distance = route_info.get('distance', 0)
+                    duration = route_info.get('duration', 0)
+                
                 # Convert distance from meters to kilometers for estimated_distance
-                trip_data["estimated_distance"] = request.route_info.distance / 1000
+                trip_data["estimated_distance"] = distance / 1000
                 # Convert duration from seconds to minutes for estimated_duration
-                trip_data["estimated_duration"] = request.route_info.duration / 60
-                logger.debug(f"[TripService.create_trip] Extracted from route_info: distance={trip_data['estimated_distance']}km, duration={trip_data['estimated_duration']}min")
+                trip_data["estimated_duration"] = duration / 60
+                logger.debug(f"[TripService.create_trip] Extracted estimates: distance={trip_data['estimated_distance']}km, duration={trip_data['estimated_duration']}min")
             
             trip_data.update({
                 "created_by": created_by,
@@ -53,12 +522,16 @@ class TripService:
                 "updated_at": datetime.utcnow(),
                 "status": TripStatus.SCHEDULED
             })
-            logger.debug(f"[TripService.create_trip] Prepared trip_data: {trip_data}")
+            logger.debug(f"[TripService.create_trip] Prepared trip_data with keys: {list(trip_data.keys())}")
 
             # Insert into database
             logger.info("[TripService.create_trip] Inserting trip into database")
-            result = await self.db.trips.insert_one(trip_data)
-            logger.info(f"[TripService.create_trip] Trip inserted with _id={result.inserted_id}")
+            try:
+                result = await self.db.trips.insert_one(trip_data)
+                logger.info(f"[TripService.create_trip] Trip inserted with _id={result.inserted_id}")
+            except Exception as e:
+                logger.error(f"[TripService.create_trip] Database insert failed: {e}")
+                raise
 
             # Retrieve created trip
             logger.info(f"[TripService.create_trip] Fetching created trip with ID={result.inserted_id}")
@@ -188,46 +661,7 @@ class TripService:
         except Exception as e:
             logger.error(f"[TripService.get_vehicle_polyline] Failed to get polyline for vehicle {vehicle_id}: {e}")
             raise
-    
-    async def cancel_trip(self, trip_id: str, reason: str = "cancelled"):
-        """Cancel a trip and move it to history (for external cancellation handling)"""
-        try:
-            # Get the original trip document
-            trip_doc = await db_manager.trips.find_one({"_id": ObjectId(trip_id)})
-            
-            if not trip_doc:
-                logger.error(f"Trip {trip_id} not found in trips collection")
-                return False
-            
-            # Add cancellation information
-            cancellation_time = datetime.utcnow()
-            trip_doc.update({
-                "actual_end_time": cancellation_time,
-                "status": "cancelled",
-                "completion_reason": "cancelled",
-                "cancellation_reason": reason,
-                "moved_to_history_at": cancellation_time
-            })
-            
-            # Insert into trip_history collection
-            await db_manager.trip_history.insert_one(trip_doc)
-            logger.info(f"Trip {trip_id} moved to trip_history with status 'cancelled'")
-            
-            # Remove from active trips collection
-            await db_manager.trips.delete_one({"_id": ObjectId(trip_id)})
-            
-            # Stop simulation if running
-            if trip_id in self.active_simulators:
-                self.active_simulators[trip_id].is_running = False
-                del self.active_simulators[trip_id]
-                logger.info(f"Stopped simulation for cancelled trip {trip_id}")
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to cancel trip {trip_id}: {e}")
-            return False
-    
+
     async def get_active_trips(self, driver_id: str = None) -> List[Trip]:
         """
         Return all active trips (current time >= scheduled_start_time and not completed/canceled),
@@ -283,10 +717,43 @@ class TripService:
             logger.error(f"Failed to get trip {trip_id}: {e}")
             raise
     
+
+    async def get_trip_destination(self, trip_id: str) -> Optional[Dict[str, Any]]:
+        """Get the destination object for a given trip_id."""
+        try:
+            trip_doc = await self.db.trips.find_one(
+                {"_id": ObjectId(trip_id)},
+                {"destination": 1}  # Only fetch the destination field
+            )
+            if trip_doc and "destination" in trip_doc:
+                return trip_doc["destination"]
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get destination for trip {trip_id}: {e}")
+            raise
+    
+
+
+    
+    async def get_trip_by_id_scheduled(self, trip_id: str) -> ScheduledTrip:
+        """Get trip by ID"""
+        try:
+            trip_doc = await self.db.trips_scheduled.find_one({"_id": ObjectId(trip_id)})
+            if trip_doc:
+                trip_doc["_id"] = str(trip_doc["_id"])
+                return ScheduledTrip(**trip_doc)
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get trip {trip_id}: {e}")
+            raise
+    
+    
     async def update_trip(
         self,
         trip_id: str,
-        request: UpdateTripRequest
+        request: UpdateTripRequest,
+        updated_by: str
     ) -> Optional[Trip]:
         """Update an existing trip"""
         try:
@@ -331,7 +798,7 @@ class TripService:
             logger.error(f"Failed to update trip {trip_id}: {e}")
             raise
     
-    async def delete_trip(self, trip_id: str) -> bool:
+    async def delete_trip(self, trip_id: str, deleted_by: str) -> bool:
         """Delete a trip"""
         try:
             # Get trip before deletion for event
@@ -461,6 +928,28 @@ class TripService:
                 {"$set": update_data}
             )
             
+            # Set driver status to unavailable when trip starts
+            if trip.driver_assignment:
+                from repositories.database import db_manager_management
+                await db_manager_management.drivers.update_one(
+                    {"employee_id": trip.driver_assignment},
+                    {"$set": {"status": "unavailable", "updated_at": datetime.utcnow()}}
+                )
+                logger.info(f"Set driver {trip.driver_assignment} status to unavailable")
+            
+            # Set vehicle status to unavailable when trip starts
+            if trip.vehicle_id:
+                from repositories.database import db_manager_management
+                await db_manager_management.vehicles.update_one(
+                    {"_id": trip.vehicle_id},
+                    {"$set": {"status": "unavailable", "updated_at": datetime.utcnow()}}
+                )
+                logger.info(f"Set vehicle {trip.vehicle_id} status to unavailable")
+            
+            # Ping sessions are now automatically managed based on trip status
+            # No need to manually start/stop sessions - they activate/deactivate based on trip status
+            logger.info(f"Trip {trip_id} status set to IN_PROGRESS - ping sessions will auto-activate on next ping")
+            
             # Get updated trip
             updated_trip = await self.get_trip_by_id(trip_id)
             
@@ -473,21 +962,20 @@ class TripService:
         except Exception as e:
             logger.error(f"Failed to start trip {trip_id}: {e}")
             raise
-    
-    async def complete_trip(self, trip_id: str, completed_by: str) -> Optional[Trip]:
-        """Complete a trip"""
+
+    async def pause_trip(self, trip_id: str, paused_by: str) -> Optional[Trip]:
+        """Pause a trip"""
         try:
             trip = await self.get_trip_by_id(trip_id)
             if not trip:
                 return None
             
             if trip.status != TripStatus.IN_PROGRESS:
-                raise ValueError(f"Trip is not in progress (current: {trip.status})")
+                raise ValueError(f"Trip is not in progress status (current: {trip.status})")
             
             # Update trip status
             update_data = {
-                "status": TripStatus.COMPLETED,
-                "actual_end_time": datetime.utcnow(),
+                "status": TripStatus.PAUSED,
                 "updated_at": datetime.utcnow()
             }
             
@@ -496,17 +984,241 @@ class TripService:
                 {"$set": update_data}
             )
             
+            # Pause the simulation
+            from services.simulation_service import simulation_service
+            await simulation_service.pause_trip_simulation(trip_id)
+            
+            # Ping sessions will automatically deactivate when status is not "in_progress"
+            logger.info(f"Trip {trip_id} status set to PAUSED - ping sessions will auto-deactivate on next ping")
+            
             # Get updated trip
             updated_trip = await self.get_trip_by_id(trip_id)
             
-            # Calculate analytics
-            await self._calculate_trip_analytics(updated_trip)
+            # Publish event
+            await event_publisher.publish_trip_updated(updated_trip, trip)
+            
+            logger.info(f"Paused trip {trip_id}")
+            return updated_trip
+            
+        except Exception as e:
+            logger.error(f"Failed to pause trip {trip_id}: {e}")
+            raise
+
+    async def resume_trip(self, trip_id: str, resumed_by: str) -> Optional[Trip]:
+        """Resume a paused trip"""
+        try:
+            trip = await self.get_trip_by_id(trip_id)
+            if not trip:
+                return None
+            
+            if trip.status != TripStatus.PAUSED:
+                raise ValueError(f"Trip is not in paused status (current: {trip.status})")
+            
+            # Update trip status
+            update_data = {
+                "status": TripStatus.IN_PROGRESS,
+                "updated_at": datetime.utcnow()
+            }
+            
+            await self.db.trips.update_one(
+                {"_id": ObjectId(trip_id)},
+                {"$set": update_data}
+            )
+            
+            # Resume the simulation
+            from services.simulation_service import simulation_service
+            await simulation_service.resume_trip_simulation(trip_id)
+            
+            # Ping sessions will automatically activate when status is "in_progress" 
+            logger.info(f"Trip {trip_id} status set to IN_PROGRESS - ping sessions will auto-activate on next ping")
+            
+            # Get updated trip
+            updated_trip = await self.get_trip_by_id(trip_id)
             
             # Publish event
-            await event_publisher.publish_trip_completed(updated_trip)
+            await event_publisher.publish_trip_updated(updated_trip, trip)
+            
+            logger.info(f"Resumed trip {trip_id}")
+            return updated_trip
+            
+        except Exception as e:
+            logger.error(f"Failed to resume trip {trip_id}: {e}")
+            raise
+
+    async def cancel_trip(self, trip_id: str, cancelled_by: str, reason: str = "cancelled") -> Optional[Trip]:
+        """Cancel a trip and move it to history"""
+        try:
+            trip = await self.get_trip_by_id(trip_id)
+            if not trip:
+                return None
+            
+            if trip.status in [TripStatus.COMPLETED, TripStatus.CANCELLED]:
+                raise ValueError(f"Trip is already in final status (current: {trip.status})")
+            
+            # Get the original trip document
+            trip_doc = await self.db.trips.find_one({"_id": ObjectId(trip_id)})
+            
+            if not trip_doc:
+                logger.error(f"Trip {trip_id} not found in trips collection")
+                return None
+            
+            # Add cancellation information
+            cancellation_time = datetime.utcnow()
+            trip_doc.update({
+                "actual_end_time": cancellation_time,
+                "status": TripStatus.CANCELLED.value,
+                "completion_reason": "cancelled",
+                "cancellation_reason": reason,
+                "moved_to_history_at": cancellation_time,
+                "cancelled_by": cancelled_by,
+                "updated_at": cancellation_time
+            })
+            
+            # Set driver status back to available when trip is cancelled
+            if trip.driver_assignment:
+                from repositories.database import db_manager_management
+                await db_manager_management.drivers.update_one(
+                    {"employee_id": trip.driver_assignment},
+                    {"$set": {"status": "available", "updated_at": cancellation_time}}
+                )
+                logger.info(f"Set driver {trip.driver_assignment} status to available")
+            
+            # Ping sessions will automatically deactivate when status is not "in_progress"
+            logger.info(f"Trip {trip_id} status set to CANCELLED - ping sessions will auto-deactivate")
+            
+            # Set vehicle status back to available when trip is cancelled
+            if trip.vehicle_id:
+                from repositories.database import db_manager_management
+                await db_manager_management.vehicles.update_one(
+                    {"_id": trip.vehicle_id},
+                    {"$set": {"status": "available", "updated_at": cancellation_time}}
+                )
+                logger.info(f"Set vehicle {trip.vehicle_id} status to available")
+            
+            # Stop the simulation
+            from services.simulation_service import simulation_service
+            await simulation_service.stop_trip_simulation(trip_id)
+            
+            # Insert into trip_history collection
+            await self.db.trip_history.insert_one(trip_doc)
+            logger.info(f"Trip {trip_id} moved to trip_history with status 'cancelled'")
+            
+            # Remove from active trips collection
+            await self.db.trips.delete_one({"_id": ObjectId(trip_id)})
+            
+            # Update driver history
+            if trip.driver_assignment:
+                try:
+                    driver_history_service = DriverHistoryService(db_manager, db_manager_management)
+                    await driver_history_service.update_driver_history_on_trip_completion(
+                        driver_id=trip.driver_assignment,
+                        trip_id=trip_id,
+                        trip_status="cancelled"
+                    )
+                    logger.info(f"Updated driver history for driver {trip.driver_assignment} after trip cancellation")
+                except Exception as e:
+                    logger.error(f"Failed to update driver history for cancelled trip {trip_id}: {e}")
+            
+            # Create trip object for event publishing
+            trip_doc["_id"] = str(trip_doc["_id"])
+            cancelled_trip = Trip(**trip_doc)
+            
+            # Publish event
+            await event_publisher.publish_trip_updated(cancelled_trip, trip)
+            
+            logger.info(f"Cancelled trip {trip_id}")
+            return cancelled_trip
+            
+        except Exception as e:
+            logger.error(f"Failed to cancel trip {trip_id}: {e}")
+            raise
+    
+    async def complete_trip(self, trip_id: str, completed_by: str) -> Optional[Trip]:
+        """Complete a trip and move it to history"""
+        try:
+            trip = await self.get_trip_by_id(trip_id)
+            if not trip:
+                return None
+            
+            if trip.status != TripStatus.IN_PROGRESS:
+                raise ValueError(f"Trip is not in progress (current: {trip.status})")
+            
+            # Get the original trip document
+            trip_doc = await self.db.trips.find_one({"_id": ObjectId(trip_id)})
+            
+            if not trip_doc:
+                logger.error(f"Trip {trip_id} not found in trips collection")
+                return None
+            
+            # Add completion information
+            completion_time = datetime.utcnow()
+            trip_doc.update({
+                "status": TripStatus.COMPLETED.value,
+                "actual_end_time": completion_time,
+                "completion_reason": "completed",
+                "completed_by": completed_by,
+                "moved_to_history_at": completion_time,
+                "updated_at": completion_time
+            })
+            
+            # Set driver status back to available when trip completes
+            if trip.driver_assignment:
+                from repositories.database import db_manager_management
+                await db_manager_management.drivers.update_one(
+                    {"employee_id": trip.driver_assignment},
+                    {"$set": {"status": "available", "updated_at": completion_time}}
+                )
+                logger.info(f"Set driver {trip.driver_assignment} status to available")
+            
+            # Ping sessions will automatically deactivate when status is not "in_progress"
+            logger.info(f"Trip {trip_id} status set to COMPLETED - ping sessions will auto-deactivate")
+            
+            # Set vehicle status back to available when trip completes
+            if trip.vehicle_id:
+                from repositories.database import db_manager_management
+                await db_manager_management.vehicles.update_one(
+                    {"_id": trip.vehicle_id},
+                    {"$set": {"status": "available", "updated_at": completion_time}}
+                )
+                logger.info(f"Set vehicle {trip.vehicle_id} status to available")
+            
+            # Stop the simulation
+            from services.simulation_service import simulation_service
+            await simulation_service.stop_trip_simulation(trip_id)
+            
+            # Calculate analytics before moving to history
+            completed_trip_temp = Trip(**{**trip_doc, "_id": str(trip_doc["_id"])})
+            await self._calculate_trip_analytics(completed_trip_temp)
+            
+            # Insert into trip_history collection
+            await self.db.trip_history.insert_one(trip_doc)
+            logger.info(f"Trip {trip_id} moved to trip_history with status 'completed'")
+            
+            # Remove from active trips collection
+            await self.db.trips.delete_one({"_id": ObjectId(trip_id)})
+            
+            # Update driver history
+            if trip.driver_assignment:
+                try:
+                    driver_history_service = DriverHistoryService(db_manager, db_manager_management)
+                    await driver_history_service.update_driver_history_on_trip_completion(
+                        driver_id=trip.driver_assignment,
+                        trip_id=trip_id,
+                        trip_status="completed"
+                    )
+                    logger.info(f"Updated driver history for driver {trip.driver_assignment} after trip completion")
+                except Exception as e:
+                    logger.error(f"Failed to update driver history for completed trip {trip_id}: {e}")
+            
+            # Create trip object for event publishing
+            trip_doc["_id"] = str(trip_doc["_id"])
+            completed_trip = Trip(**trip_doc)
+            
+            # Publish event
+            await event_publisher.publish_trip_completed(completed_trip)
             
             logger.info(f"Completed trip {trip_id}")
-            return updated_trip
+            return completed_trip
             
         except Exception as e:
             logger.error(f"Failed to complete trip {trip_id}: {e}")
@@ -553,7 +1265,7 @@ class TripService:
                 "actual_start_time": {"$in": [None, ""]}  # not yet started
             }
             
-            logger.debug(f"[TripService.get_all_upcoming_trips] Query: {query}")
+            logger.info(f"[TripService.get_all_upcoming_trips] Query: {query}")
             
             # Sort by scheduled start time ascending
             cursor = self.db.trips.find(query).sort("scheduled_start_time", 1)
@@ -580,6 +1292,7 @@ class TripService:
             
             query = {
                 "driver_assignment": driver_id,
+                "status": TripStatus.SCHEDULED.value,
                 "scheduled_start_time": {"$gte": now},
                 "actual_start_time": {"$in": [None, ""]}  # null or empty string
             }
@@ -669,6 +1382,708 @@ class TripService:
         except Exception as e:
             logger.error(f"[TripService.get_all_recent_trips] Error: {e}")
             raise
+
+    async def _check_vehicle_availability(self, vehicle_id: str, start_time: datetime, end_time: Optional[datetime]) -> bool:
+        """Check if a vehicle is available for the given time period"""
+        try:
+            logger.info(f"[TripService._check_vehicle_availability] Checking availability for vehicle {vehicle_id} from {start_time} to {end_time}")
+            
+            # Build query to find conflicting trips
+            query = {
+                "vehicle_id": vehicle_id,
+                "status": {"$in": [
+                    TripStatus.SCHEDULED.value,
+                    TripStatus.IN_PROGRESS.value,
+                    TripStatus.PAUSED.value
+                ]}
+            }
+            
+            # Check for time conflicts
+            if end_time:
+                # Check for overlap: new trip starts before existing ends AND new trip ends after existing starts
+                time_conflict_query = {
+                    "$and": [
+                        {"scheduled_start_time": {"$lt": end_time}},
+                        {
+                            "$or": [
+                                {"scheduled_end_time": {"$gt": start_time}},
+                                {"scheduled_end_time": None}  # Handle trips without end time
+                            ]
+                        }
+                    ]
+                }
+                query.update(time_conflict_query)
+            else:
+                # If no end time provided, check if vehicle has any future trips
+                query["scheduled_start_time"] = {"$gte": start_time}
+            
+            logger.debug(f"[TripService._check_vehicle_availability] Query: {query}")
+            
+            # Check if any conflicting trips exist
+            conflicting_trip = await self.db.trips.find_one(query)
+            
+            if conflicting_trip:
+                logger.warning(f"[TripService._check_vehicle_availability] Vehicle {vehicle_id} has conflicting trip: {conflicting_trip['_id']}")
+                return False
+            
+            logger.info(f"[TripService._check_vehicle_availability] Vehicle {vehicle_id} is available")
+            return True
+            
+        except Exception as e:
+            logger.error(f"[TripService._check_vehicle_availability] Error checking vehicle availability: {e}")
+            # Default to unavailable on error for safety
+            return False
+
+    async def _fetch_route_info(self, origin, destination, waypoints=None) -> Optional[RouteInfo]:
+        """
+        Fetch detailed route information using the routing service
+        
+        Args:
+            origin: Trip origin waypoint
+            destination: Trip destination waypoint  
+            waypoints: Optional intermediate waypoints
+            
+        Returns:
+            RouteInfo object with detailed route data or None if failed
+        """
+        try:
+            logger.info("[TripService._fetch_route_info] Fetching route information from Geoapify")
+            
+            # Convert waypoints to format expected by routing service
+            formatted_waypoints = routing_service.format_waypoints_from_trip(
+                origin.dict(), 
+                destination.dict(), 
+                [w.dict() for w in waypoints] if waypoints else None
+            )
+            
+            # Get detailed route information
+            route_data = await routing_service.get_detailed_route_info(
+                waypoints=formatted_waypoints,
+                mode="drive"  # Default to driving mode, could be configurable
+            )
+            
+            # Create RouteInfo object with the fetched data
+            route_info = RouteInfo(
+                distance=route_data["distance"],
+                duration=route_data["duration"],
+                coordinates=route_data["coordinates"],
+                toll=route_data.get("toll", False),
+                ferry=route_data.get("ferry", False),
+                instructions=[
+                    TurnByTurnInstruction(**instruction) 
+                    for instruction in route_data.get("instructions", [])
+                ],
+                road_details=[
+                    RoadDetail(**detail) 
+                    for detail in route_data.get("road_details", [])
+                ],
+                raw_response=route_data.get("raw_response")
+            )
+            
+            logger.info(f"[TripService._fetch_route_info] Successfully fetched route: {route_info.distance}m, {route_info.duration}s")
+            return route_info
+            
+        except Exception as e:
+            logger.error(f"[TripService._fetch_route_info] Failed to fetch route information: {e}")
+            return None
+
+    async def _fetch_raw_route_info(self, origin, destination, waypoints=None):
+        """
+        Fetch raw route information from Geoapify API and extract basic route_info
+        
+        Args:
+            origin: Trip origin waypoint
+            destination: Trip destination waypoint  
+            waypoints: Optional intermediate waypoints
+            
+        Returns:
+            Tuple of (raw_route_data, basic_route_info) or (None, None) if failed
+        """
+        try:
+            logger.info("[TripService._fetch_raw_route_info] Fetching raw route information from Geoapify")
+            
+            # Convert waypoints to format expected by routing service
+            formatted_waypoints = routing_service.format_waypoints_from_trip(
+                origin.dict(), 
+                destination.dict(), 
+                [w.dict() for w in waypoints] if waypoints else None
+            )
+            
+            # Get raw route information
+            raw_route_data = await routing_service.get_raw_route_info(
+                waypoints=formatted_waypoints,
+                mode="drive"  # Default to driving mode, could be configurable
+            )
+            
+            if not raw_route_data or not raw_route_data.get("results"):
+                logger.warning("[TripService._fetch_raw_route_info] No route data returned from API")
+                return None, None
+            
+            # Extract basic route info from raw response
+            basic_route_info = self._extract_route_info_from_raw(raw_route_data)
+            
+            logger.info(f"[TripService._fetch_raw_route_info] Successfully fetched raw route data: {basic_route_info.get('distance', 0)}m, {basic_route_info.get('duration', 0)}s")
+            return raw_route_data, basic_route_info
+            
+        except Exception as e:
+            logger.error(f"[TripService._fetch_raw_route_info] Failed to fetch raw route information: {e}")
+            return None, None
+
+    def _extract_route_info_from_raw(self, raw_route_data):
+        """
+        Extract basic route_info (bounds, coordinates, distance, duration) from raw API response
+        
+        Args:
+            raw_route_data: Raw Geoapify API response
+            
+        Returns:
+            Dictionary with bounds, coordinates, distance, duration
+        """
+        try:
+            route = raw_route_data["results"][0]
+            
+            # Extract distance and duration
+            distance = route.get("distance", 0)
+            duration = route.get("time", 0)
+            
+            # Extract coordinates from geometry
+            coordinates = []
+            
+            # Check if geometry exists and extract coordinates
+            if route.get("geometry") and len(route["geometry"]) > 0:
+                # The geometry appears to be an array of coordinate arrays
+                geometry_data = route["geometry"][0] if isinstance(route["geometry"], list) else route["geometry"]
+                if isinstance(geometry_data, list):
+                    # Convert [lon,lat] to [lat,lon] format
+                    coordinates = [[coord[1], coord[0]] for coord in geometry_data]
+            
+            # If no coordinates from geometry, try extracting from legs/steps (fallback)
+            if not coordinates and route.get("legs"):
+                logger.debug("[TripService._extract_route_info_from_raw] No geometry coordinates, attempting to extract from legs")
+                # This is a more complex extraction that would need the step geometry
+                # For now, create a simple line between waypoints as fallback
+                waypoints = route.get("waypoints", [])
+                if len(waypoints) >= 2:
+                    first_wp = waypoints[0]
+                    last_wp = waypoints[-1]
+                    coordinates = [
+                        [first_wp.get("lat", 0), first_wp.get("lon", 0)], 
+                        [last_wp.get("lat", 0), last_wp.get("lon", 0)]
+                    ]
+            
+            # Calculate bounds from coordinates
+            bounds = self._calculate_bounds(coordinates)
+            
+            logger.debug(f"[TripService._extract_route_info_from_raw] Extracted {len(coordinates)} coordinates")
+            
+            return {
+                "distance": distance,
+                "duration": duration, 
+                "coordinates": coordinates,
+                "bounds": bounds
+            }
+            
+        except Exception as e:
+            logger.error(f"[TripService._extract_route_info_from_raw] Failed to extract route info: {e}")
+            # Return minimal fallback data
+            return {
+                "distance": 0,
+                "duration": 0,
+                "coordinates": [],
+                "bounds": {
+                    "southWest": {"lat": 0, "lng": 0},
+                    "northEast": {"lat": 0, "lng": 0}
+                }
+            }
+
+    def _calculate_bounds(self, coordinates):
+        """
+        Calculate bounding box from coordinates
+        
+        Args:
+            coordinates: List of [lat, lon] pairs
+            
+        Returns:
+            Dictionary with southWest and northEast bounds
+        """
+        if not coordinates:
+            return {
+                "southWest": {"lat": 0, "lng": 0},
+                "northEast": {"lat": 0, "lng": 0}
+            }
+        
+        lats = [coord[0] for coord in coordinates]
+        lngs = [coord[1] for coord in coordinates]
+        
+        return {
+            "southWest": {"lat": min(lats), "lng": min(lngs)},
+            "northEast": {"lat": max(lats), "lng": max(lngs)}
+        }
+
+    async def _fetch_detailed_route_info(self, origin, destination, waypoints=None) -> Optional[DetailedRouteInfo]:
+        """
+        Fetch comprehensive detailed route information using the routing service
+        
+        Args:
+            origin: Trip origin waypoint
+            destination: Trip destination waypoint  
+            waypoints: Optional intermediate waypoints
+            
+        Returns:
+            DetailedRouteInfo object with comprehensive route data or None if failed
+        """
+        try:
+            logger.info("[TripService._fetch_detailed_route_info] Fetching detailed route information from Geoapify")
+            
+            # Convert waypoints to format expected by routing service
+            formatted_waypoints = routing_service.format_waypoints_from_trip(
+                origin.dict(), 
+                destination.dict(), 
+                [w.dict() for w in waypoints] if waypoints else None
+            )
+            
+            # Get detailed route information object
+            detailed_route_info = await routing_service.get_detailed_route_info_object(
+                waypoints=formatted_waypoints,
+                mode="drive"  # Default to driving mode, could be configurable
+            )
+            
+            logger.info(f"[TripService._fetch_detailed_route_info] Successfully fetched detailed route: {detailed_route_info.distance}m, {detailed_route_info.duration}s")
+            return detailed_route_info
+            
+        except Exception as e:
+            logger.error(f"[TripService._fetch_detailed_route_info] Failed to fetch detailed route information: {e}")
+            return None
+
+    async def mark_missed_trips(self) -> int:
+        """Mark trips as missed and move them to history"""
+        logger.info("[TripService.mark_missed_trips] Checking for missed trips")
+        try:
+            now = datetime.utcnow()
+            missed_count = 0
+            
+            # Find trips that should be marked as missed
+            # 1. Scheduled trips that are 30+ minutes past their scheduled start time
+            # 2. Scheduled trips that are past their scheduled end time
+            query = {
+                "status": TripStatus.SCHEDULED.value,
+                "actual_start_time": {"$in": [None, ""]},  # Not started yet
+                "$or": [
+                    {
+                        # 30 minutes past scheduled start time
+                        "scheduled_start_time": {"$lte": now - timedelta(minutes=30)}
+                    },
+                    {
+                        # Past scheduled end time (if it exists)
+                        "scheduled_end_time": {
+                            "$ne": None,
+                            "$lte": now
+                        }
+                    }
+                ]
+            }
+            
+            logger.debug(f"[TripService.mark_missed_trips] Query: {query}")
+            
+            # Find all trips that meet the criteria
+            missed_trips_cursor = self.db.trips.find(query)
+            
+            async for trip_doc in missed_trips_cursor:
+                try:
+                    trip_id = str(trip_doc["_id"])
+                    logger.info(f"[TripService.mark_missed_trips] Marking trip {trip_id} as missed")
+                    
+                    # Add missed trip information
+                    missed_time = now
+                    trip_doc.update({
+                        "status": TripStatus.MISSED.value,
+                        "actual_end_time": missed_time,
+                        "completion_reason": "missed",
+                        "moved_to_history_at": missed_time,
+                        "updated_at": missed_time
+                    })
+                    
+                    # Insert into trip_history collection
+                    await self.db.trip_history.insert_one(trip_doc)
+                    logger.info(f"Trip {trip_id} moved to trip_history with status 'missed'")
+                    
+                    # Remove from active trips collection
+                    await self.db.trips.delete_one({"_id": trip_doc["_id"]})
+                    
+                    # Create trip object for event publishing
+                    trip_doc["_id"] = str(trip_doc["_id"])
+                    missed_trip = Trip(**trip_doc)
+                    
+                    # Publish event
+                    await event_publisher.publish_trip_updated(missed_trip, None)
+                    
+                    missed_count += 1
+                    
+                except Exception as e:
+                    logger.error(f"[TripService.mark_missed_trips] Failed to mark trip {trip_doc.get('_id')} as missed: {e}")
+                    continue
+            
+            logger.info(f"[TripService.mark_missed_trips] Marked {missed_count} trips as missed")
+            return missed_count
+            
+        except Exception as e:
+            logger.error(f"[TripService.mark_missed_trips] Error: {e}")
+            raise
+
+    async def get_live_tracking_data(self, trip_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get live tracking data for a trip to display on a map
+        
+        Args:
+            trip_id: Trip identifier
+            
+        Returns:
+            Live tracking data including position, route, progress, and navigation info
+        """
+        try:
+            logger.info(f"[TripService.get_live_tracking_data] Getting live data for trip {trip_id}")
+            
+            # Get trip data
+            trip_doc = await self.db.trips.find_one({"_id": ObjectId(trip_id)})
+            if not trip_doc:
+                logger.warning(f"[TripService.get_live_tracking_data] Trip {trip_id} not found")
+                return None
+            
+            # Get current vehicle position from simulation or GPS
+            vehicle_id = trip_doc.get("vehicle_id")
+            current_position = None
+            is_simulated = False
+            
+            if vehicle_id:
+                # Try to get simulated position first
+                from services.simulation_service import simulation_service
+                simulated_data = simulation_service.get_vehicle_simulation_data(vehicle_id)
+                
+                if simulated_data:
+                    current_position = {
+                        "latitude": simulated_data.get("latitude"),
+                        "longitude": simulated_data.get("longitude"),
+                        "bearing": simulated_data.get("bearing"),
+                        "speed": simulated_data.get("speed"),
+                        "accuracy": 5.0,  # Simulated accuracy
+                        "timestamp": simulated_data.get("timestamp", datetime.utcnow())
+                    }
+                    is_simulated = True
+                    logger.debug(f"[TripService.get_live_tracking_data] Using simulated position for vehicle {vehicle_id}")
+                else:
+                    # Fall back to GPS data
+                    try:
+                        gps_data = await self.db_gps.db.vehicle_locations.find_one(
+                            {"vehicle_id": vehicle_id},
+                            sort=[("timestamp", -1)]  # Get latest by timestamp
+                        )
+                        if gps_data:
+                            current_position = {
+                                "latitude": gps_data.get("latitude"),
+                                "longitude": gps_data.get("longitude"),
+                                "bearing": gps_data.get("bearing"),
+                                "speed": gps_data.get("speed"),
+                                "accuracy": gps_data.get("accuracy", 10.0),
+                                "timestamp": gps_data.get("timestamp", datetime.utcnow())
+                            }
+                            logger.debug(f"[TripService.get_live_tracking_data] Using GPS position for vehicle {vehicle_id}")
+                    except Exception as e:
+                        logger.warning(f"[TripService.get_live_tracking_data] Failed to get GPS data: {e}")
+            
+            # Default position if none available (use trip origin)
+            if not current_position:
+                origin_coords = trip_doc.get("origin", {}).get("location", {}).get("coordinates", [0, 0])
+                current_position = {
+                    "latitude": origin_coords[1] if len(origin_coords) > 1 else 0,
+                    "longitude": origin_coords[0] if len(origin_coords) > 0 else 0,
+                    "bearing": 0,
+                    "speed": 0,
+                    "accuracy": 100.0,
+                    "timestamp": datetime.utcnow()
+                }
+                logger.debug(f"[TripService.get_live_tracking_data] Using default origin position")
+            
+            # Get route information
+            route_polyline = []
+            remaining_polyline = None
+            route_bounds = None
+            progress_info = {
+                "total_distance": 0,
+                "remaining_distance": 0,
+                "completed_distance": 0,
+                "progress_percentage": 0,
+                "estimated_time_remaining": None,
+                "current_step_index": None,
+                "total_steps": None
+            }
+            current_instruction = None
+            
+            # Extract route data from raw_route_response if available
+            raw_response = trip_doc.get("raw_route_response")
+            if raw_response and raw_response.get("results"):
+                route = raw_response["results"][0]
+                
+                # Get route polyline from geometry
+                route_geometry = route.get("geometry")
+                if route_geometry and isinstance(route_geometry, list) and len(route_geometry) > 0:
+                    # Geometry structure: geometry[0] is an array of coordinate objects
+                    # Each coordinate object has {"lon": x, "lat": y} format
+                    geometry_coords = route_geometry[0]
+                    if isinstance(geometry_coords, list):
+                        # Extract all coordinate points and convert to [lat, lon] format
+                        route_polyline = []
+                        for coord in geometry_coords:
+                            if isinstance(coord, dict) and "lat" in coord and "lon" in coord:
+                                route_polyline.append([coord["lat"], coord["lon"]])  # [lat, lon]
+                        
+                        logger.info(f"[TripService.get_live_tracking_data] Extracted {len(route_polyline)} coordinates from geometry")
+                    else:
+                        logger.warning(f"[TripService.get_live_tracking_data] Geometry[0] is not an array: {type(geometry_coords)}")
+                else:
+                    logger.warning(f"[TripService.get_live_tracking_data] No valid geometry found")
+                
+                # Get route bounds from route_info if available
+                route_info = trip_doc.get("route_info", {})
+                if route_info.get("bounds"):
+                    route_bounds = route_info["bounds"]
+                
+                # Calculate progress based on current position
+                total_distance = route.get("distance", 0)
+                if total_distance > 0 and route_polyline and current_position:
+                    # Extract coordinates safely
+                    try:
+                        if isinstance(current_position, dict):
+                            lat = current_position.get("latitude")
+                            lon = current_position.get("longitude")
+                        else:
+                            logger.warning(f"[TripService.get_live_tracking_data] Unexpected position format: {type(current_position)}")
+                            lat, lon = None, None
+                        
+                        # Validate coordinates are numbers
+                        if lat is not None and lon is not None and isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+                            # Find closest point on route to current position
+                            closest_index = self._find_closest_point_on_route([lat, lon], route_polyline)
+                        else:
+                            logger.warning(f"[TripService.get_live_tracking_data] Invalid coordinates: lat={lat}, lon={lon}")
+                            closest_index = None
+                    except Exception as e:
+                        logger.warning(f"[TripService.get_live_tracking_data] Error extracting position: {e}")
+                        closest_index = None
+                    
+                    if closest_index is not None:
+                        # Calculate completed and remaining distances
+                        completed_distance = self._calculate_distance_along_route(route_polyline, 0, closest_index)
+                        remaining_distance = total_distance - completed_distance
+                        progress_percentage = (completed_distance / total_distance) * 100
+                        
+                        progress_info.update({
+                            "total_distance": total_distance,
+                            "remaining_distance": max(0, remaining_distance),
+                            "completed_distance": completed_distance,
+                            "progress_percentage": min(100, max(0, progress_percentage))
+                        })
+                        
+                        # Get remaining polyline
+                        if closest_index < len(route_polyline) - 1:
+                            remaining_polyline = route_polyline[closest_index:]
+                
+                # Get current navigation instruction from steps
+                if route.get("legs") and len(route["legs"]) > 0:
+                    steps = route["legs"][0].get("steps", [])
+                    if steps:
+                        progress_info["total_steps"] = len(steps)
+                        
+                        # Find current step based on position
+                        current_step = self._find_current_step(current_position, steps, route_polyline)
+                        if current_step:
+                            step_index = current_step.get("index", 0)
+                            step_data = current_step.get("step", {})
+                            
+                            progress_info["current_step_index"] = step_index
+                            
+                            instruction = step_data.get("instruction", {})
+                            current_instruction = {
+                                "text": instruction.get("text"),
+                                "type": instruction.get("type"),
+                                "distance_to_instruction": current_step.get("distance_to_instruction", 0),
+                                "road_name": step_data.get("name"),
+                                "speed_limit": step_data.get("speed_limit")
+                            }
+            
+            # Fall back to basic route_info if no raw response
+            else:
+                if trip_doc.get("route_info"):
+                    route_info = trip_doc["route_info"]
+                    if isinstance(route_info, dict):
+                        coords = route_info.get("coordinates", [])
+                        # Ensure coordinates are in [lat, lon] format
+                        if coords and isinstance(coords[0], dict):
+                            # Handle format like [{"lat": x, "lon": y}, ...]
+                            route_polyline = [[coord.get("lat", 0), coord.get("lon", 0)] for coord in coords if isinstance(coord, dict)]
+                        elif coords and isinstance(coords[0], list) and len(coords[0]) >= 2:
+                            # Handle format like [[lon, lat], ...] - convert to [lat, lon]
+                            route_polyline = [[coord[1], coord[0]] for coord in coords]
+                        else:
+                            route_polyline = coords
+                        route_bounds = route_info.get("bounds")
+                        progress_info["total_distance"] = route_info.get("distance", 0)
+            
+            # Build response
+            tracking_data = {
+                "trip_id": trip_id,
+                "vehicle_id": vehicle_id,
+                "driver_id": trip_doc.get("driver_id"),
+                "trip_status": trip_doc.get("status", "unknown"),
+                
+                "current_position": current_position,
+                
+                "route_polyline": route_polyline,
+                "remaining_polyline": remaining_polyline,
+                "route_bounds": route_bounds,
+                
+                "progress": progress_info,
+                "current_instruction": current_instruction,
+                
+                "origin": trip_doc.get("origin", {}),
+                "destination": trip_doc.get("destination", {}),
+                "scheduled_time": trip_doc.get("scheduled_time"),
+                "actual_start_time": trip_doc.get("actual_start_time"),
+                
+                "is_simulated": is_simulated,
+                "last_updated": datetime.utcnow()
+            }
+            
+            logger.info(f"[TripService.get_live_tracking_data] Successfully generated live data for trip {trip_id}")
+            return tracking_data
+            
+        except Exception as e:
+            logger.error(f"[TripService.get_live_tracking_data] Error getting live data for trip {trip_id}: {e}")
+            raise
+
+    def _find_closest_point_on_route(self, position: List[float], route_coordinates: List[List[float]]) -> Optional[int]:
+        """Find the closest point on the route to a given position"""
+        if not route_coordinates or not position:
+            return None
+        
+        min_distance = float('inf')
+        closest_index = 0
+        
+        for i, coord in enumerate(route_coordinates):
+            distance = self._calculate_distance(position[0], position[1], coord[0], coord[1])
+            if distance < min_distance:
+                min_distance = distance
+                closest_index = i
+        
+        logger.debug(f"[_find_closest_point_on_route] Position {position} closest to route index {closest_index} with distance {min_distance:.3f}km")
+        
+        return closest_index
+
+    def _calculate_distance(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """Calculate the haversine distance between two points in kilometers"""
+        import math
+        
+        # Validate inputs are numbers
+        try:
+            lat1 = float(lat1)
+            lon1 = float(lon1)
+            lat2 = float(lat2)
+            lon2 = float(lon2)
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Invalid coordinates for distance calculation: lat1={lat1}, lon1={lon1}, lat2={lat2}, lon2={lon2}")
+            return 0.0
+        
+        # Convert latitude and longitude from degrees to radians
+        lat1_rad = math.radians(lat1)
+        lon1_rad = math.radians(lon1)
+        lat2_rad = math.radians(lat2)
+        lon2_rad = math.radians(lon2)
+        
+        # Haversine formula
+        dlat = lat2_rad - lat1_rad
+        dlon = lon2_rad - lon1_rad
+        a = math.sin(dlat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon/2)**2
+        c = 2 * math.asin(math.sqrt(a))
+        
+        # Radius of earth in kilometers
+        earth_radius = 6371.0
+        
+        return earth_radius * c
+
+    def _calculate_distance_along_route(self, route_coordinates: List[List[float]], start_index: int, end_index: int) -> float:
+        """Calculate distance along a route between two indices"""
+        if start_index >= end_index or start_index >= len(route_coordinates) or end_index >= len(route_coordinates):
+            return 0.0
+        
+        total_distance = 0.0
+        for i in range(start_index, end_index):
+            if i + 1 < len(route_coordinates):
+                coord1 = route_coordinates[i]
+                coord2 = route_coordinates[i + 1]
+                total_distance += self._calculate_distance(coord1[0], coord1[1], coord2[0], coord2[1])
+        
+        return total_distance
+
+    def _find_current_step(self, position: Dict[str, Any], steps: List[Dict], route_coordinates: List[List[float]]) -> Optional[Dict]:
+        """Find the current step based on position and route geometry"""
+        if not steps or not position or not route_coordinates:
+            return None
+        
+        # Extract latitude and longitude safely
+        try:
+            if "latitude" in position and "longitude" in position:
+                current_pos = [position["latitude"], position["longitude"]]
+            elif isinstance(position, (list, tuple)) and len(position) >= 2:
+                current_pos = [position[0], position[1]]
+            else:
+                logger.warning(f"Invalid position format: {position}")
+                return None
+                
+            # Ensure coordinates are numbers
+            if not all(isinstance(coord, (int, float)) for coord in current_pos):
+                logger.warning(f"Position coordinates are not numbers: {current_pos}")
+                return None
+                
+        except (KeyError, TypeError, IndexError) as e:
+            logger.warning(f"Error extracting position coordinates: {e}, position: {position}")
+            return None
+        
+        closest_coord_index = self._find_closest_point_on_route(current_pos, route_coordinates)
+        
+        if closest_coord_index is None:
+            return None
+        
+        logger.debug(f"[_find_current_step] Current position: {current_pos}, closest coordinate index: {closest_coord_index}")
+        
+        # Find which step contains this coordinate index
+        coord_index = 0
+        for i, step in enumerate(steps):
+            from_index = step.get("from_index", 0)
+            to_index = step.get("to_index", from_index + 1)
+            
+            logger.debug(f"[_find_current_step] Step {i}: from_index={from_index}, to_index={to_index}, checking if {closest_coord_index} is in range")
+            
+            if from_index <= closest_coord_index <= to_index:
+                logger.debug(f"[_find_current_step] Found current step: {i}")
+                # Calculate distance to end of this step
+                if to_index < len(route_coordinates):
+                    distance_to_instruction = self._calculate_distance_along_route(
+                        route_coordinates, closest_coord_index, to_index
+                    )
+                else:
+                    distance_to_instruction = 0
+                
+                return {
+                    "index": i,
+                    "step": step,
+                    "distance_to_instruction": distance_to_instruction
+                }
+        
+        # Default to first step if no match found
+        return {
+            "index": 0,
+            "step": steps[0] if steps else {},
+            "distance_to_instruction": 0
+        } if steps else None
 
 
 # Global instance

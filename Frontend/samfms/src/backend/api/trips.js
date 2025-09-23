@@ -4,6 +4,7 @@ import { API_ENDPOINTS } from '../../config/apiConfig';
 const TRIPS_ENDPOINTS = {
   list: API_ENDPOINTS.TRIPS.LIST,
   create: API_ENDPOINTS.TRIPS.CREATE,
+  scheduled: API_ENDPOINTS.TRIPS.SCHEDULED,
   update: API_ENDPOINTS.TRIPS.UPDATE,
   delete: API_ENDPOINTS.TRIPS.DELETE,
   ACTIVE: API_ENDPOINTS.TRIPS.ACTIVE,
@@ -15,6 +16,16 @@ const TRIPS_ENDPOINTS = {
   recenttrips: API_ENDPOINTS.TRIPS.RECENTTRIPS,
   recenttripsall: API_ENDPOINTS.TRIPS.RECENTTRIPSALL,
   polyline: API_ENDPOINTS.TRIPS.VEHICLEPOLYLINE,
+  availableDrivers: API_ENDPOINTS.TRIPS.AVAILABLE_DRIVERS,
+  checkDriverAvailability: API_ENDPOINTS.TRIPS.CHECK_DRIVER_AVAILABILITY,
+  availableVehicles: API_ENDPOINTS.TRIPS.AVAILABLE_VEHICLES,
+  checkVehicleAvailability: API_ENDPOINTS.TRIPS.CHECK_VEHICLE_AVAILABILITY,
+  getSmartTrips: API_ENDPOINTS.TRIPS.GETSMARTTRIPS,
+  activeSmartTrip: API_ENDPOINTS.TRIPS.ACTIVATESMARTTRIP,
+  rejectSmartTrip: API_ENDPOINTS.TRIPS.REJECTSMARTTRIP,
+  getUpcomingRecommendations: API_ENDPOINTS.TRIPS.UPCOMING.UPCOMINGRECOMMENDATIONS,
+  acceptUpcomingRecommendation: API_ENDPOINTS.TRIPS.UPCOMING.ACCEPT,
+  rejectUpcomingRecommendation: API_ENDPOINTS.TRIPS.UPCOMING.REJECT,
   ANALYTICS: {
     HISTORY_STATS: API_ENDPOINTS.TRIPS.ANALYTICS.HISTORY_STATS,
     DRIVERSTATS: API_ENDPOINTS.TRIPS.ANALYTICS.DRiVERSTATS,
@@ -48,6 +59,18 @@ export const createTrip = async tripData => {
     throw error;
   }
 };
+
+export const createScheduledTrip = async tripData => {
+  try {
+    console.log('Creating trip. Payload: ', tripData);
+    const response = await httpClient.post(TRIPS_ENDPOINTS.scheduled, tripData);
+    console.log("Response from backend: ", response);
+    return response;
+  } catch (error){
+    console.log('Error creating scheduled trip: ', error);
+    throw error;
+  }
+}
 
 export const updateTrip = async (tripID, tripData) => {
   try {
@@ -91,7 +114,7 @@ export const deleteGeofence = async tripID => {
   }
 };
 
-export const getDriverActiveTrips = async (driver_id) => {
+export const getDriverActiveTrips = async driver_id => {
   try {
     const response = await httpClient.get(TRIPS_ENDPOINTS.DriverActive(driver_id));
     const activeTrip = response.data.data;
@@ -101,7 +124,7 @@ export const getDriverActiveTrips = async (driver_id) => {
     console.error('Error fetching active trip:', error);
     throw error;
   }
-}
+};
 
 // Replace your getActiveTrips function with this:
 export const getActiveTrips = async () => {
@@ -120,7 +143,6 @@ export const getActiveTrips = async () => {
       console.error('Unexpected API response structure:', response.data);
       return { trips: [] }; // Return empty array as fallback
     }
-
 
     // Return the raw trips data without transformation
     // since components are designed for the real API structure
@@ -144,17 +166,16 @@ export const getTripsHistory = async (page = 1, limit = 10) => {
 export const getDriverSpecificAnalytics = async (driver_id, timeframe = 'year') => {
   try {
     const driverStatsUrl = TRIPS_ENDPOINTS.ANALYTICS.DRIVERSTATS(timeframe);
-    
+
     const driverStatsResponse = await httpClient.get(driverStatsUrl, {
       params: { timeframe }, // You might not need this if timeframe is already in the URL
     });
     // Extract the data from the nested response structure
     const allDriversData = driverStatsResponse.data?.data?.total || [];
-    
+
     // Filter by specific driver_id
-    const driverAnalytics = allDriversData.find(driver => 
-      driver.driver_name === driver_id || 
-      driver.driver_name.includes(driver_id)
+    const driverAnalytics = allDriversData.find(
+      driver => driver.driver_name === driver_id || driver.driver_name.includes(driver_id)
     );
 
     if (!driverAnalytics) {
@@ -165,9 +186,8 @@ export const getDriverSpecificAnalytics = async (driver_id, timeframe = 'year') 
       status: 'success',
       data: driverAnalytics,
       message: `Analytics for ${driver_id} retrieved successfully`,
-      meta: driverStatsResponse.data?.data?.meta || null
+      meta: driverStatsResponse.data?.data?.meta || null,
     };
-
   } catch (error) {
     console.error('Error fetching driver specific analytics', error);
     throw error;
@@ -239,8 +259,8 @@ export const getVehicleAnalytics = async (timeframe = 'week') => {
       httpClient.get(vehicleStatsUrl),
     ]);
 
-    console.log("Total Distance response: ", totalDistanceResponse);
-    console.log("Vehicle Stats response: ", vehiclestatsResponse);
+    console.log('Total Distance response: ', totalDistanceResponse);
+    console.log('Vehicle Stats response: ', vehiclestatsResponse);
 
     // Combine and transform the data
     const transformedData = {
@@ -262,7 +282,7 @@ export const getVehicleAnalytics = async (timeframe = 'week') => {
 export const getAllUpcommingTrip = async () => {
   try {
     const response = await httpClient.get(TRIPS_ENDPOINTS.allupcomming);
-
+    console.log("Response for upcomming trips: ", response)
     let trips = [];
 
     if (Array.isArray(response?.data?.data)) {
@@ -344,7 +364,6 @@ export const getUpcomingTrips = async driverId => {
     } else if (Array.isArray(response?.data)) {
       trips = response.data;
     }
-
 
     // Transform the data to match your frontend expectations
     const transformedTrips = trips.map(trip => ({
@@ -599,13 +618,228 @@ export const getTripHistoryStats = async (days = null) => {
   }
 };
 
-export const getVehiclePolyline = async (VehicleID) => {
+// Storage for last successful polylines by vehicle ID
+const lastSuccessfulPolylines = {};
+
+// Helper function to clear stored polyline (useful for testing or when vehicle changes route)
+export const clearStoredPolyline = vehicleId => {
+  if (lastSuccessfulPolylines[vehicleId]) {
+    delete lastSuccessfulPolylines[vehicleId];
+    console.log(`Cleared stored polyline for vehicle ${vehicleId}`);
+  }
+};
+
+// Helper function to clear all stored polylines
+export const clearAllStoredPolylines = () => {
+  const vehicleIds = Object.keys(lastSuccessfulPolylines);
+  vehicleIds.forEach(id => delete lastSuccessfulPolylines[id]);
+  console.log(`Cleared all stored polylines for ${vehicleIds.length} vehicles`);
+};
+
+// Helper function to get stored polylines info (for debugging)
+export const getStoredPolylinesInfo = () => {
+  const info = Object.keys(lastSuccessfulPolylines).map(vehicleId => {
+    const data = lastSuccessfulPolylines[vehicleId];
+    const age = new Date().getTime() - new Date(data.timestamp).getTime();
+    const ageMinutes = Math.round(age / (1000 * 60));
+    return {
+      vehicleId,
+      timestamp: data.timestamp,
+      ageMinutes,
+      pointCount: data.data?.data?.length || 0,
+    };
+  });
+  console.log('Stored polylines info:', info);
+  return info;
+};
+
+export const getVehiclePolyline = async VehicleID => {
   try {
     const response = await httpClient.get(TRIPS_ENDPOINTS.polyline(VehicleID));
-    console.log("Response for polyline: ", response)
+    console.log('Response for polyline: ', response);
+
+    // Store the successful polyline for future fallback
+    if (response && response.data) {
+      lastSuccessfulPolylines[VehicleID] = {
+        ...response,
+        timestamp: new Date().toISOString(), // Add timestamp for reference
+      };
+      console.log(`Stored successful polyline for vehicle ${VehicleID}`);
+    }
+
     return response;
   } catch (error) {
-    console.error("Error fetching polyline for vehicle: ", VehicleID)
+    console.error(`Error fetching vehicle polyline for ${VehicleID}:`, error);
+
+    // First, try to use the last successful polyline for this vehicle
+    if (lastSuccessfulPolylines[VehicleID]) {
+      const storedData = lastSuccessfulPolylines[VehicleID];
+      const age = new Date().getTime() - new Date(storedData.timestamp).getTime();
+      const ageMinutes = Math.round(age / (1000 * 60));
+
+      console.log(
+        `Falling back to last successful polyline for vehicle ${VehicleID} (${ageMinutes} minutes old)`
+      );
+      return {
+        ...storedData,
+        fallback: true, // Flag to indicate this is fallback data
+        fallback_reason: 'api_error',
+        fallback_age_minutes: ageMinutes,
+      };
+    }
+
+    // If no previous polyline exists, throw the original error
+    console.log(`No fallback polyline available for vehicle ${VehicleID}`);
+    throw error;
+  }
+
+}
+
+// Driver Availability API Functions
+export const getAvailableDrivers = async (startTime, endTime) => {
+  try {
+    const params = new URLSearchParams({
+      start_time: startTime,
+      end_time: endTime
+    });
+    const endpoint = `${TRIPS_ENDPOINTS.availableDrivers}?${params.toString()}`;
+    console.log('Fetching available drivers for timeframe:', { startTime, endTime });
+    console.log('Request URL:', endpoint);
+    const response = await httpClient.get(endpoint);
+    return response;
+  } catch (error) {
+    console.error('Error fetching available drivers:', error);
+    throw error;
+  }
+};
+
+export const checkDriverAvailability = async (driverId, startTime, endTime) => {
+  try {
+    const params = new URLSearchParams({
+      start_time: startTime,
+      end_time: endTime
+    });
+    const endpoint = `${TRIPS_ENDPOINTS.checkDriverAvailability(driverId)}?${params.toString()}`;
+    console.log(`Checking availability for driver ${driverId} for timeframe:`, { startTime, endTime });
+    console.log('Request URL:', endpoint);
+    const response = await httpClient.get(endpoint);
+    return response;
+  } catch (error) {
+    console.error(`Error checking driver ${driverId} availability:`, error);
+    throw error;
+  }
+};
+
+// Vehicle Availability API Functions
+export const getAvailableVehicles = async (startTime, endTime) => {
+  try {
+    const params = new URLSearchParams({
+      start_time: startTime,
+      end_time: endTime
+    });
+    const endpoint = `${TRIPS_ENDPOINTS.availableVehicles}?${params.toString()}`;
+    console.log('Fetching available vehicles for timeframe:', { startTime, endTime });
+    console.log('Request URL:', endpoint);
+    const response = await httpClient.get(endpoint);
+    return response;
+  } catch (error) {
+    console.error('Error fetching available vehicles:', error);
+    throw error;
+  }
+};
+
+export const checkVehicleAvailability = async (vehicleId, startTime, endTime) => {
+  try {
+    const params = new URLSearchParams({
+      start_time: startTime,
+      end_time: endTime
+    });
+    const endpoint = `${TRIPS_ENDPOINTS.checkVehicleAvailability(vehicleId)}?${params.toString()}`;
+    console.log(`Checking availability for vehicle ${vehicleId} for timeframe:`, { startTime, endTime });
+    console.log('Request URL:', endpoint);
+    const response = await httpClient.get(endpoint);
+    return response;
+  } catch (error) {
+    console.error(`Error checking vehicle ${vehicleId} availability:`, error);
+    throw error;
+  }
+};
+
+// Get AI-generated smart trip suggestions
+export const getSmartTripSuggestions = async () => {
+  // Implementation for fetching smart suggestions
+  try {
+    const response = await httpClient.get(TRIPS_ENDPOINTS.getSmartTrips);
+    console.log("Response for smart trips", response)
+    return response;
+  } catch (error){
+    console.error("Error fetching smart trips");
+    throw error
+  }
+};
+
+// Accept a smart trip suggestion
+export const acceptSmartTripSuggestion = async (suggestionId) => {
+  try {
+    const data = {
+      smart_id: suggestionId
+    }
+
+    const response = await httpClient.post(TRIPS_ENDPOINTS.activeSmartTrip,data)
+    return response
+  } catch (error){
+    console.error(`Error accepting smart trid ${suggestionId}`)
+    throw error
+  }
+};
+
+// Decline a smart trip suggestion  
+export const declineSmartTripSuggestion = async (suggestionId) => {
+  try {
+    const data = {
+      smart_id: suggestionId
+    }
+
+    const response = await httpClient.post(TRIPS_ENDPOINTS.rejectSmartTrip,data)
+    return response
+  } catch (error){
+    console.error(`Error rejecting smart trid ${suggestionId}`)
+    throw error
+  }
+};
+
+export const getUpcomingTripsRecommendations = async () => {
+  try {
+    const response = httpClient.get(API_ENDPOINTS.getUpcomingRecommendations)
+    return response
+  } catch (error){
+    console.error(`Error fetching recommended upcomming trip`)
+    throw error
+  }
+}
+
+export const acceptTripCombinationRecommendation = async (recommendationId) => {
+  try {
+    const data = {
+      recommendation_id: recommendationId
+    }
+    const response = httpClient.post(API_ENDPOINTS.acceptUpcomingRecommendation, data)
+    return response
+  } catch (error){
+    console.error(`Error accepting recommended upcomming trip`)
+    throw error
+  }
+}
+
+export const rejectTripCombinationRecommendation = async (recommendationId) => {
+  try {
+    const data = {
+      recommendation_id: recommendationId
+    }
+    const response = httpClient.post(API_ENDPOINTS.getUpcomingRecommendations, data)
+    return response
+  } catch (error){
+    console.error(`Error rejecting recommended upcomming trip`)
     throw error
   }
 }

@@ -9,8 +9,12 @@ import UpcomingTripsStats from '../components/trips/UpcomingTripsStats';
 import UpcomingTripsTable from '../components/trips/UpcomingTripsTable';
 import RecentTripsStats from '../components/trips/RecentTripsStats';
 import RecentTripsTable from '../components/trips/RecentTripsTable';
+import SmartTripSuggestions from '../components/trips/SmartTripSuggestions';
+import RouteRecommendations from '../components/trips/RouteRecommendations';
+import UpcomingTripsRecommendations from '../components/trips/UpcomingTripsRecommendations';
 import {
   createTrip,
+  createScheduledTrip,
   getActiveTrips,
   getDriverAnalytics,
   getVehicleAnalytics,
@@ -55,6 +59,16 @@ const Trips = () => {
   const [upcomingTripsLoading, setUpcomingTripsLoading] = useState(false);
   const [recentTripsLoading, setRecentTripsLoading] = useState(false);
 
+  // Pagination state for upcoming trips
+  const [upcomingTripsPage, setUpcomingTripsPage] = useState(1);
+  const [upcomingTripsPerPage, setUpcomingTripsPerPage] = useState(10);
+  const [totalUpcomingTrips, setTotalUpcomingTrips] = useState(0);
+
+  // Pagination state for recent trips
+  const [recentTripsPage, setRecentTripsPage] = useState(1);
+  const [recentTripsPerPage, setRecentTripsPerPage] = useState(10);
+  const [totalRecentTrips, setTotalRecentTrips] = useState(0);
+
   // Trip history statistics state
   const [tripHistoryStats, setTripHistoryStats] = useState({
     total_trips: 0,
@@ -95,31 +109,46 @@ const Trips = () => {
 
   // Helper function to transform active trips data for map display
   const transformTripsForMap = trips => {
-    return trips.map(trip => ({
-      id: trip.id,
-      vehicleId: trip.vehicle_id, // Add vehicle ID for location tracking
-      vehicleName: `Vehicle ${trip.vehicle_id || 'Unknown'}`,
-      driver: trip.driver_assignment || 'No driver assigned',
-      destination: trip.destination?.name || 'Unknown destination',
-      position: trip.destination?.location?.coordinates
-        ? [trip.destination.location.coordinates[1], trip.destination.location.coordinates[0]] // [lat, lng]
-        : [0, 0],
-      origin: trip.origin?.location?.coordinates
-        ? [trip.origin.location.coordinates[1], trip.origin.location.coordinates[0]] // [lat, lng]
-        : [0, 0],
-      routeCoordinates: trip.route_info?.coordinates
-        ? trip.route_info.coordinates.map(coord => [coord[0], coord[1]]) // [lat, lng]
-        : [],
-      status:
-        trip.status === 'scheduled'
-          ? 'Loading'
-          : trip.status === 'in_progress'
-          ? 'In Transit'
-          : trip.status === 'completed'
-          ? 'At Destination'
-          : 'Unknown',
-      progress: trip.status === 'completed' ? 100 : trip.status === 'in_progress' ? 50 : 0,
-    }));
+    return trips.map(trip => {
+      // Find the vehicle details using the vehicle_id
+      const vehicle = vehicles.find(v => (v.id || v._id) === trip.vehicle_id);
+
+      // Construct vehicle name from license plate, make, and model
+      let vehicleName = 'Unknown Vehicle';
+      if (vehicle) {
+        const parts = [];
+        if (vehicle.license_plate) parts.push(vehicle.license_plate);
+        if (vehicle.make) parts.push(vehicle.make);
+        if (vehicle.model) parts.push(vehicle.model);
+        vehicleName = parts.length > 0 ? parts.join(' - ') : `Vehicle ID: ${trip.vehicle_id}`;
+      }
+
+      return {
+        id: trip.id,
+        vehicleId: trip.vehicle_id, // Add vehicle ID for location tracking
+        vehicleName: vehicleName,
+        driver: trip.driver_assignment || 'No driver assigned',
+        destination: trip.destination?.name || 'Unknown destination',
+        position: trip.destination?.location?.coordinates
+          ? [trip.destination.location.coordinates[1], trip.destination.location.coordinates[0]] // [lat, lng]
+          : [0, 0],
+        origin: trip.origin?.location?.coordinates
+          ? [trip.origin.location.coordinates[1], trip.origin.location.coordinates[0]] // [lat, lng]
+          : [0, 0],
+        routeCoordinates: trip.route_info?.coordinates
+          ? trip.route_info.coordinates.map(coord => [coord[0], coord[1]]) // [lat, lng]
+          : [],
+        status:
+          trip.status === 'scheduled'
+            ? 'Loading'
+            : trip.status === 'in_progress'
+              ? 'In Transit'
+              : trip.status === 'completed'
+                ? 'At Destination'
+                : 'Unknown',
+        progress: trip.status === 'completed' ? 100 : trip.status === 'in_progress' ? 50 : 0,
+      };
+    });
   };
 
   // Helper function to close notifications
@@ -128,6 +157,60 @@ const Trips = () => {
       ...prev,
       isVisible: false,
     }));
+  };
+
+  // Pagination functions for upcoming trips
+  const upcomingTripsTotalPages = Math.ceil(upcomingTrips.length / upcomingTripsPerPage);
+
+  const upcomingTripsGoToNextPage = () => {
+    if (upcomingTripsPage < upcomingTripsTotalPages) {
+      setUpcomingTripsPage(prev => prev + 1);
+    }
+  };
+
+  const upcomingTripsGoToPrevPage = () => {
+    if (upcomingTripsPage > 1) {
+      setUpcomingTripsPage(prev => prev - 1);
+    }
+  };
+
+  const upcomingTripsChangeItemsPerPage = (newItemsPerPage) => {
+    setUpcomingTripsPerPage(newItemsPerPage);
+    setUpcomingTripsPage(1); // Reset to first page
+  };
+
+  // Get paginated upcoming trips
+  const getPaginatedUpcomingTrips = () => {
+    const startIndex = (upcomingTripsPage - 1) * upcomingTripsPerPage;
+    const endIndex = startIndex + upcomingTripsPerPage;
+    return upcomingTrips.slice(startIndex, endIndex);
+  };
+
+  // Pagination functions for recent trips
+  const recentTripsTotalPages = Math.ceil(recentTrips.length / recentTripsPerPage);
+
+  const recentTripsGoToNextPage = () => {
+    if (recentTripsPage < recentTripsTotalPages) {
+      setRecentTripsPage(prev => prev + 1);
+    }
+  };
+
+  const recentTripsGoToPrevPage = () => {
+    if (recentTripsPage > 1) {
+      setRecentTripsPage(prev => prev - 1);
+    }
+  };
+
+  const recentTripsChangeItemsPerPage = (newItemsPerPage) => {
+    setRecentTripsPerPage(newItemsPerPage);
+    setRecentTripsPage(1); // Reset to first page
+  };
+
+  // Get paginated recent trips
+  const getPaginatedRecentTrips = () => {
+    const startIndex = (recentTripsPage - 1) * recentTripsPerPage;
+    const endIndex = startIndex + recentTripsPerPage;
+    return recentTrips.slice(startIndex, endIndex);
   };
 
   // Helper function to fetch all upcoming trips
@@ -139,7 +222,7 @@ const Trips = () => {
 
       // Extract trips from the response structure - based on actual API response
       let trips = response.data.trips
-      
+
       setUpcomingTrips(trips);
     } catch (error) {
       console.error('Error fetching upcoming trips:', error);
@@ -274,10 +357,7 @@ const Trips = () => {
     scheduledEndDate: '',
     scheduledEndTime: '',
     priority: 'normal',
-    temperatureControl: false,
     driverNote: '',
-    timeWindowStart: '',
-    timeWindowEnd: '',
   });
 
   // Store coordinates for selected locations
@@ -450,7 +530,6 @@ const Trips = () => {
       scheduledEndDate: '',
       scheduledEndTime: '',
       priority: 'normal',
-      temperatureControl: false,
       driverNote: '',
     });
     // Reset location coordinates
@@ -472,137 +551,75 @@ const Trips = () => {
       [field]: value,
     }));
   };
-  const formatTripData = () => {
-    const startDateTime = `${tripForm.scheduledStartDate}T${tripForm.scheduledStartTime}:00Z`;
-    const endDateTime = `${tripForm.scheduledEndDate}T${tripForm.scheduledEndTime}:00Z`;
-
-    return {
-      name: tripForm.name,
-      description: tripForm.description,
-      scheduled_start_time: startDateTime,
-      scheduled_end_time: endDateTime,
-      origin: {
-        location: {
-          type: 'Point',
-          coordinates: [locationCoords.start?.lng, locationCoords.start?.lat],
-        },
-        name: tripForm.startLocation,
-        order: 0,
-      },
-      destination: {
-        location: {
-          type: 'Point',
-          coordinates: [locationCoords.end?.lng, locationCoords.end?.lat],
-        },
-        name: tripForm.endLocation,
-        order: 99,
-      },
-      waypoints: [], // Can be extended later for intermediate stops
-      priority: tripForm.priority,
-      vehicle_id: tripForm.vehicleId,
-      driver_assignment: tripForm.driverId,
-      constraints: [], // Time window constraints removed as per requirements
-      custom_fields: {
-        driver_note: tripForm.driverNote,
-      },
-    };
-  };
 
   const handleSubmitTrip = async enhancedTripData => {
-    // If called from form event, prevent default and use old logic
-    if (enhancedTripData && enhancedTripData.preventDefault) {
-      enhancedTripData.preventDefault();
-
-      // Validate required fields for old form
-      if (
-        !tripForm.name ||
-        !tripForm.vehicleId ||
-        !tripForm.startLocation ||
-        !tripForm.endLocation ||
-        !tripForm.scheduledStartDate ||
-        !tripForm.scheduledStartTime ||
-        !tripForm.scheduledEndDate ||
-        !tripForm.scheduledEndTime
-      ) {
-        showNotification('Please fill in all required fields', 'error');
-        return;
-      }
-
-      if (!locationCoords.start || !locationCoords.end) {
-        showNotification('Please select valid locations from the dropdown suggestions', 'error');
-        return;
-      }
-
-      // Use old data format
-      enhancedTripData = null;
-    }
-
     setIsSubmitting(true);
 
     try {
-      // Use enhanced trip data if provided, otherwise format current trip form
-      let tripData;
-      if (enhancedTripData) {
-        // Enhanced data from the new modal with route information
-        // Handle both old field names (scheduledStartDate) and new ones (startDate)
-        const startDate = enhancedTripData.startDate || enhancedTripData.scheduledStartDate;
-        const startTime = enhancedTripData.startTime || enhancedTripData.scheduledStartTime;
-        const endDate = enhancedTripData.endDate || enhancedTripData.scheduledEndDate;
-        const endTime = enhancedTripData.endTime || enhancedTripData.scheduledEndTime;
+      const isScheduled = enhancedTripData.tripType === 'scheduled';
 
-        // Ensure proper datetime format (ISO 8601)
-        const startDateTime = startDate && startTime ? `${startDate}T${startTime}:00Z` : null;
-        const endDateTime = endDate && endTime ? `${endDate}T${endTime}:00Z` : null;
+      // Format waypoints with order
+      const formattedWaypoints = (enhancedTripData.waypoints || []).map((waypoint, index) => ({
+        name: `Waypoint ${index + 1}`,
+        location: {
+          type: 'Point',
+          coordinates: [waypoint.lng, waypoint.lat],
+          address: `Waypoint ${index + 1}`,
+        },
+        order: index + 1,
+      }));
 
-        tripData = {
-          name: enhancedTripData.name,
-          description: enhancedTripData.description || '',
-          scheduled_start_time: startDateTime,
-          scheduled_end_time: endDateTime,
-          origin: {
-            name: enhancedTripData.startLocation,
-            location: {
-              type: 'Point',
-              coordinates: [
-                enhancedTripData.coordinates?.start?.lng || locationCoords.start?.lng,
-                enhancedTripData.coordinates?.start?.lat || locationCoords.start?.lat,
-              ],
-              address: enhancedTripData.startLocation,
-            },
-            order: 1,
+      let tripData = {
+        name: enhancedTripData.name,
+        description: enhancedTripData.description || '',
+        origin: {
+          name: enhancedTripData.startLocation,
+          location: {
+            type: 'Point',
+            coordinates: [
+              enhancedTripData.coordinates?.start?.lng,
+              enhancedTripData.coordinates?.start?.lat,
+            ],
+            address: enhancedTripData.startLocation,
           },
-          destination: {
-            name: enhancedTripData.endLocation,
-            location: {
-              type: 'Point',
-              coordinates: [
-                enhancedTripData.coordinates?.end?.lng || locationCoords.end?.lng,
-                enhancedTripData.coordinates?.end?.lat || locationCoords.end?.lat,
-              ],
-              address: enhancedTripData.endLocation,
-            },
-            order: 2,
+          order: 0,
+        },
+        destination: {
+          name: enhancedTripData.endLocation,
+          location: {
+            type: 'Point',
+            coordinates: [
+              enhancedTripData.coordinates?.end?.lng,
+              enhancedTripData.coordinates?.end?.lat,
+            ],
+            address: enhancedTripData.endLocation,
           },
-          priority: enhancedTripData.priority || 'normal',
-          vehicle_id: enhancedTripData.vehicleId,
-          driver_assignment: enhancedTripData.driverId,
-          // Enhanced route information
-          waypoints: enhancedTripData.waypoints || [],
-          route_info: enhancedTripData.routeInfo || null,
-          driver_note: enhancedTripData.driverNotes || enhancedTripData.driverNote || '',
-        };
+          order: 99,
+        },
+        waypoints: formattedWaypoints,
+        route_info: enhancedTripData.routeInfo || null,
+        priority: enhancedTripData.priority || 'normal',
+      };
+
+      if (isScheduled) {
+        tripData.start_time_window = `${enhancedTripData.startTimeWindow}:00Z`;
+        tripData.end_time_window = `${enhancedTripData.endTimeWindow}:00Z`;
       } else {
-        // Fallback to existing format method
-        tripData = formatTripData();
+        const startDateTime = `${enhancedTripData.startDate}T${enhancedTripData.startTime}:00Z`;
+        const endDateTime = `${enhancedTripData.endDate}T${enhancedTripData.endTime}:00Z`;
+        tripData.scheduled_start_time = startDateTime;
+        tripData.scheduled_end_time = endDateTime;
+        tripData.vehicle_id = enhancedTripData.vehicleId;
+        tripData.driver_assignment = enhancedTripData.driverId;
+        tripData.custom_fields = {
+          driver_note: enhancedTripData.driverNotes || '',
+        };
+        tripData.constraints = [];
       }
 
       console.log('Creating trip with data:', tripData);
 
-      // Validate the trip data before sending
-      if (!tripData.scheduled_start_time || !tripData.scheduled_end_time) {
-        throw new Error('Start and end times are required');
-      }
-
+      // Common validations
       if (!tripData.origin?.location || !tripData.destination?.location) {
         throw new Error('Start and end locations are required');
       }
@@ -629,15 +646,26 @@ const Trips = () => {
         throw new Error('Invalid end location coordinates');
       }
 
-      if (!tripData.vehicle_id || !tripData.driver_assignment) {
-        throw new Error('Vehicle and driver selection are required');
+      // Type-specific validations
+      if (isScheduled) {
+        if (!tripData.start_time_window || !tripData.end_time_window) {
+          throw new Error('Time windows are required');
+        }
+      } else {
+        if (!tripData.scheduled_start_time || !tripData.scheduled_end_time) {
+          throw new Error('Start and end times are required');
+        }
+        if (!tripData.vehicle_id || !tripData.driver_assignment) {
+          throw new Error('Vehicle and driver selection are required');
+        }
       }
 
-      const response = await createTrip(tripData);
+      const response = isScheduled ? await createScheduledTrip(tripData) : await createTrip(tripData);
       console.log('Trip created successfully:', response);
 
       if (response.data.status === 'success') {
         showNotification('Trip scheduled successfully!', 'success');
+        fetchUpcomingTrips(); // Refresh upcoming trips list
       } else {
         showNotification(`Failed to create trip: ${response.data.message}`, 'error');
       }
@@ -653,7 +681,6 @@ const Trips = () => {
   // More permissive filtering to include vehicles with different status formats
   const availableVehicles = vehicles.filter(v => {
     // Check if vehicle exists and has a valid structure
-    console.log('Entered available vehicle, ', v);
     if (!v) return false;
 
     // More inclusive filtering logic - accept available, operational, and inactive vehicles
@@ -668,6 +695,25 @@ const Trips = () => {
   });
 
   console.log('Filtered available vehicles:', availableVehicles);
+
+  // Handlers for recommendations
+  const handleAcceptRecommendation = (recommendationId) => {
+    console.log('Accepted recommendation:', recommendationId);
+    showNotification('Trip combination accepted successfully!', 'success');
+    fetchUpcomingTrips();
+  };
+
+  const handleRejectRecommendation = (recommendationId) => {
+    console.log('Rejected recommendation:', recommendationId);
+    showNotification('Trip combination rejected.', 'info');
+    fetchUpcomingTrips();
+  };
+
+  const handleRefreshRecommendations = () => {
+    console.log('Refreshing recommendations');
+    showNotification('Recommendations refreshed.', 'info');
+    fetchUpcomingTrips();
+  };
 
   if (loading) {
     return (
@@ -717,11 +763,11 @@ const Trips = () => {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold animate-fade-in text-foreground">Trip Management</h1>
           <button
-            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition animate-fade-in flex items-center gap-2"
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition animate-fade-in flex items-center gap-2"
             onClick={handleScheduleTrip}
           >
             <Plus size={18} />
-            Schedule New Trip
+            New Trip
           </button>
         </div>
 
@@ -733,11 +779,10 @@ const Trips = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.id
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
-                  }`}
+                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -756,9 +801,30 @@ const Trips = () => {
                 availableVehicles={availableVehicles.length}
                 availableDrivers={availableDriversCount}
               />
+
+              {/* Smart Trip Suggestions - NEW ADDITION */}
+              <div className="animate-fade-in animate-delay-100">
+                <SmartTripSuggestions
+                  onAccept={(suggestionId) => {
+                    // Handle suggestion acceptance
+                    console.log('Accepted suggestion:', suggestionId);
+                    // Optionally refresh upcoming trips or show notification
+                    fetchUpcomingTrips();
+                    showNotification('Trip suggestion accepted successfully!', 'success');
+                  }}
+                  onDecline={(suggestionId) => {
+                    // Handle suggestion decline
+                    console.log('Declined suggestion:', suggestionId);
+                    showNotification('Trip suggestion declined', 'info');
+                  }}
+                  onRefresh={() => {
+                    // Handle refresh - could trigger a general refresh of trip data
+                    console.log('Smart suggestions refreshed');
+                  }}
+                />
+              </div>
             </div>
           )}
-
           {/* Active Tab */}
           {activeTab === 'active' && (
             <div className="space-y-6 animate-fade-in">
@@ -766,6 +832,62 @@ const Trips = () => {
               <div className="animate-fade-in animate-delay-200">
                 <ActiveTripsMap activeLocations={transformTripsForMap(activeTrips)} />
               </div>
+              {/* Route Optimization Suggestions - NEW ADDITION */}
+              <div className="animate-fade-in animate-delay-100">
+                <RouteRecommendations
+                  activeTrips={activeTrips}
+                  onAccept={(tripId, recommendationId) => {
+                    // Handle route recommendation acceptance
+                    console.log('Accepted route recommendation:', { tripId, recommendationId });
+
+                    // Show success notification
+                    showNotification(
+                      'Route updated successfully! Vehicle will be notified of the new route.',
+                      'success'
+                    );
+
+                    // Optionally refresh active trips to show updated route
+                    const loadActiveTrips = async () => {
+                      try {
+                        const response = await getActiveTrips();
+                        const tripsData = Array.isArray(response.data) ? response.data : [];
+                        setActiveTrips(tripsData);
+                      } catch (error) {
+                        console.error('Error reloading active trips:', error);
+                      }
+                    };
+                    loadActiveTrips();
+                  }}
+                  onReject={(tripId, recommendationId) => {
+                    // Handle route recommendation rejection
+                    console.log('Rejected route recommendation:', { tripId, recommendationId });
+
+                    // Show info notification
+                    showNotification(
+                      'Route recommendation declined. Current route will continue as planned.',
+                      'info'
+                    );
+                  }}
+                  onRefresh={() => {
+                    // Handle refresh - reload active trips and recommendations
+                    console.log('Refreshing route recommendations');
+
+                    const loadActiveTrips = async () => {
+                      try {
+                        const response = await getActiveTrips();
+                        const tripsData = Array.isArray(response.data) ? response.data : [];
+                        setActiveTrips(tripsData);
+                      } catch (error) {
+                        console.error('Error reloading active trips:', error);
+                      }
+                    };
+                    loadActiveTrips();
+
+                    showNotification('Route recommendations refreshed', 'info');
+                  }}
+                />
+              </div>
+
             </div>
           )}
 
@@ -784,6 +906,23 @@ const Trips = () => {
                 )}
               </div>
 
+              {/* Trip Recommendations */}
+              <div className="animate-fade-in animate-delay-150">
+                {upcomingTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading trip recommendations...</span>
+                  </div>
+                ) : (
+                  <UpcomingTripsRecommendations
+                    upcomingTrips={upcomingTrips}
+                    onAccept={handleAcceptRecommendation}
+                    onReject={handleRejectRecommendation}
+                    onRefresh={handleRefreshRecommendations}
+                  />
+                )}
+              </div>
+
               {/* Trips Table */}
               <div className="animate-fade-in animate-delay-200">
                 {upcomingTripsLoading ? (
@@ -792,7 +931,16 @@ const Trips = () => {
                     <span className="ml-2">Loading trips table...</span>
                   </div>
                 ) : (
-                  <UpcomingTripsTable upcomingTrips={upcomingTrips} />
+                  <UpcomingTripsTable
+                    upcomingTrips={getPaginatedUpcomingTrips()}
+                    vehicles={vehicles}
+                    currentPage={upcomingTripsPage}
+                    totalPages={upcomingTripsTotalPages}
+                    itemsPerPage={upcomingTripsPerPage}
+                    changeItemsPerPage={upcomingTripsChangeItemsPerPage}
+                    goToNextPage={upcomingTripsGoToNextPage}
+                    goToPrevPage={upcomingTripsGoToPrevPage}
+                  />
                 )}
               </div>
             </div>
@@ -825,7 +973,15 @@ const Trips = () => {
                     <span className="ml-2">Loading trips table...</span>
                   </div>
                 ) : (
-                  <RecentTripsTable recentTrips={recentTrips} />
+                  <RecentTripsTable
+                    recentTrips={getPaginatedRecentTrips()}
+                    currentPage={recentTripsPage}
+                    totalPages={recentTripsTotalPages}
+                    itemsPerPage={recentTripsPerPage}
+                    changeItemsPerPage={recentTripsChangeItemsPerPage}
+                    goToNextPage={recentTripsGoToNextPage}
+                    goToPrevPage={recentTripsGoToPrevPage}
+                  />
                 )}
               </div>
             </div>

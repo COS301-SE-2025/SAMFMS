@@ -1,7 +1,16 @@
 import React from 'react';
-import { MapPin, User, Clock } from 'lucide-react';
+import {MapPin, User, Clock} from 'lucide-react';
+import Pagination from '../vehicles/Pagination';
 
-const RecentTripsTable = ({ recentTrips = [] }) => {
+const RecentTripsTable = ({
+  recentTrips = [],
+  currentPage = 1,
+  totalPages = 1,
+  itemsPerPage = 10,
+  changeItemsPerPage,
+  goToNextPage,
+  goToPrevPage
+}) => {
   return (
     <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden animate-fade-in animate-delay-200">
       <div className="p-4 border-b border-border">
@@ -88,6 +97,20 @@ const RecentTripsTable = ({ recentTrips = [] }) => {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {recentTrips.length > 0 && (
+        <div className="p-4 border-t border-border">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            changeItemsPerPage={changeItemsPerPage}
+            goToNextPage={goToNextPage}
+            goToPrevPage={goToPrevPage}
+          />
+        </div>
+      )}
     </div>
   );
 };

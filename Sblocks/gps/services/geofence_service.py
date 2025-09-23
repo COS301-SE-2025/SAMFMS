@@ -29,65 +29,74 @@ class GeofenceService:
             if not geometry or not isinstance(geometry, dict):
                 raise ValueError("Geometry must be provided as a dictionary")
 
-            # Validate using our Pydantic model
-            geometry_obj = GeofenceGeometry(**geometry)
+            # Normalize everything early
+            geom_type = geometry.get("type", "").lower()
+            type = type.lower()
+            status = status.lower()
+            coordinates = geometry.get("coordinates")
 
-            # Build MongoDB GeoJSON format
-            if geometry_obj.type == GeofenceType.CIRCLE:
-                geojson_geometry = {
-                    "type": "Point",
-                    "coordinates": [
-                        geometry_obj.center.longitude,
-                        geometry_obj.center.latitude
-                    ],
-                    "radius": geometry_obj.radius
-                }
-            elif geometry_obj.type in (GeofenceType.POLYGON, GeofenceType.RECTANGLE):
-                if not geometry_obj.points or len(geometry_obj.points) < 3:
+            if geom_type not in ["point", "polygon", "rectangle", "circle"]:
+                raise ValueError(f"Unsupported geometry type: {geom_type}")
+
+            # Handle Polygon / Rectangle
+            if geom_type in ["polygon", "rectangle"]:
+                if not coordinates or not isinstance(coordinates, list):
+                    raise ValueError("Coordinates must be provided for polygon/rectangle")
+
+                # Handle single-ring polygons
+                ring = coordinates[0] if isinstance(coordinates[0][0], list) else coordinates
+                if len(ring) < 3:
                     raise ValueError("At least 3 points required for polygon/rectangle geometry")
 
-                points_coords = [[pt["longitude"], pt["latitude"]] for pt in geometry_obj.points]
-                if points_coords[0] != points_coords[-1]:
-                    points_coords.append(points_coords[0])  # Close the polygon
+                # Ensure polygon is closed
+                if ring[0] != ring[-1]:
+                    ring.append(ring[0])
 
-                geojson_geometry = {
+                coordinates = [ring]  # GeoJSON requires list of linear rings
+                geometry = {
                     "type": "Polygon",
-                    "coordinates": [points_coords]
+                    "coordinates": coordinates
                 }
-            else:
-                raise ValueError(f"Unsupported geometry type: {geometry_obj.type}")
 
-            # Combine for Pydantic model (keep both)
-            geofence_data = {
+            # Handle Circle (store as point + radius in properties)
+            elif geom_type == "circle":
+                center = geometry.get("center")
+                radius = geometry.get("radius")
+                if not center or not radius:
+                    raise ValueError("Circle requires center and radius")
+                geometry = {
+                    "type": "Point",
+                    "coordinates": [center["longitude"], center["latitude"]],
+                    "properties": {"radius": radius}
+                }
+
+            # Handle Point
+            elif geom_type == "point":
+                if not coordinates or not isinstance(coordinates, list) or len(coordinates) != 2:
+                    raise ValueError("Point requires [longitude, latitude]")
+                geometry = {
+                    "type": "Point",
+                    "coordinates": coordinates
+                }
+
+            # Prepare MongoDB document
+            mongo_data = {
                 "name": name,
                 "description": description or "",
-                "type": GeofenceCategory(type.lower()),
-                "status": GeofenceStatus(status.lower()),
-                "geometry": geometry,               # API-facing structure
-                "geojson_geometry": geojson_geometry  # MongoDB storage
+                "type": type,
+                "status": status,
+                "geometry": geometry  # Proper GeoJSON structure now
             }
-
-            logger.info(f"Creating geofence with data: {geofence_data}")
-
-            # Build Pydantic model
-            geofence_model = Geofence(**geofence_data)
-
-            # Dump for MongoDB
-            mongo_data = {
-                "name": geofence_model.name,
-                "description": geofence_model.description,
-                "type": geofence_model.type,
-                "status": geofence_model.status,
-                "geometry": geojson_geometry,  # <-- Use the variable we created earlier
-            }
-
-
 
             logger.info(f"Inserting into DB: {self.db.db.name}, Collection: geofences")
             result = await self.db.db.geofences.insert_one(mongo_data)
             logger.info(f"Inserted document ID: {result.inserted_id}")
 
-            geofence_model.id = str(result.inserted_id)
+            # Build Pydantic model for response
+            geofence_model = Geofence(**{
+                **mongo_data,
+                "_id": str(result.inserted_id)  # Convert ObjectId → string
+            })
 
             # Publish event
             try:
@@ -105,6 +114,8 @@ class GeofenceService:
             logger.error(f"Error creating geofence: {e}")
             logger.exception("Full traceback:")
             raise
+
+
 
     
     async def get_geofence_by_id(self, geofence_id: str) -> Optional[Geofence]:
@@ -173,13 +184,19 @@ class GeofenceService:
             cursor = self.db.db.geofences.find(query).skip(offset).limit(limit)
             geofences = []
             async for doc in cursor:
+                # Convert _id to string
                 doc["id"] = str(doc.pop("_id"))
-                doc["geometry"] = self._normalize_geometry(doc)
+
+                # Keep geometry exactly as in DB
+                if "geometry" not in doc or not isinstance(doc["geometry"], dict):
+                    doc["geometry"] = {"type": "Polygon", "coordinates": []}  # Default fallback
+
                 geofences.append(Geofence(**doc))
             return geofences
         except Exception as e:
             logger.error(f"Error getting geofences: {e}")
             return []
+
 
     
     async def update_geofence(
@@ -191,7 +208,7 @@ class GeofenceService:
         status: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Optional[Geofence]:
-        """Update geofence with proper GeoJSON transformation"""
+        """Update geofence with proper GeoJSON transformation and unified format"""
         try:
             update_data = {"updated_at": datetime.utcnow()}
 
@@ -202,47 +219,74 @@ class GeofenceService:
                 update_data["description"] = description
 
             if geometry is not None:
-                # Transform our custom format to MongoDB GeoJSON
-                geo_type = geometry.get("type")
+                geo_type = geometry.get("type", "").lower()
+
                 if geo_type == "circle":
                     center = geometry.get("center", {})
+                    radius = geometry.get("radius")
+                    if not center or radius is None:
+                        raise ValueError("Circle geometry requires 'center' and 'radius'")
+
                     update_data["geometry"] = {
                         "type": "Point",
                         "coordinates": [center.get("longitude"), center.get("latitude")],
-                        "radius": geometry.get("radius")
+                        "properties": {"radius": radius}
                     }
+
                 elif geo_type in ["polygon", "rectangle"]:
-                    points = geometry.get("points", [])
-                    coords = [[(p["longitude"], p["latitude"]) for p in points]]
+                    # Support both "points" format and raw "coordinates"
+                    points = geometry.get("points")
+                    coordinates = geometry.get("coordinates")
+
+                    if points:
+                        coords = [[(p["longitude"], p["latitude"]) for p in points]]
+                    elif coordinates:
+                        coords = coordinates  # Already in [[lon, lat], [lon, lat]...] format
+                    else:
+                        raise ValueError("Polygon/Rectangle requires 'points' or 'coordinates' with at least 3 points")
+
+                    # Validate we have at least 3 unique points (excluding closing point)
+                    unique_points = set((x, y) for ring in coords for x, y in ring)
+                    if len(unique_points) < 3:
+                        raise ValueError("Polygon/Rectangle requires at least 3 unique points")
+
+                    # Ensure polygon is closed
+                    if coords[0][0] != coords[0][-1]:
+                        coords[0].append(coords[0][0])
+
                     update_data["geometry"] = {
                         "type": "Polygon",
                         "coordinates": coords
                     }
-                else:
-                    raise ValueError(f"Unsupported geometry type: {geo_type}")
+
 
             if status is not None:
-                update_data["status"] = status
+                update_data["status"] = status.lower()
                 update_data["is_active"] = status.lower() == "active"
 
             if metadata is not None:
                 update_data["metadata"] = metadata
 
+            # Convert ID properly for MongoDB
             query_id = ObjectId(geofence_id) if len(geofence_id) == 24 else geofence_id
 
+            # Perform the update
             result = await self.db.db.geofences.update_one(
                 {"_id": query_id},
                 {"$set": update_data}
             )
 
             if result.modified_count > 0:
+                # Retrieve the updated document with proper transformations
                 return await self.get_geofence_by_id(geofence_id)
 
             return None
 
         except Exception as e:
             logger.error(f"Error updating geofence {geofence_id}: {e}")
+            logger.exception("Full traceback:")
             return None
+
     
     async def delete_geofence(self, geofence_id: str) -> bool:
         """Delete geofence"""

@@ -163,6 +163,7 @@ export const API_ENDPOINTS = {
   TRIPS: {
     LIST: '/trips/trips',
     CREATE: '/trips/trips/create',
+    SCHEDULED: '/trips/trips/scheduled',
     UPDATE: id => `/trips/trips/${id}`,
     DELETE: id => `/trips/trips/${id}`,
     ACTIVE: '/trips/trips/active/all',
@@ -175,6 +176,37 @@ export const API_ENDPOINTS = {
     RECENTTRIPSALL: '/trips/recent',
     VEHICLEPOLYLINE: id => `/trips/trips/polyline/${id}`,
     VEHICLETRIP: id => `/trips/trips/vehicle/${id}`,
+    GETSMARTTRIPS: '/trips/trips/smarttrips',
+    ACTIVATESMARTTRIP: '/trips/trips/activesmart',
+    REJECTSMARTTRIP: '/trips/trips/rejectsmart',
+    
+    // Driver Availability Endpoints
+    AVAILABLE_DRIVERS: '/trips/drivers/available',
+    CHECK_DRIVER_AVAILABILITY: id => `/trips/drivers/${id}/availability`,
+    
+    // Vehicle Availability Endpoints
+    AVAILABLE_VEHICLES: '/trips/vehicles/available',
+    CHECK_VEHICLE_AVAILABILITY: id => `/trips/vehicles/${id}/availability`,
+
+    TRAFFIC: {
+      RECOMMENDATIONS: '/trips/traffic/recommendations',
+      RECOMMENDATION: id => `/trips/traffic/recommendation/${id}`,
+      ACCEPT: `/trips/traffic/accept`,
+      REJECT: `/trips/traffic/reject`,
+      STARTMONITOR: '/trips/traffic/startmonitor',
+      STOPMONITOR: '/trips/traffic/stopmonitor',
+      GETSTATUS: '/trips/traffic/monitorstatus',
+      RUNCYCLE: '/trips/traffic/runcycle',
+      ANALYSIS: id => `/trips/traffic/analysis/${id}`,
+      DASHBOARD: '/trips/traffic/dashboard'
+    },
+
+    UPCOMING: {
+      UPCOMINGRECOMMENDATIONS: '/trips/upcomingrecommendations/get',
+      ACCEPT: '/trips/upcomingrecommendations/accept',
+      REJECT: '/trips/upcomingrecommendations/reject'
+    },
+    
     ANALYTICS: {
       // Trip History Statistics
       HISTORY_STATS: '/trips/analytics/trips/history-stats',
@@ -192,6 +224,18 @@ export const API_ENDPOINTS = {
       AVGTRIPSPERDAYVEHICLES: timeframe => `/trips/analytics/vehicles/averagedaytrips/${timeframe}`,
       TOTALDISTANCE: timeframe => `/trips/analytics/vehicles/totaldistance/${timeframe}`,
     },
+  },
+
+  // Driver History & Behavior
+  DRIVER_BEHAVIOR: {
+    LIST: '/trips/driver-history',
+    GET: id => `/trips/driver-history/${id}`,
+    SUMMARY: id => `/trips/driver-history/${id}/summary`,
+    RISK_DISTRIBUTION: '/trips/driver-history/analytics/risk-distribution',
+    RECENT_ALERTS: '/trips/driver-history/analytics/recent-alerts',
+    RECALCULATE: '/trips/driver-history/recalculate',
+    UPDATE: id => `/trips/driver-history/${id}/update`,
+    TRIPS: id => `/trips/driver-history/${id}/trips`,
   },
 
   PLUGINSTATUS: {

@@ -1,68 +1,51 @@
-# Caddyfile for SAMFMS with automatic HTTPS
-# Proxying frontend AND API to avoid mixed content issues
+# SAMFMS Caddyfile with Let's Encrypt for samfms.co.za
+# This will automatically get valid SSL certificates
 
 {
-    # Global options - replace with your actual email
-    email admin@capstone-samfms.dns.net.za
-    # Uncomment the next line for staging/testing
+    # Your email for Let's Encrypt notifications
+    email admin@samfms.co.za
+    # Use staging server for testing (comment out for production)
     # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
 }
 
-# Replace with your actual domain
-capstone-samfms.dns.net.za {
-    # API endpoints - handle API requests first (more specific routes first)
+# Redirect www to non-www
+www.samfms.co.za {
+    redir https://samfms.co.za{uri} permanent
+}
+
+# Main domain with automatic HTTPS
+samfms.co.za {
+    # API endpoints
     handle_path /api/* {
-        reverse_proxy core:21004 {
-            header_up Host {host}
-            header_up X-Real-IP {remote}
-        }
+        reverse_proxy core:8000
     }
     
-    # Health endpoints
+    # Health endpoints  
     handle_path /health/* {
-        reverse_proxy core:8000 {
-            header_up Host {host}
-            header_up X-Real-IP {remote}
-        }
+        reverse_proxy core:8000
     }
     
     # Auth endpoints
     handle_path /auth/* {
-        reverse_proxy core:21004 {
-            header_up Host {host}
-            header_up X-Real-IP {remote}
-        }
+        reverse_proxy core:8000
     }
     
     # WebSocket endpoints
     handle_path /ws/* {
-        reverse_proxy core:21004 {
-            header_up Host {host}
-            header_up X-Real-IP {remote}
-            header_up Connection {>Connection}
-            header_up Upgrade {>Upgrade}
-        }
+        reverse_proxy core:8000
     }
     
-    # Frontend (React app) - default route for everything else
+    # Default: serve frontend
     handle {
-        reverse_proxy frontend:3000 {
-            header_up Host {host}
-            header_up X-Real-IP {remote}
-        }
+        reverse_proxy frontend:3000
     }
     
     # Security headers
     header {
-        # Enable HSTS
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
-        # Prevent MIME type sniffing
         X-Content-Type-Options "nosniff"
-        # Prevent clickjacking
         X-Frame-Options "SAMEORIGIN"
-        # Enable XSS protection
         X-XSS-Protection "1; mode=block"
-        # Referrer policy
         Referrer-Policy "strict-origin-when-cross-origin"
     }
     
@@ -74,9 +57,4 @@ capstone-samfms.dns.net.za {
         }
         format json
     }
-}
-
-# HTTP redirect to HTTPS
-http://capstone-samfms.dns.net.za {
-    redir https://capstone-samfms.dns.net.za{uri} permanent
 }

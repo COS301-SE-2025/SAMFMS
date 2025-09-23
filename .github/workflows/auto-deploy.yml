@@ -1,4 +1,11 @@
-name: Auto Deploy via SAMDS API
+name: Auto Deploy via SAMDS API (Single Workflow)
+
+# This is the only deployment workflow - all others have been removed to prevent conflicts
+# Features:
+# - Deployment locking to prevent concurrent deployments
+# - Automatic rollback points saved before each deployment
+# - Retry mechanisms for failed operations
+# - Manual rollback available via SAMDS API endpoint: POST /rollback?commit=<hash>
 
 on:
   push:

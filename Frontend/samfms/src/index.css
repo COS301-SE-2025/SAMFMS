@@ -22,3 +22,107 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
+
+/* Custom animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes subtlePulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.logo-pulse {
+  animation: subtlePulse 6s ease-in-out infinite;
+}
+
+/* Trip Planning Map - Prevent expansion */
+.leaflet-container {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  width: 100% !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+/* Prevent Leaflet from expanding beyond container */
+.leaflet-container.leaflet-fullscreen {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Prevent map expansion on click events - but exclude markers and popups */
+.leaflet-container .leaflet-control-container,
+.leaflet-container .leaflet-tile-pane,
+.leaflet-container .leaflet-zoom-box {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Specific constraint for trip planning map */
+.trip-planning-map-container {
+  position: relative !important;
+  width: 100% !important;
+  height: 384px !important;
+  max-width: 100% !important;
+  max-height: 384px !important;
+  min-width: 100% !important;
+  min-height: 384px !important;
+  overflow: hidden !important;
+  contain: layout size !important;
+}
+
+.trip-planning-map-container .leaflet-container {
+  position: relative !important;
+  width: 100% !important;
+  height: 384px !important;
+  max-width: 100% !important;
+  max-height: 384px !important;
+}
+
+/* Custom trip markers - ensure they display properly */
+.custom-trip-marker {
+  background: transparent !important;
+  border: none !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+.trip-marker-circle {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  font-weight: bold !important;
+  color: white !important;
+  z-index: 1000 !important;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Ensure marker visibility over any constraints */
+.leaflet-marker-icon.custom-trip-marker,
+.leaflet-div-icon.custom-trip-marker {
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+  background: transparent !important;
+  border: none !important;
+}

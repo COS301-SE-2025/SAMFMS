@@ -32,6 +32,9 @@ class EventType(str, Enum):
     # Notification events
     NOTIFICATION_SENT = "notification.sent"
     
+    # Violation events
+    SPEED_VIOLATION_CREATED = "violation.speed.created"
+    
     # Service events
     SERVICE_STARTED = "service.started"
 
@@ -126,7 +129,7 @@ class TripStartedEvent(BaseEvent):
                 "name": trip.name,
                 "actual_start_time": trip.actual_start_time.isoformat() if trip.actual_start_time else None,
                 "scheduled_start_time": trip.scheduled_start_time.isoformat(),
-                "driver_id": trip.driver_assignment.driver_id if trip.driver_assignment else None,
+                "driver_id": trip.driver_assignment if trip.driver_assignment else None,
                 "vehicle_id": trip.vehicle_id,
                 "origin": trip.origin.dict(),
                 "destination": trip.destination.dict()
@@ -151,7 +154,7 @@ class TripCompletedEvent(BaseEvent):
                 "actual_end_time": trip.actual_end_time.isoformat() if trip.actual_end_time else None,
                 "actual_start_time": trip.actual_start_time.isoformat() if trip.actual_start_time else None,
                 "duration_minutes": duration,
-                "driver_id": trip.driver_assignment.driver_id if trip.driver_assignment else None,
+                "driver_id": trip.driver_assignment if trip.driver_assignment else None,
                 "vehicle_id": trip.vehicle_id
             }
         )
@@ -170,7 +173,7 @@ class TripDelayedEvent(BaseEvent):
                 "delay_minutes": delay_minutes,
                 "reason": reason,
                 "scheduled_start_time": trip.scheduled_start_time.isoformat(),
-                "driver_id": trip.driver_assignment.driver_id if trip.driver_assignment else None
+                "driver_id": trip.driver_assignment if trip.driver_assignment else None
             }
         )
 
@@ -266,4 +269,19 @@ class ServiceStartedEvent(BaseEvent):
                 "version": version,
                 "started_at": datetime.utcnow().isoformat()
             }
+        )
+
+
+class SpeedViolationCreatedEvent(BaseEvent):
+    """Event published when a speed violation is detected"""
+    event_type: EventType = EventType.SPEED_VIOLATION_CREATED
+    
+    def __init__(self, trip_id: str, driver_id: str, violation_data: Dict[str, Any], **kwargs):
+        super().__init__(
+            data={
+                "trip_id": trip_id,
+                "driver_id": driver_id,
+                "violation_data": violation_data
+            },
+            **kwargs
         )
