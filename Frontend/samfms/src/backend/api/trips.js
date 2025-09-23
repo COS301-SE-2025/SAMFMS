@@ -748,7 +748,8 @@ export const declineSmartTripSuggestion = async (suggestionId) => {
 
 export const getUpcomingTripsRecommendations = async () => {
   try {
-    const response = httpClient.get(API_ENDPOINTS.getUpcomingRecommendations)
+    const response = await httpClient.get(TRIPS_ENDPOINTS.getUpcomingRecommendations)
+    console.log("Response in trips.js: ", response)
     return response
   } catch (error){
     console.error(`Error fetching recommended upcomming trip`)
@@ -761,7 +762,8 @@ export const acceptTripCombinationRecommendation = async (recommendationId) => {
     const data = {
       recommendation_id: recommendationId
     }
-    const response = httpClient.post(API_ENDPOINTS.acceptUpcomingRecommendation, data)
+    const response = await httpClient.post(TRIPS_ENDPOINTS.acceptUpcomingRecommendation, data)
+    console.log("Response in trips.js: ", response)
     return response
   } catch (error){
     console.error(`Error accepting recommended upcomming trip`)
@@ -774,7 +776,8 @@ export const rejectTripCombinationRecommendation = async (recommendationId) => {
     const data = {
       recommendation_id: recommendationId
     }
-    const response = httpClient.post(API_ENDPOINTS.getUpcomingRecommendations, data)
+    const response = await httpClient.post(TRIPS_ENDPOINTS.rejectUpcomingRecommendation, data)
+    console.log("Response in trips.js: ", response)
     return response
   } catch (error){
     console.error(`Error rejecting recommended upcomming trip`)

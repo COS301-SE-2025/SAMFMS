@@ -285,8 +285,9 @@ class ServiceRequestConsumer:
                 if "get" in endpoint:
                     # get all the upcoming recommendations
                     try:
+                        logger.info("Entered get all upcoming recommendations")
                         recommendations = await upcoming_recommendation_service.get_combination_recommendations()
-
+                        logger.info(f"Retrieved {len(recommendations)} from the upcoming recommendations collection")
                         return_data = {
                             "data" : recommendations
                         }
@@ -844,6 +845,10 @@ class ServiceRequestConsumer:
                     logger.info(f"Assignment created successfully: {assignment}")
 
                     logger.info(f"[_handle_trips_request] trip_service.create_trip() succeeded for trip {trip.id}")
+
+                    # after trip is created do a check for smart upcoming trips recommendations
+                    from services.upcoming_recommendations_service import upcoming_recommendation_service
+                    asyncio.create_task(upcoming_recommendation_service.analyze_and_store_combinations())
                     return ResponseBuilder.success(
                         data=trip.model_dump(),
                         message="Trip created successfully"

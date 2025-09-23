@@ -906,23 +906,6 @@ const Trips = () => {
                 )}
               </div>
 
-              {/* Trip Recommendations */}
-              <div className="animate-fade-in animate-delay-150">
-                {upcomingTripsLoading ? (
-                  <div className="flex justify-center items-center p-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    <span className="ml-2">Loading trip recommendations...</span>
-                  </div>
-                ) : (
-                  <UpcomingTripsRecommendations
-                    upcomingTrips={upcomingTrips}
-                    onAccept={handleAcceptRecommendation}
-                    onReject={handleRejectRecommendation}
-                    onRefresh={handleRefreshRecommendations}
-                  />
-                )}
-              </div>
-
               {/* Trips Table */}
               <div className="animate-fade-in animate-delay-200">
                 {upcomingTripsLoading ? (
@@ -940,6 +923,23 @@ const Trips = () => {
                     changeItemsPerPage={upcomingTripsChangeItemsPerPage}
                     goToNextPage={upcomingTripsGoToNextPage}
                     goToPrevPage={upcomingTripsGoToPrevPage}
+                  />
+                )}
+              </div>
+
+              {/* Trip Recommendations */}
+              <div className="animate-fade-in animate-delay-150">
+                {upcomingTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading trip recommendations...</span>
+                  </div>
+                ) : (
+                  <UpcomingTripsRecommendations
+                    upcomingTrips={upcomingTrips}
+                    onAccept={handleAcceptRecommendation}
+                    onReject={handleRejectRecommendation}
+                    onRefresh={handleRefreshRecommendations}
                   />
                 )}
               </div>
