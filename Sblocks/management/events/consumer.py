@@ -696,12 +696,21 @@ class ManagementEventHandlers:
     async def handle_removed_user(self, data: Dict[str, Any], routing_key: str, headers: Dict[str, Any]):
         email = data["email"]
         #get driver_id
-        driver = DriverService.get_driver_id_by_email(email)
+        driver_service = DriverService()
+        vehicle_assignment_service = VehicleAssignmentService()
+        driver = await driver_service.get_driver_id_by_email(email)
+
+        if not driver:
+            logger.warning(f"Driver not found for email: {email}")
+            return
+
         ID = driver["_id"]
-        EMPID = driver["employee_id"]
-        DriverService.delete_driver(ID)
-        VehicleAssignmentService.cancel_driver_assignments(EMPID)
+        EMPID = driver["employee_id"] #for trips driver_assignment is equivalent to employee_id
+        security_id = driver["security_id"] #for maintenance_records assigned_to is equivalent to security_id 
+        await driver_service.delete_driver(ID)
+        await vehicle_assignment_service.cancel_driver_assignments(EMPID)
         #cancel schedules trips
+        logger.info(f"Successfully processed removed user event: {email}")
 
 
 
