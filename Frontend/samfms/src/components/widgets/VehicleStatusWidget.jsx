@@ -2,14 +2,13 @@ import React, {useState, useEffect} from 'react';
 import {BaseWidget} from '../dashboard/BaseWidget';
 import {getVehicles} from '../../backend/api/vehicles';
 import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
-import {Truck, CheckCircle, AlertTriangle, Clock} from 'lucide-react';
+import {Truck, CheckCircle, XCircle} from 'lucide-react';
 
 const VehicleStatusWidget = ({id, config = {}}) => {
   const [vehicleData, setVehicleData] = useState({
     total: 0,
-    active: 0,
-    maintenance: 0,
-    idle: 0,
+    available: 0,
+    unavailable: 0,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,57 +21,32 @@ const VehicleStatusWidget = ({id, config = {}}) => {
 
         const response = await getVehicles({limit: 1000}); // Get all vehicles
 
-        // Log the response for debugging
-        console.log('Vehicle API response:', response);
-
-        // Ensure we have a proper array to work with
+        // Extract vehicles from response.data.data.vehicles as specified
         let vehiclesArray = [];
-        if (response) {
-          // Handle different response structures
-          if (Array.isArray(response)) {
-            vehiclesArray = response;
-          } else if (response.vehicles && Array.isArray(response.vehicles)) {
-            vehiclesArray = response.vehicles;
-          } else if (response.data && Array.isArray(response.data)) {
-            vehiclesArray = response.data;
-          } else if (response.items && Array.isArray(response.items)) {
-            vehiclesArray = response.items;
-          }
+        if (response?.data?.data?.vehicles && Array.isArray(response.data.data.vehicles)) {
+          vehiclesArray = response.data.data.vehicles;
         }
 
         console.log('Processed vehicles array:', vehiclesArray, 'Length:', vehiclesArray.length);
 
-        // Ensure we have an array before calling reduce
-        if (!Array.isArray(vehiclesArray)) {
-          console.warn('No valid vehicles array found, using empty array');
-          vehiclesArray = [];
-        }
-
-        // Calculate status counts
+        // Calculate status counts for available/unavailable only
         const statusCounts = vehiclesArray.reduce(
           (acc, vehicle) => {
             acc.total++;
 
-            switch (vehicle.status?.toLowerCase()) {
-              case 'active':
-              case 'operational':
-                acc.active++;
-                break;
-              case 'maintenance':
-              case 'in_maintenance':
-                acc.maintenance++;
-                break;
-              case 'idle':
-              case 'available':
-                acc.idle++;
-                break;
-              default:
-                acc.idle++;
+            const status = vehicle.status?.toLowerCase();
+            if (status === 'available') {
+              acc.available++;
+            } else if (status === 'unavailable') {
+              acc.unavailable++;
+            } else {
+              // Default unknown statuses to unavailable
+              acc.unavailable++;
             }
 
             return acc;
           },
-          {total: 0, active: 0, maintenance: 0, idle: 0}
+          {total: 0, available: 0, unavailable: 0}
         );
 
         setVehicleData(statusCounts);
@@ -97,30 +71,23 @@ const VehicleStatusWidget = ({id, config = {}}) => {
     {
       title: 'Total Vehicles',
       value: vehicleData.total,
-      icon: <Truck className="h-6 w-6 text-blue-600" />,
+      icon: <Truck className="h-4 w-4 text-blue-600" />,
       color: 'bg-blue-100 dark:bg-blue-900',
       textColor: 'text-blue-800 dark:text-blue-200',
     },
     {
-      title: 'Active',
-      value: vehicleData.active,
-      icon: <CheckCircle className="h-6 w-6 text-green-600" />,
+      title: 'Available',
+      value: vehicleData.available,
+      icon: <CheckCircle className="h-4 w-4 text-green-600" />,
       color: 'bg-green-100 dark:bg-green-900',
       textColor: 'text-green-800 dark:text-green-200',
     },
     {
-      title: 'Maintenance',
-      value: vehicleData.maintenance,
-      icon: <AlertTriangle className="h-6 w-6 text-yellow-600" />,
-      color: 'bg-yellow-100 dark:bg-yellow-900',
-      textColor: 'text-yellow-800 dark:text-yellow-200',
-    },
-    {
-      title: 'Idle',
-      value: vehicleData.idle,
-      icon: <Clock className="h-6 w-6 text-gray-600" />,
-      color: 'bg-gray-100 dark:bg-gray-900',
-      textColor: 'text-gray-800 dark:text-gray-200',
+      title: 'Unavailable',
+      value: vehicleData.unavailable,
+      icon: <XCircle className="h-4 w-4 text-red-600" />,
+      color: 'bg-red-100 dark:bg-red-900',
+      textColor: 'text-red-800 dark:text-red-200',
     },
   ];
 
@@ -132,13 +99,15 @@ const VehicleStatusWidget = ({id, config = {}}) => {
       loading={loading}
       error={error}
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 h-full">
+      <div className="flex flex-col justify-center gap-2 h-full p-1 overflow-hidden">
         {statusCards.map((card, index) => (
-          <div key={index} className="flex items-center space-x-2 min-h-0">
-            <div className={`p-2 rounded-lg ${card.color} flex-shrink-0`}>{card.icon}</div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-muted-foreground truncate">{card.title}</p>
-              <p className={`text-lg font-bold ${card.textColor}`}>{card.value}</p>
+          <div key={index} className="flex items-center space-x-2 min-h-0 flex-shrink">
+            <div className={`p-1.5 rounded-md ${card.color} flex-shrink-0`}>
+              {card.icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground truncate leading-tight">{card.title}</p>
+              <p className={`text-sm font-bold ${card.textColor} truncate leading-tight`}>{card.value}</p>
             </div>
           </div>
         ))}

@@ -16,17 +16,11 @@ const MaintenanceTotalCountWidget = ({id, config = {}}) => {
         setError(null);
 
         const response = await maintenanceAPI.getMaintenanceDashboard();
-        console.log('MaintenanceTotalCountWidget - Full API Response:', response);
 
         // Use the exact same data path as MaintenanceDashboard
         const dashboardData = response.data?.data || response.data || {};
         const analytics = dashboardData.analytics || {};
         const totalRecords = analytics.maintenance_summary?.total_records || 0;
-
-        console.log('MaintenanceTotalCountWidget - Dashboard Data:', dashboardData);
-        console.log('MaintenanceTotalCountWidget - Analytics:', analytics);
-        console.log('MaintenanceTotalCountWidget - Total Records:', totalRecords);
-
         setTotalCount(totalRecords);
 
       } catch (err) {
