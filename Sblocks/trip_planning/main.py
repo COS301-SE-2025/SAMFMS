@@ -367,6 +367,7 @@ app.add_middleware(
 )
 
 # Add custom middleware in order
+app.add_middleware(HealthCheckMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(MetricsMiddleware)
