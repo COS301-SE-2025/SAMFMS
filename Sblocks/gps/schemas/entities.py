@@ -8,6 +8,7 @@ from enum import Enum
 
 class GeofenceType(str, Enum):
     CIRCLE = "Circle"
+    POINT = "Point"
     POLYGON = "Polygon"
     RECTANGLE = "Rectangle"
 
