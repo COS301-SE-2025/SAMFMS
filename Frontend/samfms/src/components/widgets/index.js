@@ -12,13 +12,13 @@ import './VehicleTotalCountWidget';
 import './PluginHealthWidget';
 import './DriverTotalCountWidget';
 import './DriverGrowthLineGraphWidget'
+import './MaintenanceCostAnalyticsWidget';
 // import './VehicleIdleCountWidget';
 // import './VehicleActiveCountWidget';
 // import './VehicleMaintenanceCountWidget';
-// import './MaintenanceCostAnalyticsWidget';
 // import './MyNotificationsWidget';
 // import './MaintenanceRecordsWidget';
-// import './MaintenanceTypeDistributionWidget';
+import './MaintenanceTypeDistributionWidget';
 // import './StatsCardWidget';
 
 // Export for direct imports if needed
@@ -36,11 +36,11 @@ export {default as PluginHealthWidget} from './PluginHealthWidget';
 export {default as DriverTotalCountWidget} from './DriverTotalCountWidget';
 export {default as VehicleStatusBarChartWidget} from './VehicleStatusBarChartWidget';
 export {default as DriverGrowthLineGraphWidget} from './DriverGrowthLineGraphWidget';
+export {default as MaintenanceCostAnalyticsWidget} from './MaintenanceCostAnalyticsWidget';
 // export {default as VehicleIdleCountWidget} from './VehicleIdleCountWidget';
 // export {default as VehicleMaintenanceCountWidget} from './VehicleMaintenanceCountWidget';
 // export {default as VehicleActiveCountWidget} from './VehicleActiveCountWidget';
-// export {default as MaintenanceCostAnalyticsWidget} from './MaintenanceCostAnalyticsWidget';
 // export {default as MyNotificationsWidget} from './MyNotificationsWidget';
 // export {default as MaintenanceRecordsWidget} from './MaintenanceRecordsWidget';
-// export {default as MaintenanceTypeDistributionWidget} from './MaintenanceTypeDistributionWidget';
+export {default as MaintenanceTypeDistributionWidget} from './MaintenanceTypeDistributionWidget';
 // export {default as StatsCardWidget} from './StatsCardWidget';
