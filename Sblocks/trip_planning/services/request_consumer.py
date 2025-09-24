@@ -1353,53 +1353,69 @@ class ServiceRequestConsumer:
             ).model_dump()
 
     async def _handle_driver_behavior_analytics_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle driver behavior analytics requests"""
+        """Handle driver behavior analytics requests (avoids TestClient cross-loop issues)."""
         try:
             from schemas.responses import ResponseBuilder
             from fastapi import Request
-            
+            import os
+            import asyncio
+            import httpx
+
             data = user_context.get("data", {})
             endpoint = user_context.get("endpoint", "")
             user_id = user_context.get("user_id", "")
             logger.info(f"[DriverBehaviorAnalytics] Processing endpoint: {endpoint}")
-            
-            # Import analytics router and make a direct call
-            from api.routes.analytics import router as analytics_router
-            
-            # Create a mock request object for FastAPI route handling
-            from fastapi.testclient import TestClient
-            from main import app
-            
-            # Extract the specific analytics endpoint from the URL
-            # Expected format: driver-behavior/violation-trends, driver-behavior/risk-distribution, etc.
+
             path_parts = endpoint.split('/')
-            
             if len(path_parts) < 2:
                 raise ValueError(f"Invalid driver-behavior endpoint format: {endpoint}")
-                
-            # Get the specific endpoint (e.g., violation-trends, risk-distribution)
-            analytics_endpoint = '/'.join(path_parts[1:])  # Remove 'driver-behavior' prefix
-            
-            # Add query parameters if they exist
+
+            analytics_endpoint = '/'.join(path_parts[1:]) 
+
             query_params = ""
             if data.get('period'):
                 query_params = f"?period={data.get('period')}"
             elif 'period=' in endpoint:
-                # Extract period from endpoint if it's already there
                 if '?' in endpoint:
                     query_params = '?' + endpoint.split('?')[1]
-            
-            # Construct the full endpoint path
+
             full_endpoint = f"/driver-behavior/{analytics_endpoint}{query_params}"
-            
             logger.info(f"[DriverBehaviorAnalytics] Calling endpoint: {full_endpoint}")
+
             
-            # Use TestClient to make internal API call
-            client = TestClient(app)
-            headers = {"Authorization": f"Bearer {user_context.get('token', '')}"}
-            
-            response = client.get(full_endpoint, headers=headers)
-            
+            base_url = "http://localhost:8000"
+            logger.warning(f"[CONSUMER DEBUG] loop={id(asyncio.get_running_loop())} base_url={base_url} GET {full_endpoint}")
+
+            def _pick_bearer(user_context: dict) -> str | None:
+               
+                raw_auth = str(user_context.get("authorization") or user_context.get("Authorization") or "").strip()
+                if raw_auth.lower().startswith("bearer "):
+                    tok = raw_auth[7:].strip()
+                    if tok and tok.lower() not in {"null", "none"}:
+                        return f"Bearer {tok}"
+
+                tok = str(user_context.get("token") or "").strip()
+                if tok and tok.lower() not in {"null", "none"}:
+                    return f"Bearer {tok}"
+
+                svc = str(os.getenv("INTERNAL_SERVICE_TOKEN", "")).strip()
+                if svc:
+                    return f"Bearer {svc}"
+
+                return None
+
+            auth_value = _pick_bearer(user_context)
+            headers = {}
+            if auth_value:
+                headers["Authorization"] = auth_value
+                masked = auth_value[:10] + "…" if len(auth_value) > 10 else "****"
+                logger.debug(f"[CONSUMER DEBUG] using Authorization={masked}")
+            else:
+                logger.debug("[CONSUMER DEBUG] no valid token; sending request without Authorization")
+
+            async with httpx.AsyncClient(base_url=base_url, timeout=20.0) as client:
+                response = await client.get(full_endpoint, headers=headers)
+
             if response.status_code == 200:
                 return response.json()
             else:
@@ -1408,12 +1424,13 @@ class ServiceRequestConsumer:
                     error="DriverBehaviorAnalyticsError",
                     message=f"Failed to retrieve driver behavior analytics: {response.text}"
                 ).model_dump()
-                
+
         except Exception as e:
-            logger.error(f"[DriverBehaviorAnalytics] Error processing request: {e}")
+            logger.exception("[DriverBehaviorAnalytics] Unexpected error: %s", e)
+            from schemas.responses import ResponseBuilder
             return ResponseBuilder.error(
-                error="DriverBehaviorAnalyticsRequestError",
-                message=f"Failed to process driver behavior analytics request: {str(e)}"
+                error="DriverBehaviorAnalyticsError",
+                message=str(e)
             ).model_dump()
 
     async def _handle_analytics_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
