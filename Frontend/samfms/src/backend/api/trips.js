@@ -26,6 +26,8 @@ const TRIPS_ENDPOINTS = {
   getUpcomingRecommendations: API_ENDPOINTS.TRIPS.UPCOMING.UPCOMINGRECOMMENDATIONS,
   acceptUpcomingRecommendation: API_ENDPOINTS.TRIPS.UPCOMING.ACCEPT,
   rejectUpcomingRecommendation: API_ENDPOINTS.TRIPS.UPCOMING.REJECT,
+  listNotifications: API_ENDPOINTS.TRIPS.NOTIFICATIONS.LIST,
+  readNotification: API_ENDPOINTS.TRIPS.NOTIFICATIONS.MARK_READ,
   ANALYTICS: {
     HISTORY_STATS: API_ENDPOINTS.TRIPS.ANALYTICS.HISTORY_STATS,
     DRIVERSTATS: API_ENDPOINTS.TRIPS.ANALYTICS.DRiVERSTATS,
@@ -781,6 +783,30 @@ export const rejectTripCombinationRecommendation = async (recommendationId) => {
     return response
   } catch (error){
     console.error(`Error rejecting recommended upcomming trip`)
+    throw error
+  }
+}
+
+export const getNotifications = async () => {
+  try {
+    const response = httpClient.get(TRIPS_ENDPOINTS.listNotifications)
+    console.log("Response received for notifications: ", response)
+  } catch (error){
+    console.log('Error retrieving notifications')
+    throw error
+  }
+}
+
+export const readNotification = async (notification_id) => {
+  try {
+    const data = {
+      notification_id: notification_id
+    }
+
+    const response = httpClient.post(TRIPS_ENDPOINTS.readNotification,data)
+    console.log("Response received for marking notification as read", response)
+  } catch (error) {
+    console.log('Error marking notification a read')
     throw error
   }
 }

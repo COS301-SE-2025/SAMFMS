@@ -412,6 +412,13 @@ class DatabaseManagerGeo():
             raise RuntimeError("Database not connected")
         return self._db.vehicle_locations
 
+    @property
+    def geofences(self):
+        """Get geofences collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.geofences
+
 class DatabaseManagerManagement():
     """Centralized database connection manager for Trip Planning: Management access"""
     def __init__(self):

@@ -20,68 +20,45 @@ class NotificationService:
     def __init__(self):
         self.db = db_manager
         
-    async def send_notification(self, request: NotificationRequest) -> List[Notification]:
+    async def send_notification(self, request: NotificationRequest) -> bool:
         """Send notifications to specified users"""
         try:
-            notifications = []
-            
-            for user_id in request.user_ids:
-                # Get user notification preferences
-                preferences = await self.get_user_preferences(user_id)
                 
-                # Check if user wants this type of notification
-                if not self._should_send_notification(request.type, preferences):
-                    logger.info(f"Skipping notification for user {user_id} due to preferences")
-                    continue
+            # Create notification
+            notification_data = {
+                "type": request.type,
+                "title": request.title,
+                "message": request.message,
+                "trip_id": request.trip_id,
+                "driver_id": request.driver_id,
+                "data": request.data,
+                "sent_at": request.scheduled_for or datetime.utcnow(),
+                "is_read": False
+            }
                 
-                # Check quiet hours
-                if preferences and self._is_quiet_hours(preferences):
-                    logger.info(f"Skipping notification for user {user_id} due to quiet hours")
-                    continue
-                
-                # Create notification
-                notification_data = {
-                    "user_id": user_id,
-                    "type": request.type,
-                    "title": request.title,
-                    "message": request.message,
-                    "trip_id": request.trip_id,
-                    "driver_id": request.driver_id,
-                    "data": request.data,
-                    "channels": self._get_enabled_channels(request.channels, preferences),
-                    "sent_at": request.scheduled_for or datetime.utcnow(),
-                    "is_read": False
-                }
-                
-                # Insert into database
+            # Insert into database
+            try:
                 result = await self.db.notifications.insert_one(notification_data)
-                
-                # Create notification object
-                notification_data["_id"] = str(result.inserted_id)
-                notification = Notification(**notification_data)
-                
-                # Send through external channels
-                await self._deliver_notification(notification, preferences)
-                
-                notifications.append(notification)
-            
-            logger.info(f"Sent {len(notifications)} notifications")
-            return notifications
+                if not result is None:
+                    return True
+                return False
+            except Exception as e:
+                logger.info(f"Failed to insert into notifications collection: {e}")
+                return False
             
         except Exception as e:
             logger.error(f"Failed to send notifications: {e}")
             raise
     
-    async def get_user_notifications(
+    async def get_notifications(
         self,
-        user_id: str,
         unread_only: bool = False,
         limit: int = 50,
         skip: int = 0
     ) -> tuple[List[Notification], int]:
         """Get notifications for a user"""
         try:
-            query = {"user_id": user_id}
+            query = {}
             
             if unread_only:
                 query["is_read"] = False
@@ -104,11 +81,11 @@ class NotificationService:
             logger.error(f"Failed to get user notifications: {e}")
             raise
     
-    async def mark_notification_read(self, notification_id: str, user_id: str) -> bool:
+    async def mark_notification_read(self, notification_id: str) -> bool:
         """Mark a notification as read"""
         try:
             result = await self.db.notifications.update_one(
-                {"_id": ObjectId(notification_id), "user_id": user_id},
+                {"_id": ObjectId(notification_id)},
                 {
                     "$set": {
                         "is_read": True,
@@ -135,72 +112,17 @@ class NotificationService:
             logger.error(f"Failed to get unread count: {e}")
             return 0
     
-    async def get_user_preferences(self, user_id: str) -> Optional[NotificationPreferences]:
-        """Get notification preferences for a user"""
-        try:
-            preferences_doc = await self.db.notification_preferences.find_one({"user_id": user_id})
-            
-            if preferences_doc:
-                preferences_doc["_id"] = str(preferences_doc["_id"])
-                return NotificationPreferences(**preferences_doc)
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"Failed to get user preferences: {e}")
-            return None
-    
-    async def update_user_preferences(
-        self,
-        user_id: str,
-        request: UpdateNotificationPreferencesRequest
-    ) -> NotificationPreferences:
-        """Update notification preferences for a user"""
-        try:
-            # Get existing preferences or create default
-            existing = await self.get_user_preferences(user_id)
-            
-            if existing:
-                # Update existing preferences
-                update_data = request.dict(exclude_unset=True)
-                update_data["updated_at"] = datetime.utcnow()
-                
-                await self.db.notification_preferences.update_one(
-                    {"user_id": user_id},
-                    {"$set": update_data}
-                )
-            else:
-                # Create new preferences
-                preferences_data = {
-                    "user_id": user_id,
-                    "updated_at": datetime.utcnow(),
-                    **request.dict(exclude_unset=True)
-                }
-                
-                await self.db.notification_preferences.insert_one(preferences_data)
-            
-            # Return updated preferences
-            return await self.get_user_preferences(user_id)
-            
-        except Exception as e:
-            logger.error(f"Failed to update user preferences: {e}")
-            raise
-    
     # Trip-specific notification methods
     async def notify_trip_started(self, trip: Trip):
         """Send notification when a trip starts"""
         try:
-            # Notify relevant users (trip creator, assigned driver, managers)
-            user_ids = await self._get_trip_notification_recipients(trip)
             
             request = NotificationRequest(
-                user_ids=user_ids,
                 type=NotificationType.TRIP_STARTED,
                 title="Trip Started",
                 message=f"Trip '{trip.name}' has started",
                 trip_id=trip.id,
-                driver_id=trip.driver_assignment if trip.driver_assignment else None,
-                channels=["push", "email"]
+                driver_id=trip.driver_assignment if trip.driver_assignment else None
             )
             
             await self.send_notification(request)
@@ -211,16 +133,13 @@ class NotificationService:
     async def notify_trip_completed(self, trip: Trip):
         """Send notification when a trip is completed"""
         try:
-            user_ids = await self._get_trip_notification_recipients(trip)
             
             request = NotificationRequest(
-                user_ids=user_ids,
                 type=NotificationType.TRIP_COMPLETED,
                 title="Trip Completed",
                 message=f"Trip '{trip.name}' has been completed successfully",
                 trip_id=trip.id,
-                driver_id=trip.driver_assignment if trip.driver_assignment else None,
-                channels=["push", "email"]
+                driver_id=trip.driver_assignment if trip.driver_assignment else None
             )
             
             await self.send_notification(request)
@@ -231,44 +150,19 @@ class NotificationService:
     async def notify_trip_delayed(self, trip: Trip, delay_minutes: int):
         """Send notification when a trip is delayed"""
         try:
-            user_ids = await self._get_trip_notification_recipients(trip)
-            
             request = NotificationRequest(
-                user_ids=user_ids,
                 type=NotificationType.TRIP_DELAYED,
                 title="Trip Delayed",
                 message=f"Trip '{trip.name}' is delayed by {delay_minutes} minutes",
                 trip_id=trip.id,
                 driver_id=trip.driver_assignment if trip.driver_assignment else None,
-                data={"delay_minutes": delay_minutes},
-                channels=["push", "email", "sms"]
+                data={"delay_minutes": delay_minutes}
             )
             
             await self.send_notification(request)
             
         except Exception as e:
             logger.error(f"Failed to send trip delayed notification: {e}")
-    
-    async def notify_driver_assigned(self, trip: Trip, driver_id: str):
-        """Send notification when a driver is assigned to a trip"""
-        try:
-            # Notify the driver and trip creator
-            user_ids = [driver_id, trip.created_by]
-            
-            request = NotificationRequest(
-                user_ids=user_ids,
-                type=NotificationType.DRIVER_ASSIGNED,
-                title="Driver Assigned",
-                message=f"Driver has been assigned to trip '{trip.name}'",
-                trip_id=trip.id,
-                driver_id=driver_id,
-                channels=["push", "email"]
-            )
-            
-            await self.send_notification(request)
-            
-        except Exception as e:
-            logger.error(f"Failed to send driver assigned notification: {e}")
     
     async def notify_route_changed(self, trip: Trip, reason: str):
         """Send notification when a trip route is changed"""

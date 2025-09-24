@@ -244,7 +244,6 @@ class AnalyticsRequest(BaseModel):
 
 class NotificationRequest(BaseModel):
     """Request to send a notification"""
-    user_ids: List[str] = Field(..., description="Recipient user IDs")
     type: NotificationType = Field(..., description="Notification type")
     title: str = Field(..., min_length=1, max_length=200)
     message: str = Field(..., min_length=1, max_length=1000)
