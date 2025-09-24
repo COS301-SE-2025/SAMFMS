@@ -867,6 +867,11 @@ class ServiceRequestConsumer:
                     if not started_trip:
                         raise ValueError("Trip not found or could not be started")
                     
+                    # create notification that trip started
+                    from services.notification_service import notification_service
+                    trip = await trip_service.get_trip_by_id(trip_id)
+                    await notification_service.notify_trip_started(trip)
+                    
                     return ResponseBuilder.success(
                         data=started_trip.model_dump(),
                         message="Trip started successfully"
@@ -1504,16 +1509,9 @@ class ServiceRequestConsumer:
             logger.info(f"[_handle_notifications_request] Method: {method}, Endpoint: {endpoint}, User ID: {user_id}")
 
             if method == "GET":
-                # Get user notifications
-                unread_only = data.get("unread_only", "false").lower() == "true"
-                limit = int(data.get("limit", 50))
-                skip = int(data.get("skip", 0))
                 
-                notifications, total = await notification_service.get_user_notifications(
-                    user_id=user_id,
-                    unread_only=unread_only,
-                    limit=limit,
-                    skip=skip
+                notifications, total = await notification_service.get_notifications(
+                    unread_only=True
                 )
                 
                 # Convert to dict format for response
@@ -1542,23 +1540,22 @@ class ServiceRequestConsumer:
                 ).model_dump()
 
             elif method == "POST":
-                # Send notification (admin/fleet_manager only)
-                user_role = user_context.get("role")
-                if user_role not in ["admin", "fleet_manager"]:
-                    raise ValueError("Insufficient permissions to send notifications")
-                
-                from schemas.requests import NotificationRequest
-                notification_request = NotificationRequest(**data)
-                
-                notifications = await notification_service.send_notification(notification_request)
-                
-                return ResponseBuilder.success(
-                    data={
-                        "sent_count": len(notifications),
-                        "notification_ids": [str(n._id) if hasattr(n, '_id') else n.id for n in notifications]
-                    },
-                    message="Notifications sent successfully"
-                ).model_dump()
+                if "read" in endpoint:
+                    notification_id = data["notification_id"]
+                    try:
+                        respone = await notification_service.mark_notification_read(notification_id)
+                        
+                        return ResponseBuilder.success(
+                            data={"marked_read": respone},
+                            message="Notification marked as read" if result else "Notification not found or already read"
+                        ).model_dump()
+                    except Exception as e:
+                        logger.info(f"Failed to mark the messge as read: {e}")
+                        return ResponseBuilder.error(
+                            error="NotificationRequestError",
+                            message=f"Failed to mark notification as read: {str(e)}"
+                        )
+
 
             elif method == "PUT":
                 # Mark notification as read

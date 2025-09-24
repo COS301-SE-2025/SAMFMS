@@ -12,6 +12,7 @@ import RecentTripsTable from '../components/trips/RecentTripsTable';
 import SmartTripSuggestions from '../components/trips/SmartTripSuggestions';
 import RouteRecommendations from '../components/trips/RouteRecommendations';
 import UpcomingTripsRecommendations from '../components/trips/UpcomingTripsRecommendations';
+import Notifications from '../components/trips/Notifications';
 import {
   createTrip,
   createScheduledTrip,
@@ -96,6 +97,7 @@ const Trips = () => {
     { id: 'upcoming', label: 'Upcoming' },
     { id: 'recent', label: 'Recent' },
     { id: 'analytics', label: 'Analytics' },
+    { id: 'notifications', label: 'Notifications' },
   ];
 
   // Helper function to show notifications
@@ -997,6 +999,15 @@ const Trips = () => {
                   timeframe={analyticsTimeframe}
                   onTimeframeChange={setAnalyticsTimeframe}
                 />
+              </div>
+            </div>
+          )}
+
+          {/* Notifications Tab */}
+          {activeTab === 'notifications' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="animate-fade-in animate-delay-100">
+                <Notifications />
               </div>
             </div>
           )}

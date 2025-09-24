@@ -1,7 +1,7 @@
 """
 Entity schemas for Trip Planning service
 """
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from enum import Enum
@@ -532,11 +532,14 @@ class GeofenceCenter(BaseModel):
     latitude: float = Field(..., ge=-90, le=90, description="Latitude coordinate")
     longitude: float = Field(..., ge=-180, le=180, description="Longitude coordinate")
 
+class GeofenceProperties(BaseModel):
+    radius: float
+
 class GeofenceGeometry(BaseModel):
     type: GeofenceType = Field(..., description="Type of geofence geometry")
     coordinates: List[Any] = Field(..., description="GeoJSON coordinates")
     radius: Optional[int] = Field(None, ge=1, description="Radius for circle type")
-
+    properties: Optional[GeofenceProperties]
     @field_validator('radius')
     @classmethod
     def validate_radius_for_circle(cls, v, info):

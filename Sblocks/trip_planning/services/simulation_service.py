@@ -14,7 +14,7 @@ from services.trip_service import trip_service
 from services.geofence_service import geofence_service
 from services.notification_service import notification_service
 from schemas.requests import NotificationRequest
-from schemas.entities import NotificationType
+from schemas.entities import NotificationType, Geofence, GeofenceGeometry
 from events.publisher import event_publisher
 
 logger = logging.getLogger(__name__)
@@ -277,16 +277,15 @@ class VehicleSimulator:
             logger.error(f"Error checking geofence violations: {e}")
             return []
     
-    def _is_point_in_geofence(self, lat: float, lon: float, geometry: Dict[str, Any]) -> bool:
+    def _is_point_in_geofence(self, lat: float, lon: float, geometry: GeofenceGeometry) -> bool:
         """Check if a point is inside a geofence geometry"""
         try:
-            geom_type = geometry.get("type", "").lower()
-            coordinates = geometry.get("coordinates", [])
+            geom_type = geometry.type.lower()
+            coordinates = geometry.coordinates
             
             if geom_type == "point":
                 # Check if it's a circle (has radius in properties)
-                properties = geometry.get("properties", {})
-                radius = properties.get("radius")
+                radius = geometry.properties.radius
                 
                 if radius:
                     # It's a circle - check distance from center
@@ -490,6 +489,9 @@ class VehicleSimulator:
             # Remove from active trips collection
             await db_manager.trips.delete_one({"_id": ObjectId(self.trip_id)})
             logger.info(f"Trip {self.trip_id} removed from active trips")
+
+            # send notification that the trip has ended
+            await notification_service.notify_trip_completed(trip_doc)
             
             # Clean up vehicle location (optional - you might want to keep last known location)
             # await db_manager_gps.locations.delete_one({"vehicle_id": self.vehicle_id})

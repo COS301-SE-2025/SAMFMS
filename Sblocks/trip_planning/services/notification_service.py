@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from bson import ObjectId
 
 from repositories.database import db_manager
-from schemas.entities import Notification, NotificationPreferences, NotificationType, Trip
+from schemas.entities import Notification, NotificationPreferences, NotificationType, Trip, TrafficType
 from schemas.requests import NotificationRequest, UpdateNotificationPreferencesRequest
 from events.publisher import event_publisher
 
@@ -111,6 +111,22 @@ class NotificationService:
         except Exception as e:
             logger.error(f"Failed to get unread count: {e}")
             return 0
+    
+    async def notify_high_traffic(self, trip: Trip, traffic_type: TrafficType):
+        """Send notification when high traffic is detected"""
+        try:
+            request = NotificationRequest(
+                type=NotificationType.TRAFFIC_ALERT,
+                title=f"Traffic detected for trip: {trip.id}",
+                message=f"Detected {traffic_type} for '{trip.name}'",
+                trip_id=trip.id,
+                driver_id=trip.driver_assignment if trip.driver_assignment else None
+            )
+            
+            await self.send_notification(request)
+            
+        except Exception as e:
+            logger.error(f"Failed to send trip started notification: {e}")
     
     # Trip-specific notification methods
     async def notify_trip_started(self, trip: Trip):

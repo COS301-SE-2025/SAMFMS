@@ -15,6 +15,7 @@ from schemas.requests import CreateTripRequest, UpdateTripRequest
 from repositories.database import db_manager, db_manager_gps, db_manager_management
 from services.trip_service import trip_service
 from services.vehicle_service import vehicle_service
+from services.notification_service import notification_service
 from services.driver_analytics_service import driver_analytics_service
 
 
@@ -506,7 +507,8 @@ class SmartTripService:
                     
                     if traffic_condition and traffic_condition.severity in [TrafficType.HEAVY, TrafficType.SEVERE]:
                         logger.info(f"High traffic detected for trip {trip_id}: {traffic_condition.severity}")
-                        
+                        # Make notification to fleet manager about high traffic
+                        await notification_service.notify_high_traffic(trip,traffic_condition.severity)
                         # Generate route recommendation
                         recommendation = await self._generate_route_recommendation(trip, traffic_condition)
                         
