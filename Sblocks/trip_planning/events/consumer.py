@@ -125,11 +125,25 @@ class EventConsumer:
                 durable=True
             )
 
+            exchange = await self.channel.declare_exchange(
+                "trips_events",
+                aio_pika.ExchangeType.TOPIC,
+                durable=True
+            )
+
             # Declare queue for this service
             queue = await self.channel.declare_queue(
                 "trips_service_events",
                 durable=True
             )
+
+            user_remove_exchange = await self.channel.declare_exchange(
+                "removed_user",
+                aio_pika.ExchangeType.FANOUT,
+                durable=True
+            )
+
+            await queue.bind(user_remove_exchange)
 
             # Bind queue to exchange for relevant patterns
             patterns = [
@@ -162,6 +176,9 @@ class EventConsumer:
                 # Parse message
                 body = json.loads(message.body.decode())
                 routing_key = message.routing_key
+
+                if routing_key == "":
+                    routing_key = "removed_user"
                 
                 logger.info(f"Received event with routing key: {routing_key}")
                 
@@ -196,10 +213,16 @@ async def handle_gps_event(event_data: Dict[str, Any], routing_key: str):
     logger.info(f"Handling gps event: {routing_key}")
     # Process user events that might affect places or permissions
 
+async def handle_removed_user_event(event_data: Dict[str, Any], routing_key: str):
+    """Handle removed user events"""
+    logger.info(f"Handling removed user event: {routing_key}")
+    # Process user removal events
+
 async def setup_event_handlers():
     """Setup event handlers"""
     event_consumer.register_handler("management.*", handle_management_event)
     event_consumer.register_handler("gps.*", handle_gps_event)
+    event_consumer.register_handler("removed_user", handle_removed_user_event)
     
 # Global event consumer instance
 event_consumer = EventConsumer()
