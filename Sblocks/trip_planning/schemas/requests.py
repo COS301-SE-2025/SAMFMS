@@ -320,3 +320,51 @@ class DriverPingRequest(BaseModel):
     trip_id: str = Field(..., description="Trip ID that driver is currently on")
     location: LocationPoint = Field(..., description="Driver's current location")
     timestamp: Optional[datetime] = Field(default_factory=datetime.utcnow, description="Ping timestamp")
+
+
+class CreateSpeedViolationRequest(BaseModel):
+    """Request to create a speed violation manually"""
+    trip_id: str = Field(..., description="Trip ID where violation occurred")
+    driver_id: str = Field(..., description="Driver ID who committed the violation")
+    speed: float = Field(..., ge=0, description="Vehicle speed in km/h")
+    speed_limit: float = Field(..., ge=0, description="Posted speed limit in km/h")
+    location: LocationPoint = Field(..., description="Location where violation occurred")
+    time: datetime = Field(..., description="When violation occurred")
+    
+    @validator('speed')
+    def validate_speed_exceeds_limit(cls, v, values):
+        if 'speed_limit' in values and v <= values['speed_limit']:
+            raise ValueError('Speed must be greater than speed limit for a violation')
+        return v
+
+
+class CreateExcessiveBrakingViolationRequest(BaseModel):
+    """Request to create an excessive braking violation manually"""
+    trip_id: str = Field(..., description="Trip ID where violation occurred")
+    driver_id: str = Field(..., description="Driver ID who committed the violation")
+    deceleration: float = Field(..., description="Deceleration rate in m/s²")
+    threshold: float = Field(..., description="Maximum allowed deceleration in m/s²")
+    location: LocationPoint = Field(..., description="Location where violation occurred")
+    time: datetime = Field(..., description="When violation occurred")
+    
+    @validator('deceleration')
+    def validate_deceleration_exceeds_threshold(cls, v, values):
+        if 'threshold' in values and v <= values['threshold']:
+            raise ValueError('Deceleration must be greater than threshold for a violation')
+        return v
+
+
+class CreateExcessiveAccelerationViolationRequest(BaseModel):
+    """Request to create an excessive acceleration violation manually"""
+    trip_id: str = Field(..., description="Trip ID where violation occurred")
+    driver_id: str = Field(..., description="Driver ID who committed the violation")
+    acceleration: float = Field(..., description="Acceleration rate in m/s²")
+    threshold: float = Field(..., description="Maximum allowed acceleration in m/s²")
+    location: LocationPoint = Field(..., description="Location where violation occurred")
+    time: datetime = Field(..., description="When violation occurred")
+    
+    @validator('acceleration')
+    def validate_acceleration_exceeds_threshold(cls, v, values):
+        if 'threshold' in values and v <= values['threshold']:
+            raise ValueError('Acceleration must be greater than threshold for a violation')
+        return v

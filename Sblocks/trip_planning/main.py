@@ -30,6 +30,11 @@ from api.routes.drivers import router as drivers_router
 from api.routes.trips import router as trips_router
 from api.routes.vehicles import router as vehicles_router
 from api.routes.notifications import router as notifications_router
+from api.routes.speed_violations import router as speed_violations_router
+from api.routes.driver_ping import router as driver_ping_router
+from api.routes.excessive_braking_violations import router as excessive_braking_violations_router
+from api.routes.excessive_acceleration_violations import router as excessive_acceleration_violations_router
+from api.routes.driver_history import router as driver_history_router
 
 # Import middleware and exception handlers
 from middleware import (
@@ -46,6 +51,7 @@ from schemas.responses import ResponseBuilder
 from services.simulation_service import simulation_service
 from services.missed_trip_scheduler import missed_trip_scheduler
 from services.ping_session_monitor import ping_session_monitor
+from services.driver_history_scheduler import start_scheduler as start_driver_history_scheduler, stop_scheduler as stop_driver_history_scheduler
 
 # Setup logging
 logging.basicConfig(
@@ -247,6 +253,14 @@ async def lifespan(app: FastAPI):
         metrics_middleware.app = app
         
 
+        # Start the driver history scheduler
+        logger.info("Starting driver history scheduler...")
+        try:
+            await start_driver_history_scheduler(update_interval=60)
+            logger.info("Driver history scheduler started successfully")
+        except Exception as e:
+            logger.error(f"Failed to start driver history scheduler: {e}")
+
         logger.info("Trips Service Startup Completed Successfully")
         
         yield
@@ -274,6 +288,22 @@ async def lifespan(app: FastAPI):
                 logger.info("Ping session monitor stopped")
             except Exception as e:
                 logger.warning(f"Error stopping ping session monitor: {e}")
+
+            # Stop the driver history scheduler
+            logger.info("Stopping driver history scheduler...")
+            try:
+                await stop_driver_history_scheduler()
+                logger.info("Driver history scheduler stopped")
+            except Exception as e:
+                logger.warning(f"Error stopping driver history scheduler: {e}")
+
+            # Close trip service and routing service
+            logger.info("Closing trip service...")
+            try:
+                await trip_service.close()
+                logger.info("Trip service closed")
+            except Exception as e:
+                logger.warning(f"Error closing trip service: {e}")
 
             # Publish service stopped event
             try:
@@ -345,6 +375,7 @@ app.add_middleware(
 )
 
 # Add custom middleware in order
+app.add_middleware(HealthCheckMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(MetricsMiddleware)
@@ -361,6 +392,11 @@ app.include_router(trips_router, tags=["trips"])
 app.include_router(drivers_router, prefix="/drivers", tags=["drivers"])
 app.include_router(vehicles_router, prefix="/vehicles", tags=["vehicles"])
 app.include_router(notifications_router, tags=["notifications"])
+app.include_router(speed_violations_router, tags=["speed_violations"])
+app.include_router(driver_ping_router, tags=["driver_ping"])
+app.include_router(excessive_braking_violations_router, tags=["excessive_braking_violations"])
+app.include_router(excessive_acceleration_violations_router, tags=["excessive_acceleration_violations"])
+app.include_router(driver_history_router, tags=["driver_history"])
 
 @app.get("/")
 async def root():

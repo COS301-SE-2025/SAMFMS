@@ -6,7 +6,7 @@ motor
 pymongo
 passlib[bcrypt]
 python-jose[cryptography]
-python-multipart
+python-multipart>=0.0.7
 email-validator
 requests
 pydantic[email]

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@geoman-io/leaflet-geoman-free": "^2.15.0",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-slot": "^1.2.3",
     "@testing-library/dom": "^10.4.0",
@@ -24,16 +25,16 @@
     "react-leaflet": "^5.0.0",
     "react-resizable": "^3.0.5",
     "react-router-dom": "^7.6.0",
-    "react-scripts": "5.0.1",
+    "react-scripts": "^5.0.1",
     "tailwind-merge": "^3.3.0",
-    "web-vitals": "^2.1.4",
-    "@geoman-io/leaflet-geoman-free": "^2.15.0"
+    "web-vitals": "^2.1.4"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "test:api": "react-scripts test --testPathPattern=\"__tests__/api\" --watchAll=false",
+    "test:smoke": "react-scripts test --testPathPattern=\"smoke.test.js\" --watchAll=false --ci --passWithNoTests",
     "test:integration": "NODE_ENV=container-test react-scripts test --testPathPattern=\"integration.test.js\" --watchAll=false",
     "test:coverage": "react-scripts test --coverage --watchAll=false",
     "test:ci": "react-scripts test --coverage --watchAll=false --ci",
@@ -72,9 +73,12 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "identity-obj-proxy": "^3.0.0",
     "jest-junit": "^16.0.0",
-    "postcss": "^8.5.3",
+    "postcss": "^8.4.31",
     "recharts": "^3.0.0",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7"
+  },
+  "overrides": {
+    "nth-check": "^2.1.1"
   }
 }

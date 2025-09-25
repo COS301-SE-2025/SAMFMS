@@ -148,7 +148,21 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
       if (response && response.data) {
         const polylineData = response.data.data;
 
-        return polylineData;
+        // Log if this is fallback data
+        if (response.fallback) {
+          const fallbackType = response.fallback_reason === 'api_error' ? 'cached' : 'default';
+          const ageInfo = response.fallback_age_minutes
+            ? ` (${response.fallback_age_minutes} minutes old)`
+            : '';
+          console.log(`Using ${fallbackType} polyline for vehicle ${vehicleId}${ageInfo}`);
+        }
+
+        return {
+          data: polylineData,
+          fallback: response.fallback || false,
+          fallback_reason: response.fallback_reason,
+          fallback_age_minutes: response.fallback_age_minutes,
+        };
       }
 
       console.warn(`No valid polyline data found for vehicle ${vehicleId}`);
@@ -199,7 +213,16 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
     const polylinesMap = {};
     polylineResults.forEach(result => {
       if (result && result.polyline) {
-        polylinesMap[result.vehicleId] = result.polyline;
+        polylinesMap[result.vehicleId] = result.polyline.data || result.polyline;
+
+        // Store fallback metadata for UI indication
+        if (result.polyline.fallback) {
+          polylinesMap[result.vehicleId]._fallback = {
+            isFallback: true,
+            reason: result.polyline.fallback_reason,
+            ageMinutes: result.polyline.fallback_age_minutes,
+          };
+        }
       }
     });
 
@@ -1003,6 +1026,21 @@ const ActiveTripsMap = ({ activeLocations = [] }) => {
                               <span>Live GPS</span>
                             </div>
                           )}
+                          {/* Fallback route indicator */}
+                          {useDynamicRoutes &&
+                            vehiclePolylines[getVehicleId(trip)]?._fallback?.isFallback && (
+                              <div className="flex items-center gap-1 text-orange-600">
+                                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                                <span>
+                                  {vehiclePolylines[getVehicleId(trip)]._fallback.reason ===
+                                  'api_error'
+                                    ? `Cached Route (${
+                                        vehiclePolylines[getVehicleId(trip)]._fallback.ageMinutes
+                                      }m)`
+                                    : 'Default Route'}
+                                </span>
+                              </div>
+                            )}
                         </div>
                       </div>
 

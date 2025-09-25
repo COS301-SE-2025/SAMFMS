@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Request, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from models.api_models import SignupRequest, LoginRequest, TokenResponse, MessageResponse, ProfileUpdateRequest, ChangePasswordRequest, ForgotPasswordRequest
+from models.api_models import SignupRequest, LoginRequest, TokenResponse, MessageResponse, ProfileUpdateRequest, ChangePasswordRequest, ForgotPasswordRequest, RemoveUser
 from services.auth_service import AuthService
 from services.user_service import UserService
 from repositories.user_repository import UserRepository
@@ -329,7 +329,7 @@ async def change_password(
 
 
 
-@router.post("/forgot-password") #POST /auth/forgot-password?email=user@example.com || POST /auth/forgot-password?otp=user@example.com
+@router.post("/forgot-password") 
 async def forgot_password(request: ForgotPasswordRequest):
 
     """Forgot-password: Endpoint to start forgot password sequence"""
@@ -338,10 +338,7 @@ async def forgot_password(request: ForgotPasswordRequest):
     password = request.password
 
     user = ""
-    try:    
-
-        
-
+    try:            
         if email and not otp and not password:
             #return {"email": email}
             user = await AuthService.get_user_by_email(email)
@@ -349,7 +346,7 @@ async def forgot_password(request: ForgotPasswordRequest):
                 user_secret = AuthService.generate_user_secret()
                 otp = await AuthService.generate_otp(email, user_secret)
                 if otp == "Error":
-                    return {"message": "OTP not generated"}, 400
+                    return {"message": "OTP sent to email"}, 200 
 
                 message = "Someone requested to reset your password for SAMFMS. If it was not you, ignore this email. \n\nYour OTP is: " + otp
                 
@@ -360,8 +357,8 @@ async def forgot_password(request: ForgotPasswordRequest):
                 })
                 
                 if sent == {}:
-                    return {"message": "OTP sent to email real"}, 200
-            return {"message": "OTP sent to email fake"}, 200
+                    return {"message": "OTP sent to email"}, 200
+            return {"message": "OTP sent to email"}, 200
         
         elif email and otp and password:
             is_valid_otp = await AuthService.verify_otp(email, otp)
@@ -370,9 +367,25 @@ async def forgot_password(request: ForgotPasswordRequest):
                 await AuthService.update_user_password(user["user_id"], password)
                 return {"message": "Password changed successfully"}
 
-        return {"error": "Invalid pee pee"}, 400
+        return {"error": "Invalid"}, 400
     except Exception as e:
-        return {"error": {str(e)}}, 400
+        return {"error": "Invalid"}, 400
+    
+
+@router.post("/remove-user") 
+async def remove_user(request: RemoveUser):
+
+    """Remove-user: Endpoint to remove user from database and tell rest of system to remove the user"""
+    email = request.email
+
+    try:            
+        if email:
+            if AuthService.remove_user(email):
+                return {"message": "user removed"}, 200
+
+        return {"error": "Server error"}, 500
+    except Exception as e:
+        return {"error": {str: e}}, 500
 
 
 

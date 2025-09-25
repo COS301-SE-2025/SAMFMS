@@ -89,6 +89,37 @@ const MaintenanceSchedules = ({vehicles}) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // Vehicle helper function - defined early to avoid hoisting issues
+  const getVehicleName = vehicleId => {
+    if (!vehicleId) return 'Unknown Vehicle';
+
+    // Handle both string and ObjectId formats
+    const vehicleIdStr = vehicleId.toString();
+
+    // Find vehicle in the provided vehicles prop
+    let vehicle = vehicles?.find(v => v.id?.toString() === vehicleIdStr);
+    if (!vehicle) {
+      vehicle = vehicles?.find(v => v._id?.toString() === vehicleIdStr);
+    }
+
+    if (vehicle) {
+      const parts = [];
+      if (vehicle.year) parts.push(vehicle.year);
+      if (vehicle.make) parts.push(vehicle.make);
+      if (vehicle.model) parts.push(vehicle.model);
+
+      if (parts.length === 0) parts.push('Vehicle');
+
+      const vehicleInfo = parts.join(' ');
+      const licensePlate = vehicle.license_plate || vehicle.vin;
+
+      return licensePlate ? `${vehicleInfo} (${licensePlate})` : vehicleInfo;
+    }
+
+    // If no vehicle found, return truncated ID for readability
+    return `Vehicle ${vehicleIdStr.length > 8 ? vehicleIdStr.substring(0, 8) + '...' : vehicleIdStr}`;
+  };
+
   // Calculate pagination based on processed schedules
   const getProcessedSchedules = () => {
     let processedSchedules = [...schedules];
@@ -428,11 +459,6 @@ const MaintenanceSchedules = ({vehicles}) => {
     return (
       <VehicleDetailDisplay vehicleId={vehicleIdStr} fetchVehicleDetails={fetchVehicleDetails} />
     );
-  };
-
-  const getVehicleName = vehicleId => {
-    const vehicle = vehicles.find(v => v.id === vehicleId);
-    return vehicle ? `${vehicle.make} ${vehicle.model} (${vehicle.license_plate})` : vehicleId;
   };
 
   const getStatusIndicator = schedule => {
@@ -931,8 +957,8 @@ const MaintenanceSchedules = ({vehicles}) => {
                 onClick={goToNextPage}
                 disabled={currentPage === totalPages}
                 className={`p-1 rounded ${currentPage === totalPages
-                    ? 'text-muted-foreground cursor-not-allowed'
-                    : 'hover:bg-accent'
+                  ? 'text-muted-foreground cursor-not-allowed'
+                  : 'hover:bg-accent'
                   }`}
                 title="Next page"
               >

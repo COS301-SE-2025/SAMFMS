@@ -1,0 +1,6129 @@
+{
+  "timestamp": "2025-09-18T15:50:09.019Z",
+  "testType": "Enhanced Algorithm Comparison",
+  "summary": {
+    "totalDatasets": 10,
+    "enhancedConfigurations": 3,
+    "originalConfigurations": 2,
+    "bestPerformer": {
+      "algorithm": "Enhanced",
+      "configuration": "Enhanced - Adaptive Balanced",
+      "metrics": {
+        "accuracy": 0.7,
+        "precision": 0.5,
+        "recall": 0.3333333333333333,
+        "falsePositiveRate": 0.14285714285714285,
+        "avgDataQuality": 0.8995847764080412,
+        "calibrationSuccessRate": 1,
+        "violationRateDifference": 0.2489598173377667,
+        "truePositives": 1,
+        "falsePositives": 1,
+        "trueNegatives": 6,
+        "falseNegatives": 2,
+        "totalSessions": 10,
+        "safeSessions": 7,
+        "riskySessions": 3,
+        "avgViolationRateSafe": 0.24415234994266724,
+        "avgViolationRateRisky": 0.49311216728043394,
+        "dynamicThreshold": 0.5,
+        "f1Score": 0.4
+      }
+    },
+    "improvement": null
+  },
+  "enhancedResults": [
+    {
+      "sessionName": "Day-1R",
+      "behaviorType": "risky",
+      "duration": 1906260,
+      "totalSamples": 94627,
+      "calibrationTime": 1491,
+      "calibrationSuccess": true,
+      "violations": [
+        {
+          "timestamp": 1590232635002,
+          "type": "braking",
+          "value": -3.2207218376599993,
+          "jerk": null,
+          "score": 1.6103609188299997,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232636003,
+          "type": "braking",
+          "value": -2.779595327659999,
+          "jerk": 0.0031941733333336053,
+          "score": 1.3897976638299996,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232637013,
+          "type": "braking",
+          "value": -2.8159010776599995,
+          "jerk": 0.0033925366666669454,
+          "score": 1.4079505388299998,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232638313,
+          "type": "braking",
+          "value": -2.0166406243266657,
+          "jerk": 0.2372233166666664,
+          "score": 1.0083203121633328,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232639322,
+          "type": "braking",
+          "value": -2.7957493009933327,
+          "jerk": 0.023147579999999834,
+          "score": 1.3978746504966664,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232640323,
+          "type": "braking",
+          "value": -2.8581984343266655,
+          "jerk": 0.010772699999999524,
+          "score": 1.4290992171633328,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232641323,
+          "type": "braking",
+          "value": -2.1373478076599994,
+          "jerk": 0.04030356666666668,
+          "score": 1.0686739038299997,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232642333,
+          "type": "braking",
+          "value": -2.581271754326666,
+          "jerk": 0.058853146666666856,
+          "score": 1.290635877163333,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232643342,
+          "type": "braking",
+          "value": -4.399473494326666,
+          "jerk": 0.32221984666666614,
+          "score": 2.199736747163333,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232644342,
+          "type": "braking",
+          "value": -2.9258406543266653,
+          "jerk": 0.03052775000000052,
+          "score": 1.4629203271633326,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232645342,
+          "type": "braking",
+          "value": -2.9244368409933323,
+          "jerk": 0.0012003600000003445,
+          "score": 1.4622184204966662,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232646342,
+          "type": "braking",
+          "value": -3.6877933709933326,
+          "jerk": 0.032923383333333334,
+          "score": 1.8438966854966663,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232647342,
+          "type": "braking",
+          "value": -2.3953230676599992,
+          "jerk": 0.04868062333333345,
+          "score": 1.1976615338299996,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232648342,
+          "type": "braking",
+          "value": -2.059533074326666,
+          "jerk": 0.05666603333333331,
+          "score": 1.029766537163333,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232649342,
+          "type": "braking",
+          "value": -2.5517460209933325,
+          "jerk": 0.027333583333333245,
+          "score": 1.2758730104966662,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232650342,
+          "type": "braking",
+          "value": -2.6702559343266663,
+          "jerk": 0.010976156666666625,
+          "score": 1.3351279671633332,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232651342,
+          "type": "braking",
+          "value": -2.7746057009933325,
+          "jerk": 0.004786176666666364,
+          "score": 1.3873028504966662,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232653462,
+          "type": "braking",
+          "value": -2.103625874326666,
+          "jerk": 0.2164764333333331,
+          "score": 1.051812937163333,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232654462,
+          "type": "braking",
+          "value": -4.926990174326666,
+          "jerk": 0.03810629999999904,
+          "score": 2.463495087163333,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232655462,
+          "type": "braking",
+          "value": -2.887734364326666,
+          "jerk": 0.0325215666666665,
+          "score": 1.443867182163333,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232716252,
+          "type": "braking",
+          "value": -2.9631483909933323,
+          "jerk": 0.007980346666666804,
+          "score": 1.4815741954966661,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232717252,
+          "type": "braking",
+          "value": -3.7069482343266658,
+          "jerk": 0.04469299999999965,
+          "score": 1.8534741171633329,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232718612,
+          "type": "braking",
+          "value": -2.035988774326666,
+          "jerk": 0.24899799999999983,
+          "score": 1.017994387163333,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232719613,
+          "type": "braking",
+          "value": -2.8705733176599995,
+          "jerk": 0.029927573333333513,
+          "score": 1.4352866588299997,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232720613,
+          "type": "braking",
+          "value": -2.2642399009933327,
+          "jerk": 0.02912903,
+          "score": 1.1321199504966664,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232721613,
+          "type": "braking",
+          "value": -2.049762340993333,
+          "jerk": 0.05646260000000014,
+          "score": 1.0248811704966665,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232722763,
+          "type": "acceleration",
+          "value": 2.123726402055555,
+          "jerk": 0.5247294133333331,
+          "score": 1.0618632010277775,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590232723773,
+          "type": "acceleration",
+          "value": 2.159817608833333,
+          "jerk": 0.08100382666666661,
+          "score": 1.0799088044166665,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590232724773,
+          "type": "braking",
+          "value": -3.170840853993333,
+          "jerk": 0.07122802666666672,
+          "score": 1.5854204269966665,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232725773,
+          "type": "braking",
+          "value": -2.7205336376599996,
+          "jerk": 0.4076131333333328,
+          "score": 1.3602668188299998,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232726773,
+          "type": "acceleration",
+          "value": 2.392051282166666,
+          "jerk": 0.12270100333333334,
+          "score": 1.196025641083333,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590232727782,
+          "type": "braking",
+          "value": -3.0044488476599995,
+          "jerk": 0.10893758000000009,
+          "score": 1.5022244238299998,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232728783,
+          "type": "braking",
+          "value": -3.5445387776599993,
+          "jerk": 0.0700327599999997,
+          "score": 1.7722693888299996,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232729793,
+          "type": "braking",
+          "value": -3.6752252109933323,
+          "jerk": 0.011372886666666915,
+          "score": 1.8376126054966662,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232730802,
+          "type": "braking",
+          "value": -4.486061974326666,
+          "jerk": 0.04748533333333338,
+          "score": 2.243030987163333,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232731803,
+          "type": "braking",
+          "value": -4.249632174326666,
+          "jerk": 0.023544299999999296,
+          "score": 2.124816087163333,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232732813,
+          "type": "braking",
+          "value": -3.3065169276599993,
+          "jerk": 0.16041056666666664,
+          "score": 1.6532584638299996,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232733813,
+          "type": "braking",
+          "value": -3.4689213043266656,
+          "jerk": 0.09676616000000005,
+          "score": 1.7344606521633328,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232734813,
+          "type": "braking",
+          "value": -3.9389835543266662,
+          "jerk": 0.18076580000000053,
+          "score": 1.9694917771633331,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232735813,
+          "type": "braking",
+          "value": -3.452563874326666,
+          "jerk": 0.002395633333332814,
+          "score": 1.726281937163333,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232736823,
+          "type": "acceleration",
+          "value": 2.721056215499999,
+          "jerk": 0.10633849999999923,
+          "score": 1.3605281077499995,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590232737823,
+          "type": "acceleration",
+          "value": 3.4602682288333333,
+          "jerk": 0.07621766666666652,
+          "score": 1.7301341144166666,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590232738833,
+          "type": "acceleration",
+          "value": 3.2705252288333333,
+          "jerk": 0.09237669999999953,
+          "score": 1.6352626144166666,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590232740632,
+          "type": "acceleration",
+          "value": 2.131487122166666,
+          "jerk": 0.14704386333333308,
+          "score": 1.065743561083333,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590234523863,
+          "type": "acceleration",
+          "value": 2.097186715615556,
+          "jerk": 3.4845498232755556,
+          "score": 1.048593357807778,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590234524873,
+          "type": "acceleration",
+          "value": 2.3629273554999997,
+          "jerk": 0.15363057800000002,
+          "score": 1.1814636777499998,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590234525893,
+          "type": "acceleration",
+          "value": 2.0311551256733336,
+          "jerk": 0.048278866666666476,
+          "score": 1.0155775628366668,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        }
+      ],
+      "totalViolations": 47,
+      "violationRate": 1.4793365018413018,
+      "averageQuality": 0.999971385801401,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 2,
+        "braking": -2,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 93127,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Adaptive Balanced",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "thresholdMultiplier": 2.5,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true
+      }
+    },
+    {
+      "sessionName": "Day-1S",
+      "behaviorType": "safe",
+      "duration": 2052508,
+      "totalSamples": 103252,
+      "calibrationTime": 1487,
+      "calibrationSuccess": true,
+      "violations": [
+        {
+          "timestamp": 1590212878293,
+          "type": "acceleration",
+          "value": 7.77033631666,
+          "jerk": 0.1462453333333329,
+          "score": 1.0005235020471002,
+          "threshold": 7.766270658072165,
+          "quality": 1,
+          "cause": "acceleration"
+        }
+      ],
+      "totalViolations": 1,
+      "violationRate": 0.02923252917893621,
+      "averageQuality": 0.9996680685175918,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 7.766270658072165,
+        "braking": -7.766270658072165,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 101751,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Adaptive Balanced",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "thresholdMultiplier": 2.5,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true
+      }
+    },
+    {
+      "sessionName": "Day-2S",
+      "behaviorType": "safe",
+      "duration": 2143069,
+      "totalSamples": 106308,
+      "calibrationTime": 1489,
+      "calibrationSuccess": true,
+      "violations": [
+        {
+          "timestamp": 1590299653954,
+          "type": "braking",
+          "value": -5.001135356,
+          "jerk": null,
+          "score": 2.500567678,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299654964,
+          "type": "braking",
+          "value": -4.9448659893333335,
+          "jerk": 0.010177533333332711,
+          "score": 2.4724329946666668,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299655974,
+          "type": "braking",
+          "value": -4.9753887893333335,
+          "jerk": 0.0101775333333336,
+          "score": 2.4876943946666668,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299656983,
+          "type": "braking",
+          "value": -4.961823656,
+          "jerk": 0.0007985000000001463,
+          "score": 2.480911828,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299657983,
+          "type": "braking",
+          "value": -4.8502921893333335,
+          "jerk": 0.005386333333333049,
+          "score": 2.4251460946666668,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299658983,
+          "type": "braking",
+          "value": -3.9969594893333333,
+          "jerk": 0.0019938333333335834,
+          "score": 1.9984797446666667,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299659983,
+          "type": "braking",
+          "value": -3.9893809893333336,
+          "jerk": 0.1179148333333333,
+          "score": 1.9946904946666668,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299661003,
+          "type": "braking",
+          "value": -4.024094756,
+          "jerk": 2.6514580826222227,
+          "score": 2.012047378,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299662004,
+          "type": "braking",
+          "value": -4.122457956000001,
+          "jerk": 0.07761133333333348,
+          "score": 2.0612289780000004,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299663014,
+          "type": "braking",
+          "value": -5.139593556,
+          "jerk": 0.003194166666666831,
+          "score": 2.569796778,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299664023,
+          "type": "braking",
+          "value": -4.480586822666667,
+          "jerk": 0.045689899999999284,
+          "score": 2.2402934113333335,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299665023,
+          "type": "braking",
+          "value": -5.473384522666667,
+          "jerk": 0.053472000000000186,
+          "score": 2.7366922613333333,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299666024,
+          "type": "braking",
+          "value": -5.7369497560000005,
+          "jerk": 0.009974233333334581,
+          "score": 2.8684748780000002,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299667024,
+          "type": "braking",
+          "value": -5.4879466893333335,
+          "jerk": 0.0063833333333338516,
+          "score": 2.7439733446666668,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299668033,
+          "type": "braking",
+          "value": -3.5590221226666667,
+          "jerk": 0.2956848000000001,
+          "score": 1.7795110613333334,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299669034,
+          "type": "acceleration",
+          "value": 2.6280333485333345,
+          "jerk": 0.0680389400000001,
+          "score": 1.3140166742666672,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299670034,
+          "type": "braking",
+          "value": -2.8222056893333334,
+          "jerk": 1.9154401826222225,
+          "score": 1.4111028446666667,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299671043,
+          "type": "braking",
+          "value": -3.5358796226666667,
+          "jerk": 0.06664020000000015,
+          "score": 1.7679398113333333,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299672043,
+          "type": "braking",
+          "value": -4.036866356,
+          "jerk": 0.12031046666666656,
+          "score": 2.018433178,
+          "threshold": -2,
+          "quality": 0.9950685584663745,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299673093,
+          "type": "acceleration",
+          "value": 3.5254586918666675,
+          "jerk": 3.4616946826222224,
+          "score": 1.7627293459333337,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299674093,
+          "type": "braking",
+          "value": -3.7343964560000003,
+          "jerk": 0.11432393333333346,
+          "score": 1.8671982280000001,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299675093,
+          "type": "braking",
+          "value": -4.293442922666666,
+          "jerk": 0.06643676666666742,
+          "score": 2.146721461333333,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299676093,
+          "type": "braking",
+          "value": -4.058208289333334,
+          "jerk": 0.12769063333333408,
+          "score": 2.029104144666667,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299677094,
+          "type": "braking",
+          "value": -4.447465122666667,
+          "jerk": 0.1869456000000005,
+          "score": 2.2237325613333336,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299678094,
+          "type": "braking",
+          "value": -3.197693989333333,
+          "jerk": 0.07780963333333357,
+          "score": 1.5988469946666666,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299679104,
+          "type": "braking",
+          "value": -2.580989622666667,
+          "jerk": 0.007385266666666723,
+          "score": 1.2904948113333334,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299680113,
+          "type": "braking",
+          "value": -2.469458089333333,
+          "jerk": 0.024943033333333364,
+          "score": 1.2347290446666666,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299681114,
+          "type": "acceleration",
+          "value": 2.7730783085333344,
+          "jerk": 0.18934122666666653,
+          "score": 1.3865391542666672,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299682114,
+          "type": "braking",
+          "value": -2.8601187226666664,
+          "jerk": 0.056660966666666646,
+          "score": 1.4300593613333332,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299683164,
+          "type": "braking",
+          "value": -2.7701376560000006,
+          "jerk": 1.85897758928889,
+          "score": 1.3850688280000003,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299684223,
+          "type": "acceleration",
+          "value": 3.151562408533335,
+          "jerk": 2.1955610659555562,
+          "score": 1.5757812042666675,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299685224,
+          "type": "braking",
+          "value": -4.304617389333333,
+          "jerk": 0.09257506666666693,
+          "score": 2.1523086946666665,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299686234,
+          "type": "braking",
+          "value": -4.539246656,
+          "jerk": 0.03092443333333339,
+          "score": 2.269623328,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299687234,
+          "type": "braking",
+          "value": -4.335541889333334,
+          "jerk": 0.10793556666666593,
+          "score": 2.167770944666667,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299688244,
+          "type": "braking",
+          "value": -4.861466556,
+          "jerk": 0.06923420000000036,
+          "score": 2.430733278,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299689244,
+          "type": "braking",
+          "value": -4.550222922666667,
+          "jerk": 0.03710940000000029,
+          "score": 2.2751114613333336,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299690244,
+          "type": "acceleration",
+          "value": 4.334103258533335,
+          "jerk": 0.027531966666666463,
+          "score": 2.1670516292666675,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299691253,
+          "type": "acceleration",
+          "value": 5.372184158533334,
+          "jerk": 0.11791483333333286,
+          "score": 2.686092079266667,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299692253,
+          "type": "acceleration",
+          "value": 5.907492991866668,
+          "jerk": 0.20470683333333373,
+          "score": 2.953746495933334,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299693253,
+          "type": "acceleration",
+          "value": 3.318758025200001,
+          "jerk": 0.05347186666666692,
+          "score": 1.6593790126000005,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299694254,
+          "type": "braking",
+          "value": -3.0716004226666667,
+          "jerk": 0.08998613333333338,
+          "score": 1.5358002113333333,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299695263,
+          "type": "braking",
+          "value": -2.357133056,
+          "jerk": 0.06823729999999983,
+          "score": 1.178566528,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299696264,
+          "type": "acceleration",
+          "value": 3.1707121752000007,
+          "jerk": 0.043294266666666914,
+          "score": 1.5853560876000004,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299697274,
+          "type": "acceleration",
+          "value": 3.248328558533334,
+          "jerk": 0.030924466666666817,
+          "score": 1.624164279266667,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299698284,
+          "type": "acceleration",
+          "value": 2.595109966866668,
+          "jerk": 0.011571250000000255,
+          "score": 1.297554983433334,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299699294,
+          "type": "acceleration",
+          "value": 2.726991681866668,
+          "jerk": 0.03670755666666636,
+          "score": 1.363495840933334,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299700304,
+          "type": "acceleration",
+          "value": 3.1767037818666677,
+          "jerk": 0.13188171333333365,
+          "score": 1.5883518909333338,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590300063435,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 1.871188428,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590300064443,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 1.871188428,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590300070124,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 1.871188428,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590300375796,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 1.871188428,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590300522789,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 1.871188428,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590300788756,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 1.871188428,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590301135187,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 1.871188428,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590301577149,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 1.871188428,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590301718364,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 1.871188428,
+          "threshold": -2,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590301719373,
+          "type": "acceleration",
+          "value": 9.365714458533335,
+          "jerk": 0.5843860999999997,
+          "score": 4.682857229266667,
+          "threshold": 2,
+          "quality": 0.9623309246646884,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590301720373,
+          "type": "acceleration",
+          "value": 4.940596310666667,
+          "jerk": 0.15482083333333296,
+          "score": 2.4702981553333334,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590301721374,
+          "type": "acceleration",
+          "value": 3.5575398440000003,
+          "jerk": 0.0901795333333335,
+          "score": 1.7787699220000002,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590301722384,
+          "type": "acceleration",
+          "value": 3.741896377333333,
+          "jerk": 0.033518466666667024,
+          "score": 1.8709481886666666,
+          "threshold": 2,
+          "quality": 1,
+          "cause": "acceleration"
+        }
+      ],
+      "totalViolations": 60,
+      "violationRate": 1.6798339204197346,
+      "averageQuality": 0.9999305399291224,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 2,
+        "braking": -2,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 104913,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Adaptive Balanced",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "thresholdMultiplier": 2.5,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true
+      }
+    },
+    {
+      "sessionName": "Day-3R",
+      "behaviorType": "risky",
+      "duration": 4617,
+      "totalSamples": 463,
+      "calibrationTime": 1487,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 2,
+        "braking": -2,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 0,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Adaptive Balanced",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "thresholdMultiplier": 2.5,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true
+      }
+    },
+    {
+      "sessionName": "Day-3S",
+      "behaviorType": "safe",
+      "duration": 2040500,
+      "totalSamples": 102051,
+      "calibrationTime": 1490,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.999610080522107,
+      "lowQualityPercentage": 0.0009945201937325337,
+      "adaptiveThresholds": {
+        "acceleration": 2,
+        "braking": -2,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 100551,
+      "samplesSkipped": 1,
+      "configName": "Enhanced - Adaptive Balanced",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "thresholdMultiplier": 2.5,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true
+      }
+    },
+    {
+      "sessionName": "Day-4R",
+      "behaviorType": "risky",
+      "duration": 1536590,
+      "totalSamples": 75660,
+      "calibrationTime": 1490,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9996807532695191,
+      "lowQualityPercentage": 0.002696871628910464,
+      "adaptiveThresholds": {
+        "acceleration": 2.199744851233358,
+        "braking": -2.199744851233358,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 74160,
+      "samplesSkipped": 2,
+      "configName": "Enhanced - Adaptive Balanced",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "thresholdMultiplier": 2.5,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true
+      }
+    },
+    {
+      "sessionName": "Day-4S",
+      "behaviorType": "safe",
+      "duration": 1955749,
+      "totalSamples": 99576,
+      "calibrationTime": 1489,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9997344958247789,
+      "lowQualityPercentage": 0.005098139179199592,
+      "adaptiveThresholds": {
+        "acceleration": 2.951930053299205,
+        "braking": -2.951930053299205,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 98075,
+      "samplesSkipped": 5,
+      "configName": "Enhanced - Adaptive Balanced",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "thresholdMultiplier": 2.5,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true
+      }
+    },
+    {
+      "sessionName": "Day-5S",
+      "behaviorType": "safe",
+      "duration": 2252110,
+      "totalSamples": 111212,
+      "calibrationTime": 1490,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9999858965415523,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 2.3658089866507916,
+        "braking": -2.3658089866507916,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 109711,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Adaptive Balanced",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "thresholdMultiplier": 2.5,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true
+      }
+    },
+    {
+      "sessionName": "Day-6S",
+      "behaviorType": "safe",
+      "duration": 2148839,
+      "totalSamples": 106885,
+      "calibrationTime": 1489,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9999529970987424,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 4.133065455267233,
+        "braking": -4.133065455267233,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 105384,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Adaptive Balanced",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "thresholdMultiplier": 2.5,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true
+      }
+    },
+    {
+      "sessionName": "Day-7S",
+      "behaviorType": "safe",
+      "duration": 2019807,
+      "totalSamples": 99982,
+      "calibrationTime": 1487,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9973135465755965,
+      "lowQualityPercentage": 0.0010106318470307638,
+      "adaptiveThresholds": {
+        "acceleration": 2.028362253112931,
+        "braking": -2.028362253112931,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 98948,
+      "samplesSkipped": 1,
+      "configName": "Enhanced - Adaptive Balanced",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "thresholdMultiplier": 2.5,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true
+      }
+    },
+    {
+      "sessionName": "Day-1R",
+      "behaviorType": "risky",
+      "duration": 1906260,
+      "totalSamples": 94627,
+      "calibrationTime": 1491,
+      "calibrationSuccess": true,
+      "violations": [
+        {
+          "timestamp": 1590232635002,
+          "type": "braking",
+          "value": -3.2207218376599993,
+          "jerk": null,
+          "score": 2.147147891773333,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232636003,
+          "type": "braking",
+          "value": -2.779595327659999,
+          "jerk": 0.0031941733333336053,
+          "score": 1.8530635517733327,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232637013,
+          "type": "braking",
+          "value": -2.8159010776599995,
+          "jerk": 0.0033925366666669454,
+          "score": 1.8772673851066664,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232638022,
+          "type": "braking",
+          "value": -1.7580702409933326,
+          "jerk": 0.05386863333333314,
+          "score": 1.1720468273288884,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232639022,
+          "type": "braking",
+          "value": -2.7271203543266664,
+          "jerk": 0.026535033333333402,
+          "score": 1.8180802362177777,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232640022,
+          "type": "braking",
+          "value": -2.964145300993333,
+          "jerk": 0.032323203333333606,
+          "score": 1.9760968673288888,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232641022,
+          "type": "braking",
+          "value": -2.068718874326666,
+          "jerk": 0.002593999999999763,
+          "score": 1.3791459162177773,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232642022,
+          "type": "braking",
+          "value": -2.1471236176599993,
+          "jerk": 0.03731283333333346,
+          "score": 1.4314157451066662,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232643022,
+          "type": "braking",
+          "value": -4.559080374326666,
+          "jerk": 0.004984533333333374,
+          "score": 3.0393869162177776,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232644022,
+          "type": "braking",
+          "value": -2.8099196309933325,
+          "jerk": 0.03471374333333355,
+          "score": 1.873279753995555,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232645022,
+          "type": "braking",
+          "value": -2.9603509443266662,
+          "jerk": 0.02474466999999958,
+          "score": 1.9735672962177775,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232646022,
+          "type": "braking",
+          "value": -3.720910027659999,
+          "jerk": 0.044494623333333205,
+          "score": 2.480606685106666,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232647022,
+          "type": "braking",
+          "value": -2.6602817709933326,
+          "jerk": 0.0035909000000002855,
+          "score": 1.7735211806622218,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232648022,
+          "type": "braking",
+          "value": -2.4202660976599994,
+          "jerk": 0.0009969100000000175,
+          "score": 1.613510731773333,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232649023,
+          "type": "braking",
+          "value": -2.8683760523266657,
+          "jerk": 0.16959126666666702,
+          "score": 1.9122507015511105,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232650033,
+          "type": "braking",
+          "value": -2.679629920993333,
+          "jerk": 0.01357014666666645,
+          "score": 1.7864199473288886,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232651033,
+          "type": "braking",
+          "value": -2.7478723076599993,
+          "jerk": 0.007380169999999797,
+          "score": 1.831914871773333,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232652033,
+          "type": "braking",
+          "value": -2.2486759409933326,
+          "jerk": 0.000401813333333223,
+          "score": 1.499117293995555,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232653033,
+          "type": "braking",
+          "value": -1.644738174326666,
+          "jerk": 0.09477233333333324,
+          "score": 1.0964921162177774,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232654033,
+          "type": "braking",
+          "value": -4.074659620993333,
+          "jerk": 0.030924476666666756,
+          "score": 2.7164397473288884,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232655033,
+          "type": "braking",
+          "value": -2.291573474326666,
+          "jerk": 0.08479817999999995,
+          "score": 1.5277156495511106,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232656033,
+          "type": "braking",
+          "value": -2.9459873376599996,
+          "jerk": 0.012964883333333788,
+          "score": 1.9639915584399998,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232716252,
+          "type": "braking",
+          "value": -2.9631483909933323,
+          "jerk": 0.007980346666666804,
+          "score": 1.9754322606622214,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232717252,
+          "type": "braking",
+          "value": -3.7069482343266658,
+          "jerk": 0.04469299999999965,
+          "score": 2.4712988228844437,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232718252,
+          "type": "braking",
+          "value": -1.9210748076599993,
+          "jerk": 0.0029907333333332176,
+          "score": 1.2807165384399994,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232719252,
+          "type": "braking",
+          "value": -3.1105889826599995,
+          "jerk": 0.03431701666666642,
+          "score": 2.0737259884399997,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232720252,
+          "type": "braking",
+          "value": -2.4414096943266657,
+          "jerk": 0.08339436666666655,
+          "score": 1.6276064628844438,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232721253,
+          "type": "braking",
+          "value": -1.797168374326666,
+          "jerk": 0.006184866666666622,
+          "score": 1.1981122495511107,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232722502,
+          "type": "braking",
+          "value": -1.534605274326666,
+          "jerk": 0.07023109999999999,
+          "score": 1.023070182884444,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232723502,
+          "type": "acceleration",
+          "value": 1.6314972921666662,
+          "jerk": 0.06664021666666686,
+          "score": 1.0876648614444442,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590232724502,
+          "type": "braking",
+          "value": -3.4773034509933325,
+          "jerk": 0.15103657999999998,
+          "score": 2.3182023006622217,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232725503,
+          "type": "braking",
+          "value": -2.871575300993333,
+          "jerk": 0.10175069333333298,
+          "score": 1.9143835339955553,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232726512,
+          "type": "braking",
+          "value": -1.724745074326666,
+          "jerk": 1.0179258432755551,
+          "score": 1.1498300495511107,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232727542,
+          "type": "braking",
+          "value": -2.0998366209933326,
+          "jerk": 1.4081846466088885,
+          "score": 1.3998910806622218,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232728543,
+          "type": "braking",
+          "value": -3.3547957296599993,
+          "jerk": 0.35154723666666676,
+          "score": 2.2365304864399995,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232729553,
+          "type": "braking",
+          "value": -3.6702355909933324,
+          "jerk": 0.03431701666666642,
+          "score": 2.4468237273288884,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232730563,
+          "type": "braking",
+          "value": -4.238859457659999,
+          "jerk": 0.2472025499999999,
+          "score": 2.8259063051066664,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232731563,
+          "type": "braking",
+          "value": -4.146086040993333,
+          "jerk": 0.19691976666666733,
+          "score": 2.7640573606622216,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232732563,
+          "type": "braking",
+          "value": -2.4581689209933324,
+          "jerk": 0.521738673333334,
+          "score": 1.6387792806622217,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232733563,
+          "type": "braking",
+          "value": -3.2861667819933325,
+          "jerk": 0.011372883333333306,
+          "score": 2.1907778546622216,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232734563,
+          "type": "braking",
+          "value": -3.988066000993333,
+          "jerk": 0.23024495333333306,
+          "score": 2.6587106673288887,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232735573,
+          "type": "braking",
+          "value": -4.590599974326666,
+          "jerk": 0.2697499666666676,
+          "score": 3.060399982884444,
+          "threshold": -1.5,
+          "quality": 0.9776766055344284,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232736622,
+          "type": "braking",
+          "value": -2.786375320993333,
+          "jerk": 1.7196216166088887,
+          "score": 1.8575835473288886,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590232737622,
+          "type": "acceleration",
+          "value": 3.2856873954999997,
+          "jerk": 0.13447063333333364,
+          "score": 2.1904582636666663,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590232738623,
+          "type": "acceleration",
+          "value": 3.162991428833333,
+          "jerk": 0.025339766666666375,
+          "score": 2.1086609525555553,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590232739693,
+          "type": "acceleration",
+          "value": 2.1947560220555555,
+          "jerk": 1.4850079865533332,
+          "score": 1.4631706813703704,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590232740702,
+          "type": "acceleration",
+          "value": 2.131487122166666,
+          "jerk": 0,
+          "score": 1.4209914147777774,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590234523863,
+          "type": "acceleration",
+          "value": 2.097186715615556,
+          "jerk": 3.4845498232755556,
+          "score": 1.3981244770770374,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590234524873,
+          "type": "acceleration",
+          "value": 2.3629273554999997,
+          "jerk": 0.15363057800000002,
+          "score": 1.5752849036666665,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590234525882,
+          "type": "acceleration",
+          "value": 1.982876259006667,
+          "jerk": 0.02554649339111137,
+          "score": 1.3219175060044448,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        }
+      ],
+      "totalViolations": 50,
+      "violationRate": 1.5737622360013848,
+      "averageQuality": 0.999971385801401,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 1.5,
+        "braking": -1.5,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 93127,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Adaptive Sensitive",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 1.5,
+        "baseBrakingThreshold": -1.5,
+        "thresholdMultiplier": 2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true,
+        "violationScoreThreshold": 0.8
+      }
+    },
+    {
+      "sessionName": "Day-1S",
+      "behaviorType": "safe",
+      "duration": 2052508,
+      "totalSamples": 103252,
+      "calibrationTime": 1487,
+      "calibrationSuccess": true,
+      "violations": [
+        {
+          "timestamp": 1590212796452,
+          "type": "acceleration",
+          "value": 6.563913083106667,
+          "jerk": 0.6348622666666657,
+          "score": 1.0564776473963435,
+          "threshold": 6.213016526457732,
+          "quality": 0.8802021091203427,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590212809242,
+          "type": "acceleration",
+          "value": 6.248429783326666,
+          "jerk": 0.6167043666666672,
+          "score": 1.0056998491341733,
+          "threshold": 6.213016526457732,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590212876932,
+          "type": "acceleration",
+          "value": 6.425797849993333,
+          "jerk": 0.489613799999999,
+          "score": 1.034247667397871,
+          "threshold": 6.213016526457732,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590212877933,
+          "type": "acceleration",
+          "value": 7.0802168499933344,
+          "jerk": 0.12749226666666758,
+          "score": 1.1395779843563405,
+          "threshold": 6.213016526457732,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590212878943,
+          "type": "acceleration",
+          "value": 7.512966383326666,
+          "jerk": 0.2657572666666663,
+          "score": 1.2092300658356823,
+          "threshold": 6.213016526457732,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590212879963,
+          "type": "acceleration",
+          "value": 6.278748983326667,
+          "jerk": 0.070627833333333,
+          "score": 1.0105797975249249,
+          "threshold": 6.213016526457732,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590212886332,
+          "type": "acceleration",
+          "value": 6.221091116660001,
+          "jerk": 0.04409276666666795,
+          "score": 1.0012996247745172,
+          "threshold": 6.213016526457732,
+          "quality": 1,
+          "cause": "acceleration"
+        }
+      ],
+      "totalViolations": 7,
+      "violationRate": 0.20462770425255347,
+      "averageQuality": 0.9996680685175918,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 6.213016526457732,
+        "braking": -6.213016526457732,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 101751,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Adaptive Sensitive",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 1.5,
+        "baseBrakingThreshold": -1.5,
+        "thresholdMultiplier": 2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true,
+        "violationScoreThreshold": 0.8
+      }
+    },
+    {
+      "sessionName": "Day-2S",
+      "behaviorType": "safe",
+      "duration": 2143069,
+      "totalSamples": 106308,
+      "calibrationTime": 1489,
+      "calibrationSuccess": true,
+      "violations": [
+        {
+          "timestamp": 1590299653954,
+          "type": "braking",
+          "value": -5.001135356,
+          "jerk": null,
+          "score": 3.334090237333333,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299654964,
+          "type": "braking",
+          "value": -4.9448659893333335,
+          "jerk": 0.010177533333332711,
+          "score": 3.296577326222222,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299655974,
+          "type": "braking",
+          "value": -4.9753887893333335,
+          "jerk": 0.0101775333333336,
+          "score": 3.3169258595555555,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299656983,
+          "type": "braking",
+          "value": -4.961823656,
+          "jerk": 0.0007985000000001463,
+          "score": 3.3078824373333333,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299657983,
+          "type": "braking",
+          "value": -4.8502921893333335,
+          "jerk": 0.005386333333333049,
+          "score": 3.233528126222222,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299658983,
+          "type": "braking",
+          "value": -3.9969594893333333,
+          "jerk": 0.0019938333333335834,
+          "score": 2.6646396595555557,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299659983,
+          "type": "braking",
+          "value": -3.9893809893333336,
+          "jerk": 0.1179148333333333,
+          "score": 2.6595873262222223,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299661003,
+          "type": "braking",
+          "value": -4.024094756,
+          "jerk": 2.6514580826222227,
+          "score": 2.6827298373333335,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299662004,
+          "type": "braking",
+          "value": -4.122457956000001,
+          "jerk": 0.07761133333333348,
+          "score": 2.7483053040000005,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299663014,
+          "type": "braking",
+          "value": -5.139593556,
+          "jerk": 0.003194166666666831,
+          "score": 3.4263957040000004,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299664023,
+          "type": "braking",
+          "value": -4.480586822666667,
+          "jerk": 0.045689899999999284,
+          "score": 2.987057881777778,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299665023,
+          "type": "braking",
+          "value": -5.473384522666667,
+          "jerk": 0.053472000000000186,
+          "score": 3.648923015111111,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299666024,
+          "type": "braking",
+          "value": -5.7369497560000005,
+          "jerk": 0.009974233333334581,
+          "score": 3.824633170666667,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299667024,
+          "type": "braking",
+          "value": -5.4879466893333335,
+          "jerk": 0.0063833333333338516,
+          "score": 3.658631126222222,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299668033,
+          "type": "braking",
+          "value": -3.5590221226666667,
+          "jerk": 0.2956848000000001,
+          "score": 2.3726814151111113,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299669034,
+          "type": "acceleration",
+          "value": 2.6280333485333345,
+          "jerk": 0.0680389400000001,
+          "score": 1.7520222323555563,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299670034,
+          "type": "braking",
+          "value": -2.8222056893333334,
+          "jerk": 1.9154401826222225,
+          "score": 1.8814704595555556,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299671043,
+          "type": "braking",
+          "value": -3.5358796226666667,
+          "jerk": 0.06664020000000015,
+          "score": 2.357253081777778,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299672043,
+          "type": "braking",
+          "value": -4.036866356,
+          "jerk": 0.12031046666666656,
+          "score": 2.691244237333333,
+          "threshold": -1.5,
+          "quality": 0.9950685584663745,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299673043,
+          "type": "acceleration",
+          "value": 1.7340779622888913,
+          "jerk": 1.5426635999999998,
+          "score": 1.1560519748592608,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299674054,
+          "type": "acceleration",
+          "value": 3.5316435585333346,
+          "jerk": 2.401264815955556,
+          "score": 2.354429039022223,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299675064,
+          "type": "braking",
+          "value": -4.397390822666666,
+          "jerk": 0.1572214666666678,
+          "score": 2.9315938817777774,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299676064,
+          "type": "braking",
+          "value": -3.911367922666667,
+          "jerk": 0.0309244999999998,
+          "score": 2.607578615111111,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299677064,
+          "type": "braking",
+          "value": -4.405376289333334,
+          "jerk": 0.010772700000000413,
+          "score": 2.9369175262222225,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299678064,
+          "type": "braking",
+          "value": -3.482606056,
+          "jerk": 0.06184893333333319,
+          "score": 2.3217373706666664,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299679074,
+          "type": "braking",
+          "value": -2.6336630226666666,
+          "jerk": 0.024739566666666768,
+          "score": 1.7557753484444445,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299680103,
+          "type": "braking",
+          "value": -2.4944011226666665,
+          "jerk": 1.7338809459555558,
+          "score": 1.6629340817777776,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299681103,
+          "type": "acceleration",
+          "value": 2.583737081866668,
+          "jerk": 0.0355173733333336,
+          "score": 1.722491387911112,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299682103,
+          "type": "braking",
+          "value": -2.916779689333333,
+          "jerk": 1.8226667592888892,
+          "score": 1.9445197928888887,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299683164,
+          "type": "braking",
+          "value": -2.7701376560000006,
+          "jerk": 1.85897758928889,
+          "score": 1.8467584373333337,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299684174,
+          "type": "braking",
+          "value": -1.8059862867111107,
+          "jerk": 2.2472374692888897,
+          "score": 1.2039908578074072,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299685184,
+          "type": "braking",
+          "value": -4.1900951226666665,
+          "jerk": 0.024337766666667093,
+          "score": 2.793396748444444,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299686193,
+          "type": "braking",
+          "value": -4.486375022666667,
+          "jerk": 0.08998106666666672,
+          "score": 2.990916681777778,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299687193,
+          "type": "braking",
+          "value": -4.296031789333334,
+          "jerk": 0.1663971000000002,
+          "score": 2.8640211928888895,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299688193,
+          "type": "braking",
+          "value": -4.796225056,
+          "jerk": 0.023941033333333195,
+          "score": 3.1974833706666668,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299689194,
+          "type": "braking",
+          "value": -4.429912422666667,
+          "jerk": 0.10414633333333345,
+          "score": 2.9532749484444447,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299690194,
+          "type": "acceleration",
+          "value": 4.6634998918666675,
+          "jerk": 0.2863108333333324,
+          "score": 3.108999927911112,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299691203,
+          "type": "acceleration",
+          "value": 5.653703691866667,
+          "jerk": 0.03650920000000024,
+          "score": 3.769135794577778,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299692203,
+          "type": "acceleration",
+          "value": 4.989508958533334,
+          "jerk": 0.07980346666666716,
+          "score": 3.3263393056888897,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299693204,
+          "type": "acceleration",
+          "value": 3.1449807818666677,
+          "jerk": 0.0011952666666665834,
+          "score": 2.0966538545777786,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299694214,
+          "type": "braking",
+          "value": -3.2605449560000004,
+          "jerk": 0.03930153333333308,
+          "score": 2.1736966373333337,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299695253,
+          "type": "braking",
+          "value": -2.288895756,
+          "jerk": 1.5323682892888892,
+          "score": 1.525930504,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590299696253,
+          "type": "acceleration",
+          "value": 3.2140064418666676,
+          "jerk": 0.03591410000000028,
+          "score": 2.1426709612444452,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299697253,
+          "type": "acceleration",
+          "value": 3.4396635918666676,
+          "jerk": 0.05985513333333303,
+          "score": 2.293109061244445,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299698253,
+          "type": "acceleration",
+          "value": 2.3361377985333345,
+          "jerk": 0.006785074666666446,
+          "score": 1.557425199022223,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299699253,
+          "type": "acceleration",
+          "value": 2.853085225200001,
+          "jerk": 0.06982930666666709,
+          "score": 1.9020568168000007,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590299700253,
+          "type": "acceleration",
+          "value": 3.5332406252000013,
+          "jerk": 0.017359400000000136,
+          "score": 2.355493750133334,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590300063435,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 2.494917904,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590300064443,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 2.494917904,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590300070124,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 2.494917904,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590300375796,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 2.494917904,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590300522789,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 2.494917904,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590300788756,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 2.494917904,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590301135187,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 2.494917904,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590301577149,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 2.494917904,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590301718364,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "score": 2.494917904,
+          "threshold": -1.5,
+          "quality": 1,
+          "cause": "braking"
+        },
+        {
+          "timestamp": 1590301719373,
+          "type": "acceleration",
+          "value": 9.365714458533335,
+          "jerk": 0.5843860999999997,
+          "score": 6.243809639022223,
+          "threshold": 1.5,
+          "quality": 0.9623309246646884,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590301720373,
+          "type": "acceleration",
+          "value": 4.940596310666667,
+          "jerk": 0.15482083333333296,
+          "score": 3.2937308737777777,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590301721374,
+          "type": "acceleration",
+          "value": 3.5575398440000003,
+          "jerk": 0.0901795333333335,
+          "score": 2.3716932293333337,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        },
+        {
+          "timestamp": 1590301722384,
+          "type": "acceleration",
+          "value": 3.741896377333333,
+          "jerk": 0.033518466666667024,
+          "score": 2.4945975848888886,
+          "threshold": 1.5,
+          "quality": 1,
+          "cause": "acceleration"
+        }
+      ],
+      "totalViolations": 60,
+      "violationRate": 1.6798339204197346,
+      "averageQuality": 0.9999305399291224,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 1.5,
+        "braking": -1.5,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 104913,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Adaptive Sensitive",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 1.5,
+        "baseBrakingThreshold": -1.5,
+        "thresholdMultiplier": 2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true,
+        "violationScoreThreshold": 0.8
+      }
+    },
+    {
+      "sessionName": "Day-3R",
+      "behaviorType": "risky",
+      "duration": 4617,
+      "totalSamples": 463,
+      "calibrationTime": 1487,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 1.5,
+        "braking": -1.5,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 0,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Adaptive Sensitive",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 1.5,
+        "baseBrakingThreshold": -1.5,
+        "thresholdMultiplier": 2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true,
+        "violationScoreThreshold": 0.8
+      }
+    },
+    {
+      "sessionName": "Day-3S",
+      "behaviorType": "safe",
+      "duration": 2040500,
+      "totalSamples": 102051,
+      "calibrationTime": 1490,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.999610080522107,
+      "lowQualityPercentage": 0.0009945201937325337,
+      "adaptiveThresholds": {
+        "acceleration": 1.580086045849707,
+        "braking": -1.580086045849707,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 100551,
+      "samplesSkipped": 1,
+      "configName": "Enhanced - Adaptive Sensitive",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 1.5,
+        "baseBrakingThreshold": -1.5,
+        "thresholdMultiplier": 2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true,
+        "violationScoreThreshold": 0.8
+      }
+    },
+    {
+      "sessionName": "Day-4R",
+      "behaviorType": "risky",
+      "duration": 1536590,
+      "totalSamples": 75660,
+      "calibrationTime": 1490,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9996807532695191,
+      "lowQualityPercentage": 0.002696871628910464,
+      "adaptiveThresholds": {
+        "acceleration": 1.7597958809866865,
+        "braking": -1.7597958809866865,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 74160,
+      "samplesSkipped": 2,
+      "configName": "Enhanced - Adaptive Sensitive",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 1.5,
+        "baseBrakingThreshold": -1.5,
+        "thresholdMultiplier": 2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true,
+        "violationScoreThreshold": 0.8
+      }
+    },
+    {
+      "sessionName": "Day-4S",
+      "behaviorType": "safe",
+      "duration": 1955749,
+      "totalSamples": 99576,
+      "calibrationTime": 1489,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9997344958247789,
+      "lowQualityPercentage": 0.005098139179199592,
+      "adaptiveThresholds": {
+        "acceleration": 2.361544042639364,
+        "braking": -2.361544042639364,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 98075,
+      "samplesSkipped": 5,
+      "configName": "Enhanced - Adaptive Sensitive",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 1.5,
+        "baseBrakingThreshold": -1.5,
+        "thresholdMultiplier": 2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true,
+        "violationScoreThreshold": 0.8
+      }
+    },
+    {
+      "sessionName": "Day-5S",
+      "behaviorType": "safe",
+      "duration": 2252110,
+      "totalSamples": 111212,
+      "calibrationTime": 1490,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9999858965415523,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 1.8926471893206331,
+        "braking": -1.8926471893206331,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 109711,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Adaptive Sensitive",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 1.5,
+        "baseBrakingThreshold": -1.5,
+        "thresholdMultiplier": 2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true,
+        "violationScoreThreshold": 0.8
+      }
+    },
+    {
+      "sessionName": "Day-6S",
+      "behaviorType": "safe",
+      "duration": 2148839,
+      "totalSamples": 106885,
+      "calibrationTime": 1489,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9999529970987424,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 3.3064523642137864,
+        "braking": -3.3064523642137864,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 105384,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Adaptive Sensitive",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 1.5,
+        "baseBrakingThreshold": -1.5,
+        "thresholdMultiplier": 2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true,
+        "violationScoreThreshold": 0.8
+      }
+    },
+    {
+      "sessionName": "Day-7S",
+      "behaviorType": "safe",
+      "duration": 2019807,
+      "totalSamples": 99982,
+      "calibrationTime": 1487,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9973135465755965,
+      "lowQualityPercentage": 0.0010106318470307638,
+      "adaptiveThresholds": {
+        "acceleration": 1.622689802490345,
+        "braking": -1.622689802490345,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 98948,
+      "samplesSkipped": 1,
+      "configName": "Enhanced - Adaptive Sensitive",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": true,
+        "baseAccelerationThreshold": 1.5,
+        "baseBrakingThreshold": -1.5,
+        "thresholdMultiplier": 2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": true,
+        "violationScoreThreshold": 0.8
+      }
+    },
+    {
+      "sessionName": "Day-1R",
+      "behaviorType": "risky",
+      "duration": 1906260,
+      "totalSamples": 94627,
+      "calibrationTime": 1491,
+      "calibrationSuccess": true,
+      "violations": [
+        {
+          "timestamp": 1590232635002,
+          "type": "braking",
+          "value": -3.2207218376599993,
+          "jerk": null,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232636003,
+          "type": "braking",
+          "value": -2.779595327659999,
+          "jerk": 0.0031941733333336053,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232637013,
+          "type": "braking",
+          "value": -2.8159010776599995,
+          "jerk": 0.0033925366666669454,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232638313,
+          "type": "braking",
+          "value": -2.0166406243266657,
+          "jerk": 0.2372233166666664,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232639322,
+          "type": "braking",
+          "value": -2.7957493009933327,
+          "jerk": 0.023147579999999834,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232640323,
+          "type": "braking",
+          "value": -2.8581984343266655,
+          "jerk": 0.010772699999999524,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232641323,
+          "type": "braking",
+          "value": -2.1373478076599994,
+          "jerk": 0.04030356666666668,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232642333,
+          "type": "braking",
+          "value": -2.581271754326666,
+          "jerk": 0.058853146666666856,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232643342,
+          "type": "braking",
+          "value": -4.399473494326666,
+          "jerk": 0.32221984666666614,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232644342,
+          "type": "braking",
+          "value": -2.9258406543266653,
+          "jerk": 0.03052775000000052,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232645342,
+          "type": "braking",
+          "value": -2.9244368409933323,
+          "jerk": 0.0012003600000003445,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232646342,
+          "type": "braking",
+          "value": -3.6877933709933326,
+          "jerk": 0.032923383333333334,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232647342,
+          "type": "braking",
+          "value": -2.3953230676599992,
+          "jerk": 0.04868062333333345,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232648342,
+          "type": "braking",
+          "value": -2.059533074326666,
+          "jerk": 0.05666603333333331,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232649342,
+          "type": "braking",
+          "value": -2.5517460209933325,
+          "jerk": 0.027333583333333245,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232650342,
+          "type": "braking",
+          "value": -2.6702559343266663,
+          "jerk": 0.010976156666666625,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232651342,
+          "type": "braking",
+          "value": -2.7746057009933325,
+          "jerk": 0.004786176666666364,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232653462,
+          "type": "braking",
+          "value": -2.103625874326666,
+          "jerk": 0.2164764333333331,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232654462,
+          "type": "braking",
+          "value": -4.926990174326666,
+          "jerk": 0.03810629999999904,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232655462,
+          "type": "braking",
+          "value": -2.887734364326666,
+          "jerk": 0.0325215666666665,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232716252,
+          "type": "braking",
+          "value": -2.9631483909933323,
+          "jerk": 0.007980346666666804,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232717252,
+          "type": "braking",
+          "value": -3.7069482343266658,
+          "jerk": 0.04469299999999965,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232718612,
+          "type": "braking",
+          "value": -2.035988774326666,
+          "jerk": 0.24899799999999983,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232719613,
+          "type": "braking",
+          "value": -2.8705733176599995,
+          "jerk": 0.029927573333333513,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232720613,
+          "type": "braking",
+          "value": -2.2642399009933327,
+          "jerk": 0.02912903,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232721613,
+          "type": "braking",
+          "value": -2.049762340993333,
+          "jerk": 0.05646260000000014,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232722763,
+          "type": "acceleration",
+          "value": 2.123726402055555,
+          "jerk": 0.5247294133333331,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232723773,
+          "type": "acceleration",
+          "value": 2.159817608833333,
+          "jerk": 0.08100382666666661,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232724773,
+          "type": "braking",
+          "value": -3.170840853993333,
+          "jerk": 0.07122802666666672,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232725773,
+          "type": "braking",
+          "value": -2.7205336376599996,
+          "jerk": 0.4076131333333328,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232726773,
+          "type": "acceleration",
+          "value": 2.392051282166666,
+          "jerk": 0.12270100333333334,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232727782,
+          "type": "braking",
+          "value": -3.0044488476599995,
+          "jerk": 0.10893758000000009,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232728783,
+          "type": "braking",
+          "value": -3.5445387776599993,
+          "jerk": 0.0700327599999997,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232729793,
+          "type": "braking",
+          "value": -3.6752252109933323,
+          "jerk": 0.011372886666666915,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232730802,
+          "type": "braking",
+          "value": -4.486061974326666,
+          "jerk": 0.04748533333333338,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232731803,
+          "type": "braking",
+          "value": -4.249632174326666,
+          "jerk": 0.023544299999999296,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232732813,
+          "type": "braking",
+          "value": -3.3065169276599993,
+          "jerk": 0.16041056666666664,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232733813,
+          "type": "braking",
+          "value": -3.4689213043266656,
+          "jerk": 0.09676616000000005,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232734813,
+          "type": "braking",
+          "value": -3.9389835543266662,
+          "jerk": 0.18076580000000053,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232735813,
+          "type": "braking",
+          "value": -3.452563874326666,
+          "jerk": 0.002395633333332814,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232736823,
+          "type": "acceleration",
+          "value": 2.721056215499999,
+          "jerk": 0.10633849999999923,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232737823,
+          "type": "acceleration",
+          "value": 3.4602682288333333,
+          "jerk": 0.07621766666666652,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232738833,
+          "type": "acceleration",
+          "value": 3.2705252288333333,
+          "jerk": 0.09237669999999953,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232740632,
+          "type": "acceleration",
+          "value": 2.131487122166666,
+          "jerk": 0.14704386333333308,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590234523863,
+          "type": "acceleration",
+          "value": 2.097186715615556,
+          "jerk": 3.4845498232755556,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590234524873,
+          "type": "acceleration",
+          "value": 2.3629273554999997,
+          "jerk": 0.15363057800000002,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590234525893,
+          "type": "acceleration",
+          "value": 2.0311551256733336,
+          "jerk": 0.048278866666666476,
+          "threshold": 2,
+          "quality": 1
+        }
+      ],
+      "totalViolations": 47,
+      "violationRate": 1.4793365018413018,
+      "averageQuality": 0.999971385801401,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 2,
+        "braking": -2,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 93127,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Fixed Improved",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": false,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": false
+      }
+    },
+    {
+      "sessionName": "Day-1S",
+      "behaviorType": "safe",
+      "duration": 2052508,
+      "totalSamples": 103252,
+      "calibrationTime": 1487,
+      "calibrationSuccess": true,
+      "violations": [
+        {
+          "timestamp": 1590212775013,
+          "type": "acceleration",
+          "value": 4.402502849993333,
+          "jerk": null,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212776013,
+          "type": "acceleration",
+          "value": 4.43222701666,
+          "jerk": 0.02893066666666666,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212777023,
+          "type": "acceleration",
+          "value": 4.38853601666,
+          "jerk": 0.0009968999999996342,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212778032,
+          "type": "acceleration",
+          "value": 4.394919216659999,
+          "jerk": 0.004984566666667689,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212779032,
+          "type": "acceleration",
+          "value": 4.319495049993333,
+          "jerk": 0.03531900000000032,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212780032,
+          "type": "acceleration",
+          "value": 4.050548749993333,
+          "jerk": 0.03411863333333365,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212781033,
+          "type": "acceleration",
+          "value": 3.640143249993333,
+          "jerk": 0.1943257666666658,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212782033,
+          "type": "acceleration",
+          "value": 4.737285749993334,
+          "jerk": 0.1769714666666662,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212783033,
+          "type": "acceleration",
+          "value": 5.654262749993333,
+          "jerk": 0.03531393333333277,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212784043,
+          "type": "acceleration",
+          "value": 5.788138216659999,
+          "jerk": 0.006581666666667374,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212785053,
+          "type": "acceleration",
+          "value": 4.607799683326666,
+          "jerk": 0.2194671666666661,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212786053,
+          "type": "acceleration",
+          "value": 4.109605283326666,
+          "jerk": 0.055669133333333676,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212787053,
+          "type": "acceleration",
+          "value": 3.7610487833266664,
+          "jerk": 0.15243019999999952,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212788053,
+          "type": "acceleration",
+          "value": 3.8310866499933334,
+          "jerk": 0.040898633333333656,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212789053,
+          "type": "acceleration",
+          "value": 3.307552483326667,
+          "jerk": 0.05666096666666709,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212790053,
+          "type": "acceleration",
+          "value": 3.292787083326667,
+          "jerk": 0.16959126666666746,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212791062,
+          "type": "acceleration",
+          "value": 2.924078783326667,
+          "jerk": 0.07462056666666683,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212792062,
+          "type": "acceleration",
+          "value": 2.7584751433266668,
+          "jerk": 0.05706280000000019,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212793062,
+          "type": "acceleration",
+          "value": 4.550141816660001,
+          "jerk": 0.07202656666666574,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212794063,
+          "type": "acceleration",
+          "value": 4.48190961666,
+          "jerk": 0.004185999999999801,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212795073,
+          "type": "acceleration",
+          "value": 4.54834631666,
+          "jerk": 0.04190063333333338,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212796073,
+          "type": "acceleration",
+          "value": 4.494477749993334,
+          "jerk": 0.3311971000000007,
+          "threshold": 2,
+          "quality": 0.9944703132411
+        },
+        {
+          "timestamp": 1590212797082,
+          "type": "acceleration",
+          "value": 3.838863549993333,
+          "jerk": 0.45150246666666716,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212798082,
+          "type": "acceleration",
+          "value": 4.06291851666,
+          "jerk": 0.14186096666666703,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212799083,
+          "type": "acceleration",
+          "value": 4.481904516659999,
+          "jerk": 0.022542333333333886,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212800083,
+          "type": "acceleration",
+          "value": 3.8564212833266667,
+          "jerk": 0.05287166666666687,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212801083,
+          "type": "acceleration",
+          "value": 3.2484907833266665,
+          "jerk": 0.019749933333333747,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212802122,
+          "type": "acceleration",
+          "value": 2.0037093133266666,
+          "jerk": 0.12709553999999978,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212803123,
+          "type": "acceleration",
+          "value": 3.3963331833266666,
+          "jerk": 0.01197299999999979,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212804123,
+          "type": "acceleration",
+          "value": 4.214351783326666,
+          "jerk": 0.10674029999999934,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212805133,
+          "type": "acceleration",
+          "value": 5.5736606833266675,
+          "jerk": 0.20310976666666658,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212806142,
+          "type": "acceleration",
+          "value": 3.82409811666,
+          "jerk": 0.14764403333333354,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212807142,
+          "type": "acceleration",
+          "value": 4.377361449993334,
+          "jerk": 0.1518300333333329,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212808143,
+          "type": "acceleration",
+          "value": 4.450181483326666,
+          "jerk": 0.025934866666666778,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212809153,
+          "type": "acceleration",
+          "value": 3.9358331499933334,
+          "jerk": 0.6735687333333331,
+          "threshold": 2,
+          "quality": 0.8027221888248376
+        },
+        {
+          "timestamp": 1590212810153,
+          "type": "acceleration",
+          "value": 4.04955691666,
+          "jerk": 0.34157309999999974,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212870692,
+          "type": "acceleration",
+          "value": 4.396511249993334,
+          "jerk": 0.14963786666666756,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212871692,
+          "type": "acceleration",
+          "value": 4.5653039166600005,
+          "jerk": 0.20370993333333232,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212872692,
+          "type": "acceleration",
+          "value": 4.218146183326667,
+          "jerk": 0.11252846666666727,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212873692,
+          "type": "acceleration",
+          "value": 4.365184883326667,
+          "jerk": 0.010172500000000362,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212874693,
+          "type": "acceleration",
+          "value": 3.8827579499933336,
+          "jerk": 0.007782000000000178,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212875703,
+          "type": "acceleration",
+          "value": 4.146119583326667,
+          "jerk": 0.08120726666666656,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212876703,
+          "type": "acceleration",
+          "value": 4.75962971666,
+          "jerk": 0.043294266666666914,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212877713,
+          "type": "acceleration",
+          "value": 7.454504849993334,
+          "jerk": 0.0157623333333321,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212878713,
+          "type": "acceleration",
+          "value": 7.52354061666,
+          "jerk": 0.07202146666666653,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212879723,
+          "type": "acceleration",
+          "value": 5.73906081666,
+          "jerk": 0.0027923666666671565,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212880733,
+          "type": "acceleration",
+          "value": 5.648082916660001,
+          "jerk": 0.14644366666666642,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212881733,
+          "type": "acceleration",
+          "value": 4.240688483326667,
+          "jerk": 0.4969991333333339,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212882733,
+          "type": "acceleration",
+          "value": 4.398505049993333,
+          "jerk": 0.09038289999999982,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212883742,
+          "type": "acceleration",
+          "value": 4.66387061666,
+          "jerk": 0.05506899999999959,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212884742,
+          "type": "acceleration",
+          "value": 4.4637465833266665,
+          "jerk": 0.03491716666666722,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212885742,
+          "type": "acceleration",
+          "value": 5.276582249993334,
+          "jerk": 0.1604105666666671,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212886742,
+          "type": "acceleration",
+          "value": 4.689408783326667,
+          "jerk": 0.030522666666666254,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212887742,
+          "type": "acceleration",
+          "value": 5.03695821666,
+          "jerk": 0.027933799999999565,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212888742,
+          "type": "acceleration",
+          "value": 4.9048832499933335,
+          "jerk": 0.0586547666666668,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590213149380,
+          "type": "acceleration",
+          "value": 5.332648149993334,
+          "jerk": 0,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590213161886,
+          "type": "acceleration",
+          "value": 3.4424198499933336,
+          "jerk": 0,
+          "threshold": 2,
+          "quality": 0.9335056304135763
+        },
+        {
+          "timestamp": 1590213170635,
+          "type": "acceleration",
+          "value": 4.285981649993333,
+          "jerk": 0.1721852333333329,
+          "threshold": 2,
+          "quality": 0.984268497739929
+        },
+        {
+          "timestamp": 1590213230692,
+          "type": "acceleration",
+          "value": 4.526800983326666,
+          "jerk": 0.29588316666666703,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590213263540,
+          "type": "acceleration",
+          "value": 4.967535849993333,
+          "jerk": 0,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590213762764,
+          "type": "acceleration",
+          "value": 4.967535849993333,
+          "jerk": 0,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590213864823,
+          "type": "acceleration",
+          "value": 4.967535849993333,
+          "jerk": 0,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590214363382,
+          "type": "acceleration",
+          "value": 4.967535849993333,
+          "jerk": 0,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590214430848,
+          "type": "acceleration",
+          "value": 4.967535849993333,
+          "jerk": 0,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590214809980,
+          "type": "acceleration",
+          "value": 4.967535849993333,
+          "jerk": 0,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590214810983,
+          "type": "acceleration",
+          "value": 4.202121998380002,
+          "jerk": 0.2422129333333336,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590214811993,
+          "type": "acceleration",
+          "value": 2.106596931713335,
+          "jerk": 0.05426533333333339,
+          "threshold": 2,
+          "quality": 1
+        }
+      ],
+      "totalViolations": 67,
+      "violationRate": 1.958579454988726,
+      "averageQuality": 0.9996680685175918,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 2,
+        "braking": -2,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 101751,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Fixed Improved",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": false,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": false
+      }
+    },
+    {
+      "sessionName": "Day-2S",
+      "behaviorType": "safe",
+      "duration": 2143069,
+      "totalSamples": 106308,
+      "calibrationTime": 1489,
+      "calibrationSuccess": true,
+      "violations": [
+        {
+          "timestamp": 1590299653954,
+          "type": "braking",
+          "value": -5.001135356,
+          "jerk": null,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299654964,
+          "type": "braking",
+          "value": -4.9448659893333335,
+          "jerk": 0.010177533333332711,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299655974,
+          "type": "braking",
+          "value": -4.9753887893333335,
+          "jerk": 0.0101775333333336,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299656983,
+          "type": "braking",
+          "value": -4.961823656,
+          "jerk": 0.0007985000000001463,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299657983,
+          "type": "braking",
+          "value": -4.8502921893333335,
+          "jerk": 0.005386333333333049,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299658983,
+          "type": "braking",
+          "value": -3.9969594893333333,
+          "jerk": 0.0019938333333335834,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299659983,
+          "type": "braking",
+          "value": -3.9893809893333336,
+          "jerk": 0.1179148333333333,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299661003,
+          "type": "braking",
+          "value": -4.024094756,
+          "jerk": 2.6514580826222227,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299662004,
+          "type": "braking",
+          "value": -4.122457956000001,
+          "jerk": 0.07761133333333348,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299663014,
+          "type": "braking",
+          "value": -5.139593556,
+          "jerk": 0.003194166666666831,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299664023,
+          "type": "braking",
+          "value": -4.480586822666667,
+          "jerk": 0.045689899999999284,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299665023,
+          "type": "braking",
+          "value": -5.473384522666667,
+          "jerk": 0.053472000000000186,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299666024,
+          "type": "braking",
+          "value": -5.7369497560000005,
+          "jerk": 0.009974233333334581,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299667024,
+          "type": "braking",
+          "value": -5.4879466893333335,
+          "jerk": 0.0063833333333338516,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299668033,
+          "type": "braking",
+          "value": -3.5590221226666667,
+          "jerk": 0.2956848000000001,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299669034,
+          "type": "acceleration",
+          "value": 2.6280333485333345,
+          "jerk": 0.0680389400000001,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299670034,
+          "type": "braking",
+          "value": -2.8222056893333334,
+          "jerk": 1.9154401826222225,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299671043,
+          "type": "braking",
+          "value": -3.5358796226666667,
+          "jerk": 0.06664020000000015,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299672043,
+          "type": "braking",
+          "value": -4.036866356,
+          "jerk": 0.12031046666666656,
+          "threshold": -2,
+          "quality": 0.9950685584663745
+        },
+        {
+          "timestamp": 1590299673093,
+          "type": "acceleration",
+          "value": 3.5254586918666675,
+          "jerk": 3.4616946826222224,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299674093,
+          "type": "braking",
+          "value": -3.7343964560000003,
+          "jerk": 0.11432393333333346,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299675093,
+          "type": "braking",
+          "value": -4.293442922666666,
+          "jerk": 0.06643676666666742,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299676093,
+          "type": "braking",
+          "value": -4.058208289333334,
+          "jerk": 0.12769063333333408,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299677094,
+          "type": "braking",
+          "value": -4.447465122666667,
+          "jerk": 0.1869456000000005,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299678094,
+          "type": "braking",
+          "value": -3.197693989333333,
+          "jerk": 0.07780963333333357,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299679104,
+          "type": "braking",
+          "value": -2.580989622666667,
+          "jerk": 0.007385266666666723,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299680113,
+          "type": "braking",
+          "value": -2.469458089333333,
+          "jerk": 0.024943033333333364,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299681114,
+          "type": "acceleration",
+          "value": 2.7730783085333344,
+          "jerk": 0.18934122666666653,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299682114,
+          "type": "braking",
+          "value": -2.8601187226666664,
+          "jerk": 0.056660966666666646,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299683164,
+          "type": "braking",
+          "value": -2.7701376560000006,
+          "jerk": 1.85897758928889,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299684223,
+          "type": "acceleration",
+          "value": 3.151562408533335,
+          "jerk": 2.1955610659555562,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299685224,
+          "type": "braking",
+          "value": -4.304617389333333,
+          "jerk": 0.09257506666666693,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299686234,
+          "type": "braking",
+          "value": -4.539246656,
+          "jerk": 0.03092443333333339,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299687234,
+          "type": "braking",
+          "value": -4.335541889333334,
+          "jerk": 0.10793556666666593,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299688244,
+          "type": "braking",
+          "value": -4.861466556,
+          "jerk": 0.06923420000000036,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299689244,
+          "type": "braking",
+          "value": -4.550222922666667,
+          "jerk": 0.03710940000000029,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299690244,
+          "type": "acceleration",
+          "value": 4.334103258533335,
+          "jerk": 0.027531966666666463,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299691253,
+          "type": "acceleration",
+          "value": 5.372184158533334,
+          "jerk": 0.11791483333333286,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299692253,
+          "type": "acceleration",
+          "value": 5.907492991866668,
+          "jerk": 0.20470683333333373,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299693253,
+          "type": "acceleration",
+          "value": 3.318758025200001,
+          "jerk": 0.05347186666666692,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299694254,
+          "type": "braking",
+          "value": -3.0716004226666667,
+          "jerk": 0.08998613333333338,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299695263,
+          "type": "braking",
+          "value": -2.357133056,
+          "jerk": 0.06823729999999983,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299696264,
+          "type": "acceleration",
+          "value": 3.1707121752000007,
+          "jerk": 0.043294266666666914,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299697274,
+          "type": "acceleration",
+          "value": 3.248328558533334,
+          "jerk": 0.030924466666666817,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299698284,
+          "type": "acceleration",
+          "value": 2.595109966866668,
+          "jerk": 0.011571250000000255,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299699294,
+          "type": "acceleration",
+          "value": 2.726991681866668,
+          "jerk": 0.03670755666666636,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299700304,
+          "type": "acceleration",
+          "value": 3.1767037818666677,
+          "jerk": 0.13188171333333365,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590300063435,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590300064443,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590300070124,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590300375796,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590300522789,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590300788756,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590301135187,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590301577149,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590301718364,
+          "type": "braking",
+          "value": -3.742376856,
+          "jerk": 0,
+          "threshold": -2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590301719373,
+          "type": "acceleration",
+          "value": 9.365714458533335,
+          "jerk": 0.5843860999999997,
+          "threshold": 2,
+          "quality": 0.9623309246646884
+        },
+        {
+          "timestamp": 1590301720373,
+          "type": "acceleration",
+          "value": 4.940596310666667,
+          "jerk": 0.15482083333333296,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590301721374,
+          "type": "acceleration",
+          "value": 3.5575398440000003,
+          "jerk": 0.0901795333333335,
+          "threshold": 2,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590301722384,
+          "type": "acceleration",
+          "value": 3.741896377333333,
+          "jerk": 0.033518466666667024,
+          "threshold": 2,
+          "quality": 1
+        }
+      ],
+      "totalViolations": 60,
+      "violationRate": 1.6798339204197346,
+      "averageQuality": 0.9999305399291224,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 2,
+        "braking": -2,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 104913,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Fixed Improved",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": false,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": false
+      }
+    },
+    {
+      "sessionName": "Day-3R",
+      "behaviorType": "risky",
+      "duration": 4617,
+      "totalSamples": 463,
+      "calibrationTime": 1487,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 2,
+        "braking": -2,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 0,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Fixed Improved",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": false,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": false
+      }
+    },
+    {
+      "sessionName": "Day-3S",
+      "behaviorType": "safe",
+      "duration": 2040500,
+      "totalSamples": 102051,
+      "calibrationTime": 1490,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.999610080522107,
+      "lowQualityPercentage": 0.0009945201937325337,
+      "adaptiveThresholds": {
+        "acceleration": 2,
+        "braking": -2,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 100551,
+      "samplesSkipped": 1,
+      "configName": "Enhanced - Fixed Improved",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": false,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": false
+      }
+    },
+    {
+      "sessionName": "Day-4R",
+      "behaviorType": "risky",
+      "duration": 1536590,
+      "totalSamples": 75660,
+      "calibrationTime": 1490,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9996807532695191,
+      "lowQualityPercentage": 0.002696871628910464,
+      "adaptiveThresholds": {
+        "acceleration": 2,
+        "braking": -2,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 74160,
+      "samplesSkipped": 2,
+      "configName": "Enhanced - Fixed Improved",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": false,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": false
+      }
+    },
+    {
+      "sessionName": "Day-4S",
+      "behaviorType": "safe",
+      "duration": 1955749,
+      "totalSamples": 99576,
+      "calibrationTime": 1489,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9997344958247789,
+      "lowQualityPercentage": 0.005098139179199592,
+      "adaptiveThresholds": {
+        "acceleration": 2,
+        "braking": -2,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 98075,
+      "samplesSkipped": 5,
+      "configName": "Enhanced - Fixed Improved",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": false,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": false
+      }
+    },
+    {
+      "sessionName": "Day-5S",
+      "behaviorType": "safe",
+      "duration": 2252110,
+      "totalSamples": 111212,
+      "calibrationTime": 1490,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9999858965415523,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 2,
+        "braking": -2,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 109711,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Fixed Improved",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": false,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": false
+      }
+    },
+    {
+      "sessionName": "Day-6S",
+      "behaviorType": "safe",
+      "duration": 2148839,
+      "totalSamples": 106885,
+      "calibrationTime": 1489,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9999529970987424,
+      "lowQualityPercentage": 0,
+      "adaptiveThresholds": {
+        "acceleration": 2,
+        "braking": -2,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 105384,
+      "samplesSkipped": 0,
+      "configName": "Enhanced - Fixed Improved",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": false,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": false
+      }
+    },
+    {
+      "sessionName": "Day-7S",
+      "behaviorType": "safe",
+      "duration": 2019807,
+      "totalSamples": 99982,
+      "calibrationTime": 1487,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9973135465755965,
+      "lowQualityPercentage": 0.0010106318470307638,
+      "adaptiveThresholds": {
+        "acceleration": 2,
+        "braking": -2,
+        "jerk": 0.2
+      },
+      "samplesProcessed": 98948,
+      "samplesSkipped": 1,
+      "configName": "Enhanced - Fixed Improved",
+      "algorithmType": "enhanced",
+      "config": {
+        "useAdaptiveThresholds": false,
+        "baseAccelerationThreshold": 2,
+        "baseBrakingThreshold": -2,
+        "enableJerkDetection": true,
+        "enableSmoothing": true,
+        "enableEventScoring": false
+      }
+    }
+  ],
+  "originalResults": [
+    {
+      "sessionName": "Day-1R",
+      "behaviorType": "risky",
+      "duration": 1906260,
+      "totalSamples": 94627,
+      "calibrationTime": 1491,
+      "calibrationSuccess": true,
+      "violations": [
+        {
+          "timestamp": 1590234523863,
+          "type": "acceleration",
+          "value": 9.234931242197241,
+          "threshold": 6.5,
+          "quality": 1
+        }
+      ],
+      "totalViolations": 1,
+      "violationRate": 0.0314752447200277,
+      "averageQuality": 0.9998686624720357,
+      "lowQualityPercentage": 0.008467669379849064,
+      "samplesProcessed": 94477,
+      "samplesSkipped": 8,
+      "configName": "Original - Default",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 6.5,
+        "brakingThreshold": -6.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-1S",
+      "behaviorType": "safe",
+      "duration": 2052508,
+      "totalSamples": 103252,
+      "calibrationTime": 1487,
+      "calibrationSuccess": true,
+      "violations": [
+        {
+          "timestamp": 1590212768713,
+          "type": "acceleration",
+          "value": 6.995371720163302,
+          "threshold": 6.5,
+          "quality": 0.7753910951858939
+        },
+        {
+          "timestamp": 1590212796482,
+          "type": "acceleration",
+          "value": 6.617132651323779,
+          "threshold": 6.5,
+          "quality": 0.9913256323373701
+        },
+        {
+          "timestamp": 1590212808803,
+          "type": "acceleration",
+          "value": 6.595322018859068,
+          "threshold": 6.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212876923,
+          "type": "acceleration",
+          "value": 6.8980254428824646,
+          "threshold": 6.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212878923,
+          "type": "acceleration",
+          "value": 7.79241206054998,
+          "threshold": 6.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212880992,
+          "type": "acceleration",
+          "value": 6.786520973739493,
+          "threshold": 6.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212886323,
+          "type": "acceleration",
+          "value": 6.655075019628065,
+          "threshold": 6.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590213161896,
+          "type": "acceleration",
+          "value": 7.402466838165255,
+          "threshold": 6.5,
+          "quality": 1
+        }
+      ],
+      "totalViolations": 8,
+      "violationRate": 0.23386023343148968,
+      "averageQuality": 0.9986170698556195,
+      "lowQualityPercentage": 0.048495664487594806,
+      "samplesProcessed": 103102,
+      "samplesSkipped": 50,
+      "configName": "Original - Default",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 6.5,
+        "brakingThreshold": -6.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-2S",
+      "behaviorType": "safe",
+      "duration": 2143069,
+      "totalSamples": 106308,
+      "calibrationTime": 1489,
+      "calibrationSuccess": true,
+      "violations": [
+        {
+          "timestamp": 1590299581543,
+          "type": "acceleration",
+          "value": 7.986961448320106,
+          "threshold": 6.5,
+          "quality": 0.610249475047447
+        },
+        {
+          "timestamp": 1590299666713,
+          "type": "braking",
+          "value": -7.1112078052259555,
+          "threshold": -6.5,
+          "quality": 0.9192701545708675
+        },
+        {
+          "timestamp": 1590299672943,
+          "type": "acceleration",
+          "value": 6.768715695404968,
+          "threshold": 6.5,
+          "quality": 0.9132176938504298
+        },
+        {
+          "timestamp": 1590299690793,
+          "type": "acceleration",
+          "value": 6.602291854785746,
+          "threshold": 6.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590301718883,
+          "type": "acceleration",
+          "value": 6.835164482958251,
+          "threshold": 6.5,
+          "quality": 1
+        }
+      ],
+      "totalViolations": 5,
+      "violationRate": 0.13998616003497788,
+      "averageQuality": 0.9997677333344102,
+      "lowQualityPercentage": 0.013187889749241696,
+      "samplesProcessed": 106158,
+      "samplesSkipped": 14,
+      "configName": "Original - Default",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 6.5,
+        "brakingThreshold": -6.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-3R",
+      "behaviorType": "risky",
+      "duration": 4617,
+      "totalSamples": 463,
+      "calibrationTime": 1487,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9984864081898092,
+      "lowQualityPercentage": 0,
+      "samplesProcessed": 313,
+      "samplesSkipped": 0,
+      "configName": "Original - Default",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 6.5,
+        "brakingThreshold": -6.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-3S",
+      "behaviorType": "safe",
+      "duration": 2040500,
+      "totalSamples": 102051,
+      "calibrationTime": 1490,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9987800389985181,
+      "lowQualityPercentage": 0.04317916409063699,
+      "samplesProcessed": 101901,
+      "samplesSkipped": 44,
+      "configName": "Original - Default",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 6.5,
+        "brakingThreshold": -6.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-4R",
+      "behaviorType": "risky",
+      "duration": 1536590,
+      "totalSamples": 75660,
+      "calibrationTime": 1490,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9980438587764384,
+      "lowQualityPercentage": 0.033108197589723214,
+      "samplesProcessed": 75510,
+      "samplesSkipped": 25,
+      "configName": "Original - Default",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 6.5,
+        "brakingThreshold": -6.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-4S",
+      "behaviorType": "safe",
+      "duration": 1955749,
+      "totalSamples": 99576,
+      "calibrationTime": 1489,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9987841933102972,
+      "lowQualityPercentage": 0.08347917043831593,
+      "samplesProcessed": 99426,
+      "samplesSkipped": 83,
+      "configName": "Original - Default",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 6.5,
+        "brakingThreshold": -6.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-5S",
+      "behaviorType": "safe",
+      "duration": 2252110,
+      "totalSamples": 111212,
+      "calibrationTime": 1490,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9996523292743321,
+      "lowQualityPercentage": 0.03241432713259261,
+      "samplesProcessed": 111062,
+      "samplesSkipped": 36,
+      "configName": "Original - Default",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 6.5,
+        "brakingThreshold": -6.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-6S",
+      "behaviorType": "safe",
+      "duration": 2148839,
+      "totalSamples": 106885,
+      "calibrationTime": 1489,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9998749404982714,
+      "lowQualityPercentage": 0.007495198388532347,
+      "samplesProcessed": 106735,
+      "samplesSkipped": 8,
+      "configName": "Original - Default",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 6.5,
+        "brakingThreshold": -6.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-7S",
+      "behaviorType": "safe",
+      "duration": 2019807,
+      "totalSamples": 99982,
+      "calibrationTime": 1487,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.989052394423162,
+      "lowQualityPercentage": 0.03706226460453562,
+      "samplesProcessed": 99832,
+      "samplesSkipped": 37,
+      "configName": "Original - Default",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 6.5,
+        "brakingThreshold": -6.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-1R",
+      "behaviorType": "risky",
+      "duration": 1906260,
+      "totalSamples": 94627,
+      "calibrationTime": 1491,
+      "calibrationSuccess": true,
+      "violations": [
+        {
+          "timestamp": 1590232621502,
+          "type": "braking",
+          "value": -3.576493160749269,
+          "threshold": -2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232623503,
+          "type": "acceleration",
+          "value": 3.395904544608536,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232625503,
+          "type": "acceleration",
+          "value": 3.3544025096559027,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232627513,
+          "type": "acceleration",
+          "value": 3.2759639824935385,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232629523,
+          "type": "acceleration",
+          "value": 3.3335694231504447,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232631533,
+          "type": "acceleration",
+          "value": 3.6285660595872016,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232633533,
+          "type": "acceleration",
+          "value": 2.828723546984867,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232635543,
+          "type": "acceleration",
+          "value": 3.113391974185881,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232637553,
+          "type": "acceleration",
+          "value": 2.906850901395034,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232639553,
+          "type": "acceleration",
+          "value": 2.92011008436994,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232642132,
+          "type": "acceleration",
+          "value": 2.529101096730067,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232644132,
+          "type": "acceleration",
+          "value": 3.11069658791168,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232646133,
+          "type": "acceleration",
+          "value": 3.7954760013507607,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232648133,
+          "type": "acceleration",
+          "value": 2.89701397400014,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232650142,
+          "type": "acceleration",
+          "value": 2.9381376451421515,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232653472,
+          "type": "acceleration",
+          "value": 2.63700681242708,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232655472,
+          "type": "acceleration",
+          "value": 3.0517062453204638,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232716252,
+          "type": "acceleration",
+          "value": 3.2297846862881796,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232718612,
+          "type": "acceleration",
+          "value": 2.553050969279615,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232720633,
+          "type": "acceleration",
+          "value": 2.5048750307212497,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232722673,
+          "type": "acceleration",
+          "value": 2.6285480333057905,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232724673,
+          "type": "acceleration",
+          "value": 3.765585791288664,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232726682,
+          "type": "acceleration",
+          "value": 3.033093746644359,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232728682,
+          "type": "acceleration",
+          "value": 3.5238795466658797,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232730683,
+          "type": "acceleration",
+          "value": 4.04891213647334,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232732683,
+          "type": "acceleration",
+          "value": 3.26567229908563,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232734692,
+          "type": "acceleration",
+          "value": 4.16532034423473,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232736692,
+          "type": "acceleration",
+          "value": 2.8355805457226686,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232738692,
+          "type": "acceleration",
+          "value": 3.928218441667664,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590232740692,
+          "type": "acceleration",
+          "value": 2.7947189082475545,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590234523863,
+          "type": "acceleration",
+          "value": 9.234931242197241,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590234525872,
+          "type": "acceleration",
+          "value": 2.5863085862595288,
+          "threshold": 2.5,
+          "quality": 1
+        }
+      ],
+      "totalViolations": 32,
+      "violationRate": 1.0072078310408863,
+      "averageQuality": 0.9998686624720357,
+      "lowQualityPercentage": 0.008467669379849064,
+      "samplesProcessed": 94477,
+      "samplesSkipped": 8,
+      "configName": "Original - Lowered Thresholds",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 2.5,
+        "brakingThreshold": -2.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-1S",
+      "behaviorType": "safe",
+      "duration": 2052508,
+      "totalSamples": 103252,
+      "calibrationTime": 1487,
+      "calibrationSuccess": true,
+      "violations": [
+        {
+          "timestamp": 1590212761542,
+          "type": "acceleration",
+          "value": 2.657866749333335,
+          "threshold": 2.5,
+          "quality": 0.8737689669634
+        },
+        {
+          "timestamp": 1590212765062,
+          "type": "braking",
+          "value": -2.603380525226131,
+          "threshold": -2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212767063,
+          "type": "acceleration",
+          "value": 3.4101526837402742,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212769073,
+          "type": "braking",
+          "value": -5.664130579138362,
+          "threshold": -2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212771073,
+          "type": "acceleration",
+          "value": 4.465405989573745,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212773083,
+          "type": "acceleration",
+          "value": 4.38259044040985,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212775083,
+          "type": "acceleration",
+          "value": 4.351918078920769,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212777092,
+          "type": "acceleration",
+          "value": 4.5089048040544775,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212779092,
+          "type": "acceleration",
+          "value": 4.456907306363523,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212781093,
+          "type": "acceleration",
+          "value": 4.246544499736138,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212783102,
+          "type": "acceleration",
+          "value": 5.284674458945972,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212785103,
+          "type": "acceleration",
+          "value": 4.68129333435257,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212787103,
+          "type": "acceleration",
+          "value": 4.24346941818448,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212789103,
+          "type": "acceleration",
+          "value": 3.658354572115517,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212791113,
+          "type": "acceleration",
+          "value": 2.6461828835228705,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212793122,
+          "type": "acceleration",
+          "value": 4.341523680949237,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212795123,
+          "type": "acceleration",
+          "value": 4.007875015547969,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212797132,
+          "type": "acceleration",
+          "value": 3.4593669729085033,
+          "threshold": 2.5,
+          "quality": 0.9846368826296485
+        },
+        {
+          "timestamp": 1590212799133,
+          "type": "acceleration",
+          "value": 5.426271428381978,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212801133,
+          "type": "acceleration",
+          "value": 3.3566391682610246,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212803142,
+          "type": "acceleration",
+          "value": 3.0642736024245547,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212805142,
+          "type": "acceleration",
+          "value": 5.892447305619539,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212807142,
+          "type": "acceleration",
+          "value": 4.584674157723859,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212809142,
+          "type": "acceleration",
+          "value": 4.66417021000995,
+          "threshold": 2.5,
+          "quality": 0.906925257065374
+        },
+        {
+          "timestamp": 1590212870692,
+          "type": "acceleration",
+          "value": 4.772844412075273,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212872692,
+          "type": "acceleration",
+          "value": 4.522721278791924,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212874693,
+          "type": "acceleration",
+          "value": 4.429902019806676,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212876703,
+          "type": "acceleration",
+          "value": 4.935159192933936,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212878713,
+          "type": "acceleration",
+          "value": 7.93477673090574,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212880713,
+          "type": "acceleration",
+          "value": 5.372278467644701,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212882722,
+          "type": "acceleration",
+          "value": 4.9392039787995135,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212884722,
+          "type": "acceleration",
+          "value": 4.755079044241491,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212886723,
+          "type": "acceleration",
+          "value": 5.3202534395479075,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590212888723,
+          "type": "acceleration",
+          "value": 4.943754382896248,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590213149380,
+          "type": "acceleration",
+          "value": 5.379993384046585,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590213161886,
+          "type": "acceleration",
+          "value": 3.574731889487527,
+          "threshold": 2.5,
+          "quality": 0.8367395572659841
+        },
+        {
+          "timestamp": 1590213170635,
+          "type": "acceleration",
+          "value": 4.757992127582256,
+          "threshold": 2.5,
+          "quality": 0.9474949041598447
+        },
+        {
+          "timestamp": 1590213230692,
+          "type": "acceleration",
+          "value": 5.3636671451106555,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590213263540,
+          "type": "acceleration",
+          "value": 5.3636671451106555,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590213762764,
+          "type": "acceleration",
+          "value": 5.3636671451106555,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590213864823,
+          "type": "acceleration",
+          "value": 5.3636671451106555,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590214363382,
+          "type": "acceleration",
+          "value": 5.3636671451106555,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590214430848,
+          "type": "acceleration",
+          "value": 5.3636671451106555,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590214809980,
+          "type": "acceleration",
+          "value": 5.3636671451106555,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590214812123,
+          "type": "braking",
+          "value": -2.532182601576055,
+          "threshold": -2.5,
+          "quality": 1
+        }
+      ],
+      "totalViolations": 45,
+      "violationRate": 1.3154638130521294,
+      "averageQuality": 0.9986170698556195,
+      "lowQualityPercentage": 0.048495664487594806,
+      "samplesProcessed": 103102,
+      "samplesSkipped": 50,
+      "configName": "Original - Lowered Thresholds",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 2.5,
+        "brakingThreshold": -2.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-2S",
+      "behaviorType": "safe",
+      "duration": 2143069,
+      "totalSamples": 106308,
+      "calibrationTime": 1489,
+      "calibrationSuccess": true,
+      "violations": [
+        {
+          "timestamp": 1590299581543,
+          "type": "acceleration",
+          "value": 7.986961448320106,
+          "threshold": 2.5,
+          "quality": 0.610249475047447
+        },
+        {
+          "timestamp": 1590299583543,
+          "type": "acceleration",
+          "value": 5.204555929266705,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299585543,
+          "type": "acceleration",
+          "value": 5.212266084348366,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299587544,
+          "type": "acceleration",
+          "value": 5.220114233717864,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299589544,
+          "type": "acceleration",
+          "value": 5.157310102160479,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299591553,
+          "type": "acceleration",
+          "value": 5.221093792530826,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299593553,
+          "type": "acceleration",
+          "value": 5.227524150288232,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299653954,
+          "type": "acceleration",
+          "value": 5.275430422174212,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299655963,
+          "type": "acceleration",
+          "value": 5.303424188575492,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299657964,
+          "type": "acceleration",
+          "value": 5.019506236721408,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299659974,
+          "type": "acceleration",
+          "value": 4.073563178857881,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299661984,
+          "type": "acceleration",
+          "value": 5.006206104005954,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299663993,
+          "type": "acceleration",
+          "value": 4.656844645746204,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299665994,
+          "type": "braking",
+          "value": -5.728486998409875,
+          "threshold": -2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299668003,
+          "type": "braking",
+          "value": -4.531351800306108,
+          "threshold": -2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299670003,
+          "type": "acceleration",
+          "value": 3.770376842694804,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299672003,
+          "type": "acceleration",
+          "value": 3.98582459330355,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299674004,
+          "type": "acceleration",
+          "value": 5.525033941516037,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299676014,
+          "type": "acceleration",
+          "value": 4.511583517737689,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299678014,
+          "type": "braking",
+          "value": -3.5079854500721876,
+          "threshold": -2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299680014,
+          "type": "acceleration",
+          "value": 3.526823640227306,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299682014,
+          "type": "acceleration",
+          "value": 3.51187429171058,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299684024,
+          "type": "acceleration",
+          "value": 4.197671545948674,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299686034,
+          "type": "acceleration",
+          "value": 5.787028452755928,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299688043,
+          "type": "acceleration",
+          "value": 5.811107576548322,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299690044,
+          "type": "acceleration",
+          "value": 5.206057354553295,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299692053,
+          "type": "acceleration",
+          "value": 5.273446536978011,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299694054,
+          "type": "acceleration",
+          "value": 4.39909978878465,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299696064,
+          "type": "acceleration",
+          "value": 3.18743633514534,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299698073,
+          "type": "acceleration",
+          "value": 3.404309370324494,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590299700073,
+          "type": "acceleration",
+          "value": 3.2626761212897324,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590300063435,
+          "type": "acceleration",
+          "value": 5.077444051322845,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590300070124,
+          "type": "acceleration",
+          "value": 5.077444051322845,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590300375796,
+          "type": "acceleration",
+          "value": 5.077444051322845,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590300522789,
+          "type": "acceleration",
+          "value": 5.077444051322845,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590300788756,
+          "type": "acceleration",
+          "value": 5.077444051322845,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590301135187,
+          "type": "acceleration",
+          "value": 5.077444051322845,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590301577149,
+          "type": "acceleration",
+          "value": 5.077444051322845,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590301718364,
+          "type": "acceleration",
+          "value": 5.077444051322845,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590301720373,
+          "type": "acceleration",
+          "value": 4.80534609519938,
+          "threshold": 2.5,
+          "quality": 1
+        },
+        {
+          "timestamp": 1590301722373,
+          "type": "acceleration",
+          "value": 3.9997169856292087,
+          "threshold": 2.5,
+          "quality": 1
+        }
+      ],
+      "totalViolations": 41,
+      "violationRate": 1.1478865122868187,
+      "averageQuality": 0.9997677333344102,
+      "lowQualityPercentage": 0.013187889749241696,
+      "samplesProcessed": 106158,
+      "samplesSkipped": 14,
+      "configName": "Original - Lowered Thresholds",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 2.5,
+        "brakingThreshold": -2.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-3R",
+      "behaviorType": "risky",
+      "duration": 4617,
+      "totalSamples": 463,
+      "calibrationTime": 1487,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9984864081898092,
+      "lowQualityPercentage": 0,
+      "samplesProcessed": 313,
+      "samplesSkipped": 0,
+      "configName": "Original - Lowered Thresholds",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 2.5,
+        "brakingThreshold": -2.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-3S",
+      "behaviorType": "safe",
+      "duration": 2040500,
+      "totalSamples": 102051,
+      "calibrationTime": 1490,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9987800389985181,
+      "lowQualityPercentage": 0.04317916409063699,
+      "samplesProcessed": 101901,
+      "samplesSkipped": 44,
+      "configName": "Original - Lowered Thresholds",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 2.5,
+        "brakingThreshold": -2.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-4R",
+      "behaviorType": "risky",
+      "duration": 1536590,
+      "totalSamples": 75660,
+      "calibrationTime": 1490,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9980438587764384,
+      "lowQualityPercentage": 0.033108197589723214,
+      "samplesProcessed": 75510,
+      "samplesSkipped": 25,
+      "configName": "Original - Lowered Thresholds",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 2.5,
+        "brakingThreshold": -2.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-4S",
+      "behaviorType": "safe",
+      "duration": 1955749,
+      "totalSamples": 99576,
+      "calibrationTime": 1489,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9987841933102972,
+      "lowQualityPercentage": 0.08347917043831593,
+      "samplesProcessed": 99426,
+      "samplesSkipped": 83,
+      "configName": "Original - Lowered Thresholds",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 2.5,
+        "brakingThreshold": -2.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-5S",
+      "behaviorType": "safe",
+      "duration": 2252110,
+      "totalSamples": 111212,
+      "calibrationTime": 1490,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9996523292743321,
+      "lowQualityPercentage": 0.03241432713259261,
+      "samplesProcessed": 111062,
+      "samplesSkipped": 36,
+      "configName": "Original - Lowered Thresholds",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 2.5,
+        "brakingThreshold": -2.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-6S",
+      "behaviorType": "safe",
+      "duration": 2148839,
+      "totalSamples": 106885,
+      "calibrationTime": 1489,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.9998749404982714,
+      "lowQualityPercentage": 0.007495198388532347,
+      "samplesProcessed": 106735,
+      "samplesSkipped": 8,
+      "configName": "Original - Lowered Thresholds",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 2.5,
+        "brakingThreshold": -2.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    },
+    {
+      "sessionName": "Day-7S",
+      "behaviorType": "safe",
+      "duration": 2019807,
+      "totalSamples": 99982,
+      "calibrationTime": 1487,
+      "calibrationSuccess": true,
+      "violations": [],
+      "totalViolations": 0,
+      "violationRate": 0,
+      "averageQuality": 0.989052394423162,
+      "lowQualityPercentage": 0.03706226460453562,
+      "samplesProcessed": 99832,
+      "samplesSkipped": 37,
+      "configName": "Original - Lowered Thresholds",
+      "algorithmType": "original",
+      "config": {
+        "accelerationThreshold": 2.5,
+        "brakingThreshold": -2.5,
+        "qualityThreshold": 0.6,
+        "enableFiltering": true
+      }
+    }
+  ],
+  "comparison": [
+    {
+      "algorithm": "Enhanced",
+      "configuration": "Enhanced - Adaptive Balanced",
+      "metrics": {
+        "accuracy": 0.7,
+        "precision": 0.5,
+        "recall": 0.3333333333333333,
+        "falsePositiveRate": 0.14285714285714285,
+        "avgDataQuality": 0.8995847764080412,
+        "calibrationSuccessRate": 1,
+        "violationRateDifference": 0.2489598173377667,
+        "truePositives": 1,
+        "falsePositives": 1,
+        "trueNegatives": 6,
+        "falseNegatives": 2,
+        "totalSessions": 10,
+        "safeSessions": 7,
+        "riskySessions": 3,
+        "avgViolationRateSafe": 0.24415234994266724,
+        "avgViolationRateRisky": 0.49311216728043394,
+        "dynamicThreshold": 0.5,
+        "f1Score": 0.4
+      }
+    },
+    {
+      "algorithm": "Enhanced",
+      "configuration": "Enhanced - Adaptive Sensitive",
+      "metrics": {
+        "accuracy": 0.7,
+        "precision": 0.5,
+        "recall": 0.3333333333333333,
+        "falsePositiveRate": 0.14285714285714285,
+        "avgDataQuality": 0.8995847764080412,
+        "calibrationSuccessRate": 1,
+        "violationRateDifference": 0.255378608475849,
+        "truePositives": 1,
+        "falsePositives": 1,
+        "trueNegatives": 6,
+        "falseNegatives": 2,
+        "totalSessions": 10,
+        "safeSessions": 7,
+        "riskySessions": 3,
+        "avgViolationRateSafe": 0.26920880352461257,
+        "avgViolationRateRisky": 0.5245874120004616,
+        "dynamicThreshold": 0.5,
+        "f1Score": 0.4
+      }
+    },
+    {
+      "algorithm": "Enhanced",
+      "configuration": "Enhanced - Fixed Improved",
+      "metrics": {
+        "accuracy": 0.6,
+        "precision": 0.3333333333333333,
+        "recall": 0.3333333333333333,
+        "falsePositiveRate": 0.2857142857142857,
+        "avgDataQuality": 0.8995847764080412,
+        "calibrationSuccessRate": 1,
+        "violationRateDifference": -0.026661172063631833,
+        "truePositives": 1,
+        "falsePositives": 2,
+        "trueNegatives": 5,
+        "falseNegatives": 2,
+        "totalSessions": 10,
+        "safeSessions": 7,
+        "riskySessions": 3,
+        "avgViolationRateSafe": 0.5197733393440658,
+        "avgViolationRateRisky": 0.49311216728043394,
+        "dynamicThreshold": 0.5117749877249762,
+        "f1Score": 0.3333333333333333
+      }
+    },
+    {
+      "algorithm": "Original",
+      "configuration": "Original - Default",
+      "metrics": {
+        "accuracy": 0.7,
+        "precision": 0,
+        "recall": 0,
+        "falsePositiveRate": 0,
+        "avgDataQuality": 0.9980927629132893,
+        "calibrationSuccessRate": 1,
+        "violationRateDifference": -0.04291487939805756,
+        "truePositives": 0,
+        "falsePositives": 0,
+        "trueNegatives": 7,
+        "falseNegatives": 3,
+        "totalSessions": 10,
+        "safeSessions": 7,
+        "riskySessions": 3,
+        "avgViolationRateSafe": 0.05340662763806679,
+        "avgViolationRateRisky": 0.010491748240009232,
+        "f1Score": 0
+      }
+    },
+    {
+      "algorithm": "Original",
+      "configuration": "Original - Lowered Thresholds",
+      "metrics": {
+        "accuracy": 0.7,
+        "precision": 0,
+        "recall": 0,
+        "falsePositiveRate": 0,
+        "avgDataQuality": 0.9980927629132893,
+        "calibrationSuccessRate": 1,
+        "violationRateDifference": -0.016171245653839983,
+        "truePositives": 0,
+        "falsePositives": 0,
+        "trueNegatives": 7,
+        "falseNegatives": 3,
+        "totalSessions": 10,
+        "safeSessions": 7,
+        "riskySessions": 3,
+        "avgViolationRateSafe": 0.3519071893341354,
+        "avgViolationRateRisky": 0.3357359436802954,
+        "f1Score": 0
+      }
+    }
+  ]
+}

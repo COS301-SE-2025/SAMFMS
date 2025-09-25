@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Clock, 
-  MapPin, 
-  User, 
-  Truck, 
-  CheckCircle, 
-  XCircle, 
-  RefreshCw, 
+import React, {useState, useEffect, useCallback} from 'react';
+import {
+  Clock,
+  MapPin,
+  User,
+  Truck,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
   Calendar,
   Route,
   Zap,
@@ -17,9 +17,9 @@ import {
 } from 'lucide-react';
 
 // Expected backend API functions (to be implemented):
-import { getSmartTripSuggestions, acceptSmartTripSuggestion, declineSmartTripSuggestion } from '../../backend/api/trips';
+import {getSmartTripSuggestions, acceptSmartTripSuggestion, declineSmartTripSuggestion} from '../../backend/api/trips';
 
-const SmartTripSuggestions = ({ onAccept, onDecline, onRefresh }) => {
+const SmartTripSuggestions = ({onAccept, onDecline, onRefresh}) => {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processingIds, setProcessingIds] = useState(new Set());
@@ -29,14 +29,14 @@ const SmartTripSuggestions = ({ onAccept, onDecline, onRefresh }) => {
   const fetchSmartSuggestions = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // TODO: Replace with actual API endpoint
       const response = await getSmartTripSuggestions();
       console.log("Received smart trips in smarttripsuggestions.jsx: ", response)
 
       setSuggestions(response.data.data.data || []);
-      
+
     } catch (error) {
       console.error('Error fetching smart trip suggestions:', error);
       setError('Failed to load smart trip suggestions');
@@ -53,16 +53,16 @@ const SmartTripSuggestions = ({ onAccept, onDecline, onRefresh }) => {
   // Handle accepting a suggestion
   const handleAccept = async (suggestionId) => {
     setProcessingIds(prev => new Set([...prev, suggestionId]));
-    
+
     try {
       const respone = await acceptSmartTripSuggestion(suggestionId);
       console.log("Response for accepting smart trip: ", respone)
-      
+
       console.log('Accepting suggestion:', suggestionId);
-      
+
       // Remove accepted suggestion from list
       setSuggestions(prev => prev.filter(s => s.id !== suggestionId));
-      
+
       if (onAccept) {
         onAccept(suggestionId);
       }
@@ -81,16 +81,16 @@ const SmartTripSuggestions = ({ onAccept, onDecline, onRefresh }) => {
   // Handle declining a suggestion
   const handleDecline = async (suggestionId) => {
     setProcessingIds(prev => new Set([...prev, suggestionId]));
-    
+
     try {
       const response = await declineSmartTripSuggestion(suggestionId);
       console.log("Response for declining suggestion: ", response)
-      
+
       console.log('Declining suggestion:', suggestionId);
-      
+
       // Remove declined suggestion from list
       setSuggestions(prev => prev.filter(s => s.id !== suggestionId));
-      
+
       if (onDecline) {
         onDecline(suggestionId);
       }
@@ -136,12 +136,12 @@ const SmartTripSuggestions = ({ onAccept, onDecline, onRefresh }) => {
       const optimized = new Date(optimizedTime);
       const diffMs = original.getTime() - optimized.getTime();
       const diffHours = Math.abs(diffMs) / (1000 * 60 * 60);
-      
+
       if (diffHours < 1) {
         const diffMinutes = Math.abs(diffMs) / (1000 * 60);
         return `${Math.round(diffMinutes)}m ${diffMs > 0 ? 'earlier' : 'later'}`;
       }
-      
+
       return `${diffHours.toFixed(1)}h ${diffMs > 0 ? 'earlier' : 'later'}`;
     } catch {
       return 'Time calculation error';
@@ -151,18 +151,18 @@ const SmartTripSuggestions = ({ onAccept, onDecline, onRefresh }) => {
   // Loading state
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div style={{backgroundColor: '#070c1e'}} className="rounded-lg shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Brain className="h-5 w-5 text-blue-600" />
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Brain className="h-5 w-5 text-blue-400" />
             Smart Trip Suggestions
           </h3>
           <RefreshCw className="h-5 w-5 text-gray-400 animate-spin" />
         </div>
         <div className="flex items-center justify-center py-8">
           <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-2 text-sm text-gray-600">Loading smart suggestions...</p>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+            <p className="mt-2 text-sm text-gray-300">Loading smart suggestions...</p>
           </div>
         </div>
       </div>
@@ -172,15 +172,15 @@ const SmartTripSuggestions = ({ onAccept, onDecline, onRefresh }) => {
   // Error state
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div style={{backgroundColor: '#070c1e'}} className="rounded-lg shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Brain className="h-5 w-5 text-blue-600" />
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Brain className="h-5 w-5 text-blue-400" />
             Smart Trip Suggestions
           </h3>
           <button
             onClick={handleRefresh}
-            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-200 transition-colors"
             title="Refresh suggestions"
           >
             <RefreshCw className="h-5 w-5" />
@@ -189,10 +189,10 @@ const SmartTripSuggestions = ({ onAccept, onDecline, onRefresh }) => {
         <div className="flex items-center justify-center py-8">
           <div className="text-center">
             <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-            <p className="text-sm text-gray-600">{error}</p>
+            <p className="text-sm text-gray-300">{error}</p>
             <button
               onClick={handleRefresh}
-              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition-colors text-sm"
             >
               Try Again
             </button>
@@ -204,15 +204,15 @@ const SmartTripSuggestions = ({ onAccept, onDecline, onRefresh }) => {
 
   // Main component render
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div style={{backgroundColor: '#070c1e'}} className="rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <Brain className="h-5 w-5 text-blue-600" />
+        <h1 className="text-lg font-semibold text-white flex items-center gap-2">
+          <Brain className="h-5 w-5 text-blue-400" />
           Smart Trip Suggestions
-        </h3>
+        </h1>
         <button
           onClick={handleRefresh}
-          className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+          className="p-2 text-gray-400 hover:text-gray-200 transition-colors"
           title="Refresh suggestions"
         >
           <RefreshCw className="h-5 w-5" />
@@ -222,8 +222,8 @@ const SmartTripSuggestions = ({ onAccept, onDecline, onRefresh }) => {
       {suggestions.length === 0 ? (
         // Empty state
         <div className="text-center py-8">
-          <Zap className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500 text-sm">
+          <Zap className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+          <p className="text-gray-300 text-sm">
             No smart trip suggestions available at the moment.
           </p>
           <p className="text-gray-400 text-xs mt-1">
@@ -251,73 +251,78 @@ const SmartTripSuggestions = ({ onAccept, onDecline, onRefresh }) => {
 };
 
 // Separate component for each suggestion card
-const SuggestionCard = ({ 
-  suggestion, 
-  isProcessing, 
-  onAccept, 
-  onDecline, 
-  formatDateTime, 
-  getTimeDifference 
+const SuggestionCard = ({
+  suggestion,
+  isProcessing,
+  onAccept,
+  onDecline,
+  formatDateTime,
+  getTimeDifference
 }) => {
   return (
-    <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all duration-200">
+    <div className="border border-gray-600 rounded-lg p-4 hover:shadow-lg transition-all duration-200" style={{backgroundColor: '#0a1027'}}>
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
-        <div>
-          <h4 className="font-medium text-gray-900">{suggestion.trip_name || 'Unnamed Trip'}</h4>
-          <p className="text-sm text-gray-500">Trip ID: {suggestion.trip_id}</p>
-        </div>
-        <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-          <TrendingUp className="h-3 w-3" />
-          {suggestion.confidence}% confidence
+        <div className="flex items-center gap-3">
+          <h2 className="font-medium text-white">{suggestion.trip_name || 'Unnamed Trip'}</h2>
+          <div className="flex items-center gap-1 px-2 py-1 bg-blue-600/20 text-blue-300 rounded-full text-xs font-medium border border-blue-500/30">
+            <TrendingUp className="h-3 w-3" />
+            {suggestion.confidence}% confidence
+          </div>
         </div>
       </div>
 
       {/* Route Information */}
       <div className="mb-4">
-        <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-          <Route className="h-4 w-4" />
-          <span className="font-medium">Route Details</span>
+        <div className="flex items-center gap-2 text-sm text-gray-300 mb-2">
+          <h3 className="font-medium flex items-center gap-3"><Route className="h-4 w-4" />Route Details</h3>
         </div>
         <div className="ml-6">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-3 w-3 text-green-500" />
-              <span className="text-gray-700">{suggestion.route.origin?.name || 'Origin'}</span>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            {/* First Column - Origin and Destination */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-green-400 flex-shrink-0" />
+                <span className="text-gray-200">{suggestion.route.origin?.name || 'Origin'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-red-400 flex-shrink-0" />
+                <span className="text-gray-200">{suggestion.route.destination?.name || 'Destination'}</span>
+              </div>
             </div>
-            <ArrowRight className="h-4 w-4 text-gray-400" />
-            <div className="flex items-center gap-2">
-              <MapPin className="h-3 w-3 text-red-500" />
-              <span className="text-gray-700">{suggestion.route.destination?.name || 'Destination'}</span>
+
+            {/* Second Column - Distance and Duration */}
+            <div className="space-y-2">
+              <div className="text-gray-300">
+                <span className="font-medium">Distance:</span> {suggestion.route.estimated_distance ? `${suggestion.route.estimated_distance.toFixed(1)} km` : 'N/A'}
+              </div>
+              <div className="text-gray-300">
+                <span className="font-medium">Duration:</span> {suggestion.route.estimated_duration ? `${Math.round(suggestion.route.estimated_duration)} min` : 'N/A'}
+              </div>
             </div>
           </div>
-          
+
           {suggestion.route.waypoints && suggestion.route.waypoints.length > 0 && (
-            <div className="mt-2 pl-4">
-              <p className="text-xs text-gray-500 mb-1">Waypoints:</p>
+            <div className="mt-3 pl-4">
+              <p className="text-xs text-gray-400 mb-1">Waypoints:</p>
               <div className="flex flex-wrap gap-1">
                 {suggestion.route.waypoints.map((waypoint, idx) => (
-                  <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                  <span key={idx} className="text-xs bg-gray-700/50 text-gray-300 px-2 py-1 rounded border border-gray-600">
                     {waypoint?.name || `Waypoint ${idx + 1}`}
                   </span>
                 ))}
               </div>
             </div>
           )}
-          
-          <div className="flex gap-4 mt-2 text-xs text-gray-500">
-            <span>Distance: {suggestion.route.estimated_distance ? `${suggestion.route.estimated_distance.toFixed(1)} km` : 'N/A'}</span>
-            <span>Duration: {suggestion.route.estimated_duration ? `${Math.round(suggestion.route.estimated_duration)} min` : 'N/A'}</span>
-          </div>
         </div>
       </div>
 
       {/* Schedule Comparison */}
       <div className="grid md:grid-cols-2 gap-4 mb-4">
         {/* Original Schedule */}
-        <div className="bg-gray-50 border-l-4 border-gray-400 p-3 rounded">
-          <h5 className="text-sm font-medium text-gray-700 mb-2">Current Schedule</h5>
-          <div className="space-y-1 text-sm text-gray-600">
+        <div className="bg-gray-800/50 border-l-4 border-gray-500 p-3 rounded border border-gray-600/50">
+          <h5 className="text-sm font-medium text-gray-200 mb-2">Current Schedule</h5>
+          <div className="space-y-1 text-sm text-gray-300">
             <div className="flex items-center gap-2">
               <Calendar className="h-3 w-3" />
               <span>Start: {formatDateTime(suggestion.original_schedule.start_time)}</span>
@@ -338,33 +343,33 @@ const SuggestionCard = ({
         </div>
 
         {/* Optimized Schedule */}
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
-          <h5 className="text-sm font-medium text-blue-700 mb-2 flex items-center gap-1">
+        <div className="bg-blue-900/30 border-l-4 border-blue-400 p-3 rounded border border-blue-500/30">
+          <h5 className="text-sm font-medium text-blue-300 mb-2 flex items-center gap-1">
             <Brain className="h-3 w-3" />
             AI Optimized
           </h5>
-          <div className="space-y-1 text-sm text-gray-600">
+          <div className="space-y-1 text-sm text-gray-300">
             <div className="flex items-center gap-2">
               <Calendar className="h-3 w-3" />
               <span>Start: {formatDateTime(suggestion.optimized_schedule.start_time)}</span>
-              <span className="text-xs text-blue-600 font-medium bg-blue-100 px-1 py-0.5 rounded">
+              <span className="text-xs text-blue-300 font-medium bg-blue-600/20 px-1 py-0.5 rounded border border-blue-500/30">
                 {getTimeDifference(suggestion.original_schedule.start_time, suggestion.optimized_schedule.start_time)}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-3 w-3" />
               <span>End: {formatDateTime(suggestion.optimized_schedule.end_time)}</span>
-              <span className="text-xs text-blue-600 font-medium bg-blue-100 px-1 py-0.5 rounded">
+              <span className="text-xs text-blue-300 font-medium bg-blue-600/20 px-1 py-0.5 rounded border border-blue-500/30">
                 {getTimeDifference(suggestion.original_schedule.end_time, suggestion.optimized_schedule.end_time)}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Truck className="h-3 w-3" />
-              <span className="font-medium text-blue-700">{suggestion.optimized_schedule.vehicle_name || 'Vehicle TBD'}</span>
+              <span className="font-medium text-blue-200">{suggestion.optimized_schedule.vehicle_name || 'Vehicle TBD'}</span>
             </div>
             <div className="flex items-center gap-2">
               <User className="h-3 w-3" />
-              <span className="font-medium text-blue-700">{suggestion.optimized_schedule.driver_name || 'Driver TBD'}</span>
+              <span className="font-medium text-blue-200">{suggestion.optimized_schedule.driver_name || 'Driver TBD'}</span>
             </div>
           </div>
         </div>
@@ -373,25 +378,25 @@ const SuggestionCard = ({
       {/* Benefits */}
       {suggestion.benefits && (
         <div className="mb-4">
-          <h5 className="text-sm font-medium text-gray-700 mb-2">Expected Benefits</h5>
+          <h5 className="text-sm font-medium text-gray-200 mb-2">Expected Benefits</h5>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {suggestion.benefits.time_saved && (
-              <div className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">
+              <div className="bg-green-600/20 text-green-300 px-2 py-1 rounded text-xs font-medium border border-green-500/30">
                 ⏰ {suggestion.benefits.time_saved}
               </div>
             )}
             {suggestion.benefits.fuel_efficiency && (
-              <div className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-medium">
+              <div className="bg-blue-600/20 text-blue-300 px-2 py-1 rounded text-xs font-medium border border-blue-500/30">
                 ⛽ {suggestion.benefits.fuel_efficiency}
               </div>
             )}
             {suggestion.benefits.route_optimization && (
-              <div className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-medium">
+              <div className="bg-purple-600/20 text-purple-300 px-2 py-1 rounded text-xs font-medium border border-purple-500/30">
                 🗺️ {suggestion.benefits.route_optimization}
               </div>
             )}
             {suggestion.benefits.driver_utilization && (
-              <div className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-medium">
+              <div className="bg-orange-600/20 text-orange-300 px-2 py-1 rounded text-xs font-medium border border-orange-500/30">
                 👤 {suggestion.benefits.driver_utilization}
               </div>
             )}
@@ -402,12 +407,12 @@ const SuggestionCard = ({
       {/* AI Reasoning */}
       {suggestion.reasoning && suggestion.reasoning.length > 0 && (
         <div className="mb-4">
-          <h5 className="text-sm font-medium text-gray-700 mb-2">Why This Suggestion?</h5>
-          <div className="bg-gray-50 rounded p-3">
-            <ul className="text-xs text-gray-600 space-y-1">
+          <h5 className="text-sm font-medium text-gray-200 mb-2">Why This Suggestion?</h5>
+          <div className="bg-gray-800/50 rounded p-3 border border-gray-600/50">
+            <ul className="text-xs text-gray-300 space-y-1">
               {suggestion.reasoning.map((reason, idx) => (
                 <li key={idx} className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                  <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-1.5 flex-shrink-0"></div>
                   <span>{reason}</span>
                 </li>
               ))}
@@ -417,11 +422,11 @@ const SuggestionCard = ({
       )}
 
       {/* Action Buttons */}
-      <div className="flex gap-2 pt-3 border-t border-gray-100">
+      <div className="flex gap-2 pt-3 border-t border-gray-600">
         <button
           onClick={onAccept}
           disabled={isProcessing}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
         >
           {isProcessing ? (
             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -433,7 +438,7 @@ const SuggestionCard = ({
         <button
           onClick={onDecline}
           disabled={isProcessing}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
         >
           {isProcessing ? (
             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

@@ -85,15 +85,9 @@ const MaintenanceRecords = ({vehicles}) => {
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [showVehicleSearch, setShowVehicleSearch] = useState(false);
 
-  const [filters, setFilters] = useState({
-    page: 1,
-    size: 10,
-  });
-  const [pagination, setPagination] = useState({
-    total: 0,
-    pages: 0,
-    current_page: 1,
-  });
+  // Simple pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const [formData, setFormData] = useState({
     vehicle_id: '',
@@ -134,7 +128,14 @@ const MaintenanceRecords = ({vehicles}) => {
 
   useEffect(() => {
     loadRecords();
-  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset to page 1 when sorting or grouping changes
+  useEffect(() => {
+    if (sorting.field || grouping.field) {
+      setCurrentPage(1);
+    }
+  }, [sorting.field, grouping.field]);
 
   // Debug vehicles prop
   useEffect(() => {
@@ -150,24 +151,10 @@ const MaintenanceRecords = ({vehicles}) => {
       setLoading(true);
       setError(null);
 
-      // Calculate skip for pagination
-      const skip = (filters.page - 1) * filters.size;
+      console.log('Loading all maintenance records...');
 
-      // Build query parameters matching the API
-      const params = {
-        skip,
-        limit: filters.size,
-      };
-
-      console.log('API Request Parameters:', params);
-
-      // Call the API without filters - we'll handle filtering/sorting client-side
-      const response = await maintenanceAPI.getMaintenanceRecords(
-        null, // vehicleId
-        null, // status
-        filters.page,
-        filters.size
-      );
+      // Call the API to get all records (no pagination at API level)
+      const response = await maintenanceAPI.getMaintenanceRecords();
 
       console.log('Maintenance Records API Response:', response);
 
@@ -177,15 +164,9 @@ const MaintenanceRecords = ({vehicles}) => {
       const records = innerData.maintenance_records || innerData.records || innerData || [];
 
       console.log('Extracted records:', records);
-      console.log('Total from API:', innerData.total);
+      console.log('Total records loaded:', records.length);
 
       setRecords(records);
-      setPagination({
-        total: innerData.total || 0,
-        pages: Math.ceil((innerData.total || 0) / filters.size),
-        current_page: filters.page || 1,
-        has_more: innerData.has_more || false,
-      });
     } catch (err) {
       console.error('Error loading maintenance records:', err);
       setError('Failed to load maintenance records. Please try again.');
@@ -243,15 +224,33 @@ const MaintenanceRecords = ({vehicles}) => {
   // Vehicle search function
   const handleVehicleSearch = (searchTerm) => {
     setVehicleSearch(searchTerm);
+    // Reset to first page when searching
+    setCurrentPage(1);
   };
 
-  // Get processed records (sorted, grouped, or filtered)
-  const getProcessedRecords = () => {
-    let processedRecords = [...records];
+  // Simple pagination functions
+  const handlePageSizeChange = (newSize) => {
+    const newSizeNum = Number(newSize);
+    setPageSize(newSizeNum);
+    setCurrentPage(1); // Reset to first page when changing page size
+  };
+
+  const handlePageChange = (newPage) => {
+    const totalRecords = getFilteredRecords().length;
+    const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  // Get records with search and sort filters applied
+  const getFilteredRecords = () => {
+    let filteredRecords = [...records];
 
     // Apply vehicle search filter
     if (vehicleSearch.trim()) {
-      processedRecords = processedRecords.filter(record => {
+      filteredRecords = filteredRecords.filter(record => {
         const vehicleName = getVehicleName(record.vehicle_id).toLowerCase();
         return vehicleName.includes(vehicleSearch.toLowerCase());
       });
@@ -259,7 +258,7 @@ const MaintenanceRecords = ({vehicles}) => {
 
     // Apply sorting if not grouping
     if (sorting.field && !grouping.field) {
-      processedRecords.sort((a, b) => {
+      filteredRecords.sort((a, b) => {
         let aValue, bValue;
 
         switch (sorting.field) {
@@ -286,7 +285,49 @@ const MaintenanceRecords = ({vehicles}) => {
       });
     }
 
-    return processedRecords;
+    return filteredRecords;
+  };
+
+  // Get paginated records for display
+  const getPaginatedRecords = () => {
+    const filteredRecords = getFilteredRecords();
+
+    // If grouping is active, handle it separately
+    if (grouping.field) {
+      return filteredRecords; // Don't paginate when grouping
+    }
+
+    // Apply pagination
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+
+    console.log('Simple Pagination:', {
+      totalRecords: filteredRecords.length,
+      currentPage,
+      pageSize,
+      startIndex,
+      endIndex,
+      resultCount: filteredRecords.slice(startIndex, endIndex).length
+    });
+
+    return filteredRecords.slice(startIndex, endIndex);
+  };
+
+  // Calculate pagination info for current view  
+  const getPaginationInfo = () => {
+    const filteredRecords = getFilteredRecords();
+    const totalRecords = filteredRecords.length;
+    const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+    const startRecord = totalRecords > 0 ? Math.min((currentPage - 1) * pageSize + 1, totalRecords) : 0;
+    const endRecord = Math.min(currentPage * pageSize, totalRecords);
+
+    return {
+      total: totalRecords,
+      pages: totalPages,
+      current_page: Math.min(currentPage, totalPages),
+      startRecord,
+      endRecord
+    };
   };
 
   const handleSubmit = async e => {
@@ -444,28 +485,6 @@ const MaintenanceRecords = ({vehicles}) => {
     if (!vehicleId) return 'Unknown Vehicle';
 
     const vehicleIdStr = vehicleId.toString();
-
-    // Check if we have this vehicle in the fallback data first
-    const fallbackVehicle = vehicles?.find(v => {
-      const vId = v.id?.toString() || v._id?.toString();
-      return vId === vehicleIdStr;
-    });
-
-    if (fallbackVehicle) {
-      console.log(`Using fallback vehicle for ${vehicleIdStr}:`, fallbackVehicle);
-      return (
-        <div className="text-sm">
-          <div className="font-medium">
-            {fallbackVehicle.year && `${fallbackVehicle.year} `}
-            {fallbackVehicle.make && `${fallbackVehicle.make} `}
-            {fallbackVehicle.model || 'Vehicle'}
-          </div>
-          {fallbackVehicle.license_plate && (
-            <div className="text-xs text-muted-foreground">{fallbackVehicle.license_plate}</div>
-          )}
-        </div>
-      );
-    }
 
     // Return a component that will fetch and display vehicle details
     return (
@@ -759,9 +778,9 @@ const MaintenanceRecords = ({vehicles}) => {
                       </React.Fragment>
                     ))
                   ) : (
-                    // Regular display (sorted/filtered)
-                    getProcessedRecords().length > 0 ? (
-                      getProcessedRecords().map(record => (
+                    // Regular display (sorted/filtered) - use paginated records
+                    getPaginatedRecords().length > 0 ? (
+                      getPaginatedRecords().map(record => (
                         <tr key={record.id} className="border-b border-border hover:bg-accent/10">
                           <td className="py-3 px-4">
                             <div className="min-w-0">{getVehicleDisplay(record.vehicle_id)}</div>
@@ -846,84 +865,84 @@ const MaintenanceRecords = ({vehicles}) => {
               </table>
             </div>
 
-            {/* Pagination - Enhanced */}
-            {pagination.total > 0 && (
-              <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <select
-                    value={filters.size}
-                    onChange={e =>
-                      setFilters(prev => ({...prev, size: Number(e.target.value), page: 1}))
-                    }
-                    className="border border-border rounded-md bg-background py-1 pl-2 pr-8"
-                  >
-                    <option value="5">5 per page</option>
-                    <option value="10">10 per page</option>
-                    <option value="20">20 per page</option>
-                    <option value="50">50 per page</option>
-                  </select>
-                  <div className="text-sm text-muted-foreground">
-                    Showing {(filters.page - 1) * filters.size + 1} to{' '}
-                    {Math.min(filters.page * filters.size, pagination.total)} of {pagination.total}{' '}
-                    records
-                    {vehicleSearch && <span className="text-blue-600"> (filtered)</span>}
-                    {grouping.field && <span className="text-blue-600"> (grouped by {grouping.field})</span>}
-                    {sorting.field && <span className="text-blue-600"> (sorted by {sorting.field})</span>}
+            {/* Pagination Controls */}
+            {(() => {
+              const paginationInfo = getPaginationInfo();
+              return paginationInfo.total > 0 && !grouping.field && (
+                <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <select
+                      value={pageSize}
+                      onChange={e => handlePageSizeChange(e.target.value)}
+                      className="border border-border rounded-md bg-background py-1 pl-2 pr-8"
+                    >
+                      <option value="5">5 per page</option>
+                      <option value="10">10 per page</option>
+                      <option value="20">20 per page</option>
+                      <option value="50">50 per page</option>
+                    </select>
+                    <div className="text-sm text-muted-foreground">
+                      Showing {paginationInfo.startRecord} to{' '}
+                      {paginationInfo.endRecord} of {paginationInfo.total}{' '}
+                      records
+                      {vehicleSearch && <span className="text-blue-600"> (filtered)</span>}
+                      {sorting.field && <span className="text-blue-600"> (sorted by {sorting.field})</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      Page {paginationInfo.current_page} of {paginationInfo.pages}
+                    </span>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handlePageChange(1)}
+                        disabled={paginationInfo.current_page <= 1}
+                        className={`px-2 py-1 rounded text-sm ${paginationInfo.current_page <= 1
+                          ? 'text-muted-foreground cursor-not-allowed'
+                          : 'hover:bg-accent cursor-pointer'
+                          }`}
+                        title="First page"
+                      >
+                        First
+                      </button>
+                      <button
+                        onClick={() => handlePageChange(paginationInfo.current_page - 1)}
+                        disabled={paginationInfo.current_page <= 1}
+                        className={`p-1 rounded ${paginationInfo.current_page <= 1
+                          ? 'text-muted-foreground cursor-not-allowed'
+                          : 'hover:bg-accent cursor-pointer'
+                          }`}
+                        title="Previous page"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <button
+                        onClick={() => handlePageChange(paginationInfo.current_page + 1)}
+                        disabled={paginationInfo.current_page >= paginationInfo.pages}
+                        className={`p-1 rounded ${paginationInfo.current_page >= paginationInfo.pages
+                          ? 'text-muted-foreground cursor-not-allowed'
+                          : 'hover:bg-accent cursor-pointer'
+                          }`}
+                        title="Next page"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                      <button
+                        onClick={() => handlePageChange(paginationInfo.pages)}
+                        disabled={paginationInfo.current_page >= paginationInfo.pages}
+                        className={`px-2 py-1 rounded text-sm ${paginationInfo.current_page >= paginationInfo.pages
+                          ? 'text-muted-foreground cursor-not-allowed'
+                          : 'hover:bg-accent cursor-pointer'
+                          }`}
+                        title="Last page"
+                      >
+                        Last
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">
-                    Page {pagination.current_page} of {pagination.pages}
-                  </span>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => setFilters(prev => ({...prev, page: 1}))}
-                      disabled={pagination.current_page <= 1}
-                      className={`px-2 py-1 rounded text-sm ${pagination.current_page <= 1
-                          ? 'text-muted-foreground cursor-not-allowed'
-                          : 'hover:bg-accent'
-                        }`}
-                      title="First page"
-                    >
-                      First
-                    </button>
-                    <button
-                      onClick={() => setFilters(prev => ({...prev, page: prev.page - 1}))}
-                      disabled={pagination.current_page <= 1}
-                      className={`p-1 rounded ${pagination.current_page <= 1
-                          ? 'text-muted-foreground cursor-not-allowed'
-                          : 'hover:bg-accent'
-                        }`}
-                      title="Previous page"
-                    >
-                      <ChevronLeft size={18} />
-                    </button>
-                    <button
-                      onClick={() => setFilters(prev => ({...prev, page: prev.page + 1}))}
-                      disabled={pagination.current_page >= pagination.pages}
-                      className={`p-1 rounded ${pagination.current_page >= pagination.pages
-                          ? 'text-muted-foreground cursor-not-allowed'
-                          : 'hover:bg-accent'
-                        }`}
-                      title="Next page"
-                    >
-                      <ChevronRight size={18} />
-                    </button>
-                    <button
-                      onClick={() => setFilters(prev => ({...prev, page: pagination.pages}))}
-                      disabled={pagination.current_page >= pagination.pages}
-                      className={`px-2 py-1 rounded text-sm ${pagination.current_page >= pagination.pages
-                          ? 'text-muted-foreground cursor-not-allowed'
-                          : 'hover:bg-accent'
-                        }`}
-                      title="Last page"
-                    >
-                      Last
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </>
       )}

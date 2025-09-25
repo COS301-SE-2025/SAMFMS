@@ -1,5 +1,5 @@
-import { getToken } from '../backend/api/auth';
-import { getCookie, setCookie, deleteCookie } from '../lib/cookies';
+import {getToken} from '../backend/api/auth';
+import {getCookie, setCookie, deleteCookie} from '../lib/cookies';
 
 // Token refresh configuration
 const TOKEN_REFRESH_BUFFER = 2 * 60 * 1000; // 2 minutes before expiry
@@ -100,7 +100,7 @@ class TokenManager {
         // Dispatch custom event for other components to react
         window.dispatchEvent(
           new CustomEvent('tokenRefreshed', {
-            detail: { access_token: data.access_token },
+            detail: {access_token: data.access_token},
           })
         );
       } else {
@@ -141,12 +141,12 @@ class TokenManager {
     // Dispatch logout event
     window.dispatchEvent(
       new CustomEvent('authLogout', {
-        detail: { reason: 'token_refresh_failed' },
+        detail: {reason: 'token_refresh_failed'},
       })
     );
 
     // Redirect to login
-    window.location.href = '/login';
+    window.location.href = '/';
   }
 
   /**

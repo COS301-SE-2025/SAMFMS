@@ -6,6 +6,9 @@ from rabbitmq.producer import publish_message
 import logging
 import requests
 import os
+import aio_pika
+from .service_routing import SERVICE_BLOCKS
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -54,6 +57,9 @@ class CreateUserRequest(BaseModel):
     password: str
     phoneNo: Optional[str] = None
     details: Dict = {}
+
+class RemoveUser(BaseModel):
+    email: str = None
 
 @router.post("/login", response_model=TokenResponse)
 async def login(login_request: LoginRequest):
@@ -422,6 +428,57 @@ async def update_preferences(request: Request, data: PreferencesUpdateRequest):
         raise HTTPException(status_code=503, detail=f"Security service unavailable: {str(e)}")
     except Exception as e:
         logger.error(f"Error updating preferences: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    
+
+@router.post("/remove-user")
+async def remove_user(request: Request, data: RemoveUser):
+    """Remove user from system and store user in removed users"""
+    try:
+        # Get the token from the request
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        logger.info(f"Forwarding remove user to Security service: {SECURITY_URL}/auth/remove-user")
+        logger.info(f"Request data: {data.dict()}")
+        
+        # Forward the request to the Security service
+        response = requests.post(
+            f"{SECURITY_URL}/auth/remove-user",
+            headers={"Authorization": token},
+            json=data.dict(),
+            timeout=10
+        )
+        
+        logger.info(f"Security service response status: {response.status_code}")
+        
+        if response.status_code == 200:
+            
+            result = response.json()
+            logger.info(f"Security service response: {result}")
+
+            # Tell the rest of the system to remove the user
+            message = ({
+                "email": data.email
+            })
+            await publish_message(
+                        exchange_name="removed_user",
+                        exchange_type=aio_pika.ExchangeType.FANOUT,
+                        message=message
+                    )
+
+            return result
+        else:
+            error_response = response.json() if response.content else {"detail": "No response content"}
+            logger.error(f"Security service error response: {error_response}")
+            detail = error_response.get("detail", "Failed to delete user")
+            raise HTTPException(status_code=response.status_code, detail=detail)
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Security service unavailable: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error removing user: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
