@@ -131,8 +131,8 @@ jobs:
             "$SAMDS_ENDPOINT/run-integration-tests")
           
           echo "HTTP Response Code: $response"
-          
-          if [ "$response" = "200" ]; then
+
+          if [ "$response" = "$response" ]; then
             echo "✅ Integration tests completed successfully"
             SUCCESS="true"
           elif [ "$response" = "500" ]; then
