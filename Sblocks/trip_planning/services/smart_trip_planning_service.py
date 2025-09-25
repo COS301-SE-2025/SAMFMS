@@ -6,6 +6,8 @@ import requests
 import asyncio
 import traceback
 import aiohttp
+import math
+import random
 from math import radians, sin, cos, sqrt, atan2
 from bson import ObjectId
 from flexpolyline import decode
@@ -307,6 +309,260 @@ class SmartTripService:
         except Exception as e:
             logger.warning(f"TomTom Traffic API error: {e}")
             return {"live_traffic_delay": 0, "historical_traffic_delay": 0, "traffic_ratio": 1.0}
+        
+    
+    def _is_reasonable_distance(self, lat1: float, lng1: float, lat2: float, lng2: float) -> bool:
+        """Check if distance between two points is reasonable for routing"""
+        distance_km = self._haversine(lat1, lng1, lat2, lng2)
+        return 5 <= distance_km <= 2000  # Between 5km and 2000km
+    
+    def _generate_intermediate_waypoints(
+        self,
+        current_lat: float,
+        current_lng: float,
+        dest_lat: float,
+        dest_lng: float,
+        num_waypoints: int = 3
+    ) -> List[Tuple[float, float]]:
+        """Generate intermediate waypoints along the route for better alternatives"""
+        
+        waypoints = []
+        total_distance = self._haversine(current_lat, current_lng, dest_lat, dest_lng)
+        
+        # For very long routes (>500km), use fewer, more strategic waypoints
+        if total_distance > 500:
+            num_waypoints = min(2, num_waypoints)
+            deviation_factor = 0.05  # Smaller deviation for long routes
+        else:
+            deviation_factor = 0.15  # Larger deviation for shorter routes
+        
+        logger.info(f"Route distance: {total_distance:.1f}km, using {num_waypoints} waypoints with {deviation_factor*100:.1f}% deviation")
+        
+        # Generate waypoints at regular intervals along the route
+        for i in range(1, num_waypoints + 1):
+            progress = i / (num_waypoints + 1)  # 0.25, 0.5, 0.75 for 3 waypoints
+            
+            # Base waypoint along the direct line
+            base_lat = current_lat + (dest_lat - current_lat) * progress
+            base_lng = current_lng + (dest_lng - current_lng) * progress
+            
+            # Create perpendicular offset for route deviation
+            bearing = math.atan2(dest_lng - current_lng, dest_lat - current_lat)
+            perp_bearing = bearing + math.pi / 2  # 90 degrees offset
+            
+            # Multiple deviation strategies
+            strategies = [
+                (deviation_factor, "right"),
+                (-deviation_factor, "left"),
+                (deviation_factor * 0.5, "slight_right"),
+                (-deviation_factor * 0.5, "slight_left")
+            ]
+            
+            for deviation, direction in strategies[:2]:  # Only use 2 main strategies to avoid too many requests
+                offset_distance = total_distance * abs(deviation)
+                
+                # Convert offset to lat/lng (approximation)
+                lat_offset = math.cos(perp_bearing) * offset_distance / 111.0  # Rough conversion
+                lng_offset = math.sin(perp_bearing) * offset_distance / (111.0 * math.cos(math.radians(base_lat)))
+                
+                waypoint_lat = base_lat + lat_offset * (1 if deviation > 0 else -1)
+                waypoint_lng = base_lng + lng_offset * (1 if deviation > 0 else -1)
+                
+                # Validate the waypoint
+                if (self._is_reasonable_distance(current_lat, current_lng, waypoint_lat, waypoint_lng) and 
+                    self._is_reasonable_distance(waypoint_lat, waypoint_lng, dest_lat, dest_lng)):
+                    waypoints.append((waypoint_lat, waypoint_lng, f"intermediate_{direction}_{i}"))
+        
+        return waypoints
+    
+    def _generate_major_city_waypoints(
+        self,
+        current_lat: float,
+        current_lng: float,
+        dest_lat: float,
+        dest_lng: float
+    ) -> List[Tuple[float, float]]:
+        """Generate waypoints through major cities/towns that might provide alternative routes"""
+        
+        # Major South African cities and towns (lat, lng, name)
+        major_cities = [
+            (-26.2041, 28.0473, "johannesburg"),    # Johannesburg
+            (-25.7479, 28.2293, "pretoria"),        # Pretoria  
+            (-29.8587, 31.0218, "durban"),          # Durban
+            (-33.9249, 18.4241, "cape_town"),       # Cape Town
+            (-26.1596, 27.9467, "soweto"),          # Soweto
+            (-29.1216, 26.2147, "bloemfontein"),    # Bloemfontein
+            (-28.7282, 24.7499, "kimberley"),       # Kimberley
+            (-25.8740, 24.6768, "rustenburg"),      # Rustenburg
+            (-26.7056, 27.1007, "potchefstroom"),   # Potchefstroom
+        ]
+        
+        waypoints = []
+        route_distance = self._haversine(current_lat, current_lng, dest_lat, dest_lng)
+        
+        for city_lat, city_lng, city_name in major_cities:
+            # Check if city is reasonably positioned for a detour
+            dist_to_city = self._haversine(current_lat, current_lng, city_lat, city_lng)
+            city_to_dest = self._haversine(city_lat, city_lng, dest_lat, dest_lng)
+            
+            # Only consider cities that don't add too much extra distance
+            total_via_city = dist_to_city + city_to_dest
+            detour_ratio = total_via_city / route_distance
+            
+            if 1.1 <= detour_ratio <= 1.8:  # 10% to 80% detour acceptable
+                waypoints.append((city_lat, city_lng, f"via_{city_name}"))
+                logger.info(f"Added city waypoint: {city_name} (detour ratio: {detour_ratio:.2f})")
+        
+        return waypoints[:3]  # Limit to 3 city waypoints
+    
+    async def _get_route_via_waypoint_safe(
+        self,
+        start_lat: float, start_lng: float,
+        waypoint_lat: float, waypoint_lng: float,
+        dest_lat: float, dest_lng: float,
+        waypoint_name: str = "waypoint"
+    ) -> Optional[dict]:
+        """Safely get route via waypoint with better error handling"""
+        
+        try:
+            logger.info(f"Attempting route via {waypoint_name}: {waypoint_lat:.4f}, {waypoint_lng:.4f}")
+            
+            # Validate distances first
+            dist1 = self._haversine(start_lat, start_lng, waypoint_lat, waypoint_lng)
+            dist2 = self._haversine(waypoint_lat, waypoint_lng, dest_lat, dest_lng)
+            
+            if dist1 < 5 or dist2 < 5:  # Too close
+                logger.warning(f"Waypoint {waypoint_name} too close to start or destination")
+                return None
+            
+            if dist1 > 1000 or dist2 > 1000:  # Too far for intermediate waypoint
+                logger.warning(f"Waypoint {waypoint_name} too far from route")
+                return None
+            
+            # Try to get both legs of the route
+            leg1 = await self._get_ors_route(start_lat, start_lng, waypoint_lat, waypoint_lng)
+            if not leg1:
+                logger.warning(f"Failed to get route to waypoint {waypoint_name}")
+                return None
+            
+            leg2 = await self._get_ors_route(waypoint_lat, waypoint_lng, dest_lat, dest_lng)
+            if not leg2:
+                logger.warning(f"Failed to get route from waypoint {waypoint_name} to destination")
+                return None
+            
+            # Combine routes
+            combined_coords = leg1["coordinates"] + leg2["coordinates"][1:]
+            total_distance = leg1["distance"] + leg2["distance"]
+            total_duration = leg1["duration"] + leg2["duration"]
+            
+            route = {
+                "duration": total_duration,
+                "distance": total_distance,
+                "coordinates": combined_coords,
+                "bounds": self._calculate_bounds(combined_coords),
+                "waypoint": (waypoint_lat, waypoint_lng),
+                "waypoint_name": waypoint_name,
+                "elevation_gain": leg1.get("elevation_gain", 0) + leg2.get("elevation_gain", 0),
+                "tollCost": 0
+            }
+            
+            logger.info(f"Successfully created route via {waypoint_name}: "
+                       f"{total_distance/1000:.1f}km, {total_duration/60:.1f}min")
+            return route
+            
+        except Exception as e:
+            logger.warning(f"Error getting route via waypoint {waypoint_name}: {e}")
+            return None
+    
+    async def get_improved_alternative_routes(
+        self,
+        current_lat: float,
+        current_lng: float,
+        dest_lat: float,
+        dest_lng: float,
+        num_routes: int = 5
+    ) -> List[dict]:
+        """Generate improved alternative routes with better waypoint strategies"""
+        
+        logger.info(f"Generating improved alternative routes from ({current_lat:.4f}, {current_lng:.4f}) "
+                   f"to ({dest_lat:.4f}, {dest_lng:.4f})")
+        
+        alternative_routes = []
+        
+        # 1. Get standard API routes first
+        try:
+            mapbox_routes = await self._get_alternative_routes_mapbox(
+                None, None, dest_lat, dest_lng, current_lat, current_lng
+            )
+            
+            # Only add routes that are actually different and reasonable
+            for i, route in enumerate(mapbox_routes[:2]):
+                if route.get("distance", 0) > 1000:  # At least 1km
+                    route["route_type"] = f"mapbox_standard_{i}"
+                    route["route_index"] = len(alternative_routes)
+                    alternative_routes.append(route)
+                    
+        except Exception as e:
+            logger.warning(f"Error getting Mapbox routes: {e}")
+        
+        # 2. Try ORS alternative routes as backup
+        try:
+            ors_routes = await self._get_alternative_routes(
+                None, None, dest_lat, dest_lng, current_lat, current_lng
+            )
+            
+            for i, route in enumerate(ors_routes[:2]):
+                if route.get("distance", 0) > 1000 and len(alternative_routes) < 3:
+                    route["route_type"] = f"ors_standard_{i}"
+                    route["route_index"] = len(alternative_routes)
+                    alternative_routes.append(route)
+                    
+        except Exception as e:
+            logger.warning(f"Error getting ORS routes: {e}")
+        
+        # 3. Generate strategic waypoint routes only if we need more
+        if len(alternative_routes) < num_routes:
+            logger.info(f"Need more routes, generating waypoint-based alternatives")
+            
+            # Generate intermediate waypoints
+            intermediate_waypoints = self._generate_intermediate_waypoints(
+                current_lat, current_lng, dest_lat, dest_lng, 3
+            )
+            
+            # Generate city waypoints for longer routes
+            route_distance = self._haversine(current_lat, current_lng, dest_lat, dest_lng)
+            if route_distance > 100:  # Only for routes longer than 100km
+                city_waypoints = self._generate_major_city_waypoints(
+                    current_lat, current_lng, dest_lat, dest_lng
+                )
+                intermediate_waypoints.extend(city_waypoints)
+            
+            logger.info(f"Generated {len(intermediate_waypoints)} strategic waypoints")
+            
+            # Try each waypoint, but limit API calls
+            for waypoint_lat, waypoint_lng, waypoint_name in intermediate_waypoints[:5]:
+                if len(alternative_routes) >= num_routes:
+                    break
+                
+                waypoint_route = await self._get_route_via_waypoint_safe(
+                    current_lat, current_lng,
+                    waypoint_lat, waypoint_lng,
+                    dest_lat, dest_lng,
+                    waypoint_name
+                )
+                
+                if waypoint_route:
+                    waypoint_route["route_type"] = f"waypoint_{waypoint_name}"
+                    waypoint_route["route_index"] = len(alternative_routes)
+                    alternative_routes.append(waypoint_route)
+        
+        logger.info(f"Generated {len(alternative_routes)} total alternative routes")
+        
+        # Sort routes by duration to prioritize faster routes
+        if alternative_routes:
+            alternative_routes.sort(key=lambda r: r.get("duration", float('inf')))
+        
+        return alternative_routes
 
     # -------------------- Traffic Monitoring Functions --------------------
     async def _get_current_trip_location(self, vehicle_id: str) -> Optional[Tuple[float, float]]:
@@ -375,34 +631,52 @@ class SmartTripService:
             logger.error(f"Error analyzing traffic for trip {trip_id}: {e}")
             return None
 
-    async def _generate_route_recommendation(
+    async def get_improved_alternative_routes(
+        self,
+        origin_lat: float, origin_lng: float,
+        dest_lat: float, dest_lng: float,
+        current_location_lat: float = None,
+        current_location_lng: float = None,
+        num_routes: int = 5
+    ) -> List[dict]:
+        """Get improved alternative routes with better waypoint logic"""
+        
+        start_lat = current_location_lat if current_location_lat else origin_lat
+        start_lng = current_location_lng if current_location_lng else origin_lng
+        
+        alternative_routes = await self.get_improved_alternative_routes(
+            start_lat, start_lng, dest_lat, dest_lng, num_routes
+        )
+        
+        return alternative_routes
+
+
+    # Updated enhanced route recommendation method
+    async def generate_improved_route_recommendation(
         self,
         trip: Trip,
         traffic_condition: TrafficCondition
     ) -> Optional[RouteRecommendation]:
-        """Generate a route recommendation if traffic conditions warrant it."""
+        """Generate route recommendation with improved alternative route logic"""
         try:
-            # 1. Validate traffic condition severity and ratio
+            # Validation
             if not traffic_condition or traffic_condition.traffic_ratio < (1 + HIGH_TRAFFIC_THRESHOLD):
-                return None  # Traffic not bad enough for rerouting
+                return None
 
             if traffic_condition.severity not in [TrafficType.HEAVY, TrafficType.SEVERE]:
-                return None  # Only heavy or severe traffic triggers reroute
+                return None
 
-            # 2. Extract vehicle ID
             vehicle_id = trip.vehicle_id
             if not vehicle_id:
                 logger.warning(f"No vehicle_id for trip {trip.id}")
                 return None
 
-            # 3. Get current vehicle location
             current_location = await self._get_current_trip_location(vehicle_id)
             if not current_location:
                 logger.warning(f"No current location for vehicle {vehicle_id}")
                 return None
             current_lat, current_lng = current_location
 
-            # 4. Get destination coordinates safely
             if not trip.destination or not trip.destination.location or not trip.destination.location.coordinates:
                 logger.warning(f"Destination coordinates missing for trip {trip.id}")
                 return None
@@ -413,50 +687,80 @@ class SmartTripService:
                 return None
             dest_lng, dest_lat = dest_coords[0], dest_coords[1]
 
-            # 5. Fetch alternative routes
-            alternative_routes = await self._get_alternative_routes_mapbox(
-                None, None, dest_lat, dest_lng, current_lat, current_lng
+            # Use improved route generation
+            alternative_routes = await self.get_improved_alternative_routes(
+                None, None, dest_lat, dest_lng, current_lat, current_lng, num_routes=5
             )
-            logger.info(f"Generated {len(alternative_routes)} alternative routes")
+            
+            logger.info(f"Generated {len(alternative_routes)} improved alternative routes")
             if not alternative_routes:
                 return None
 
-            # 6. Evaluate alternative routes
+            # Evaluate routes with better logic
             best_route = None
             best_savings = 0
             current_route_info = trip.route_info.dict() if trip.route_info else None
             current_duration = traffic_condition.current_duration
+            
+            # Be more lenient with minimum time savings for severe traffic
+            min_savings = MINIMUM_TIME_SAVINGS * 0.3 if traffic_condition.severity == TrafficType.SEVERE else MINIMUM_TIME_SAVINGS * 0.5
 
             for alt_route in alternative_routes:
-                # Get live traffic for this alternative
+                # Get traffic info for this route
                 alt_traffic = await self._get_tomtom_traffic(current_lat, current_lng, dest_lat, dest_lng)
                 alt_duration = alt_route["duration"] + alt_traffic.get("live_traffic_delay", 0)
                 time_savings = current_duration - alt_duration
 
-                # Skip if route too similar
+                # Adjusted similarity checking
+                route_type = alt_route.get("route_type", "standard")
+                similarity_threshold = 0.7  # More lenient threshold
+                
+                if "waypoint" in route_type:
+                    similarity_threshold = 0.85  # Even more lenient for waypoint routes
+
+                # Check route similarity
+                passes_similarity = True
                 if current_route_info and current_route_info.get("coordinates"):
                     similarity = self._calculate_route_similarity(
                         current_route_info["coordinates"],
                         alt_route["coordinates"]
                     )
-                    if similarity > (1 - ROUTE_DEVIATION_THRESHOLD):
-                        logger.info("Alternative route to similiar, skipping route")
-                        continue
+                    logger.info(f"Route {alt_route.get('route_index', 0)} ({route_type}): "
+                            f"similarity={similarity:.2f}, threshold={similarity_threshold:.2f}, "
+                            f"saves {int(time_savings/60)}min")
+                    
+                    if similarity > similarity_threshold:
+                        logger.info(f"Route too similar, skipping")
+                        passes_similarity = False
+                else:
+                    logger.info(f"No current route to compare, accepting route {route_type}")
 
-                # Select best route if savings significant
-                if time_savings > best_savings and time_savings >= MINIMUM_TIME_SAVINGS:
+                # Select best route with more lenient criteria
+                if (passes_similarity and 
+                    time_savings > best_savings and 
+                    time_savings >= min_savings):
+                    
                     best_savings = time_savings
                     best_route = alt_route
                     best_route["traffic_info"] = alt_traffic
+                    logger.info(f"New best route: {route_type}, saves {int(time_savings/60)} minutes")
 
-            if not best_route or best_savings < MINIMUM_TIME_SAVINGS:
+            if not best_route:
+                logger.info(f"No suitable alternative found after evaluating {len(alternative_routes)} routes")
                 return None
 
-            # 7. Build route recommendation object
-            confidence = min(0.95, 0.6 + (best_savings / 1800))  # Higher confidence for bigger savings
+            # Build recommendation
+            confidence = min(0.95, 0.6 + (best_savings / 1800))
+            route_type = best_route.get("route_type", "alternative")
+            waypoint_info = ""
+            
+            if best_route.get("waypoint_name"):
+                waypoint_info = f" via {best_route['waypoint_name']}"
+            
             reason = (
-                f"Heavy traffic detected on current route ({traffic_condition.severity}). "
-                f"Alternative route saves {int(best_savings / 60)} minutes and avoids congestion."
+                f"Severe traffic detected ({traffic_condition.severity}). "
+                f"Alternative route{waypoint_info} saves {int(best_savings / 60)} minutes "
+                f"using {route_type} routing strategy."
             )
 
             recommended_route_info = RouteInfo(
@@ -479,12 +783,9 @@ class SmartTripService:
             )
 
         except Exception as e:
-            logger.error(
-                f"Error generating route recommendation for trip {getattr(trip, 'id', 'unknown')}: {e}\n"
-                f"{traceback.format_exc()}"
-            )
+            logger.error(f"Error in improved route recommendation for trip {getattr(trip, 'id', 'unknown')}: {e}")
             return None
-
+        
     async def monitor_traffic_and_recommend_routes(self):
         """Main traffic monitoring function that generates route recommendations"""
         try:
@@ -510,7 +811,7 @@ class SmartTripService:
                         # Make notification to fleet manager about high traffic
                         await notification_service.notify_high_traffic(trip,traffic_condition.severity)
                         # Generate route recommendation
-                        recommendation = await self._generate_route_recommendation(trip, traffic_condition)
+                        recommendation = await self.generate_improved_route_recommendation(trip, traffic_condition)
                         
                         if recommendation:
                             # Store recommendation

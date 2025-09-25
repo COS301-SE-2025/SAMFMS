@@ -380,6 +380,8 @@ class ServiceRequestConsumer:
                 if "recommendations" in endpoint:
                     # get all the traffic recommendations
                     try:
+                        #from services.smart_trip_planning_service import smart_trip_service
+                        #await smart_trip_service.monitor_traffic_and_recommend_routes()
                         recommended_trips = await trip_service.get_route_recommendations()
                         return_data = {
                             "data" : recommended_trips

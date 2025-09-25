@@ -67,13 +67,13 @@ class CreateTripRequest(BaseModel):
     driver_assignment: str = Field(..., description="Assigned driver ID")
     
     # Constraints
-    constraints: List[TripConstraint] = Field(default_factory=list)
+    constraints: Optional[List[TripConstraint]] = None
     
     # Custom fields
     custom_fields: Optional[Dict[str, Any]] = None
 
     # combination info
-    combination_info: Optional[CombinationInfo]
+    combination_info: Optional[CombinationInfo] = None
     
     @validator('scheduled_end_time')
     def validate_end_time(cls, v, values):
