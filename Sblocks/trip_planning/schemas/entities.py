@@ -539,7 +539,7 @@ class GeofenceGeometry(BaseModel):
     type: GeofenceType = Field(..., description="Type of geofence geometry")
     coordinates: List[Any] = Field(..., description="GeoJSON coordinates")
     radius: Optional[int] = Field(None, ge=1, description="Radius for circle type")
-    properties: Optional[GeofenceProperties]
+    properties: Optional[GeofenceProperties] = None
     @field_validator('radius')
     @classmethod
     def validate_radius_for_circle(cls, v, info):

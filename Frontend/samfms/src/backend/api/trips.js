@@ -789,8 +789,10 @@ export const rejectTripCombinationRecommendation = async (recommendationId) => {
 
 export const getNotifications = async () => {
   try {
-    const response = httpClient.get(TRIPS_ENDPOINTS.listNotifications)
+    const response = await httpClient.get(TRIPS_ENDPOINTS.listNotifications)
     console.log("Response received for notifications: ", response)
+
+    return response;
   } catch (error){
     console.log('Error retrieving notifications')
     throw error
@@ -803,8 +805,10 @@ export const readNotification = async (notification_id) => {
       notification_id: notification_id
     }
 
-    const response = httpClient.post(TRIPS_ENDPOINTS.readNotification,data)
+    const response = await httpClient.post(TRIPS_ENDPOINTS.readNotification,data)
     console.log("Response received for marking notification as read", response)
+
+    return response;
   } catch (error) {
     console.log('Error marking notification a read')
     throw error

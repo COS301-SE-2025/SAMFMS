@@ -6,18 +6,28 @@ const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [total, setTotal] = useState(0);
 
   const fetchNotifications = async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await getNotifications();
-      // Assuming the API returns response.data as an array of notifications
-      // Sort by sent_at descending
-      const sortedNotifications = (response.data || []).sort((a, b) => 
-        new Date(b.sent_at) - new Date(a.sent_at)
+      
+      // Access notifications from the nested structure
+      const notificationsData = response.data?.data?.notifications || [];
+      const unreadCount = response.data?.data?.unread_count || 0;
+      const total = response.data?.data?.total || 0;
+      
+      // Sort by time descending
+      const sortedNotifications = notificationsData.sort((a, b) => 
+        new Date(b.time) - new Date(a.time)
       );
+      
       setNotifications(sortedNotifications);
+      setUnreadCount(unreadCount);
+      setTotal(total);
     } catch (err) {
       setError('Failed to load notifications. Please try again.');
       console.error('Error fetching notifications:', err);
@@ -36,16 +46,19 @@ const Notifications = () => {
       // Update local state to reflect the change
       setNotifications(prev =>
         prev.map(notif =>
-          notif.id === notificationId ? { ...notif, is_read: true } : notif
+          notif.id === notificationId ? { ...notif, read: true } : notif
         )
       );
+      // Update unread count
+      setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (err) {
       console.error('Error marking notification as read:', err);
     }
   };
 
   const getIcon = (type) => {
-    switch (type) {
+    const normalizedType = type?.toUpperCase();
+    switch (normalizedType) {
       case 'TRIP_STARTED':
         return <Play size={20} className="text-green-500" />;
       case 'TRIP_COMPLETED':
@@ -85,10 +98,21 @@ const Notifications = () => {
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="p-6">
-        <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-foreground">
-          <Bell size={20} />
-          Notifications
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
+            <Bell size={20} />
+            Notifications
+          </h2>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <span>Total: {total}</span>
+            {unreadCount > 0 && (
+              <span className="bg-red-500 text-white px-2 py-1 rounded-full text-xs">
+                {unreadCount} unread
+              </span>
+            )}
+          </div>
+        </div>
+        
         {notifications.length === 0 ? (
           <p className="text-muted-foreground">No notifications available.</p>
         ) : (
@@ -96,31 +120,44 @@ const Notifications = () => {
             {notifications.map(notif => (
               <div
                 key={notif.id}
-                className={`border rounded-lg p-4 ${notif.is_read ? 'bg-gray-50 text-muted-foreground' : 'bg-white text-foreground'}`}
+                className={`border rounded-lg p-4 ${notif.read ? 'bg-gray-50 text-muted-foreground' : 'bg-white text-foreground border-l-4 border-l-blue-500'}`}
               >
                 <div className="flex items-center gap-2 mb-2">
                   {getIcon(notif.type)}
                   <h3 className="font-semibold">{notif.title || 'Notification'}</h3>
                 </div>
-                <p>{notif.message || 'No message available.'}</p>
-                {notif.data && (
+                <p className="mb-2">{notif.message || 'No message available.'}</p>
+                
+                {/* Additional info for trip-related notifications */}
+                {(notif.trip_id || notif.driver_id) && (
+                  <div className="text-sm text-muted-foreground mb-2">
+                    {notif.trip_id && <span>Trip ID: {notif.trip_id}</span>}
+                    {notif.trip_id && notif.driver_id && <span> • </span>}
+                    {notif.driver_id && <span>Driver: {notif.driver_id}</span>}
+                  </div>
+                )}
+                
+                {/* {notif.data && (
                   <pre className="mt-2 p-2 bg-gray-100 rounded text-sm overflow-auto">
                     {JSON.stringify(notif.data, null, 2)}
                   </pre>
-                )}
-                <p className="text-sm mt-2">
-                  {notif.sent_at
-                    ? new Date(notif.sent_at).toLocaleString()
-                    : 'Unknown time'}
-                </p>
-                {!notif.is_read && (
-                  <button
-                    onClick={() => handleMarkAsRead(notif.id)}
-                    className="mt-3 bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90 transition"
-                  >
-                    Mark as Read
-                  </button>
-                )}
+                )} */}
+                
+                <div className="flex items-center justify-between mt-3">
+                  <p className="text-sm text-muted-foreground">
+                    {notif.time
+                      ? new Date(notif.time).toLocaleString()
+                      : 'Unknown time'}
+                  </p>
+                  {!notif.read && (
+                    <button
+                      onClick={() => handleMarkAsRead(notif.id)}
+                      className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90 transition text-sm"
+                    >
+                      Mark as Read
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
