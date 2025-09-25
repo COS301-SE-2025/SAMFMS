@@ -398,9 +398,12 @@ class ServiceRequestConsumer:
                         #from services.smart_trip_planning_service import smart_trip_service
                         #await smart_trip_service.monitor_traffic_and_recommend_routes()
                         recommended_trips = await trip_service.get_route_recommendations()
+                        logger.info(f"Number of trips recommended: {len(recommended_trips)}")
                         return_data = {
                             "data" : recommended_trips
                         }
+
+                        logger.info(f"Returning data for recommendations: {return_data}")
 
                         return ResponseBuilder.success(
                             data=return_data,

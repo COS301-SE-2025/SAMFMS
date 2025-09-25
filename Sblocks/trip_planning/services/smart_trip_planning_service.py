@@ -474,7 +474,7 @@ class SmartTripService:
             logger.warning(f"Error getting route via waypoint {waypoint_name}: {e}")
             return None
     
-    async def get_improved_alternative_routes(
+    async def _generate_improved_alternative_routes(
         self,
         current_lat: float,
         current_lng: float,
@@ -644,7 +644,7 @@ class SmartTripService:
         start_lat = current_location_lat if current_location_lat else origin_lat
         start_lng = current_location_lng if current_location_lng else origin_lng
         
-        alternative_routes = await self.get_improved_alternative_routes(
+        alternative_routes = await self._generate_improved_alternative_routes(
             start_lat, start_lng, dest_lat, dest_lng, num_routes
         )
         
@@ -659,12 +659,6 @@ class SmartTripService:
     ) -> Optional[RouteRecommendation]:
         """Generate route recommendation with improved alternative route logic"""
         try:
-            # Validation
-            if not traffic_condition or traffic_condition.traffic_ratio < (1 + HIGH_TRAFFIC_THRESHOLD):
-                return None
-
-            if traffic_condition.severity not in [TrafficType.HEAVY, TrafficType.SEVERE]:
-                return None
 
             vehicle_id = trip.vehicle_id
             if not vehicle_id:
@@ -688,8 +682,12 @@ class SmartTripService:
             dest_lng, dest_lat = dest_coords[0], dest_coords[1]
 
             # Use improved route generation
-            alternative_routes = await self.get_improved_alternative_routes(
-                None, None, dest_lat, dest_lng, current_lat, current_lng, num_routes=5
+#            alternative_routes = await self.get_improved_alternative_routes(
+#               None, None, dest_lat, dest_lng, current_lat, current_lng, num_routes=5
+#            )
+
+            alternative_routes = await self._generate_improved_alternative_routes(
+                current_lat,current_lng,dest_lat,dest_lng, num_routes=5
             )
             
             logger.info(f"Generated {len(alternative_routes)} improved alternative routes")
@@ -778,8 +776,7 @@ class SmartTripService:
                 time_savings=best_savings,
                 traffic_avoided=traffic_condition.severity,
                 confidence=confidence,
-                reason=reason,
-                created_at=datetime.utcnow()
+                reason=reason
             )
 
         except Exception as e:
@@ -809,7 +806,7 @@ class SmartTripService:
                     if traffic_condition and traffic_condition.severity in [TrafficType.HEAVY, TrafficType.SEVERE]:
                         logger.info(f"High traffic detected for trip {trip_id}: {traffic_condition.severity}")
                         # Make notification to fleet manager about high traffic
-                        await notification_service.notify_high_traffic(trip,traffic_condition.severity)
+                        asyncio.create_task(notification_service.notify_high_traffic(trip,traffic_condition.severity))
                         # Generate route recommendation
                         recommendation = await self.generate_improved_route_recommendation(trip, traffic_condition)
                         
