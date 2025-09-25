@@ -329,6 +329,13 @@ class DatabaseManager:
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.route_recommendations
+    
+    @property
+    def upcoming_recommendations(self):
+        """Get upcoming recommendations"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.upcoming_recommendations
 
     
     async def create_trip_with_transaction(self, trip_data: dict, constraints: list = None):
@@ -473,6 +480,13 @@ class DatabaseManagerGeo():
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.vehicle_locations
+
+    @property
+    def geofences(self):
+        """Get geofences collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.geofences
 
 class DatabaseManagerManagement():
     """Centralized database connection manager for Trip Planning: Management access"""

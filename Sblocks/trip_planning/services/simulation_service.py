@@ -9,10 +9,12 @@ from bson import ObjectId
 from dataclasses import dataclass
 import math
 
-
-
 from repositories.database import db_manager, db_manager_gps
 from services.trip_service import trip_service
+from services.geofence_service import geofence_service
+from services.notification_service import notification_service
+from schemas.requests import NotificationRequest
+from schemas.entities import NotificationType, Geofence, GeofenceGeometry
 from events.publisher import event_publisher
 
 logger = logging.getLogger(__name__)
@@ -31,6 +33,18 @@ class Route:
     distance: float  # Total distance in meters
     duration: float  # Total duration in seconds
 
+@dataclass
+class GeofenceViolation:
+    """Represents a geofence violation event"""
+    geofence_id: str
+    geofence_name: str
+    geofence_type: str
+    vehicle_id: str
+    trip_id: str
+    location: Tuple[float, float]
+    timestamp: datetime
+    violation_type: str
+
 class VehicleSimulator:
     def __init__(self, trip_id: str, vehicle_id: str, route: Route, speed_kmh: float = 50.0, speed_profile: Optional[Dict[int, float]] = None, raw_steps: Optional[List[Dict]] = None):
         self.trip_id = trip_id
@@ -47,6 +61,10 @@ class VehicleSimulator:
         self.start_time = datetime.utcnow()
         self.distance_traveled = 0.0
         self.last_location = None
+
+        # Geofence tracking
+        self.current_geofences = set()  # Track which geofences vehicle is currently inside
+        self.geofence_violations = []  # Track violations for this trip
         
         # Speed variation parameters
         self.min_speed = 40.0  # km/h
@@ -243,7 +261,125 @@ class VehicleSimulator:
         
         # Update speed_ms for calculations
         self.speed_ms = self.current_speed_kmh / 3.6
+
+    async def check_geofence_violations(self, lat: float, lon: float) -> List[GeofenceViolation]:
+        """Check if current location violates any geofences"""
+        violations = []
+        
+        try:
+            # Get all active geofences from the geofence service
+            geofences = await geofence_service.get_geofences(is_active=True)
+            
+            # Check which geofences the vehicle is currently inside
+            current_inside = set()
+            
+            for geofence in geofences:
+                # Only check restricted and boundary geofences
+                if geofence.type not in ["restricted", "boundary"]:
+                    continue
+                
+                is_inside = self._is_point_in_geofence(lat, lon, geofence.geometry)
+                
+                if is_inside:
+                    current_inside.add(geofence.id)
+                    
+                    # Check if this is a new entry
+                    if geofence.id not in self.current_geofences:
+                        violation = GeofenceViolation(
+                            geofence_id=geofence.id,
+                            geofence_name=geofence.name,
+                            geofence_type=geofence.type,
+                            vehicle_id=self.vehicle_id,
+                            trip_id=self.trip_id,
+                            location=(lat, lon),
+                            timestamp=datetime.utcnow(),
+                            violation_type="entry"
+                        )
+                        violations.append(violation)
+                        logger.warning(f"Vehicle {self.vehicle_id} entered {geofence.type} geofence '{geofence.name}'")
+            
+            # Check for exits
+            for geofence_id in self.current_geofences:
+                if geofence_id not in current_inside:
+                    # Find the geofence details
+                    geofence = next((g for g in geofences if g.id == geofence_id), None)
+                    if geofence:
+                        violation = GeofenceViolation(
+                            geofence_id=geofence_id,
+                            geofence_name=geofence.name,
+                            geofence_type=geofence.type,
+                            vehicle_id=self.vehicle_id,
+                            trip_id=self.trip_id,
+                            location=(lat, lon),
+                            timestamp=datetime.utcnow(),
+                            violation_type="exit"
+                        )
+                        violations.append(violation)
+                        logger.info(f"Vehicle {self.vehicle_id} exited {geofence.type} geofence '{geofence.name}'")
+            
+            # Update current geofences
+            self.current_geofences = current_inside
+            
+            # Store violations for this trip
+            self.geofence_violations.extend(violations)
+            
+            return violations
+            
+        except Exception as e:
+            logger.error(f"Error checking geofence violations: {e}")
+            return []
     
+    def _is_point_in_geofence(self, lat: float, lon: float, geometry: GeofenceGeometry) -> bool:
+        """Check if a point is inside a geofence geometry"""
+        try:
+            geom_type = geometry.type.lower()
+            coordinates = geometry.coordinates
+            
+            if geom_type == "point":
+                # Check if it's a circle (has radius in properties)
+                radius = geometry.properties.radius
+                
+                if radius:
+                    # It's a circle - check distance from center
+                    center_lon, center_lat = coordinates
+                    distance = self.calculate_distance(lat, lon, center_lat, center_lon)
+                    return distance <= radius
+                else:
+                    # It's just a point - check if very close (within 10 meters)
+                    center_lon, center_lat = coordinates
+                    distance = self.calculate_distance(lat, lon, center_lat, center_lon)
+                    return distance <= 10
+            
+            elif geom_type == "polygon":
+                # Use ray casting algorithm to check if point is inside polygon
+                return self._point_in_polygon(lat, lon, coordinates[0])  # First ring only
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error checking point in geofence: {e}")
+            return False
+    
+    def _point_in_polygon(self, lat: float, lon: float, polygon_coords: List[List[float]]) -> bool:
+        """Ray casting algorithm to check if point is inside polygon"""
+        x, y = lon, lat
+        n = len(polygon_coords)
+        inside = False
+        
+        p1x, p1y = polygon_coords[0]
+        for i in range(1, n + 1):
+            p2x, p2y = polygon_coords[i % n]
+            if y > min(p1y, p2y):
+                if y <= max(p1y, p2y):
+                    if x <= max(p1x, p2x):
+                        if p1y != p2y:
+                            xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                        if p1x == p2x or x <= xinters:
+                            inside = not inside
+            p1x, p1y = p2x, p2y
+        
+        return inside
+
     async def update_position(self):
         """Update vehicle position and save to database"""
         # Don't update position if paused
@@ -269,6 +405,12 @@ class VehicleSimulator:
         lat, lon = self.get_current_location()
 
         estimated_finish = self.get_estimated_finish_time()
+        
+        # Check for geofence violations
+        violations = await self.check_geofence_violations(lat, lon)
+        
+        # Send notifications for violations
+        await self._handle_geofence_violations(violations)
         
         # Create location document matching the expected format
         current_time = datetime.utcnow()
@@ -318,6 +460,61 @@ class VehicleSimulator:
         
         return True
     
+    async def _handle_geofence_violations(self, violations: List[GeofenceViolation]):
+        """Handle geofence violations by sending appropriate notifications"""
+        for violation in violations:
+            try:
+                # Get trip details to find relevant users to notify
+                trip_doc = await db_manager.trips.find_one({"_id": ObjectId(self.trip_id)})
+                if not trip_doc:
+                    continue
+                
+                # Create appropriate notification based on geofence type and violation type
+                if violation.geofence_type == "restricted":
+                    if violation.violation_type == "entry":
+                        title = "Restricted Area Violation"
+                        message = f"Vehicle {violation.vehicle_id} has entered restricted area '{violation.geofence_name}'"
+                    else:  # exit
+                        title = "Restricted Area Exit"
+                        message = f"Vehicle {violation.vehicle_id} has exited restricted area '{violation.geofence_name}'"
+                        
+                elif violation.geofence_type == "boundary":
+                    if violation.violation_type == "entry":
+                        title = "Boundary Area Entry"
+                        message = f"Vehicle {violation.vehicle_id} has entered boundary area '{violation.geofence_name}'"
+                    else:  # exit
+                        title = "Boundary Area Exit"
+                        message = f"Vehicle {violation.vehicle_id} has exited boundary area '{violation.geofence_name}'"
+
+                # Send notification
+                notification_request = NotificationRequest(
+                    type=NotificationType.GEOFENCE_ALERT,
+                    title=title,
+                    message=message,
+                    trip_id=self.trip_id,
+                    data={
+                        "geofence_id": violation.geofence_id,
+                        "geofence_name": violation.geofence_name,
+                        "geofence_type": violation.geofence_type,
+                        "vehicle_id": violation.vehicle_id,
+                        "location": {
+                            "latitude": violation.location[0],
+                            "longitude": violation.location[1]
+                        },
+                        "violation_type": violation.violation_type
+                    }
+                )
+                
+                response = await notification_service.send_notification(notification_request)
+                if not response:
+                    logger.info("Message was not save")
+
+                logger.info(f"Sent geofence violation notification for {violation.geofence_type} area '{violation.geofence_name}'")
+                
+            except Exception as e:
+                logger.error(f"Failed to handle geofence violation: {e}")
+    
+    
     async def _complete_trip(self):
         """Move completed trip to trip_history collection"""
         try:
@@ -344,6 +541,9 @@ class VehicleSimulator:
             # Remove from active trips collection
             await db_manager.trips.delete_one({"_id": ObjectId(self.trip_id)})
             logger.info(f"Trip {self.trip_id} removed from active trips")
+
+            # send notification that the trip has ended
+            await notification_service.notify_trip_completed(trip_doc)
             
             # Clean up vehicle location (optional - you might want to keep last known location)
             # await db_manager_gps.locations.delete_one({"vehicle_id": self.vehicle_id})

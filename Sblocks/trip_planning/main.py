@@ -23,6 +23,7 @@ from services.driver_service import driver_service
 from services.notification_service import notification_service
 from services.trip_service import trip_service
 from services.smart_trip_planning_service import smart_trip_service
+from services.upcoming_recommendations_service import upcoming_recommendation_service
 from services.request_consumer import service_request_consumer
 from api.routes.analytics import router as analytics_router
 from api.routes.drivers import router as drivers_router
@@ -152,6 +153,13 @@ async def lifespan(app: FastAPI):
             asyncio.create_task(simulation_service.start_simulation_service())
         except Exception as e:
             logger.error(f"Failed to start missed simulation service: {e}")
+
+        # start the upcomming trip recommendations
+        try:
+            asyncio.create_task(upcoming_recommendation_service.analyze_and_store_combinations())
+        except Exception as e:
+            logger.error(f"Failed to start upcomming trip recommendations service: {e}")
+
 
 
         # Start the missed trip scheduler

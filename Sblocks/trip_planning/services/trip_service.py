@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from bson import ObjectId
 
 from repositories.database import db_manager, db_manager_gps, db_manager_management
-from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation, RouteInfo, TurnByTurnInstruction, RoadDetail, DetailedRouteInfo, ScheduledTrip, SmartTrip, RouteRecommendation
+from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation, RouteInfo, TurnByTurnInstruction, RoadDetail, DetailedRouteInfo, ScheduledTrip, SmartTrip, RouteRecommendation, Waypoint
 from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest, ScheduledTripRequest, CreateSmartTripRequest
 from events.publisher import event_publisher
 from services.routing_service import routing_service
@@ -22,6 +22,14 @@ class TripService:
     def __init__(self):
         self.db = db_manager
         self.db_gps = db_manager_gps
+
+    async def add_waypoint_to_trip(self, trip_id: str, waypoint: Waypoint) -> bool:
+        """Function that adds a waypoint to an existing trip"""
+        try:
+            return True
+        except Exception as e:
+            logger.error(f"[TripService.add_waypoint_to_trip] for {trip_id} Failed: {e}")
+            raise
     
     async def create_scheduled_trip(
         self,

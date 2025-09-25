@@ -42,7 +42,7 @@ const UpcomingTripsRecommendations = ({ upcomingTrips, onAccept, onReject, onRef
       const response = await getUpcomingTripsRecommendations();
       console.log("Received upcoming trip recommendations: ", response);
 
-      setRecommendations(response.data.data || []);
+      setRecommendations(response.data.data.data || []);
       
     } catch (error) {
       console.error('Error fetching upcoming trip recommendations:', error);
@@ -265,8 +265,7 @@ const RecommendationCard = ({
   isProcessing, 
   onAccept, 
   onReject, 
-  formatDateTime, 
-  calculateTimeBetweenTrips 
+  formatDateTime
 }) => {
   return (
     <div className="border border-purple-200 rounded-lg p-4 hover:shadow-md transition-all duration-200 bg-gradient-to-r from-purple-50 to-transparent">
@@ -275,15 +274,15 @@ const RecommendationCard = ({
         <div>
           <h4 className="font-medium text-gray-900 flex items-center gap-2">
             <Plus className="h-4 w-4 text-purple-600" />
-            Combine {recommendation.trips.length} Trips
+            Combine 2 Trips
           </h4>
           <p className="text-sm text-gray-500">
-            Efficiency Score: {recommendation.efficiency_score}%
+            Confidence Score: {Math.round(recommendation.confidence_score * 100)}%
           </p>
         </div>
         <div className="flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
           <Brain className="h-3 w-3" />
-          {recommendation.confidence}% confidence
+          AI Recommended
         </div>
       </div>
 
@@ -295,136 +294,93 @@ const RecommendationCard = ({
         </div>
         
         <div className="space-y-3">
-          {recommendation.trips.map((trip, index) => (
-            <div key={trip.id}>
-              <div className="bg-white border rounded-lg p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <h5 className="font-medium text-gray-800">{trip.name}</h5>
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                    Trip {index + 1}
-                  </span>
-                </div>
-                
-                {/* Route Info */}
-                <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3 text-green-500" />
-                    <span>{trip.origin?.name || 'Origin'}</span>
-                  </div>
-                  <ArrowRight className="h-3 w-3 text-gray-400" />
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3 text-red-500" />
-                    <span>{trip.destination?.name || 'Destination'}</span>
-                  </div>
-                </div>
-
-                {/* Schedule and Resources */}
-                <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                  <div>
-                    <div className="flex items-center gap-1 mb-1">
-                      <Calendar className="h-3 w-3" />
-                      <span className="text-xs font-medium">Schedule</span>
-                    </div>
-                    <div className="text-xs">
-                      <div>Start: {formatDateTime(trip.scheduled_start_time)}</div>
-                      <div>End: {formatDateTime(trip.scheduled_end_time)}</div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1 mb-1">
-                      <User className="h-3 w-3" />
-                      <span className="text-xs font-medium">Resources</span>
-                    </div>
-                    <div className="text-xs">
-                      <div>Vehicle: {trip.vehicle_name || 'TBD'}</div>
-                      <div>Driver: {trip.driver_name || 'TBD'}</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Distance between trips */}
-                {index < recommendation.trips.length - 1 && (
-                  <div className="mt-2 pt-2 border-t border-gray-100">
-                    <div className="flex justify-between items-center text-xs text-gray-500">
-                      <span>Distance to next trip: {recommendation.distances_between_trips[index]?.toFixed(1)} km</span>
-                      <span>Travel time: {Math.round(recommendation.travel_times_between_trips[index] || 0)} min</span>
-                      <span>Gap: {calculateTimeBetweenTrips(trip.scheduled_end_time, recommendation.trips[index + 1]?.scheduled_start_time)}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              {/* Connector arrow for visual flow */}
-              {index < recommendation.trips.length - 1 && (
-                <div className="flex justify-center py-2">
-                  <div className="flex items-center gap-2 text-purple-600">
-                    <div className="w-8 h-0.5 bg-purple-300"></div>
-                    <ArrowRight className="h-4 w-4" />
-                    <div className="w-8 h-0.5 bg-purple-300"></div>
-                  </div>
-                </div>
-              )}
+          {/* Primary Trip */}
+          <div className="bg-white border rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h5 className="font-medium text-gray-800">{recommendation.primary_trip_name}</h5>
+              <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                Primary Trip
+              </span>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Combined Trip Benefits */}
-      <div className="mb-4">
-        <h5 className="text-sm font-medium text-gray-700 mb-2">Proposed Combined Route</h5>
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-          <div className="grid md:grid-cols-2 gap-4 mb-3">
-            <div>
-              <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                <Truck className="h-4 w-4 text-purple-600" />
-                <span className="font-medium">Assigned Resources</span>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+              <div>
+                <div className="flex items-center gap-1 mb-1">
+                  <User className="h-3 w-3" />
+                  <span className="text-xs font-medium">Driver</span>
+                </div>
+                <div className="text-xs">{recommendation.recommended_driver}</div>
               </div>
-              <div className="text-sm text-gray-700">
-                <div>Vehicle: {recommendation.assigned_vehicle?.name || 'TBD'}</div>
-                <div>Driver: {recommendation.assigned_driver?.name || 'TBD'}</div>
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                <Timer className="h-4 w-4 text-purple-600" />
-                <span className="font-medium">Timeline</span>
-              </div>
-              <div className="text-sm text-gray-700">
-                <div>Total Duration: {Math.round(recommendation.total_duration / 60)} hours</div>
-                <div>Total Distance: {recommendation.total_distance?.toFixed(1)} km</div>
+              <div>
+                <div className="flex items-center gap-1 mb-1">
+                  <Truck className="h-3 w-3" />
+                  <span className="text-xs font-medium">Vehicle</span>
+                </div>
+                <div className="text-xs">{recommendation.recommended_vehicle}</div>
               </div>
             </div>
           </div>
 
-          {/* Benefits */}
-          {recommendation.benefits && (
-            <div>
-              <h6 className="text-sm font-medium text-gray-700 mb-2">Expected Benefits</h6>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {recommendation.benefits.driver_efficiency && (
-                  <div className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">
-                    <Users className="h-3 w-3 inline mr-1" />
-                    {recommendation.benefits.driver_efficiency}
-                  </div>
-                )}
-                {recommendation.benefits.fuel_savings && (
-                  <div className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-medium">
-                    <Target className="h-3 w-3 inline mr-1" />
-                    {recommendation.benefits.fuel_savings}
-                  </div>
-                )}
-                {recommendation.benefits.time_optimization && (
-                  <div className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-medium">
-                    <Clock className="h-3 w-3 inline mr-1" />
-                    {recommendation.benefits.time_optimization}
-                  </div>
-                )}
-                {recommendation.benefits.resource_utilization && (
-                  <div className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-medium">
-                    <TrendingUp className="h-3 w-3 inline mr-1" />
-                    {recommendation.benefits.resource_utilization}
-                  </div>
-                )}
+          {/* Connection indicator */}
+          <div className="flex justify-center py-1">
+            <div className="flex items-center gap-2 text-purple-600">
+              <div className="w-8 h-0.5 bg-purple-300"></div>
+              <ArrowRight className="h-4 w-4" />
+              <div className="w-8 h-0.5 bg-purple-300"></div>
+            </div>
+            <div className="mx-2 text-xs text-gray-500">
+              {recommendation.travel_distance_km?.toFixed(1)} km gap
+            </div>
+          </div>
+
+          {/* Secondary Trip */}
+          <div className="bg-white border rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h5 className="font-medium text-gray-800">{recommendation.secondary_trip_name}</h5>
+              <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded">
+                Secondary Trip
+              </span>
+            </div>
+            
+            <div className="text-sm text-gray-600">
+              <div className="flex items-center justify-between">
+                <span>Time gap: {recommendation.time_gap_hours?.toFixed(1)} hours</span>
+                <span>Travel time: ~{Math.round(recommendation.travel_distance_km / 30 * 60)} min</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Combined Route Benefits */}
+      <div className="mb-4">
+        <h5 className="text-sm font-medium text-gray-700 mb-2">Expected Benefits</h5>
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="text-center">
+              <div className="text-lg font-semibold text-green-600">
+                {Math.round(recommendation.benefits?.time_savings_minutes || 0)}min
+              </div>
+              <div className="text-xs text-gray-600">Time Saved</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-semibold text-blue-600">
+                {recommendation.benefits?.distance_savings_km?.toFixed(1) || 0}km
+              </div>
+              <div className="text-xs text-gray-600">Distance Saved</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-semibold text-purple-600">
+                {recommendation.benefits?.fuel_efficiency_improvement || '0%'}
+              </div>
+              <div className="text-xs text-gray-600">Fuel Efficiency</div>
+            </div>
+          </div>
+
+          {recommendation.benefits?.cost_savings && (
+            <div className="mt-3 pt-3 border-t border-purple-200 text-center">
+              <div className="text-sm text-gray-700">
+                <strong>{recommendation.benefits.cost_savings}</strong>
               </div>
             </div>
           )}
@@ -448,19 +404,21 @@ const RecommendationCard = ({
         </div>
       )}
 
-      {/* Constraints and Considerations */}
-      {recommendation.constraints && recommendation.constraints.length > 0 && (
+      {/* Route Details */}
+      {recommendation.combined_route && (
         <div className="mb-4">
-          <h5 className="text-sm font-medium text-gray-700 mb-2">Important Considerations</h5>
-          <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-            <ul className="text-xs text-yellow-800 space-y-1">
-              {recommendation.constraints.map((constraint, idx) => (
-                <li key={idx} className="flex items-start gap-2">
-                  <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                  <span>{constraint}</span>
-                </li>
-              ))}
-            </ul>
+          <h5 className="text-sm font-medium text-gray-700 mb-2">Combined Route Details</h5>
+          <div className="bg-blue-50 border border-blue-200 rounded p-3">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Total Distance:</span>
+                <div className="font-medium">{(recommendation.combined_route.distance / 1000).toFixed(1)} km</div>
+              </div>
+              <div>
+                <span className="text-gray-600">Total Duration:</span>
+                <div className="font-medium">{Math.round(recommendation.combined_route.duration / 60)} minutes</div>
+              </div>
+            </div>
           </div>
         </div>
       )}

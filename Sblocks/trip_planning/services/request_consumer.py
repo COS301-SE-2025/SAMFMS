@@ -231,6 +231,9 @@ class ServiceRequestConsumer:
             if endpoint == "health" or endpoint == "":
                 logger.info(f"[_route_request] Routing to _handle_health_request()")
                 return await self._handle_health_request(method, user_context)
+            elif "upcomingrecommendations" in endpoint:
+                logger.info("Routing to upcomming recommendations handler")
+                return await self._upcoming_recommendation_requests(method, user_context)
             elif "driver-history" in endpoint or "driver_history" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_driver_history_request()")
                 return await self._handle_driver_history_request(method, user_context)
@@ -284,6 +287,98 @@ class ServiceRequestConsumer:
         except Exception as e:
             logger.error(f"[_route_request] Exception: {e}")
             raise
+
+    async def _upcoming_recommendation_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Hanlde upcoming recommendation requests"""
+        try:
+            from services.upcoming_recommendations_service import upcoming_recommendation_service
+            from schemas.responses import ResponseBuilder
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+
+            if method == "GET":
+                if "get" in endpoint:
+                    # get all the upcoming recommendations
+                    try:
+                        logger.info("Entered get all upcoming recommendations")
+                        recommendations = await upcoming_recommendation_service.get_combination_recommendations()
+                        logger.info(f"Retrieved {len(recommendations)} from the upcoming recommendations collection")
+                        return_data = {
+                            "data" : recommendations
+                        }
+
+                        return ResponseBuilder.success(
+                            data=return_data,
+                            message="Upcoming recommendations retrieved successfully"
+                        )
+
+                    except Exception as e:
+                        return ResponseBuilder.error(
+                            error="GetUpcomingRecommendationReturnError",
+                            message=f"Failed to process return upcoming recommendation request: {str(e)}"
+                        ).model_dump()
+                else:
+                    raise ValueError(f"Unsupported HTTP method: {method}")
+                    
+            elif method == "POST":
+                if "accept" in endpoint:
+                    recommendation_id = data["recommendation_id"]
+                    try:
+                        response = await upcoming_recommendation_service.accept_combination_recommendation(recommendation_id)
+                        if(response):
+                            return ResponseBuilder.success(
+                                data=None,
+                                message="Upcomming recommendation accepted successfully"
+                            )
+                        
+                        return ResponseBuilder.error(
+                            error="UpcomingRecommendationAcceptionError",
+                            message=f"Failed to process accept request"
+                        ).model_dump()
+                    except Exception as e:
+                        logger.error(f"[_upcoming_recommendation_requests] Exception in accepting upcoming recommendation: {e}")
+                        return ResponseBuilder.error(
+                            error="UpcomingRecommendationAcceptionError",
+                            message=f"Failed to process accept request: {str(e)}"
+                        ).model_dump()
+                            
+                elif "reject" in endpoint:
+                    recommendation_id = data["recommendation_id"]
+                    try:
+                        response = await upcoming_recommendation_service.reject_combination_recommendation(recommendation_id)
+                        if response:
+                            return ResponseBuilder.success(
+                                data=None,
+                                message="Upcoming recommendation rejected successfully"
+                            )
+                        
+                        return ResponseBuilder.error(
+                            error="UpcomingRecommendationRejectionError",
+                            message=f"Failed to process accept upcoming recommendation request"
+                        ).model_dump()
+                    except Exception as e:
+                        logger.error(f"[_upcoming_recommendation_requests] Exception in rejecting route upcoming recommendation: {e}")
+                        return ResponseBuilder.error(
+                            error="UpcomingRecommendationRejectionError",
+                            message=f"Failed to process reject request: {str(e)}"
+                        ).model_dump()
+                else:
+                    raise ValueError(f"Unsupported HTTP method: {method}")
+                
+            else:
+                raise ValueError(f"Unsupported HTTP endpoint: {endpoint}")
+            
+        except Exception as e:
+            logger.error(f"[_upcoming_recommendation_requests] Exception: {e}")
+            return ResponseBuilder.error(
+                error="UpcomingRecommendationError",
+                message=f"Failed to process upcoming recommendation request: {str(e)}"
+            ).model_dump()
+
+
+
+
+
     
     async def _handle_traffic_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle traffic montiro requests"""
@@ -300,6 +395,8 @@ class ServiceRequestConsumer:
                 if "recommendations" in endpoint:
                     # get all the traffic recommendations
                     try:
+                        #from services.smart_trip_planning_service import smart_trip_service
+                        #await smart_trip_service.monitor_traffic_and_recommend_routes()
                         recommended_trips = await trip_service.get_route_recommendations()
                         return_data = {
                             "data" : recommended_trips
@@ -780,6 +877,10 @@ class ServiceRequestConsumer:
                     logger.info(f"Assignment created successfully: {assignment}")
 
                     logger.info(f"[_handle_trips_request] trip_service.create_trip() succeeded for trip {trip.id}")
+
+                    # after trip is created do a check for smart upcoming trips recommendations
+                    from services.upcoming_recommendations_service import upcoming_recommendation_service
+                    asyncio.create_task(upcoming_recommendation_service.analyze_and_store_combinations())
                     return ResponseBuilder.success(
                         data=trip.dict(),
                         message="Trip created successfully"
@@ -797,6 +898,11 @@ class ServiceRequestConsumer:
                     
                     if not started_trip:
                         raise ValueError("Trip not found or could not be started")
+                    
+                    # create notification that trip started
+                    from services.notification_service import notification_service
+                    trip = await trip_service.get_trip_by_id(trip_id)
+                    await notification_service.notify_trip_started(trip)
                     
                     return ResponseBuilder.success(
                         data=started_trip.model_dump(),
@@ -1519,16 +1625,9 @@ class ServiceRequestConsumer:
             logger.info(f"[_handle_notifications_request] Method: {method}, Endpoint: {endpoint}, User ID: {user_id}")
 
             if method == "GET":
-                # Get user notifications
-                unread_only = data.get("unread_only", "false").lower() == "true"
-                limit = int(data.get("limit", 50))
-                skip = int(data.get("skip", 0))
                 
-                notifications, total = await notification_service.get_user_notifications(
-                    user_id=user_id,
-                    unread_only=unread_only,
-                    limit=limit,
-                    skip=skip
+                notifications, total = await notification_service.get_notifications(
+                    unread_only=True
                 )
                 
                 # Convert to dict format for response
@@ -1557,23 +1656,22 @@ class ServiceRequestConsumer:
                 ).model_dump()
 
             elif method == "POST":
-                # Send notification (admin/fleet_manager only)
-                user_role = user_context.get("role")
-                if user_role not in ["admin", "fleet_manager"]:
-                    raise ValueError("Insufficient permissions to send notifications")
-                
-                from schemas.requests import NotificationRequest
-                notification_request = NotificationRequest(**data)
-                
-                notifications = await notification_service.send_notification(notification_request)
-                
-                return ResponseBuilder.success(
-                    data={
-                        "sent_count": len(notifications),
-                        "notification_ids": [str(n._id) if hasattr(n, '_id') else n.id for n in notifications]
-                    },
-                    message="Notifications sent successfully"
-                ).model_dump()
+                if "read" in endpoint:
+                    notification_id = data["notification_id"]
+                    try:
+                        respone = await notification_service.mark_notification_read(notification_id)
+                        
+                        return ResponseBuilder.success(
+                            data={"marked_read": respone},
+                            message="Notification marked as read" if result else "Notification not found or already read"
+                        ).model_dump()
+                    except Exception as e:
+                        logger.info(f"Failed to mark the messge as read: {e}")
+                        return ResponseBuilder.error(
+                            error="NotificationRequestError",
+                            message=f"Failed to mark notification as read: {str(e)}"
+                        )
+
 
             elif method == "PUT":
                 # Mark notification as read

@@ -59,24 +59,14 @@ class GeofenceService:
                 }
 
             # Handle Circle (store as point + radius in properties)
-            elif geom_type == "circle":
-                center = geometry.get("center")
-                radius = geometry.get("radius")
-                if not center or not radius:
-                    raise ValueError("Circle requires center and radius")
-                geometry = {
-                    "type": "Point",
-                    "coordinates": [center["longitude"], center["latitude"]],
-                    "properties": {"radius": radius}
-                }
-
-            # Handle Point
             elif geom_type == "point":
-                if not coordinates or not isinstance(coordinates, list) or len(coordinates) != 2:
-                    raise ValueError("Point requires [longitude, latitude]")
+                radius = geometry.get("radius")
+                if not radius:
+                    raise ValueError("Circle requires radius")
                 geometry = {
                     "type": "Point",
-                    "coordinates": coordinates
+                    "coordinates": coordinates,
+                    "properties": {"radius": radius}
                 }
 
             # Prepare MongoDB document
