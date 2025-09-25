@@ -13,6 +13,7 @@ import traceback
 from .events import VehicleEvent, UserEvent
 # Import standardized config
 from config.rabbitmq_config import RabbitMQConfig
+from .publisher import EventPublisher
 from services.drivers_service import DriversService
 from services.driver_service import DriverService
 from services.assignment_service import VehicleAssignmentService
@@ -695,7 +696,9 @@ class ManagementEventHandlers:
 
     async def handle_removed_user(self, data: Dict[str, Any], routing_key: str, headers: Dict[str, Any]):
         email = data["email"]
-        #get driver_id
+        if not email:
+            logger.warning("No email provided in removed user event")
+            return
         driver_service = DriverService()
         vehicle_assignment_service = VehicleAssignmentService()
         driver = await driver_service.get_driver_id_by_email(email)
@@ -706,10 +709,23 @@ class ManagementEventHandlers:
 
         ID = driver["_id"]
         EMPID = driver["employee_id"] #for trips driver_assignment is equivalent to employee_id
-        security_id = driver["security_id"] #for maintenance_records assigned_to is equivalent to security_id 
+        security_id = driver["security_id"] #for maintenance_records assigned_to is equivalent to security_id
         await driver_service.delete_driver(ID)
         await vehicle_assignment_service.cancel_driver_assignments(EMPID)
+        publisher = EventPublisher()
+        message = ({
+                "driver_assignment": EMPID,
+                "assigned_to": security_id,
+            })
+        await publisher.publish_message(
+                        exchange_name="removed_user",
+                        exchange_type=aio_pika.ExchangeType.FANOUT,
+                        message=message
+                    )
+        
+
         #cancel schedules trips
+        
         logger.info(f"Successfully processed removed user event: {email}")
 
 
