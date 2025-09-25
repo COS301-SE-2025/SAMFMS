@@ -61,8 +61,8 @@ services:
   # Core Service
   core-integration:
     build:
-      context: ./Core
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./Core/Dockerfile
     container_name: samfms-core-integration
     environment:
       - ENV=integration
