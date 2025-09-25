@@ -1,0 +1,212 @@
+version: '3.8'
+
+services:
+  # Infrastructure Services
+  mongodb-integration:
+    image: mongo:6.0
+    container_name: samfms-mongodb-integration
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: integration_admin
+      MONGO_INITDB_ROOT_PASSWORD: integration_password_123
+      MONGO_INITDB_DATABASE: samfms_integration
+    ports:
+      - '27019:27017'
+    volumes:
+      - mongodb_integration_data:/data/db
+      - ./scripts/init-mongodb.js:/docker-entrypoint-initdb.d/init-mongodb.js:ro
+    networks:
+      - samfms-integration-network
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: mongod --auth
+
+  rabbitmq-integration:
+    image: rabbitmq:3.11-management
+    container_name: samfms-rabbitmq-integration
+    environment:
+      RABBITMQ_DEFAULT_USER: integration_user
+      RABBITMQ_DEFAULT_PASS: integration_password
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - '5674:5672'
+      - '15674:15672'
+    volumes:
+      - rabbitmq_integration_data:/var/lib/rabbitmq
+    networks:
+      - samfms-integration-network
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-integration:
+    image: redis:7-alpine
+    container_name: samfms-redis-integration
+    ports:
+      - '6381:6379'
+    volumes:
+      - redis_integration_data:/data
+    networks:
+      - samfms-integration-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Core Service
+  core-integration:
+    build:
+      context: ./Core
+      dockerfile: Dockerfile
+    container_name: samfms-core-integration
+    environment:
+      - ENV=integration
+      - LOG_LEVEL=INFO
+      - MONGODB_URL=mongodb://integration_admin:integration_password_123@mongodb-integration:27017/samfms_integration?authSource=admin
+      - RABBITMQ_URL=amqp://integration_user:integration_password@rabbitmq-integration:5672/
+      - REDIS_URL=redis://redis-integration:6379
+      - JWT_SECRET_KEY=integration_test_secret_key_12345
+      - JWT_ALGORITHM=HS256
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
+      - JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+    ports:
+      - '8001:8000'
+    depends_on:
+      - mongodb-integration
+      - rabbitmq-integration
+      - redis-integration
+    networks:
+      - samfms-integration-network
+    volumes:
+      - ./Core:/app
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Management Service
+  management-integration:
+    build:
+      context: ./Sblocks/management
+      dockerfile: Dockerfile
+    container_name: samfms-management-integration
+    environment:
+      - ENV=integration
+      - LOG_LEVEL=INFO
+      - MONGODB_URL=mongodb://integration_admin:integration_password_123@mongodb-integration:27017/samfms_integration?authSource=admin
+      - RABBITMQ_URL=amqp://integration_user:integration_password@rabbitmq-integration:5672/
+    depends_on:
+      - mongodb-integration
+      - rabbitmq-integration
+      - core-integration
+    networks:
+      - samfms-integration-network
+    volumes:
+      - ./Sblocks/management:/app
+
+  # Maintenance Service
+  maintenance-integration:
+    build:
+      context: ./Sblocks/maintenance
+      dockerfile: Dockerfile
+    container_name: samfms-maintenance-integration
+    environment:
+      - ENV=integration
+      - LOG_LEVEL=INFO
+      - MONGODB_URL=mongodb://integration_admin:integration_password_123@mongodb-integration:27017/samfms_integration?authSource=admin
+      - RABBITMQ_URL=amqp://integration_user:integration_password@rabbitmq-integration:5672/
+    depends_on:
+      - mongodb-integration
+      - rabbitmq-integration
+      - core-integration
+    networks:
+      - samfms-integration-network
+    volumes:
+      - ./Sblocks/maintenance:/app
+
+  # Trip Planning Service
+  trips-integration:
+    build:
+      context: ./Sblocks/trip_planning
+      dockerfile: Dockerfile
+    container_name: samfms-trips-integration
+    environment:
+      - ENV=integration
+      - LOG_LEVEL=INFO
+      - MONGODB_URL=mongodb://integration_admin:integration_password_123@mongodb-integration:27017/samfms_integration?authSource=admin
+      - RABBITMQ_URL=amqp://integration_user:integration_password@rabbitmq-integration:5672/
+    depends_on:
+      - mongodb-integration
+      - rabbitmq-integration
+      - core-integration
+    networks:
+      - samfms-integration-network
+    volumes:
+      - ./Sblocks/trip_planning:/app
+
+  # Frontend Service
+  frontend-integration:
+    build:
+      context: ./Frontend/samfms
+      dockerfile: Dockerfile
+    container_name: samfms-frontend-integration
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_BASE_URL=http://localhost:8001
+      - REACT_APP_WS_TARGET=ws://localhost:8001
+      - GENERATE_SOURCEMAP=false
+    ports:
+      - '3001:80'
+    depends_on:
+      - core-integration
+    networks:
+      - samfms-integration-network
+    volumes:
+      - ./Frontend/samfms/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+  # Integration Test Runner
+  integration-test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.integration-test
+    container_name: samfms-integration-test-runner
+    environment:
+      - NODE_ENV=test
+      - CORE_URL=http://core-integration:8000
+      - FRONTEND_URL=http://frontend-integration:80
+      - PYTHONPATH=/app
+    depends_on:
+      - core-integration
+      - frontend-integration
+    networks:
+      - samfms-integration-network
+    volumes:
+      - .:/app
+      - ./test-results:/app/test-results
+    working_dir: /app
+    command: >
+      sh -c "
+        echo 'Waiting for services to be ready...' &&
+        sleep 30 &&
+        echo 'Running Python integration tests...' &&
+        python -m pytest tests/integration/test_frontend_core_integration.py -v --junit-xml=test-results/integration-pytest.xml &&
+        echo 'Running Frontend integration tests...' &&
+        cd Frontend/samfms &&
+        npm test -- --testPathPattern='integration.test.js' --watchAll=false --ci --passWithNoTests
+      "
+
+volumes:
+  mongodb_integration_data:
+  rabbitmq_integration_data:
+  redis_integration_data:
+
+networks:
+  samfms-integration-network:
+    driver: bridge
