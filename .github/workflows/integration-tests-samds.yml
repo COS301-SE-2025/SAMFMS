@@ -40,7 +40,7 @@ jobs:
     timeout-minutes: 60
     
     env:
-      SAMDS_URL: ${{ secrets.SAMDS_URL }}
+      SAMDS_ENDPOINT: ${{ secrets.SAMDS_ENDPOINT }}
       SAMDS_API_KEY: ${{ secrets.SAMDS_API_KEY }}
     
     steps:
@@ -56,18 +56,18 @@ jobs:
             exit 1
           fi
           
-          if [ -z "$SAMDS_URL" ]; then
-            echo "❌ SAMDS_URL is not configured"
+          if [ -z "$SAMDS_ENDPOINT" ]; then
+            echo "❌ SAMDS_ENDPOINT is not configured"
             exit 1
           fi
           
           echo "✅ SAMDS configuration validated"
-          echo "SAMDS URL: $SAMDS_URL"
+          echo "SAMDS URL: $SAMDS_ENDPOINT"
 
       - name: Check SAMDS health
         run: |
           echo "Checking SAMDS health..."
-          response=$(curl -s -w "%{http_code}" -o /tmp/health_response.json "$SAMDS_URL/" || echo "000")
+          response=$(curl -s -w "%{http_code}" -o /tmp/health_response.json "$SAMDS_ENDPOINT/" || echo "000")
           
           if [ "$response" = "200" ]; then
             echo "✅ SAMDS is healthy"
@@ -128,7 +128,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d @test_config.json \
             -o test_results.json \
-            "$SAMDS_URL/run-integration-tests")
+            "$SAMDS_ENDPOINT/run-integration-tests")
           
           echo "HTTP Response Code: $response"
           
