@@ -180,36 +180,25 @@ const Landing = () => {
                                 </Button>
                                 
                                 <div className="flex gap-3">
-                                <Button
-                                    variant="outline"
-                                    size="lg"
-                                    onClick={() => window.open('https://github.com/COS301-SE-2025/SAMFMS', '_blank')}
-                                    className="border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 px-6 py-3 h-auto text-base font-medium flex items-center gap-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                                >
-                                    <Github size={20} />
-                                    GitHub
-                                </Button>
-
-                                <Button
-                                    variant="outline"
-                                    size="lg"
-                                    onClick={() => window.open('https://github.com/COS301-SE-2025/SAMFMS/blob/main/docs/Demo3/SAMFMS%20User%20Manual.pdf', '_blank')}
-                                    className="border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 px-6 py-3 h-auto text-base font-medium flex items-center gap-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                                >
-                                    <BarChart size={20} />
-                                    Guide
-                                </Button>
-
-                                <Button
-                                    asChild
-                                    size="lg"
-                                    className="px-6 py-3 h-auto text-base font-medium flex items-center gap-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                                >
-                                    <a href="/downloads/SAMFMS-release.apk" download>
-                                    <Download size={20} />
-                                    Download our driver app!
-                                    </a>
-                                </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="lg"
+                                        onClick={() => window.open('https://github.com/COS301-SE-2025/SAMFMS', '_blank')}
+                                        className="border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 px-6 py-3 h-auto text-base font-medium flex items-center gap-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                                    >
+                                        <Github size={20} />
+                                        GitHub
+                                    </Button>
+                                    
+                                    <Button
+                                        variant="outline"
+                                        size="lg"
+                                        onClick={() => window.open('https://github.com/COS301-SE-2025/SAMFMS/blob/main/docs/Demo3/SAMFMS%20User%20Manual.pdf', '_blank')}
+                                        className="border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 px-6 py-3 h-auto text-base font-medium flex items-center gap-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                                    >
+                                        <BarChart size={20} />
+                                        Guide
+                                    </Button>
                                 </div>
                             </div>
                         </div>
