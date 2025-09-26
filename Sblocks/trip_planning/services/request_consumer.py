@@ -231,6 +231,9 @@ class ServiceRequestConsumer:
             if endpoint == "health" or endpoint == "":
                 logger.info(f"[_route_request] Routing to _handle_health_request()")
                 return await self._handle_health_request(method, user_context)
+            elif "upcomingrecommendations" in endpoint:
+                logger.info("Routing to upcomming recommendations handler")
+                return await self._upcoming_recommendation_requests(method, user_context)
             elif "driver-history" in endpoint or "driver_history" in endpoint:
                 logger.info(f"[_route_request] Routing to _handle_driver_history_request()")
                 return await self._handle_driver_history_request(method, user_context)
@@ -284,6 +287,98 @@ class ServiceRequestConsumer:
         except Exception as e:
             logger.error(f"[_route_request] Exception: {e}")
             raise
+
+    async def _upcoming_recommendation_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Hanlde upcoming recommendation requests"""
+        try:
+            from services.upcoming_recommendations_service import upcoming_recommendation_service
+            from schemas.responses import ResponseBuilder
+            data = user_context.get("data", {})
+            endpoint = user_context.get("endpoint", "")
+
+            if method == "GET":
+                if "get" in endpoint:
+                    # get all the upcoming recommendations
+                    try:
+                        logger.info("Entered get all upcoming recommendations")
+                        recommendations = await upcoming_recommendation_service.get_combination_recommendations()
+                        logger.info(f"Retrieved {len(recommendations)} from the upcoming recommendations collection")
+                        return_data = {
+                            "data" : recommendations
+                        }
+
+                        return ResponseBuilder.success(
+                            data=return_data,
+                            message="Upcoming recommendations retrieved successfully"
+                        )
+
+                    except Exception as e:
+                        return ResponseBuilder.error(
+                            error="GetUpcomingRecommendationReturnError",
+                            message=f"Failed to process return upcoming recommendation request: {str(e)}"
+                        ).model_dump()
+                else:
+                    raise ValueError(f"Unsupported HTTP method: {method}")
+                    
+            elif method == "POST":
+                if "accept" in endpoint:
+                    recommendation_id = data["recommendation_id"]
+                    try:
+                        response = await upcoming_recommendation_service.accept_combination_recommendation(recommendation_id)
+                        if(response):
+                            return ResponseBuilder.success(
+                                data=None,
+                                message="Upcomming recommendation accepted successfully"
+                            )
+                        
+                        return ResponseBuilder.error(
+                            error="UpcomingRecommendationAcceptionError",
+                            message=f"Failed to process accept request"
+                        ).model_dump()
+                    except Exception as e:
+                        logger.error(f"[_upcoming_recommendation_requests] Exception in accepting upcoming recommendation: {e}")
+                        return ResponseBuilder.error(
+                            error="UpcomingRecommendationAcceptionError",
+                            message=f"Failed to process accept request: {str(e)}"
+                        ).model_dump()
+                            
+                elif "reject" in endpoint:
+                    recommendation_id = data["recommendation_id"]
+                    try:
+                        response = await upcoming_recommendation_service.reject_combination_recommendation(recommendation_id)
+                        if response:
+                            return ResponseBuilder.success(
+                                data=None,
+                                message="Upcoming recommendation rejected successfully"
+                            )
+                        
+                        return ResponseBuilder.error(
+                            error="UpcomingRecommendationRejectionError",
+                            message=f"Failed to process accept upcoming recommendation request"
+                        ).model_dump()
+                    except Exception as e:
+                        logger.error(f"[_upcoming_recommendation_requests] Exception in rejecting route upcoming recommendation: {e}")
+                        return ResponseBuilder.error(
+                            error="UpcomingRecommendationRejectionError",
+                            message=f"Failed to process reject request: {str(e)}"
+                        ).model_dump()
+                else:
+                    raise ValueError(f"Unsupported HTTP method: {method}")
+                
+            else:
+                raise ValueError(f"Unsupported HTTP endpoint: {endpoint}")
+            
+        except Exception as e:
+            logger.error(f"[_upcoming_recommendation_requests] Exception: {e}")
+            return ResponseBuilder.error(
+                error="UpcomingRecommendationError",
+                message=f"Failed to process upcoming recommendation request: {str(e)}"
+            ).model_dump()
+
+
+
+
+
     
     async def _handle_traffic_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle traffic montiro requests"""
@@ -300,10 +395,15 @@ class ServiceRequestConsumer:
                 if "recommendations" in endpoint:
                     # get all the traffic recommendations
                     try:
+                        #from services.smart_trip_planning_service import smart_trip_service
+                        #await smart_trip_service.monitor_traffic_and_recommend_routes()
                         recommended_trips = await trip_service.get_route_recommendations()
+                        logger.info(f"Number of trips recommended: {len(recommended_trips)}")
                         return_data = {
                             "data" : recommended_trips
                         }
+
+                        logger.info(f"Returning data for recommendations: {return_data}")
 
                         return ResponseBuilder.success(
                             data=return_data,
@@ -780,6 +880,10 @@ class ServiceRequestConsumer:
                     logger.info(f"Assignment created successfully: {assignment}")
 
                     logger.info(f"[_handle_trips_request] trip_service.create_trip() succeeded for trip {trip.id}")
+
+                    # after trip is created do a check for smart upcoming trips recommendations
+                    from services.upcoming_recommendations_service import upcoming_recommendation_service
+                    asyncio.create_task(upcoming_recommendation_service.analyze_and_store_combinations())
                     return ResponseBuilder.success(
                         data=trip.dict(),
                         message="Trip created successfully"
@@ -797,6 +901,11 @@ class ServiceRequestConsumer:
                     
                     if not started_trip:
                         raise ValueError("Trip not found or could not be started")
+                    
+                    # create notification that trip started
+                    from services.notification_service import notification_service
+                    trip = await trip_service.get_trip_by_id(trip_id)
+                    await notification_service.notify_trip_started(trip)
                     
                     return ResponseBuilder.success(
                         data=started_trip.model_dump(),
@@ -1353,53 +1462,69 @@ class ServiceRequestConsumer:
             ).model_dump()
 
     async def _handle_driver_behavior_analytics_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle driver behavior analytics requests"""
+        """Handle driver behavior analytics requests (avoids TestClient cross-loop issues)."""
         try:
             from schemas.responses import ResponseBuilder
             from fastapi import Request
-            
+            import os
+            import asyncio
+            import httpx
+
             data = user_context.get("data", {})
             endpoint = user_context.get("endpoint", "")
             user_id = user_context.get("user_id", "")
             logger.info(f"[DriverBehaviorAnalytics] Processing endpoint: {endpoint}")
-            
-            # Import analytics router and make a direct call
-            from api.routes.analytics import router as analytics_router
-            
-            # Create a mock request object for FastAPI route handling
-            from fastapi.testclient import TestClient
-            from main import app
-            
-            # Extract the specific analytics endpoint from the URL
-            # Expected format: driver-behavior/violation-trends, driver-behavior/risk-distribution, etc.
+
             path_parts = endpoint.split('/')
-            
             if len(path_parts) < 2:
                 raise ValueError(f"Invalid driver-behavior endpoint format: {endpoint}")
-                
-            # Get the specific endpoint (e.g., violation-trends, risk-distribution)
-            analytics_endpoint = '/'.join(path_parts[1:])  # Remove 'driver-behavior' prefix
-            
-            # Add query parameters if they exist
+
+            analytics_endpoint = '/'.join(path_parts[1:]) 
+
             query_params = ""
             if data.get('period'):
                 query_params = f"?period={data.get('period')}"
             elif 'period=' in endpoint:
-                # Extract period from endpoint if it's already there
                 if '?' in endpoint:
                     query_params = '?' + endpoint.split('?')[1]
-            
-            # Construct the full endpoint path
+
             full_endpoint = f"/driver-behavior/{analytics_endpoint}{query_params}"
-            
             logger.info(f"[DriverBehaviorAnalytics] Calling endpoint: {full_endpoint}")
+
             
-            # Use TestClient to make internal API call
-            client = TestClient(app)
-            headers = {"Authorization": f"Bearer {user_context.get('token', '')}"}
-            
-            response = client.get(full_endpoint, headers=headers)
-            
+            base_url = "http://localhost:8000"
+            logger.warning(f"[CONSUMER DEBUG] loop={id(asyncio.get_running_loop())} base_url={base_url} GET {full_endpoint}")
+
+            def _pick_bearer(user_context: dict) -> str | None:
+               
+                raw_auth = str(user_context.get("authorization") or user_context.get("Authorization") or "").strip()
+                if raw_auth.lower().startswith("bearer "):
+                    tok = raw_auth[7:].strip()
+                    if tok and tok.lower() not in {"null", "none"}:
+                        return f"Bearer {tok}"
+
+                tok = str(user_context.get("token") or "").strip()
+                if tok and tok.lower() not in {"null", "none"}:
+                    return f"Bearer {tok}"
+
+                svc = str(os.getenv("INTERNAL_SERVICE_TOKEN", "")).strip()
+                if svc:
+                    return f"Bearer {svc}"
+
+                return None
+
+            auth_value = _pick_bearer(user_context)
+            headers = {}
+            if auth_value:
+                headers["Authorization"] = auth_value
+                masked = auth_value[:10] + "…" if len(auth_value) > 10 else "****"
+                logger.debug(f"[CONSUMER DEBUG] using Authorization={masked}")
+            else:
+                logger.debug("[CONSUMER DEBUG] no valid token; sending request without Authorization")
+
+            async with httpx.AsyncClient(base_url=base_url, timeout=20.0) as client:
+                response = await client.get(full_endpoint, headers=headers)
+
             if response.status_code == 200:
                 return response.json()
             else:
@@ -1408,12 +1533,13 @@ class ServiceRequestConsumer:
                     error="DriverBehaviorAnalyticsError",
                     message=f"Failed to retrieve driver behavior analytics: {response.text}"
                 ).model_dump()
-                
+
         except Exception as e:
-            logger.error(f"[DriverBehaviorAnalytics] Error processing request: {e}")
+            logger.exception("[DriverBehaviorAnalytics] Unexpected error: %s", e)
+            from schemas.responses import ResponseBuilder
             return ResponseBuilder.error(
-                error="DriverBehaviorAnalyticsRequestError",
-                message=f"Failed to process driver behavior analytics request: {str(e)}"
+                error="DriverBehaviorAnalyticsError",
+                message=str(e)
             ).model_dump()
 
     async def _handle_analytics_requests(self, method: str, user_context: Dict[str, Any]) -> Dict[str, Any]:
@@ -1502,16 +1628,9 @@ class ServiceRequestConsumer:
             logger.info(f"[_handle_notifications_request] Method: {method}, Endpoint: {endpoint}, User ID: {user_id}")
 
             if method == "GET":
-                # Get user notifications
-                unread_only = data.get("unread_only", "false").lower() == "true"
-                limit = int(data.get("limit", 50))
-                skip = int(data.get("skip", 0))
                 
-                notifications, total = await notification_service.get_user_notifications(
-                    user_id=user_id,
-                    unread_only=unread_only,
-                    limit=limit,
-                    skip=skip
+                notifications, total = await notification_service.get_notifications(
+                    unread_only=True
                 )
                 
                 # Convert to dict format for response
@@ -1540,23 +1659,22 @@ class ServiceRequestConsumer:
                 ).model_dump()
 
             elif method == "POST":
-                # Send notification (admin/fleet_manager only)
-                user_role = user_context.get("role")
-                if user_role not in ["admin", "fleet_manager"]:
-                    raise ValueError("Insufficient permissions to send notifications")
-                
-                from schemas.requests import NotificationRequest
-                notification_request = NotificationRequest(**data)
-                
-                notifications = await notification_service.send_notification(notification_request)
-                
-                return ResponseBuilder.success(
-                    data={
-                        "sent_count": len(notifications),
-                        "notification_ids": [str(n._id) if hasattr(n, '_id') else n.id for n in notifications]
-                    },
-                    message="Notifications sent successfully"
-                ).model_dump()
+                if "read" in endpoint:
+                    notification_id = data["notification_id"]
+                    try:
+                        respone = await notification_service.mark_notification_read(notification_id)
+                        
+                        return ResponseBuilder.success(
+                            data={"marked_read": respone},
+                            message="Notification marked as read" if result else "Notification not found or already read"
+                        ).model_dump()
+                    except Exception as e:
+                        logger.info(f"Failed to mark the messge as read: {e}")
+                        return ResponseBuilder.error(
+                            error="NotificationRequestError",
+                            message=f"Failed to mark notification as read: {str(e)}"
+                        )
+
 
             elif method == "PUT":
                 # Mark notification as read

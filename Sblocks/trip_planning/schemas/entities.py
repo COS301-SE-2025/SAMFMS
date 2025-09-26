@@ -1,7 +1,7 @@
 """
 Entity schemas for Trip Planning service
 """
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from enum import Enum
@@ -113,8 +113,69 @@ class NotificationType(str, Enum):
     DRIVER_LATE = "driver_late"
     ROUTE_CHANGED = "route_changed"
     TRAFFIC_ALERT = "traffic_alert"
+    GEOFENCE_ALERT = "geofence_alert"
     DRIVER_ASSIGNED = "driver_assigned"
     DRIVER_UNASSIGNED = "driver_unassigned"
+
+class Notification(BaseModel):
+    """User notification"""
+    id: Optional[str] = Field(None, alias="_id")
+    type: NotificationType = Field(..., description="Notification type")
+    title: str = Field(..., description="Notification title")
+    message: str = Field(..., description="Notification message")
+    
+    # Related entities
+    trip_id: Optional[str] = None
+    driver_id: Optional[str] = None
+    
+    # Notification data
+    data: Optional[Dict[str, Any]] = Field(None, description="Additional notification data")
+    
+    # Status
+    is_read: bool = Field(default=False)
+    sent_at: datetime = Field(default_factory=datetime.utcnow)
+    read_at: Optional[datetime] = None
+    
+    delivery_status: Optional[Dict[str, Any]] = None
+    
+    class Config:
+        populate_by_name = True
+
+
+class NotificationPreferences(BaseModel):
+    """User notification preferences"""
+    id: Optional[str] = Field(None, alias="_id")
+    user_id: str = Field(..., description="User ID")
+    
+    # Notification types preferences
+    trip_started: bool = Field(default=True)
+    trip_completed: bool = Field(default=True)
+    trip_delayed: bool = Field(default=True)
+    driver_late: bool = Field(default=True)
+    route_changed: bool = Field(default=True)
+    traffic_alert: bool = Field(default=False)
+    driver_assigned: bool = Field(default=True)
+    driver_unassigned: bool = Field(default=True)
+    
+    # Delivery channels
+    email_enabled: bool = Field(default=True)
+    push_enabled: bool = Field(default=True)
+    sms_enabled: bool = Field(default=False)
+    
+    # Contact information
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    
+    # Schedule
+    quiet_hours_start: Optional[str] = Field(None, description="HH:MM format")
+    quiet_hours_end: Optional[str] = Field(None, description="HH:MM format")
+    timezone: str = Field(default="UTC")
+    
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True
+
 
 
 class LocationPoint(BaseModel):
@@ -317,7 +378,7 @@ class TrafficCondition(BaseModel):
 
 class RouteRecommendation(BaseModel):
     """Represents a route optimization recommendation"""
-    id: str = Field(..., description="Unique Route Recommended Trip ID")
+    id: Optional[str] = Field(None, description="Unique Smart Trip ID")
     trip_id: str = Field(..., description="Associated Trip ID")
     vehicle_id: str = Field(..., description="Associated Vehicle ID")
     current_route: RouteInfo = Field(..., description="Current route information")
@@ -354,69 +415,6 @@ class TripAnalytics(BaseModel):
     
     # Timestamps
     calculated_at: datetime = Field(default_factory=datetime.utcnow)
-    
-    class Config:
-        populate_by_name = True
-
-
-class Notification(BaseModel):
-    """User notification"""
-    id: Optional[str] = Field(None, alias="_id")
-    user_id: str = Field(..., description="Recipient user ID")
-    type: NotificationType = Field(..., description="Notification type")
-    title: str = Field(..., description="Notification title")
-    message: str = Field(..., description="Notification message")
-    
-    # Related entities
-    trip_id: Optional[str] = None
-    driver_id: Optional[str] = None
-    
-    # Notification data
-    data: Optional[Dict[str, Any]] = Field(None, description="Additional notification data")
-    
-    # Status
-    is_read: bool = Field(default=False)
-    sent_at: datetime = Field(default_factory=datetime.utcnow)
-    read_at: Optional[datetime] = None
-    
-    # Delivery
-    channels: List[str] = Field(default_factory=list, description="Delivery channels (email, push, sms)")
-    delivery_status: Optional[Dict[str, Any]] = None
-    
-    class Config:
-        populate_by_name = True
-
-
-class NotificationPreferences(BaseModel):
-    """User notification preferences"""
-    id: Optional[str] = Field(None, alias="_id")
-    user_id: str = Field(..., description="User ID")
-    
-    # Notification types preferences
-    trip_started: bool = Field(default=True)
-    trip_completed: bool = Field(default=True)
-    trip_delayed: bool = Field(default=True)
-    driver_late: bool = Field(default=True)
-    route_changed: bool = Field(default=True)
-    traffic_alert: bool = Field(default=False)
-    driver_assigned: bool = Field(default=True)
-    driver_unassigned: bool = Field(default=True)
-    
-    # Delivery channels
-    email_enabled: bool = Field(default=True)
-    push_enabled: bool = Field(default=True)
-    sms_enabled: bool = Field(default=False)
-    
-    # Contact information
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    
-    # Schedule
-    quiet_hours_start: Optional[str] = Field(None, description="HH:MM format")
-    quiet_hours_end: Optional[str] = Field(None, description="HH:MM format")
-    timezone: str = Field(default="UTC")
-    
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     class Config:
         populate_by_name = True
@@ -595,3 +593,140 @@ class DriverHistory(BaseModel):
     
     class Config:
         populate_by_name = True
+
+
+class RiskLevel(str, Enum):
+    """Driver risk level enum"""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class DriverHistory(BaseModel):
+    """Driver performance history and metrics"""
+    id: Optional[str] = Field(None, alias="_id", description="History record ID")
+    driver_id: str = Field(..., description="Driver ID")
+    employee_id: Optional[str] = Field(None, description="Employee ID")
+    driver_name: str = Field(..., description="Driver full name")
+    
+    # Trip statistics
+    total_assigned_trips: int = Field(default=0, description="Total number of assigned trips")
+    completed_trips: int = Field(default=0, description="Number of trips completed")
+    cancelled_trips: int = Field(default=0, description="Number of cancelled trips")
+    trip_completion_rate: float = Field(default=0.0, description="Trip completion rate as percentage")
+    
+    # Violation counts
+    braking_violations: int = Field(default=0, description="Number of excessive braking violations")
+    acceleration_violations: int = Field(default=0, description="Number of excessive acceleration violations")
+    phone_usage_violations: int = Field(default=0, description="Number of phone usage violations")
+    speeding_violations: int = Field(default=0, description="Number of speeding violations")
+    
+    # Safety metrics
+    driver_safety_score: float = Field(default=100.0, description="Driver safety score (0-100)")
+    driver_risk_level: RiskLevel = Field(default=RiskLevel.LOW, description="Driver risk level")
+    
+    # Metadata
+    last_updated: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Record creation timestamp")
+    
+    class Config:
+        populate_by_name = True
+
+class TripCombinationRecommendation(BaseModel):
+    """Schema for trip combination recommendations"""
+    id: str
+    primary_trip_id: str
+    secondary_trip_id: str
+    primary_trip_name: str
+    secondary_trip_name: str
+    recommended_driver: str
+    recommended_vehicle: str
+    combined_route: Optional[RouteInfo]
+    travel_distance_km: float
+    time_gap_hours: float
+    benefits: Dict[str, Any]
+    confidence_score: float  # 0-1
+    reasoning: List[str]
+    created_at: datetime
+    expires_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class Savings(BaseModel):
+    time_minutes: float
+    distance_km: float
+    cost: str
+
+class CombinationInfo(BaseModel):
+    is_combined: bool
+    original_primary_trip: str
+    original_secondary_trip: str
+    recommendation_id: str
+    combined_at: datetime
+    savings: Savings
+
+class GeofenceType(str, Enum):
+    CIRCLE = "Circle"
+    POINT = "Point"
+    POLYGON = "Polygon"
+    RECTANGLE = "Rectangle"
+
+class GeofenceStatus(str, Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    DRAFT = "draft"
+
+class GeofenceCategory(str, Enum):
+    DEPOT = "depot"
+    SERVICE = "service"
+    DELIVERY = "delivery"
+    RESTRICTED = "restricted"
+    EMERGENCY = "emergency"
+    BOUNDARY = "boundary"
+
+
+class GeofenceCenter(BaseModel):
+    latitude: float = Field(..., ge=-90, le=90, description="Latitude coordinate")
+    longitude: float = Field(..., ge=-180, le=180, description="Longitude coordinate")
+
+class GeofenceProperties(BaseModel):
+    radius: float
+
+class GeofenceGeometry(BaseModel):
+    type: GeofenceType = Field(..., description="Type of geofence geometry")
+    coordinates: List[Any] = Field(..., description="GeoJSON coordinates")
+    radius: Optional[int] = Field(None, ge=1, description="Radius for circle type")
+    properties: Optional[GeofenceProperties] = None
+    @field_validator('radius')
+    @classmethod
+    def validate_radius_for_circle(cls, v, info):
+        if info.data.get('type') == GeofenceType.CIRCLE and v is None:
+            raise ValueError("Radius is required for circle type geofences")
+        return v
+
+    @field_validator('coordinates')
+    @classmethod
+    def validate_coordinates(cls, v, info):
+        if info.data.get('type') in [GeofenceType.POLYGON, GeofenceType.RECTANGLE] and not v:
+            raise ValueError("Coordinates are required for polygon/rectangle geofences")
+        return v
+
+
+class Geofence(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_encoders={datetime: lambda v: v.isoformat() + 'Z'}
+    )
+
+    id: Optional[str] = Field(default=None, alias="_id")
+    name: str
+    description: Optional[str] = ""
+    type: GeofenceCategory
+    status: GeofenceStatus = GeofenceStatus.ACTIVE
+    geometry: GeofenceGeometry
+    geojson_geometry: Optional[Dict[str, Any]] = None
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    is_active: bool = True

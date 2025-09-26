@@ -17,16 +17,27 @@ class DatabaseManager:
         self._client: Optional[motor.motor_asyncio.AsyncIOMotorClient] = None
         self._db = None
         self.mongodb_url = os.getenv(
-            "MONGODB_URL", 
+            "MONGODB_URL",
             "mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017"
         )
         self.database_name = os.getenv("DATABASE_TRIP_PLANNING", "samfms_trip_planning")
+        self._loop_id = None
         
     async def connect(self):
-        """Establish database connection with optimal settings and error recovery"""
-        if self._client is None:
+        """Establish database connection with optimal settings and error recovery (loop-aware)."""
+        import asyncio
+        current_loop_id = id(asyncio.get_running_loop())
+        if self._client is None or self._loop_id != current_loop_id:
             try:
-                # Connection with optimized settings
+                if self._client is not None and self._loop_id != current_loop_id:
+                    try:
+                        logger.warning(f"[DB DEBUG] Loop changed; rebuilding Motor client (old={self._loop_id}, new={current_loop_id})")
+                        self._client.close()
+                    except Exception as close_err:
+                        logger.warning(f"[DB DEBUG] Error closing stale client: {close_err}")
+                    self._client = None
+                    self._db = None
+
                 self._client = motor.motor_asyncio.AsyncIOMotorClient(
                     self.mongodb_url,
                     maxPoolSize=50,
@@ -39,19 +50,19 @@ class DatabaseManager:
                     retryWrites=True,
                     w="majority"
                 )
-                
-                # Test connection
+
                 await self._client.admin.command('ping')
                 self._db = self._client[self.database_name]
-                
-                # Create indexes with error handling
+                self._loop_id = current_loop_id
+                logger.warning(f"[DB DEBUG] Connected to MongoDB '{self.database_name}' on loop={self._loop_id} client_id={id(self._client)}")
+
                 try:
                     await self._create_indexes()
                 except Exception as index_error:
                     logger.warning(f"Failed to create some indexes: {index_error}")
-                
+
                 logger.info(f"Connected to MongoDB: {self.database_name}")
-                
+
             except Exception as e:
                 logger.error(f"Failed to connect to MongoDB: {e}")
                 raise
@@ -304,8 +315,10 @@ class DatabaseManager:
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.driver_history
+    
+    @property
     def smarttrips(self):
-        """Get driver ping sessions collection"""
+        """Get smart trips collection"""
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.smart_trips
@@ -316,6 +329,13 @@ class DatabaseManager:
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db.route_recommendations
+    
+    @property
+    def upcoming_recommendations(self):
+        """Get upcoming recommendations"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.upcoming_recommendations
 
     
     async def create_trip_with_transaction(self, trip_data: dict, constraints: list = None):
@@ -378,13 +398,25 @@ class DatabaseManagerGeo():
             "MONGODB_URL",
             "mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017"
         )
-        self.database_name = os.getenv("DATABASE_GPS","samfms_gps")
+        self.database_name = os.getenv("DATABASE_TRIP_PLANNING_GEO", "samfms_trip_planning_geo")
+        # NEW
+        self._loop_id = None
     
     async def connect(self):
-        """Establish database connection with optimal settings and error recovery"""
-        if self._client is None:
+        """Establish database connection with optimal settings and error recovery (loop-aware)."""
+        import asyncio
+        current_loop_id = id(asyncio.get_running_loop())
+        if self._client is None or self._loop_id != current_loop_id:
             try:
-                # Connection with optimized settings
+                if self._client is not None and self._loop_id != current_loop_id:
+                    try:
+                        logger.warning(f"[DB DEBUG] Loop changed; rebuilding Motor client (old={self._loop_id}, new={current_loop_id})")
+                        self._client.close()
+                    except Exception as close_err:
+                        logger.warning(f"[DB DEBUG] Error closing stale client: {close_err}")
+                    self._client = None
+                    self._db = None
+
                 self._client = motor.motor_asyncio.AsyncIOMotorClient(
                     self.mongodb_url,
                     maxPoolSize=50,
@@ -397,15 +429,20 @@ class DatabaseManagerGeo():
                     retryWrites=True,
                     w="majority"
                 )
-                
-                # Test connection
                 await self._client.admin.command('ping')
                 self._db = self._client[self.database_name]
+                self._loop_id = current_loop_id
+                logger.warning(f"[DB DEBUG] Connected to MongoDB GEO '{self.database_name}' on loop={self._loop_id} client_id={id(self._client)}")
 
-                logger.info(f"Connected to MongoDB GPS: {self.database_name}")
-            
+                try:
+                    await self._create_indexes()
+                except Exception as index_error:
+                    logger.warning(f"Failed to create some GEO indexes: {index_error}")
+
+                logger.info(f"Connected to MongoDB GEO: {self.database_name}")
+
             except Exception as e:
-                logger.error(f"Failed to connect to MongoDB GPS: {e}")
+                logger.error(f"Failed to connect to MongoDB GEO: {e}")
                 raise
     async def disconnect(self):
         """Safely disconnect from database"""
@@ -444,6 +481,13 @@ class DatabaseManagerGeo():
             raise RuntimeError("Database not connected")
         return self._db.vehicle_locations
 
+    @property
+    def geofences(self):
+        """Get geofences collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.geofences
+
 class DatabaseManagerManagement():
     """Centralized database connection manager for Trip Planning: Management access"""
     def __init__(self):
@@ -453,13 +497,25 @@ class DatabaseManagerManagement():
             "MONGODB_URL",
             "mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017"
         )
-        self.database_name = os.getenv("DATABASE_MANAGEMENT","samfms_management")
+        self.database_name = os.getenv("DATABASE_TRIP_PLANNING_MANAGEMENT", "samfms_trip_planning_management")
+        # NEW
+        self._loop_id = None
     
     async def connect(self):
-        """Establish database connection with optimal settings and error recovery"""
-        if self._client is None:
+        """Establish database connection with optimal settings and error recovery (loop-aware)."""
+        import asyncio
+        current_loop_id = id(asyncio.get_running_loop())
+        if self._client is None or self._loop_id != current_loop_id:
             try:
-                # Connection with optimized settings
+                if self._client is not None and self._loop_id != current_loop_id:
+                    try:
+                        logger.warning(f"[DB DEBUG] Loop changed; rebuilding Motor client (old={self._loop_id}, new={current_loop_id})")
+                        self._client.close()
+                    except Exception as close_err:
+                        logger.warning(f"[DB DEBUG] Error closing stale client: {close_err}")
+                    self._client = None
+                    self._db = None
+
                 self._client = motor.motor_asyncio.AsyncIOMotorClient(
                     self.mongodb_url,
                     maxPoolSize=50,
@@ -472,15 +528,20 @@ class DatabaseManagerManagement():
                     retryWrites=True,
                     w="majority"
                 )
-                
-                # Test connection
                 await self._client.admin.command('ping')
                 self._db = self._client[self.database_name]
+                self._loop_id = current_loop_id
+                logger.warning(f"[DB DEBUG] Connected to MongoDB MGMT '{self.database_name}' on loop={self._loop_id} client_id={id(self._client)}")
 
-                logger.info(f"Connected to MongoDB Management: {self.database_name}")
-            
+                try:
+                    await self._create_indexes()
+                except Exception as index_error:
+                    logger.warning(f"Failed to create some MGMT indexes: {index_error}")
+
+                logger.info(f"Connected to MongoDB MGMT: {self.database_name}")
+
             except Exception as e:
-                logger.error(f"Failed to connect to MongoDB Management: {e}")
+                logger.error(f"Failed to connect to MongoDB MGMT: {e}")
                 raise
     async def disconnect(self):
         """Safely disconnect from database"""

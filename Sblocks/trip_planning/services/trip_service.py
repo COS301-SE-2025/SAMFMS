@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from bson import ObjectId
 
 from repositories.database import db_manager, db_manager_gps, db_manager_management
-from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation, RouteInfo, TurnByTurnInstruction, RoadDetail, DetailedRouteInfo, ScheduledTrip, SmartTrip, RouteRecommendation
+from schemas.entities import Trip, TripStatus, TripConstraint, VehicleLocation, RouteInfo, TurnByTurnInstruction, RoadDetail, DetailedRouteInfo, ScheduledTrip, SmartTrip, RouteRecommendation, Waypoint
 from schemas.requests import CreateTripRequest, UpdateTripRequest, TripFilterRequest, ScheduledTripRequest, CreateSmartTripRequest
 from events.publisher import event_publisher
 from services.routing_service import routing_service
@@ -22,6 +22,14 @@ class TripService:
     def __init__(self):
         self.db = db_manager
         self.db_gps = db_manager_gps
+
+    async def add_waypoint_to_trip(self, trip_id: str, waypoint: Waypoint) -> bool:
+        """Function that adds a waypoint to an existing trip"""
+        try:
+            return True
+        except Exception as e:
+            logger.error(f"[TripService.add_waypoint_to_trip] for {trip_id} Failed: {e}")
+            raise
     
     async def create_scheduled_trip(
         self,
@@ -308,15 +316,17 @@ class TripService:
             recommendation_doc = {
                 "trip_id": recommendation.trip_id,
                 "vehicle_id": recommendation.vehicle_id,
+                "current_route": recommendation.current_route.model_dump() if recommendation.current_route else None,
                 "recommended_route": recommendation.recommended_route.model_dump() if recommendation.recommended_route else None,
                 "time_savings": recommendation.time_savings,
                 "traffic_avoided": recommendation.traffic_avoided,
                 "confidence": recommendation.confidence,
                 "reason": recommendation.reason,
                 "status": "pending",  # pending, accepted, rejected, expired
-                "created_at": recommendation.created_at,
-                "expires_at": recommendation.created_at + timedelta(minutes=120)  # Expire after 30 minutes
             }
+            
+            recommendation_doc["created_at"] = datetime.now()
+            recommendation_doc["expires_at"] = recommendation_doc["created_at"] + timedelta(minutes=120) 
             
             # Store in route_recommendations collection
             await self.db.route_recommendations.update_one(
@@ -345,7 +355,7 @@ class TripService:
             recommendations = []
 
             async for recommendation in cursor:
-                recommendation["_id"] = str(recommendation["_id"])
+                recommendation["id"] = str(recommendation["_id"])
                 recommendations.append(RouteRecommendation(**recommendation))
             
             

@@ -39,9 +39,7 @@ const RouteRecommendations = ({ activeTrips, onAccept, onReject, onRefresh }) =>
       console.log("Received route recommendations:", response);
 
       // Filter recommendations for active trips only
-      const activeRouteRecommendations = response.data?.filter(rec => 
-        activeTrips.some(trip => trip.id === rec.trip_id)
-      ) || [];
+      const activeRouteRecommendations = (response.data?.data?.data || []);
 
       setRecommendations(activeRouteRecommendations);
       
@@ -277,10 +275,10 @@ const RouteRecommendationCard = ({
             {activeTrip?.vehicleName || 'Vehicle'} - {activeTrip?.driver || 'Driver'}
           </h4>
           <p className="text-sm text-gray-500">Trip ID: {recommendation.trip_id}</p>
-          <p className="text-sm text-gray-600 mt-1">{activeTrip?.destination || 'Destination'}</p>
+          <p className="text-sm text-gray-600 mt-1">{activeTrip?.destination?.name || activeTrip?.destination?.address || 'Unknown Destination'}</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className={`flex items-center gap-1 px-2 py-1 ${trafficDisplay.bgColor} ${trafficDisplay.color} rounded-full text-xs font-medium`}>
+          <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-600 rounded-full text-xs font-medium">
             <AlertTriangle className="h-3 w-3" />
             {recommendation.traffic_avoided.toUpperCase()} TRAFFIC
           </div>
@@ -389,7 +387,7 @@ const RouteRecommendationCard = ({
       {/* Timestamp */}
       <div className="text-xs text-gray-500 mb-4">
         <Clock className="h-3 w-3 inline mr-1" />
-        Recommendation generated: {new Date(recommendation.created_at).toLocaleString()}
+        Recommendation generated: {recommendation.created_at ? new Date(recommendation.created_at).toLocaleString() : 'Recently'}
       </div>
 
       {/* Action Buttons */}

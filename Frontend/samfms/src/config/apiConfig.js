@@ -206,6 +206,11 @@ export const API_ENDPOINTS = {
       ACCEPT: '/trips/upcomingrecommendations/accept',
       REJECT: '/trips/upcomingrecommendations/reject'
     },
+
+    NOTIFICATIONS: {
+      LIST: '/trips/notifications/get',
+      MARK_READ: `/trips/notifications/read`,
+    },
     
     ANALYTICS: {
       // Trip History Statistics
