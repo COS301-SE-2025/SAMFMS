@@ -140,6 +140,17 @@ async def lifespan(app: FastAPI):
             logger.error(f"Database GPS connection failed: {e}")
             raise DatabaseConnectionError(f"Failed to connect to database GPS: {e}")
         
+        # Initialize driver histories for all drivers
+        logger.info("Initializing driver history records...")
+        try:
+            from services.driver_history_service import DriverHistoryService
+            driver_history_service = DriverHistoryService(db_manager, db_manager_management)
+            init_result = await driver_history_service.initialize_driver_histories()
+            logger.info(f"Driver history initialization completed: {init_result}")
+        except Exception as e:
+            logger.error(f"Failed to initialize driver histories: {e}")
+            # Don't raise here as this is not critical for startup
+        
         # Start the traffic monitor
         logger.info("Starting the traffic monitor...")
         try:

@@ -19,7 +19,9 @@ import {
     BarChart,
     Zap,
     ChevronRight,
-    Github
+    Github,
+    Download,
+    Smartphone
 } from 'lucide-react';
 
 const Landing = () => {
@@ -179,7 +181,7 @@ const Landing = () => {
                                     <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-blue-800 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                 </Button>
                                 
-                                <div className="flex gap-3">
+                                <div className="flex flex-wrap gap-3 justify-center md:justify-start">
                                     <Button
                                         variant="outline"
                                         size="lg"
@@ -198,6 +200,24 @@ const Landing = () => {
                                     >
                                         <BarChart size={20} />
                                         Guide
+                                    </Button>
+                                    
+                                    <Button
+                                        variant="outline"
+                                        size="lg"
+                                        onClick={() => {
+                                            const link = document.createElement('a');
+                                            link.href = '/driverapp/SAMFMS-release.apk';
+                                            link.download = 'SAMFMS-Driver-App.apk';
+                                            document.body.appendChild(link);
+                                            link.click();
+                                            document.body.removeChild(link);
+                                        }}
+                                        className="border-2 border-green-300 dark:border-green-600 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900 px-6 py-3 h-auto text-base font-medium flex items-center gap-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                                    >
+                                        <Smartphone size={20} />
+                                        <Download size={16} />
+                                        Driver App
                                     </Button>
                                 </div>
                             </div>
@@ -218,40 +238,40 @@ const Landing = () => {
                                     <Card>
                                         <div className="card-content">
                                             <img 
-                                                src="/images/image.png" 
-                                                alt="Fleet Management"
+                                                src="/landingpage/vehiclemanagement.png" 
+                                                alt="Vehicle Management Dashboard"
                                                 className="w-full h-64 object-cover rounded-t-sm"
                                             />
                                             <div className="p-3">
                                                 <div className="card-icon">
                                                     <Car size={20} />
                                                 </div>
-                                                <h3 className="card-title text-sm font-medium">Vehicle Tracking</h3>
-                                                <p className="card-description text-xs">Real-time GPS tracking and route optimization.</p>
+                                                <h3 className="card-title text-sm font-medium">Vehicle Management</h3>
+                                                <p className="card-description text-xs">Comprehensive vehicle tracking with real-time location monitoring and fleet overview.</p>
                                             </div>
                                         </div>
                                     </Card>
                                     <Card>
                                         <div className="card-content">
                                             <img 
-                                                src="/images/image.png" 
-                                                alt="Security & Safety"
+                                                src="/landingpage/driverbehaviourmonitoring.png" 
+                                                alt="Driver Behaviour Monitoring"
                                                 className="w-full h-64 object-cover rounded-t-sm"
                                             />
                                             <div className="p-3">
                                                 <div className="card-icon">
                                                     <Shield size={20} />
                                                 </div>
-                                                <h3 className="card-title text-sm font-medium">Security & Safety</h3>
-                                                <p className="card-description text-xs">Advanced security features and driver safety monitoring.</p>
+                                                <h3 className="card-title text-sm font-medium">Driver Safety</h3>
+                                                <p className="card-description text-xs">Advanced driver behavior monitoring with safety scoring and violation tracking.</p>
                                             </div>
                                         </div>
                                     </Card>
                                     <Card>
                                         <div className="card-content">
                                             <img 
-                                                src="/images/image.png" 
-                                                alt="Analytics & Reports"
+                                                src="/landingpage/maintenanceanalytics.png" 
+                                                alt="Maintenance Analytics Dashboard"
                                                 className="w-full h-64 object-cover rounded-t-sm"
                                             />
                                             <div className="p-3">
@@ -259,39 +279,39 @@ const Landing = () => {
                                                     <BarChart size={20} />
                                                 </div>
                                                 <h3 className="card-title text-sm font-medium">Analytics & Reports</h3>
-                                                <p className="card-description text-xs">Comprehensive analytics and reporting for data-driven decisions.</p>
+                                                <p className="card-description text-xs">Comprehensive analytics dashboard with maintenance insights and performance metrics.</p>
                                             </div>
                                         </div>
                                     </Card>
                                     <Card>
                                         <div className="card-content">
                                             <img 
-                                                src="/images/image.png" 
-                                                alt="Smart Automation"
+                                                src="/landingpage/tripscheduling.png" 
+                                                alt="Trip Scheduling Interface"
                                                 className="w-full h-64 object-cover rounded-t-sm"
                                             />
                                             <div className="p-3">
                                                 <div className="card-icon">
                                                     <Zap size={20} />
                                                 </div>
-                                                <h3 className="card-title text-sm font-medium">Smart Automation</h3>
-                                                <p className="card-description text-xs">Automated maintenance scheduling and intelligent alerts.</p>
+                                                <h3 className="card-title text-sm font-medium">Smart Trip Planning</h3>
+                                                <p className="card-description text-xs">Intelligent trip scheduling with automated route optimization and resource allocation.</p>
                                             </div>
                                         </div>
                                     </Card>
                                     <Card>
                                         <div className="card-content">
                                             <img 
-                                                src="/images/image.png" 
-                                                alt="Fleet Optimization"
+                                                src="/landingpage/customdashoard.png" 
+                                                alt="Custom Dashboard Interface"
                                                 className="w-full h-64 object-cover rounded-t-sm"
                                             />
                                             <div className="p-3">
                                                 <div className="card-icon">
                                                     <Map size={20} />
                                                 </div>
-                                                <h3 className="card-title text-sm font-medium">Fleet Optimization</h3>
-                                                <p className="card-description text-xs">Route planning and fuel efficiency optimization.</p>
+                                                <h3 className="card-title text-sm font-medium">Custom Dashboards</h3>
+                                                <p className="card-description text-xs">Personalized dashboard experience with customizable widgets and real-time data visualization.</p>
                                             </div>
                                         </div>
                                     </Card>
@@ -314,41 +334,41 @@ const Landing = () => {
                         content: (
                             <div>
                                 <p className="mb-8 text-xs font-normal text-neutral-800 md:text-sm dark:text-neutral-200">
-                                    Comprehensive vehicle tracking and management system with real-time GPS monitoring, route optimization, and maintenance scheduling.
+                                    Comprehensive vehicle tracking and management system with real-time GPS monitoring, fleet overview, and detailed vehicle information management.
                                 </p>
                                 <div className="mb-6">
                                     <div className="flex items-center gap-2 mb-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
                                         <Car size={16} className="text-blue-500" />
-                                        Real-time GPS tracking and location monitoring
+                                        Complete vehicle inventory with detailed specifications
                                     </div>
                                     <div className="flex items-center gap-2 mb-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
                                         <Map size={16} className="text-green-500" />
-                                        Advanced route planning and optimization
+                                        Real-time GPS location tracking and status monitoring
                                     </div>
                                     <div className="flex items-center gap-2 mb-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
                                         <Shield size={16} className="text-red-500" />
-                                        Vehicle health monitoring and diagnostics
+                                        Vehicle health monitoring and maintenance tracking
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <img
-                                        src="/images/image.png"
-                                        alt="Vehicle Dashboard"
+                                        src="/landingpage/vehiclemanagement.png"
+                                        alt="Vehicle Management Dashboard"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="GPS Tracking"
+                                        src="/landingpage/usermanagement.png"
+                                        alt="User Management Interface"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Route Optimization"
+                                        src="/landingpage/maintenancetracking.png"
+                                        alt="Maintenance Tracking System"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Vehicle Health"
+                                        src="/landingpage/tripscheduling.png"
+                                        alt="Trip Scheduling Interface"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                 </div>
@@ -360,41 +380,41 @@ const Landing = () => {
                         content: (
                             <div>
                                 <p className="mb-8 text-xs font-normal text-neutral-800 md:text-sm dark:text-neutral-200">
-                                    Advanced analytics dashboard providing comprehensive insights into fleet performance, driver behavior, and operational efficiency.
+                                    Advanced analytics dashboard providing comprehensive insights into maintenance performance, driver behavior analysis, and operational efficiency metrics.
                                 </p>
                                 <div className="mb-6">
                                     <div className="flex items-center gap-2 mb-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
                                         <BarChart size={16} className="text-purple-500" />
-                                        Real-time performance metrics and KPIs
+                                        Comprehensive maintenance analytics and reporting
                                     </div>
                                     <div className="flex items-center gap-2 mb-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
                                         <Zap size={16} className="text-yellow-500" />
-                                        Automated report generation and scheduling
+                                        Driver behavior scoring and violation tracking
                                     </div>
                                     <div className="flex items-center gap-2 mb-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
                                         <Shield size={16} className="text-indigo-500" />
-                                        Driver behavior analysis and scoring
+                                        Real-time performance metrics and KPIs
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <img
-                                        src="/images/image.png"
-                                        alt="Analytics Dashboard"
+                                        src="/landingpage/maintenanceanalytics.png"
+                                        alt="Maintenance Analytics Dashboard"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Performance Reports"
+                                        src="/landingpage/driverbehaviourmonitoring.png"
+                                        alt="Driver Behaviour Analytics"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Driver Analytics"
+                                        src="/landingpage/customdashoard.png"
+                                        alt="Custom Dashboard Analytics"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Custom Reports"
+                                        src="/landingpage/maintenancetracking.png"
+                                        alt="Maintenance Tracking Reports"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                 </div>
@@ -402,48 +422,48 @@ const Landing = () => {
                         ),
                     },
                     {
-                        title: "Security & Automation",
+                        title: "Driver App & User Management",
                         content: (
                             <div>
                                 <p className="mb-4 text-xs font-normal text-neutral-800 md:text-sm dark:text-neutral-200">
-                                    Enterprise-grade security features with intelligent automation for seamless fleet operations.
+                                    Comprehensive mobile driver application with user management system for seamless fleet operations and communication.
                                 </p>
                                 <div className="mb-8">
                                     <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        ✅ Role-based access control and permissions
+                                        ✅ Intuitive mobile driver application interface
                                     </div>
                                     <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        ✅ Automated maintenance scheduling and alerts
+                                        ✅ Comprehensive driver dashboard and profiles
                                     </div>
                                     <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        ✅ Multi-tenant architecture for organizations
+                                        ✅ Built-in support and help system
                                     </div>
                                     <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        ✅ Advanced security monitoring and logging
+                                        ✅ Advanced user management and permissions
                                     </div>
                                     <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        ✅ Smart notifications and alert systems
+                                        ✅ Role-based access control system
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <img
-                                        src="/images/image.png"
-                                        alt="Security Dashboard"
+                                        src="/landingpage/driverapp.jpeg"
+                                        alt="Driver Mobile Application"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Automation Tools"
+                                        src="/landingpage/driverappdashboard.jpeg"
+                                        alt="Driver App Dashboard"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Access Control"
+                                        src="/landingpage/driverappprofile.jpeg"
+                                        alt="Driver Profile Management"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Smart Alerts"
+                                        src="/landingpage/driverappsupport.jpeg"
+                                        alt="Driver App Support System"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                 </div>
@@ -454,42 +474,45 @@ const Landing = () => {
                         title: "Customizable Dashboard",
                         content: (
                             <div>
-                                <p className="mb-8 text-xs font-normal text-neutral-800 md:text-sm dark:text-neutral-200">
-                                    Personalize your fleet management experience with fully customizable dashboards tailored to your specific needs and workflows.
+                                <p className="mb-4 text-xs font-normal text-neutral-800 md:text-sm dark:text-neutral-200">
+                                    Personalized fleet management dashboard with comprehensive data visualization, real-time insights, and customizable interface.
                                 </p>
-                                <div className="mb-6">
-                                    <div className="flex items-center gap-2 mb-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        <BarChart size={16} className="text-blue-500" />
-                                        Drag-and-drop widget customization
+                                <div className="mb-8">
+                                    <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
+                                        ✅ Comprehensive dashboard overview with KPIs
                                     </div>
-                                    <div className="flex items-center gap-2 mb-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        <Zap size={16} className="text-green-500" />
-                                        Real-time data visualization
+                                    <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
+                                        ✅ Interactive data charts and analytics
                                     </div>
-                                    <div className="flex items-center gap-2 mb-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        <Shield size={16} className="text-purple-500" />
-                                        Role-based dashboard configurations
+                                    <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
+                                        ✅ Customizable widgets and layouts
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
+                                        ✅ Real-time fleet performance metrics
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
+                                        ✅ Advanced filtering and data visualization
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <img
-                                        src="/images/image.png"
-                                        alt="Custom Dashboard"
+                                        src="/landingpage/customdashoard.png"
+                                        alt="Custom Dashboard Overview"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Widget Library"
+                                        src="/landingpage/maintenanceanalytics.png"
+                                        alt="Analytics Dashboard"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Dashboard Templates"
+                                        src="/landingpage/driverbehaviourmonitoring.png"
+                                        alt="Performance Monitoring"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Data Visualization"
+                                        src="/landingpage/vehiclemanagement.png"
+                                        alt="Vehicle Management View"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                 </div>
@@ -500,42 +523,45 @@ const Landing = () => {
                         title: "Driver Analytics",
                         content: (
                             <div>
-                                <p className="mb-8 text-xs font-normal text-neutral-800 md:text-sm dark:text-neutral-200">
-                                    Comprehensive driver performance monitoring with detailed analytics to improve safety, efficiency, and compliance across your fleet.
+                                <p className="mb-4 text-xs font-normal text-neutral-800 md:text-sm dark:text-neutral-200">
+                                    Advanced driver behavior monitoring and analytics with comprehensive safety insights and performance tracking.
                                 </p>
-                                <div className="mb-6">
-                                    <div className="flex items-center gap-2 mb-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        <Car size={16} className="text-orange-500" />
-                                        Driver behavior scoring and ranking
+                                <div className="mb-8">
+                                    <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
+                                        ✅ Real-time driver behavior monitoring and alerts
                                     </div>
-                                    <div className="flex items-center gap-2 mb-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        <Map size={16} className="text-red-500" />
-                                        Route efficiency and compliance tracking
+                                    <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
+                                        ✅ Comprehensive safety scoring and assessment
                                     </div>
-                                    <div className="flex items-center gap-2 mb-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        <Shield size={16} className="text-blue-500" />
-                                        Safety incident analysis and reporting
+                                    <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
+                                        ✅ Mobile driver app with intuitive interface
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
+                                        ✅ Performance trends and analytical insights
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
+                                        ✅ Driver profile management and tracking
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <img
-                                        src="/images/image.png"
-                                        alt="Driver Scorecard"
+                                        src="/landingpage/driverbehaviourmonitoring.png"
+                                        alt="Driver Behavior Monitoring"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Performance Metrics"
+                                        src="/landingpage/driverapp.jpeg"
+                                        alt="Driver Mobile Application"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Safety Reports"
+                                        src="/landingpage/driverappdashboard.jpeg"
+                                        alt="Driver Analytics Dashboard"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Compliance Tracking"
+                                        src="/landingpage/driverappprofile.jpeg"
+                                        alt="Driver Profile Analytics"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                 </div>
@@ -547,44 +573,44 @@ const Landing = () => {
                         content: (
                             <div>
                                 <p className="mb-4 text-xs font-normal text-neutral-800 md:text-sm dark:text-neutral-200">
-                                    Proactive maintenance management with automated scheduling, parts tracking, and comprehensive service history for optimal fleet uptime.
+                                    Advanced maintenance management system with comprehensive analytics, scheduling automation, and detailed tracking capabilities.
                                 </p>
                                 <div className="mb-8">
                                     <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        ✅ Automated maintenance scheduling based on mileage and time
+                                        ✅ Comprehensive maintenance analytics and reporting
                                     </div>
                                     <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        ✅ Parts inventory management and ordering system
+                                        ✅ Detailed maintenance tracking and history
                                     </div>
                                     <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        ✅ Service provider network and work order management
+                                        ✅ Automated scheduling and reminder system
                                     </div>
                                     <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        ✅ Complete vehicle service history and documentation
+                                        ✅ Cost analysis and budget optimization
                                     </div>
                                     <div className="flex items-center gap-2 text-xs text-neutral-700 md:text-sm dark:text-neutral-300">
-                                        ✅ Predictive maintenance alerts and recommendations
+                                        ✅ Predictive maintenance insights
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <img
-                                        src="/images/image.png"
-                                        alt="Maintenance Schedule"
+                                        src="/landingpage/maintenanceanalytics.png"
+                                        alt="Maintenance Analytics Dashboard"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Parts Inventory"
+                                        src="/landingpage/maintenancetracking.png"
+                                        alt="Maintenance Tracking System"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Service History"
+                                        src="/landingpage/vehiclemanagement.png"
+                                        alt="Vehicle Maintenance Overview"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                     <img
-                                        src="/images/image.png"
-                                        alt="Work Orders"
+                                        src="/landingpage/tripscheduling.png"
+                                        alt="Maintenance Scheduling"
                                         className="h-20 w-full rounded-lg object-cover shadow-[0_0_24px_rgba(34,_42,_53,_0.06),_0_1px_1px_rgba(0,_0,_0,_0.05),_0_0_0_1px_rgba(34,_42,_53,_0.04),_0_0_4px_rgba(34,_42,_53,_0.08),_0_16px_68px_rgba(47,_48,_55,_0.05),_0_1px_0_rgba(255,_255,_255,_0.1)_inset] md:h-44 lg:h-60"
                                     />
                                 </div>

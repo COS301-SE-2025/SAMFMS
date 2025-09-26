@@ -160,18 +160,18 @@ const UpcomingTripsRecommendations = ({ upcomingTrips, onAccept, onReject, onRef
   // Loading state
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Route className="h-5 w-5 text-purple-600" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <Route className="h-5 w-5 text-purple-600 dark:text-purple-400" />
             Trip Combination Recommendations
           </h3>
           <RefreshCw className="h-5 w-5 text-gray-400 animate-spin" />
         </div>
         <div className="flex items-center justify-center py-8">
           <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-            <p className="mt-2 text-sm text-gray-600">Analyzing trip combinations...</p>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 dark:border-purple-400"></div>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">Analyzing trip combinations...</p>
           </div>
         </div>
       </div>
@@ -181,15 +181,15 @@ const UpcomingTripsRecommendations = ({ upcomingTrips, onAccept, onReject, onRef
   // Error state
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Route className="h-5 w-5 text-purple-600" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <Route className="h-5 w-5 text-purple-600 dark:text-purple-400" />
             Trip Combination Recommendations
           </h3>
           <button
             onClick={handleRefresh}
-            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             title="Refresh recommendations"
           >
             <RefreshCw className="h-5 w-5" />
@@ -198,7 +198,7 @@ const UpcomingTripsRecommendations = ({ upcomingTrips, onAccept, onReject, onRef
         <div className="flex items-center justify-center py-8">
           <div className="text-center">
             <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-            <p className="text-sm text-gray-600">{error}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">{error}</p>
             <button
               onClick={handleRefresh}
               className="mt-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm"
@@ -213,15 +213,15 @@ const UpcomingTripsRecommendations = ({ upcomingTrips, onAccept, onReject, onRef
 
   // Main component render
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <Route className="h-5 w-5 text-purple-600" />
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <Route className="h-5 w-5 text-purple-600 dark:text-purple-400" />
           Trip Combination Recommendations
         </h3>
         <button
           onClick={handleRefresh}
-          className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+          className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           title="Refresh recommendations"
         >
           <RefreshCw className="h-5 w-5" />
@@ -231,11 +231,11 @@ const UpcomingTripsRecommendations = ({ upcomingTrips, onAccept, onReject, onRef
       {recommendations.length === 0 ? (
         // Empty state
         <div className="text-center py-8">
-          <Plus className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500 text-sm">
+          <Plus className="h-12 w-12 text-gray-300 dark:text-gray-500 mx-auto mb-4" />
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
             No trip combination opportunities available.
           </p>
-          <p className="text-gray-400 text-xs mt-1">
+          <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">
             AI will analyze upcoming trips for efficient combining possibilities.
           </p>
         </div>
@@ -268,19 +268,19 @@ const RecommendationCard = ({
   formatDateTime
 }) => {
   return (
-    <div className="border border-purple-200 rounded-lg p-4 hover:shadow-md transition-all duration-200 bg-gradient-to-r from-purple-50 to-transparent">
+    <div className="border border-purple-200 dark:border-purple-600 rounded-lg p-4 hover:shadow-md transition-all duration-200 bg-gradient-to-r from-purple-50 dark:from-purple-900/20 to-transparent">
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div>
-          <h4 className="font-medium text-gray-900 flex items-center gap-2">
-            <Plus className="h-4 w-4 text-purple-600" />
+          <h4 className="font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <Plus className="h-4 w-4 text-purple-600 dark:text-purple-400" />
             Combine 2 Trips
           </h4>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Confidence Score: {Math.round(recommendation.confidence_score * 100)}%
           </p>
         </div>
-        <div className="flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+        <div className="flex items-center gap-1 px-2 py-1 bg-purple-100 dark:bg-purple-600/20 text-purple-800 dark:text-purple-300 rounded-full text-xs font-medium">
           <Brain className="h-3 w-3" />
           AI Recommended
         </div>
@@ -288,22 +288,22 @@ const RecommendationCard = ({
 
       {/* Trip Details */}
       <div className="mb-4">
-        <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
+        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 mb-3">
           <Route className="h-4 w-4" />
           <span className="font-medium">Trips to Combine</span>
         </div>
         
         <div className="space-y-3">
           {/* Primary Trip */}
-          <div className="bg-white border rounded-lg p-3">
+          <div className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3">
             <div className="flex items-center justify-between mb-2">
-              <h5 className="font-medium text-gray-800">{recommendation.primary_trip_name}</h5>
-              <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
+              <h5 className="font-medium text-gray-800 dark:text-gray-200">{recommendation.primary_trip_name}</h5>
+              <span className="text-xs bg-blue-100 dark:bg-blue-600/20 text-blue-600 dark:text-blue-300 px-2 py-1 rounded">
                 Primary Trip
               </span>
             </div>
             
-            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-300">
               <div>
                 <div className="flex items-center gap-1 mb-1">
                   <User className="h-3 w-3" />
@@ -328,21 +328,21 @@ const RecommendationCard = ({
               <ArrowRight className="h-4 w-4" />
               <div className="w-8 h-0.5 bg-purple-300"></div>
             </div>
-            <div className="mx-2 text-xs text-gray-500">
+            <div className="mx-2 text-xs text-gray-500 dark:text-gray-400">
               {recommendation.travel_distance_km?.toFixed(1)} km gap
             </div>
           </div>
 
           {/* Secondary Trip */}
-          <div className="bg-white border rounded-lg p-3">
+          <div className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3">
             <div className="flex items-center justify-between mb-2">
-              <h5 className="font-medium text-gray-800">{recommendation.secondary_trip_name}</h5>
-              <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded">
+              <h5 className="font-medium text-gray-800 dark:text-gray-200">{recommendation.secondary_trip_name}</h5>
+              <span className="text-xs bg-green-100 dark:bg-green-600/20 text-green-600 dark:text-green-300 px-2 py-1 rounded">
                 Secondary Trip
               </span>
             </div>
             
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-600 dark:text-gray-300">
               <div className="flex items-center justify-between">
                 <span>Time gap: {recommendation.time_gap_hours?.toFixed(1)} hours</span>
                 <span>Travel time: ~{Math.round(recommendation.travel_distance_km / 30 * 60)} min</span>
@@ -354,32 +354,32 @@ const RecommendationCard = ({
 
       {/* Combined Route Benefits */}
       <div className="mb-4">
-        <h5 className="text-sm font-medium text-gray-700 mb-2">Expected Benefits</h5>
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+        <h5 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Expected Benefits</h5>
+        <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-600/30 rounded-lg p-3">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div className="text-center">
-              <div className="text-lg font-semibold text-green-600">
+              <div className="text-lg font-semibold text-green-600 dark:text-green-400">
                 {Math.round(recommendation.benefits?.time_savings_minutes || 0)}min
               </div>
-              <div className="text-xs text-gray-600">Time Saved</div>
+              <div className="text-xs text-gray-600 dark:text-gray-300">Time Saved</div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-semibold text-blue-600">
+              <div className="text-lg font-semibold text-blue-600 dark:text-blue-400">
                 {recommendation.benefits?.distance_savings_km?.toFixed(1) || 0}km
               </div>
-              <div className="text-xs text-gray-600">Distance Saved</div>
+              <div className="text-xs text-gray-600 dark:text-gray-300">Distance Saved</div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-semibold text-purple-600">
+              <div className="text-lg font-semibold text-purple-600 dark:text-purple-400">
                 {recommendation.benefits?.fuel_efficiency_improvement || '0%'}
               </div>
-              <div className="text-xs text-gray-600">Fuel Efficiency</div>
+              <div className="text-xs text-gray-600 dark:text-gray-300">Fuel Efficiency</div>
             </div>
           </div>
 
           {recommendation.benefits?.cost_savings && (
-            <div className="mt-3 pt-3 border-t border-purple-200 text-center">
-              <div className="text-sm text-gray-700">
+            <div className="mt-3 pt-3 border-t border-purple-200 dark:border-purple-600/30 text-center">
+              <div className="text-sm text-gray-700 dark:text-gray-200">
                 <strong>{recommendation.benefits.cost_savings}</strong>
               </div>
             </div>
@@ -390,12 +390,12 @@ const RecommendationCard = ({
       {/* AI Reasoning */}
       {recommendation.reasoning && recommendation.reasoning.length > 0 && (
         <div className="mb-4">
-          <h5 className="text-sm font-medium text-gray-700 mb-2">Why Combine These Trips?</h5>
-          <div className="bg-gray-50 rounded p-3">
-            <ul className="text-xs text-gray-600 space-y-1">
+          <h5 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Why Combine These Trips?</h5>
+          <div className="bg-gray-50 dark:bg-gray-800/50 rounded p-3">
+            <ul className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
               {recommendation.reasoning.map((reason, idx) => (
                 <li key={idx} className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                  <div className="w-1.5 h-1.5 bg-purple-500 dark:bg-purple-400 rounded-full mt-1.5 flex-shrink-0"></div>
                   <span>{reason}</span>
                 </li>
               ))}
@@ -407,16 +407,16 @@ const RecommendationCard = ({
       {/* Route Details */}
       {recommendation.combined_route && (
         <div className="mb-4">
-          <h5 className="text-sm font-medium text-gray-700 mb-2">Combined Route Details</h5>
-          <div className="bg-blue-50 border border-blue-200 rounded p-3">
+          <h5 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Combined Route Details</h5>
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-600/30 rounded p-3">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-gray-600">Total Distance:</span>
-                <div className="font-medium">{(recommendation.combined_route.distance / 1000).toFixed(1)} km</div>
+                <span className="text-gray-600 dark:text-gray-300">Total Distance:</span>
+                <div className="font-medium text-gray-900 dark:text-gray-100">{(recommendation.combined_route.distance / 1000).toFixed(1)} km</div>
               </div>
               <div>
-                <span className="text-gray-600">Total Duration:</span>
-                <div className="font-medium">{Math.round(recommendation.combined_route.duration / 60)} minutes</div>
+                <span className="text-gray-600 dark:text-gray-300">Total Duration:</span>
+                <div className="font-medium text-gray-900 dark:text-gray-100">{Math.round(recommendation.combined_route.duration / 60)} minutes</div>
               </div>
             </div>
           </div>
@@ -424,7 +424,7 @@ const RecommendationCard = ({
       )}
 
       {/* Action Buttons */}
-      <div className="flex gap-2 pt-3 border-t border-gray-100">
+      <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-gray-600">
         <button
           onClick={onAccept}
           disabled={isProcessing}
@@ -440,7 +440,7 @@ const RecommendationCard = ({
         <button
           onClick={onReject}
           disabled={isProcessing}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-500 dark:bg-gray-600 text-white rounded-md hover:bg-gray-400 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
         >
           {isProcessing ? (
             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

@@ -1,9 +1,8 @@
-import React, {useState} from 'react';
-import {X, UserCog, Car, FileText} from 'lucide-react';
+import React from 'react';
+import {X} from 'lucide-react';
 import StatusBadge from '../vehicles/StatusBadge';
 
 const DriverDetailsModal = ({driver, closeDriverDetails, openVehicleAssignmentModal}) => {
-  const [activeTab, setActiveTab] = useState('overview');
 
   const getStatusColor = status => {
     const statusMap = {
@@ -25,31 +24,9 @@ const DriverDetailsModal = ({driver, closeDriverDetails, openVehicleAssignmentMo
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-border">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 font-medium text-sm ${activeTab === 'overview'
-              ? 'border-b-2 border-primary text-primary'
-              : 'text-muted-foreground'
-              }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab('trips')}
-            className={`px-4 py-2 font-medium text-sm ${activeTab === 'trips'
-              ? 'border-b-2 border-primary text-primary'
-              : 'text-muted-foreground'
-              }`}
-          >
-            Trip History
-          </button>
-        </div>
-
         <div className="p-6">
-          {/* Overview Tab */}
-          {activeTab === 'overview' && (
+          {/* Driver Overview */}
+          <div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="col-span-2">
                 <div className="flex items-center mb-6">
@@ -110,62 +87,12 @@ const DriverDetailsModal = ({driver, closeDriverDetails, openVehicleAssignmentMo
               </div>
 
               <div>
-                <div className="flex flex-col space-y-2">
-                  <button className="w-full py-2 px-4 border border-input rounded-md hover:bg-accent hover:text-accent-foreground flex items-center justify-center gap-2">
-                    <UserCog size={18} />
-                    Edit Driver
-                  </button>
-                </div>
+                {/* Removed Edit Driver button */}
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Trips Tab */}
-          {activeTab === 'trips' && (
-            <div>
-              <h3 className="text-xl font-bold mb-4">Trip History</h3>
-              <div className="border border-border rounded-md overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="px-4 py-3 text-left">Trip ID</th>
-                      <th className="px-4 py-3 text-left">Date</th>
-                      <th className="px-4 py-3 text-left">Vehicle</th>
-                      <th className="px-4 py-3 text-left">From</th>
-                      <th className="px-4 py-3 text-left">To</th>
-                      <th className="px-4 py-3 text-left">Distance</th>
-                      <th className="px-4 py-3 text-left">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {driver.trips?.map(trip => (
-                      <tr key={trip.id} className="border-t border-border hover:bg-accent/10">
-                        <td className="px-4 py-3">{trip.id}</td>
-                        <td className="px-4 py-3">{trip.date}</td>
-                        <td className="px-4 py-3">{trip.vehicle}</td>
-                        <td className="px-4 py-3">{trip.from}</td>
-                        <td className="px-4 py-3">{trip.to}</td>
-                        <td className="px-4 py-3">{trip.distance}</td>
-                        <td className="px-4 py-3">
-                          <StatusBadge
-                            status={trip.status}
-                            type={trip.status.toLowerCase() === 'completed' ? 'success' : 'info'}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                    {(!driver.trips || driver.trips.length === 0) && (
-                      <tr>
-                        <td colSpan="7" className="px-4 py-3 text-center text-muted-foreground">
-                          No trip history available
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+
         </div>
       </div>
     </div>

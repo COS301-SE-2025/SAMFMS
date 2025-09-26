@@ -3,7 +3,7 @@ Driver History Service for calculating and managing driver performance metrics
 """
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 
@@ -113,8 +113,9 @@ class DriverHistoryService:
         self, 
         skip: int = 0, 
         limit: int = 100,
-        risk_level: Optional[str] = None
-    ) -> List[DriverHistory]:
+        risk_level: Optional[str] = None,
+        search: Optional[str] = None
+    ) -> Tuple[List[DriverHistory], int]:
         """
         Get all driver histories with optional filtering
         
@@ -122,9 +123,10 @@ class DriverHistoryService:
             skip: Number of records to skip
             limit: Maximum number of records to return
             risk_level: Filter by risk level (low/medium/high)
+            search: Search term for driver name, employee ID, or vehicle info
             
         Returns:
-            List of driver history objects
+            Tuple of (list of driver history objects, total count)
         """
         try:
             collection = self.db_manager.driver_history
@@ -133,6 +135,19 @@ class DriverHistoryService:
             query = {}
             if risk_level:
                 query["driver_risk_level"] = risk_level.lower()
+            
+            # Add search functionality
+            if search:
+                search_regex = {"$regex": search, "$options": "i"}  # Case-insensitive search
+                query["$or"] = [
+                    {"driver_name": search_regex},
+                    {"employee_id": search_regex},
+                    {"current_vehicle": search_regex},
+                    {"driver_id": search_regex}
+                ]
+            
+            # Get total count for pagination
+            total_count = await collection.count_documents(query)
             
             # Execute query with pagination
             cursor = collection.find(query).skip(skip).limit(limit).sort("driver_safety_score", -1)
@@ -143,10 +158,103 @@ class DriverHistoryService:
                 doc = self._convert_objectid_to_string(doc)
                 histories.append(DriverHistory(**doc))
             
-            return histories
+            return histories, total_count
             
         except Exception as e:
             logger.error(f"Error getting driver histories: {str(e)}")
+            raise
+
+    async def initialize_driver_histories(self) -> Dict[str, Any]:
+        """
+        Initialize driver history records for all drivers in the management database
+        who don't already have history records. This should be called on startup.
+        
+        Returns:
+            Dictionary with initialization statistics
+        """
+        try:
+            if not self.db_manager_management:
+                logger.warning("Management database not available, skipping driver history initialization")
+                return {"initialized": 0, "existing": 0, "errors": 0}
+            
+            # Get all drivers from management database
+            drivers_collection = self.db_manager_management.drivers
+            all_drivers = []
+            
+            async for driver in drivers_collection.find({}):
+                all_drivers.append(driver)
+            
+            logger.info(f"Found {len(all_drivers)} drivers in management database")
+            
+            # Get existing driver histories
+            history_collection = self.db_manager.driver_history
+            existing_histories = set()
+            
+            async for history in history_collection.find({}, {"driver_id": 1}):
+                existing_histories.add(history["driver_id"])
+            
+            logger.info(f"Found {len(existing_histories)} existing driver histories")
+            
+            # Initialize counters
+            initialized_count = 0
+            existing_count = 0
+            error_count = 0
+            
+            # Process each driver
+            for driver in all_drivers:
+                try:
+                    employee_id = driver.get("employee_id")
+                    if not employee_id:
+                        logger.warning(f"Driver {driver.get('_id')} has no employee_id, skipping")
+                        error_count += 1
+                        continue
+                    
+                    # Check if history already exists
+                    if employee_id in existing_histories:
+                        existing_count += 1
+                        continue
+                    
+                    # Create new driver history
+                    first_name = driver.get("first_name", "")
+                    last_name = driver.get("last_name", "")
+                    full_name = f"{first_name} {last_name}".strip()
+                    
+                    if not full_name:
+                        full_name = "Unknown Driver"
+                    
+                    # Count assigned trips for this driver
+                    total_assigned = await self._count_assigned_trips(employee_id)
+                    
+                    new_history = DriverHistory(
+                        driver_id=employee_id,
+                        driver_name=full_name,
+                        employee_id=employee_id,
+                        total_assigned_trips=total_assigned,
+                        # All other fields will use default values from the schema
+                    )
+                    
+                    # Save to database
+                    await self._save_driver_history(new_history)
+                    initialized_count += 1
+                    
+                    logger.debug(f"Initialized history for driver {employee_id}: {full_name}")
+                    
+                except Exception as e:
+                    logger.error(f"Error initializing history for driver {driver.get('employee_id', 'unknown')}: {str(e)}")
+                    error_count += 1
+            
+            result = {
+                "initialized": initialized_count,
+                "existing": existing_count,
+                "errors": error_count,
+                "total_drivers": len(all_drivers)
+            }
+            
+            logger.info(f"Driver history initialization completed: {result}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error during driver history initialization: {str(e)}")
             raise
     
     async def get_driver_statistics(self, driver_id: str) -> Dict[str, Any]:

@@ -1,17 +1,30 @@
-import React, { useState } from 'react';
-import { Plus, Search, X } from 'lucide-react';
-import { getAllWidgets, WIDGET_CATEGORIES, generateWidgetId } from '../../utils/widgetRegistry';
-import { useDashboard } from '../../contexts/DashboardContext';
+import React, {useState, useRef, useEffect} from 'react';
+import {Plus, Search, X} from 'lucide-react';
+import {getAllWidgets, WIDGET_CATEGORIES, generateWidgetId} from '../../utils/widgetRegistry';
+import {useDashboard} from '../../contexts/DashboardContext';
 
-export const WidgetLibrary = ({ isOpen, onClose }) => {
+export const WidgetLibrary = ({isOpen, onClose}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const { dispatch } = useDashboard();
+  const {dispatch} = useDashboard();
+  const searchInputRef = useRef(null);
+
+  // Focus the search input when the component opens
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      // Use setTimeout to ensure the modal is fully rendered before focusing
+      const timer = setTimeout(() => {
+        searchInputRef.current.focus();
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
 
   const allWidgets = getAllWidgets();
   const categories = Object.values(WIDGET_CATEGORIES);
 
-  const filteredWidgets = allWidgets.filter(([type, { metadata }]) => {
+  const filteredWidgets = allWidgets.filter(([type, {metadata}]) => {
     const matchesSearch =
       metadata.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       metadata.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -29,7 +42,7 @@ export const WidgetLibrary = ({ isOpen, onClose }) => {
       size: metadata.defaultSize,
     };
 
-    dispatch({ type: 'ADD_WIDGET', payload: newWidget });
+    dispatch({type: 'ADD_WIDGET', payload: newWidget});
     onClose();
   };
 
@@ -53,6 +66,7 @@ export const WidgetLibrary = ({ isOpen, onClose }) => {
                 size={18}
               />
               <input
+                ref={searchInputRef}
                 type="text"
                 placeholder="Search widgets..."
                 className="w-full pl-10 pr-4 py-2 border border-input rounded-md"
@@ -77,7 +91,7 @@ export const WidgetLibrary = ({ isOpen, onClose }) => {
 
         <div className="p-4 overflow-y-auto max-h-[60vh]">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredWidgets.map(([type, { metadata }]) => (
+            {filteredWidgets.map(([type, {metadata}]) => (
               <div
                 key={type}
                 className="border border-border rounded-lg p-4 hover:bg-accent/5 transition-colors"
