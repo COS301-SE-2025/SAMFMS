@@ -718,9 +718,9 @@ class ManagementEventHandlers:
                 "assigned_to": security_id,
             })
         await publisher.publish_message(
-                        exchange_name="removed_user",
-                        exchange_type=aio_pika.ExchangeType.FANOUT,
-                        message=message
+                        "removed_user",
+                        aio_pika.ExchangeType.FANOUT,
+                        message
                     )
         
 
