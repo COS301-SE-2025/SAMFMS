@@ -2195,7 +2195,7 @@ class ServiceRequestConsumer:
                 
                 elif "/analytics/risk-distribution" in endpoint:
                     # GET /driver-history/analytics/risk-distribution
-                    all_histories = await driver_history_service.get_all_driver_histories(limit=1000)
+                    all_histories, _ = await driver_history_service.get_all_driver_histories(limit=1000)
                     
                     # Calculate distribution
                     risk_counts = {"low": 0, "medium": 0, "high": 0}
@@ -2271,11 +2271,13 @@ class ServiceRequestConsumer:
                     skip = int(data.get("skip", 0))
                     limit = int(data.get("limit", 100))
                     risk_level = data.get("risk_level")
+                    search = data.get("search")
                     
-                    histories = await driver_history_service.get_all_driver_histories(
+                    histories, total_count = await driver_history_service.get_all_driver_histories(
                         skip=skip,
                         limit=limit,
-                        risk_level=risk_level
+                        risk_level=risk_level,
+                        search=search
                     )
                     
                     # Convert to dictionaries for response
@@ -2285,17 +2287,19 @@ class ServiceRequestConsumer:
                         history_data.append(history_dict)
                     
                     return ResponseBuilder.success(
-                        message=f"Retrieved {len(history_data)} driver histories",
+                        message=f"Retrieved {len(history_data)} of {total_count} driver histories",
                         data={
                             "histories": history_data,
                             "pagination": {
                                 "skip": skip,
                                 "limit": limit,
                                 "count": len(history_data),
+                                "total": total_count,
                                 "has_more": len(history_data) == limit
                             },
                             "filters": {
-                                "risk_level": risk_level
+                                "risk_level": risk_level,
+                                "search": search
                             }
                         }
                     ).model_dump()

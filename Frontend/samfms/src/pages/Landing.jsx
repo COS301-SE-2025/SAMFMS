@@ -19,7 +19,9 @@ import {
     BarChart,
     Zap,
     ChevronRight,
-    Github
+    Github,
+    Download,
+    Smartphone
 } from 'lucide-react';
 
 const Landing = () => {
@@ -179,7 +181,7 @@ const Landing = () => {
                                     <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-blue-800 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                 </Button>
                                 
-                                <div className="flex gap-3">
+                                <div className="flex flex-wrap gap-3 justify-center md:justify-start">
                                     <Button
                                         variant="outline"
                                         size="lg"
@@ -198,6 +200,24 @@ const Landing = () => {
                                     >
                                         <BarChart size={20} />
                                         Guide
+                                    </Button>
+                                    
+                                    <Button
+                                        variant="outline"
+                                        size="lg"
+                                        onClick={() => {
+                                            const link = document.createElement('a');
+                                            link.href = '/driverapp/SAMFMS-release.apk';
+                                            link.download = 'SAMFMS-Driver-App.apk';
+                                            document.body.appendChild(link);
+                                            link.click();
+                                            document.body.removeChild(link);
+                                        }}
+                                        className="border-2 border-green-300 dark:border-green-600 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900 px-6 py-3 h-auto text-base font-medium flex items-center gap-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                                    >
+                                        <Smartphone size={20} />
+                                        <Download size={16} />
+                                        Driver App
                                     </Button>
                                 </div>
                             </div>

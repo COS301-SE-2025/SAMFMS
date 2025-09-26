@@ -4,6 +4,7 @@ import {
   getAllDriverHistories 
 } from '../../backend/api/driverBehavior';
 import TripHistoryModal from './TripHistoryModal';
+import Pagination from '../vehicles/Pagination';
 
 const DriverBehaviorDrivers = ({ driverData: propDriverData, onDataUpdate }) => {
   const [loading, setLoading] = useState(false);
@@ -13,7 +14,10 @@ const DriverBehaviorDrivers = ({ driverData: propDriverData, onDataUpdate }) => 
   const [sortDirection, setSortDirection] = useState('desc');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRisk, setFilterRisk] = useState('all');
-  const [driversPerPage] = useState(10);
+  const [driversPerPage, setDriversPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [showTripHistory, setShowTripHistory] = useState(false);
   const [selectedDriverId, setSelectedDriverId] = useState(null);
   const [selectedDriverName, setSelectedDriverName] = useState('');
@@ -26,20 +30,34 @@ const DriverBehaviorDrivers = ({ driverData: propDriverData, onDataUpdate }) => 
 
   // Load data on component mount and when filters change
   useEffect(() => {
-    const loadDriversData = async (page = 1, limit = driversPerPage) => {
+    const loadDriversData = async (page = currentPage, limit = driversPerPage) => {
       try {
         setLoading(true);
         setError(null);
 
-        const response = await getAllDriverHistories({ 
-          page, 
-          limit,
-          search: searchTerm || undefined,
-          risk_level: filterRisk !== 'all' ? filterRisk : undefined
-        });
+        const params = {
+          skip: (page - 1) * limit,
+          limit: limit
+        };
+
+        // Add search term if it exists and has content
+        if (searchTerm && searchTerm.trim()) {
+          params.search = searchTerm.trim();
+        }
+
+        // Add risk level filter if not 'all'
+        if (filterRisk !== 'all') {
+          params.risk_level = filterRisk;
+        }
+
+        const response = await getAllDriverHistories(params);
 
         const driversData = response.drivers || [];
+        const totalDrivers = response.total || response.totalCount || driversData.length;
+        
         setDrivers(driversData);
+        setTotalCount(totalDrivers);
+        setTotalPages(Math.ceil(totalDrivers / limit));
 
         // Notify parent component of data update
         if (onDataUpdateRef.current) {
@@ -56,65 +74,19 @@ const DriverBehaviorDrivers = ({ driverData: propDriverData, onDataUpdate }) => 
 
     if (propDriverData && propDriverData.length > 0) {
       setDrivers(propDriverData);
+      setTotalCount(propDriverData.length);
+      setTotalPages(Math.ceil(propDriverData.length / driversPerPage));
       if (onDataUpdateRef.current) {
         onDataUpdateRef.current(propDriverData);
       }
     } else {
-      loadDriversData(1); // Always load page 1 for simplicity
+      loadDriversData(currentPage, driversPerPage);
     }
-  }, [propDriverData, searchTerm, filterRisk, driversPerPage]);
+  }, [propDriverData, searchTerm, filterRisk, driversPerPage, currentPage]);
 
-  // Filter and sort drivers (for propDriverData or local filtering)
-  const filteredDrivers = drivers.filter(driver => {
-    const driverName = driver.name || driver.driver_name || '';
-    const employeeId = driver.employeeId || driver.driver_id || driver.id || '';
-    
-    const matchesSearch = driverName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         employeeId.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    let matchesRisk = true;
-    if (filterRisk !== 'all') {
-      const score = parseFloat(driver.overallScore || 0);
-      if (filterRisk === 'high' && score >= 7) matchesRisk = false;
-      if (filterRisk === 'medium' && (score < 7 || score >= 8.5)) matchesRisk = false;
-      if (filterRisk === 'low' && score < 8.5) matchesRisk = false;
-    }
-    
-    return matchesSearch && matchesRisk;
-  });
-
-  const sortedDrivers = [...filteredDrivers].sort((a, b) => {
-    let aValue, bValue;
-    
-    // Handle different field mappings
-    switch (sortField) {
-      case 'name':
-        aValue = a.name || a.driver_name || '';
-        bValue = b.name || b.driver_name || '';
-        break;
-      case 'employeeId':
-        aValue = a.employeeId || a.driver_id || a.id || '';
-        bValue = b.employeeId || b.driver_id || b.id || '';
-        break;
-      default:
-        aValue = a[sortField] || 0;
-        bValue = b[sortField] || 0;
-    }
-    
-    if (typeof aValue === 'string') {
-      aValue = aValue.toLowerCase();
-      bValue = bValue.toLowerCase();
-    } else {
-      aValue = parseFloat(aValue) || 0;
-      bValue = parseFloat(bValue) || 0;
-    }
-    
-    if (sortDirection === 'asc') {
-      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-    } else {
-      return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-    }
-  });
+  // For server-side pagination, we don't need local filtering/sorting
+  // The API handles filtering and we'll display drivers as received
+  const displayDrivers = drivers;
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -124,6 +96,43 @@ const DriverBehaviorDrivers = ({ driverData: propDriverData, onDataUpdate }) => 
       setSortDirection('desc');
     }
   };
+
+  // Pagination handlers
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const changeItemsPerPage = (event) => {
+    const newPerPage = parseInt(event.target.value, 10);
+    setDriversPerPage(newPerPage);
+    setCurrentPage(1); // Reset to first page when changing page size
+  };
+
+  // Reset to first page when search or filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterRisk]);
+
+  // Debounce search to avoid too many API calls
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      // Trigger data reload after debounce delay
+      if (!propDriverData || propDriverData.length === 0) {
+        // This will trigger the main useEffect to reload data
+        setCurrentPage(1);
+      }
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchTerm, propDriverData]);
 
   const getRiskLevel = (score) => {
     if (score < 7) return { level: 'High', color: 'text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-400' };
@@ -187,7 +196,10 @@ const DriverBehaviorDrivers = ({ driverData: propDriverData, onDataUpdate }) => 
           <div className="flex items-center">
             <span className="text-lg mr-2">📊</span>
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Showing <span className="font-bold text-blue-600 dark:text-blue-400">{sortedDrivers.length}</span> of <span className="font-bold">{drivers.length}</span> drivers
+              Showing <span className="font-bold text-blue-600 dark:text-blue-400">{displayDrivers.length}</span> of <span className="font-bold">{totalCount}</span> drivers
+              <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                (Page {currentPage} of {totalPages})
+              </span>
             </p>
           </div>
         </div>
@@ -288,7 +300,7 @@ const DriverBehaviorDrivers = ({ driverData: propDriverData, onDataUpdate }) => 
               </tr>
             </thead>
             <tbody className="bg-gradient-to-b from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {sortedDrivers.map((driver) => {
+              {displayDrivers.map((driver) => {
                 const riskInfo = getRiskLevel(parseFloat(driver.overallScore) || 0);
                 const driverName = driver.name || driver.driver_name || 'Unknown Driver';
                 const employeeId = driver.employeeId || driver.driver_id || driver.id || 'N/A';
@@ -373,7 +385,7 @@ const DriverBehaviorDrivers = ({ driverData: propDriverData, onDataUpdate }) => 
           </table>
         </div>
         
-        {sortedDrivers.length === 0 && (
+        {displayDrivers.length === 0 && (
           <div className="text-center py-12 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
             <div className="text-6xl mb-4">🚗</div>
             <p className="text-lg font-medium text-gray-600 dark:text-gray-400 mb-2">No drivers found</p>
@@ -381,6 +393,20 @@ const DriverBehaviorDrivers = ({ driverData: propDriverData, onDataUpdate }) => 
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-6">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={driversPerPage}
+            goToNextPage={goToNextPage}
+            goToPrevPage={goToPrevPage}
+            changeItemsPerPage={changeItemsPerPage}
+          />
+        </div>
+      )}
 
       {/* Trip History Modal */}
       <TripHistoryModal
