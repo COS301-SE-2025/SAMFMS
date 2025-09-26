@@ -1,21 +1,21 @@
-# Build & serve React in one simple image (minimal change)
+# Use an official Node.js image as the base
 FROM node:18
 
+# Set the working directory
 WORKDIR /app
 
-# Install dependencies with better layer caching
+# Copy package.json and package-lock.json
 COPY package*.json ./
-RUN npm ci
 
-# Copy source and build
+# Install dependencies including http-proxy-middleware for WebSocket proxy
+RUN npm install
+RUN npm install http-proxy-middleware --save-dev
+
+# Copy the rest of the app's source code
 COPY . .
 
-# Disable CRA's webpack ESLint during Docker build so production build can succeed
-ENV DISABLE_ESLINT_PLUGIN=true
-
-# Build optimized static files
-RUN npm run build
-
-# Serve the optimized static build
+# Expose the port the app runs on
 EXPOSE 3000
-CMD ["npx", "serve", "-s", "build", "-l", "3000"]
+
+# Start the React app
+CMD ["npm", "start"]
