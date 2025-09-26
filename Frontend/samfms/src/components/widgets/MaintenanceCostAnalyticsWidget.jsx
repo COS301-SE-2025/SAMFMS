@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { BaseWidget } from '../dashboard/BaseWidget';
-import { maintenanceAPI } from '../../backend/api/maintenance';
-import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
-import { BarChart3, TrendingUp, TrendingDown } from 'lucide-react';
+import React, {useState, useEffect, useLayoutEffect, useRef} from 'react';
+import {BaseWidget} from '../dashboard/BaseWidget';
+import {maintenanceAPI} from '../../backend/api/maintenance';
+import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
+import {BarChart3} from 'lucide-react';
 
-const MaintenanceCostAnalyticsWidget = ({ id, config = {} }) => {
+const MaintenanceCostAnalyticsWidget = ({id, config = {}}) => {
   const [costData, setCostData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,22 +18,37 @@ const MaintenanceCostAnalyticsWidget = ({ id, config = {} }) => {
         setLoading(true);
         setError(null);
 
-        const response = await maintenanceAPI.getCostAnalytics(
-          config.period || 'monthly',
-          null // vehicle filter
-        );
+        // Fetch dashboard data which contains accurate cost analytics
+        const response = await maintenanceAPI.getMaintenanceDashboard();
+        console.log('MaintenanceCostAnalyticsWidget - Dashboard Response:', response);
 
-        const costData = response.data?.data || response.data || {};
-        setCostData(costData.cost_analytics || costData.analytics || costData);
+        const dashboardData = response.data?.data || response.data || {};
+        const analytics = dashboardData.analytics || {};
+
+        console.log('MaintenanceCostAnalyticsWidget - Analytics data:', analytics);
+
+        // Use the pre-calculated cost analytics from backend
+        const costAnalysis = analytics.cost_analysis || {};
+        const performanceMetrics = analytics.performance_metrics || {};
+
+        const calculatedData = {
+          total_cost: costAnalysis.total_cost || performanceMetrics.total_cost_period || 0,
+          average_cost: costAnalysis.average_cost || performanceMetrics.average_cost_per_maintenance || 0,
+          total_labor_cost: costAnalysis.total_labor_cost || 0,
+          total_parts_cost: costAnalysis.total_parts_cost || 0,
+          record_count: costAnalysis.maintenance_count || 0
+        };
+
+        console.log('MaintenanceCostAnalyticsWidget - Using backend calculated cost data:', calculatedData);
+
+        setCostData(calculatedData);
       } catch (err) {
         console.error('Failed to fetch cost analytics:', err);
         setError('Failed to load cost analytics');
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchCostAnalytics();
+    }; fetchCostAnalytics();
 
     // Set up refresh interval
     const refreshInterval = (config.refreshInterval || 120) * 1000; // Default 2 minutes
@@ -45,23 +60,6 @@ const MaintenanceCostAnalyticsWidget = ({ id, config = {} }) => {
   const formatCurrency = amount => {
     return `R${(amount || 0).toLocaleString()}`;
   };
-
-  const calculateTrend = () => {
-    if (!costData || !costData.total_cost || !costData.previous_period_cost) {
-      return { trend: 0, isPositive: true };
-    }
-
-    const current = costData.total_cost;
-    const previous = costData.previous_period_cost;
-    const trend = ((current - previous) / previous) * 100;
-
-    return {
-      trend: Math.abs(trend).toFixed(1),
-      isPositive: trend >= 0,
-    };
-  };
-
-  const trendData = calculateTrend();
 
   const analyticsCards = [
     {
@@ -75,13 +73,6 @@ const MaintenanceCostAnalyticsWidget = ({ id, config = {} }) => {
       value: formatCurrency(costData?.average_cost),
       subtitle: 'Per maintenance',
       color: 'text-green-600',
-    },
-    {
-      title: 'Trend',
-      value: `${trendData.trend}%`,
-      subtitle: trendData.isPositive ? 'Increase' : 'Decrease',
-      color: trendData.isPositive ? 'text-red-600' : 'text-green-600',
-      icon: trendData.isPositive ? <TrendingUp size={16} /> : <TrendingDown size={16} />,
     },
   ];
 
@@ -130,7 +121,7 @@ const MaintenanceCostAnalyticsWidget = ({ id, config = {} }) => {
               ref={el => (cardRefs.current[index] = el)}
               className="bg-background p-2 rounded-md border border-border flex-1"
               style={
-                cardHeight ? { minHeight: `${Math.max(cardHeight, 60)}px` } : { minHeight: '60px' }
+                cardHeight ? {minHeight: `${Math.max(cardHeight, 60)}px`} : {minHeight: '60px'}
               }
             >
               <div className="flex items-center justify-between h-full">
@@ -152,11 +143,11 @@ const MaintenanceCostAnalyticsWidget = ({ id, config = {} }) => {
         </div>
 
         {/* Cost Breakdown - only show if there's space */}
-        {costData?.cost_breakdown && (
+        {(costData?.cost_breakdown || costData?.summary?.cost_breakdown) && (
           <div className="bg-background p-2 rounded-md border border-border mt-2 flex-shrink-0">
             <h4 className="font-semibold mb-2 text-xs">Breakdown</h4>
             <div className="space-y-1 max-h-18 overflow-y-auto">
-              {Object.entries(costData.cost_breakdown)
+              {Object.entries(costData?.cost_breakdown || costData?.summary?.cost_breakdown || {})
                 .slice(0, 3)
                 .map(([category, amount]) => (
                   <div key={category} className="flex justify-between items-center py-0.5">
@@ -179,22 +170,22 @@ const MaintenanceCostAnalyticsWidget = ({ id, config = {} }) => {
 // Register the widget
 registerWidget(WIDGET_TYPES.MAINTENANCE_COST_ANALYTICS, MaintenanceCostAnalyticsWidget, {
   title: 'Maintenance Cost Analytics',
-  description: 'Detailed breakdown of maintenance costs and trends',
+  description: 'Detailed breakdown of maintenance costs',
   category: WIDGET_CATEGORIES.MAINTENANCE,
-  defaultSize: { w: 3, h: 6 },
-  minSize: { w: 3, h: 3 },
-  maxSize: { w: 12, h: 8 },
+  defaultSize: {w: 3, h: 6},
+  minSize: {w: 3, h: 3},
+  maxSize: {w: 12, h: 8},
   icon: BarChart3,
   configSchema: {
-    title: { type: 'string', default: 'Maintenance Cost Analytics' },
-    refreshInterval: { type: 'number', default: 120, min: 60 },
+    title: {type: 'string', default: 'Maintenance Cost Analytics'},
+    refreshInterval: {type: 'number', default: 120, min: 60},
     period: {
       type: 'select',
       default: 'monthly',
       options: [
-        { value: 'weekly', label: 'Weekly' },
-        { value: 'monthly', label: 'Monthly' },
-        { value: 'quarterly', label: 'Quarterly' },
+        {value: 'weekly', label: 'Weekly'},
+        {value: 'monthly', label: 'Monthly'},
+        {value: 'quarterly', label: 'Quarterly'},
       ],
     },
   },

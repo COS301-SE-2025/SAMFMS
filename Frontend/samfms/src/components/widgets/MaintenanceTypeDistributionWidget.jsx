@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { BaseWidget } from '../dashboard/BaseWidget';
-import { maintenanceAPI } from '../../backend/api/maintenance';
-import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
+import React, {useState, useEffect} from 'react';
+import {BaseWidget} from '../dashboard/BaseWidget';
+import {maintenanceAPI} from '../../backend/api/maintenance';
+import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
 import Chart from 'react-apexcharts';
-import { BarChart3 } from 'lucide-react';
+import {BarChart3} from 'lucide-react';
 
-const MaintenanceTypeDistributionWidget = ({ id, config = {} }) => {
+const MaintenanceTypeDistributionWidget = ({id, config = {}}) => {
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -16,21 +16,57 @@ const MaintenanceTypeDistributionWidget = ({ id, config = {} }) => {
         setLoading(true);
         setError(null);
 
-        const response = await maintenanceAPI.getMaintenanceAnalytics(
-          config.vehicleId || null,
-          config.startDate || null,
-          config.endDate || null
+        // Fetch maintenance records to calculate costs from actual_cost field by type
+        const recordsResponse = await maintenanceAPI.getMaintenanceRecords(
+          config.vehicleId || null, // vehicleId filter
+          'completed', // status - only completed maintenance has actual costs
+          1, // page
+          1000 // size - get a large number to capture all records
         );
 
-        // Extract the data from the double-nested ResponseBuilder format
-        let analyticsData = {};
-        if (response?.data?.data?.analytics) {
-          analyticsData = response.data.data.analytics;
-        } else if (response?.data?.analytics) {
-          analyticsData = response.data.analytics;
-        } else if (response?.data) {
-          analyticsData = response.data;
+        console.log('MaintenanceTypeDistributionWidget - Records Response:', recordsResponse);
+
+        // Extract records from nested response structure
+        const records = recordsResponse.data?.data || recordsResponse.data || [];
+
+        console.log('MaintenanceTypeDistributionWidget - Extracted records:', records, 'Type:', typeof records, 'IsArray:', Array.isArray(records));
+
+        // Group records by maintenance type and calculate totals from actual_cost
+        const typeGroups = {};
+
+        // Ensure records is an array before processing
+        if (Array.isArray(records)) {
+          records.forEach(record => {
+            const actualCost = parseFloat(record.actual_cost) || 0;
+            const maintenanceType = record.maintenance_type || 'Other';
+
+            if (!typeGroups[maintenanceType]) {
+              typeGroups[maintenanceType] = {
+                maintenance_type: maintenanceType,
+                total_cost: 0,
+                count: 0
+              };
+            }
+
+            if (actualCost > 0) {
+              typeGroups[maintenanceType].total_cost += actualCost;
+            }
+            typeGroups[maintenanceType].count++;
+          });
+        } else {
+          console.warn('MaintenanceTypeDistributionWidget - Records is not an array:', records);
         }
+
+        // Convert to array format expected by the chart
+        const maintenance_types = Object.values(typeGroups);
+
+        const analyticsData = {
+          maintenance_types: maintenance_types
+        };
+
+        console.log('MaintenanceTypeDistributionWidget - Calculated analytics from records:', analyticsData);
+
+        console.log('MaintenanceTypeDistributionWidget - Final maintenance_types:', analyticsData.maintenance_types);
 
         setAnalyticsData(analyticsData);
       } catch (err) {
@@ -51,7 +87,7 @@ const MaintenanceTypeDistributionWidget = ({ id, config = {} }) => {
   }, [config.refreshInterval, config.vehicleId, config.startDate, config.endDate]);
 
   const formatCurrency = amount => {
-    return `R${(amount || 0).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`;
+    return `R${(amount || 0).toLocaleString('en-ZA', {minimumFractionDigits: 2})}`;
   };
 
   const renderChart = () => {
@@ -204,20 +240,40 @@ const MaintenanceTypeDistributionWidget = ({ id, config = {} }) => {
       <div>
         <Chart options={chartOptions} series={series} type="bar" height={350} />
 
-        {/* Total summary */}
+        {/* Summary statistics */}
         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Total Cost Across All Types:
-            </span>
-            <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
-              {formatCurrency(
-                analyticsData.maintenance_types.reduce(
-                  (sum, type) => sum + (type.total_cost || 0),
-                  0
-                )
-              )}
-            </span>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Total Cost
+              </span>
+              <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                {formatCurrency(
+                  analyticsData.maintenance_types?.length > 0
+                    ? analyticsData.maintenance_types.reduce((sum, type) => sum + (type.total_cost || type.cost || 0), 0)
+                    : analyticsData.summary?.total_cost || analyticsData.total_cost || 0
+                )}
+              </div>
+            </div>
+            <div className="text-center">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Average Cost
+              </span>
+              <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                {formatCurrency(
+                  (() => {
+                    if (analyticsData.maintenance_types?.length > 0) {
+                      const totalCost = analyticsData.maintenance_types.reduce((sum, type) => sum + (type.total_cost || type.cost || 0), 0);
+                      const totalCount = analyticsData.maintenance_types.reduce((sum, type) => sum + (type.count || 1), 0);
+                      return totalCount > 0 ? totalCost / totalCount : 0;
+                    } else {
+                      // Fallback to summary average cost
+                      return analyticsData.summary?.average_cost || analyticsData.average_cost || 0;
+                    }
+                  })()
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -273,8 +329,8 @@ registerWidget(WIDGET_TYPES.MAINTENANCE_TYPE_DISTRIBUTION, MaintenanceTypeDistri
       default: null,
     },
   },
-  defaultSize: { w: 8, h: 6 },
-  minSize: { w: 4, h: 4 },
-  maxSize: { w: 12, h: 8 },
+  defaultSize: {w: 8, h: 6},
+  minSize: {w: 4, h: 4},
+  maxSize: {w: 12, h: 8},
 });
 export default MaintenanceTypeDistributionWidget;
