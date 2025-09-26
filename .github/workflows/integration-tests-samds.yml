@@ -86,7 +86,7 @@ jobs:
           # Prepare test configuration based on inputs
           TEST_MODE="${{ github.event.inputs.test_mode || 'full' }}"
           SHOW_LOGS="${{ github.event.inputs.show_logs || 'true' }}"
-          CLEANUP="${{ github.event.inputs.cleanup || 'true' }}"
+          CLEANUP="${{ github.event.inputs.cleanup || 'false' }}"
           
           # Create JSON payload
           cat > test_config.json << EOF
