@@ -12,12 +12,13 @@ from math import radians, sin, cos, sqrt, atan2
 from bson import ObjectId
 from flexpolyline import decode
 
-from schemas.entities import ScheduledTrip, RouteInfo, RouteBounds, TripStatus, VehicleLocation, SmartTrip, TrafficCondition, RouteRecommendation, TrafficType, Trip
-from schemas.requests import CreateTripRequest, UpdateTripRequest
+from schemas.entities import ScheduledTrip, RouteInfo, RouteBounds, TripStatus, VehicleLocation, SmartTrip, TrafficCondition, RouteRecommendation, TrafficType, Trip, TripPriority
+from schemas.requests import CreateTripRequest, UpdateTripRequest, DriverAvailabilityRequest
 from repositories.database import db_manager, db_manager_gps, db_manager_management
 from services.trip_service import trip_service
 from services.vehicle_service import vehicle_service
 from services.notification_service import notification_service
+from services.driver_service import driver_service
 from services.driver_analytics_service import driver_analytics_service
 
 
@@ -981,40 +982,103 @@ class SmartTripService:
                 except Exception as e:
                     logger.warning(f"Error fetching vehicle {closest_vehicle_id}: {e}")
 
+            optimized_start = best_start
+
             # Driver assignment
             try:
-                stats = await driver_analytics_service.get_driver_trip_stats("year")
-                best_driver_id = None
-                best_driver_name = "Unknown"
-                best_rate = -1.0
-                
-                for stat in stats:
-                    try:
-                        completed = stat.get("completed_trips", 0)
-                        cancelled = stat.get("cancelled_trips", 0)
-                        total = completed + cancelled
-                        rate = completed / total if total > 0 else 0.0
-                        if rate > best_rate:
-                            best_rate = rate
-                            best_driver_name = stat.get("driver_name", "Unknown")
-                            best_driver_id = stat.get("driver_id")
-                    except Exception as e:
-                        logger.warning(f"Error processing driver stat {stat}: {e}")
-                        continue
-                        
-                if best_driver_id is None:
-                    logger.warning("No valid driver ID found; defaulting to None")
+                best_rate = None
+                if scheduled_trip.priority == TripPriority.HIGH or scheduled_trip.priority == TripPriority.URGENT:
+                    stats = await driver_analytics_service.get_driver_trip_stats("year")
                     
+                    # Calculate completion rates for all drivers and sort them
+                    driver_performance = []
+                    
+                    for stat in stats:
+                        try:
+                            completed = stat.get("completed_trips", 0)
+                            cancelled = stat.get("cancelled_trips", 0)
+                            total = completed + cancelled
+                            rate = completed / total if total > 0 else 0.0
+                            
+                            driver_performance.append({
+                                "driver_id": stat.get("driver_id"),
+                                "driver_name": stat.get("driver_name", "Unknown"),
+                                "completion_rate": rate
+                            })
+                        except Exception as e:
+                            logger.warning(f"Error processing driver stat {stat}: {e}")
+                            continue
+                    
+                    # Sort by completion rate (descending) and get top 5
+                    driver_performance.sort(key=lambda x: x["completion_rate"], reverse=True)
+                    top_5_drivers = driver_performance[:5]
+                    
+
+
+                    # Filter for available drivers among top 5
+                    available_top_drivers = []
+                    for driver in top_5_drivers:
+                        try:
+
+                            if driver["driver_id"] and await driver_service.check_driver_availability(driver["driver_id"], optimized_start, optimized_end):
+                                available_top_drivers.append(driver)
+                        except Exception as e:
+                            logger.warning(f"Error checking availability for driver {driver['driver_id']}: {e}")
+                            continue
+                    
+                    # Randomly select from available top performers
+                    if available_top_drivers:
+                        selected_driver = random.choice(available_top_drivers)
+                        best_driver_id = selected_driver["driver_id"]
+                        best_driver_name = selected_driver["driver_name"]
+                        best_rate = selected_driver["completion_rate"]
+                        logger.info(f"Selected top performer: {best_driver_name} )")
+                    else:
+                        best_driver_id = None
+                        best_driver_name = "Unknown"
+                        logger.warning("No available drivers found among top 5 performers; defaulting to None")
+
+                else:
+                    # For non-urgent/non-high priority trips, get all available drivers
+                    logger.info("Entered normal schedule trip recommendations")
+                    drivers = await driver_service.get_all_drivers() 
+                    available_drivers = []
+                    
+                    for driver in drivers["drivers"]:
+                        try:
+                            if await driver_service.check_driver_availability(driver["employee_id"], optimized_start, optimized_end):
+                                available_drivers.append(driver)
+                        except Exception as e:
+                            logger.warning("Error checking availability for driver ")
+                            continue
+                    logger.info(f"{len(available_drivers)} available for normal/low priority trips")
+                    
+                    # Randomly select from all available drivers
+                    if available_drivers:
+                        selected_driver = random.choice(available_drivers)
+                        logger.info(f"Selected driver info: {selected_driver}")
+                        best_driver_id = selected_driver["employee_id"]
+                        best_driver_name = f"{selected_driver['first_name']} {selected_driver['last_name']}".strip()
+                                
+                        # workout rate:
+                        specific_stats = await driver_analytics_service.get_driver_trip_stats_by_id(best_driver_id, "year")
+                        completed = specific_stats["completed_trips"]
+                        cancelled = specific_stats["cancelled_trips"]
+                        total = completed + cancelled
+                        best_rate = completed / total if total > 0 else 0.0
+                        logger.info(f"Randomly selected driver: {best_driver_name}")
+                    else:
+                        best_driver_id = None
+                        best_driver_name = "Unknown"
+                        logger.warning("No available drivers found; defaulting to None")
+                        return None
+
                 logger.info(f"[SmartTripService.create_smart_trip] Best driver assignment: {best_driver_id}")
+                
             except Exception as e:
                 logger.warning(f"Error getting driver stats: {e}")
                 best_driver_id = None
                 best_driver_name = "Unknown"
-                best_rate = 0.0
-
-            optimized_start = best_start
-            optimized_end = best_start + timedelta(seconds=min_duration)
-
             # Calculate benefits
             try:
                 original_duration_min = getattr(scheduled_trip, 'estimated_duration', duration_min)
