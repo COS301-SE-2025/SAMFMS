@@ -12,7 +12,7 @@ from datetime import datetime
 from .events import BaseEvent, EventType
 # Import standardized config
 from config.rabbitmq_config import RabbitMQConfig
-from . import admin
+
 
 logger = logging.getLogger(__name__)
 

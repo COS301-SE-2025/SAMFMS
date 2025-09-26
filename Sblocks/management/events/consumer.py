@@ -724,6 +724,24 @@ class ManagementEventHandlers:
                             message=message
                         )
             
+            await publisher.publish_message(
+                            exchange_name="removed_vehicle",
+                            exchange_type=aio_pika.ExchangeType.FANOUT,
+                            message=message
+                        )
+            
+            
+            logger.info(f"Successfully processed removed user event: {email}")
+        except Exception as e:
+            logger.error(f"Error handling removed user event: {e}")
+            logger.error(f"Event data: {data}")
+            raise
+
+    async def handle_removed_vehicle(self, data: Dict[str, Any], routing_key: str, headers: Dict[str, Any]):
+        try: 
+            logger.info("Handling removed vehicle event")
+            return
+            
             
             logger.info(f"Successfully processed removed user event: {email}")
         except Exception as e:
@@ -747,3 +765,4 @@ async def setup_event_handlers():
     event_consumer.register_handler("user.created", event_handlers.handle_user_created)
     event_consumer.register_handler("user.role_changed", event_handlers.handle_user_role_changed)
     event_consumer.register_handler("removed_user", event_handlers.handle_removed_user)
+    event_consumer.register_handler("removed_vehicle", event_handlers.handle_removed_vehicle)
