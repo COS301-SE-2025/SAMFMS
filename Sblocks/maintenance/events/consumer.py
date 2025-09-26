@@ -32,6 +32,7 @@ class EventConsumer:
         
     async def connect(self):
         """Connect to RabbitMQ"""
+        attempt = 0
         try:            
             # Use standardized connection settings
             self.connection = await aio_pika.connect_robust(
@@ -109,6 +110,14 @@ class EventConsumer:
             for pattern in patterns:
                 await queue.bind(exchange, routing_key=pattern)
 
+
+            removed_user_exchange = await self.channel.declare_exchange(
+                "removed_user",
+                aio_pika.ExchangeType.FANOUT,
+                durable=True
+            )
+            await self.queue.bind(removed_user_exchange, "")
+
             self.is_consuming = True
             await queue.consume(self._handle_message)
 
@@ -130,6 +139,9 @@ class EventConsumer:
                 body = json.loads(message.body.decode())
                 routing_key = message.routing_key
                 
+                if routing_key == "":
+                    routing_key = "removed_user"
+
                 logger.info(f"Received event with routing key: {routing_key}")
                 
                 # Find matching handler
@@ -152,7 +164,7 @@ class EventConsumer:
             prefix = pattern.replace("*", "")
             return routing_key.startswith(prefix)
         return routing_key == pattern
-
+    
 
 
     async def _declare_queue_with_fallback(self, queue_name: str) -> aio_pika.Queue:
@@ -251,11 +263,54 @@ async def handle_user_created(event_data: Dict[str, Any]):
     logger.info(f"User created: {event_data.get('user_id')}")
     # TODO: Setup maintenance notifications for new user
 
+
+async def handle_removed_user(self, data: Dict[str, Any], routing_key: str, headers: Dict[str, Any]):
+        try: 
+            assigned_to = data["assigned_to"]
+            logger.info(f"Processing removed user event for assigned_to: {assigned_to}")
+            return
+            if not assigned_to:
+                logger.warning("No security_id provided in removed user event")
+                return
+            driver_service = DriverService()
+            vehicle_assignment_service = VehicleAssignmentService()
+            driver = await driver_service.get_driver_id_by_email(email)
+
+            if not driver:
+                logger.warning(f"Driver not found for email: {email}")
+                return
+
+            ID = driver["_id"]
+            EMPID = driver["employee_id"] #for trips driver_assignment is equivalent to employee_id
+            security_id = driver["security_id"] #for maintenance_records assigned_to is equivalent to security_id
+            await driver_service.delete_driver(ID)
+            await vehicle_assignment_service.cancel_driver_assignments(EMPID)
+            publisher = EventPublisher()
+            message = ({
+                    "driver_assignment": EMPID,
+                    "assigned_to": security_id,
+                })
+            await publisher.publish_message(
+                            exchange_name="removed_user",
+                            exchange_type=aio_pika.ExchangeType.FANOUT,
+                            message=message
+                        )
+            
+            
+            logger.info(f"Successfully processed removed user event: {email}")
+        except Exception as e:
+            logger.error(f"Error handling removed user event: {e}")
+            logger.error(f"Event data: {data}")
+            raise
+
+
+
 def setup_event_handlers():
     """Setup event handlers"""
     event_consumer.register_handler("vehicle.created", handle_vehicle_created)
     event_consumer.register_handler("vehicle.updated", handle_vehicle_updated)
     event_consumer.register_handler("user.created", handle_user_created)
+    event_consumer.register_handler("removed_user", handle_removed_user)
     logger.info("Event handlers registered successfully")
 
 

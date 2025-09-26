@@ -216,6 +216,15 @@ async def handle_gps_event(event_data: Dict[str, Any], routing_key: str):
 async def handle_removed_user_event(event_data: Dict[str, Any], routing_key: str):
     """Handle removed user events"""
     logger.info(f"Handling removed user event: {routing_key}")
+    #unassign_driver_from_trip
+    #deactivate_driver
+    #delete scheduled trip
+    #delete smart trip
+    #notification
+    #list trips
+    #delete trip
+    #cancel trip?
+
     # Process user removal events
 
 async def setup_event_handlers():

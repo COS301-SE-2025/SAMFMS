@@ -176,13 +176,13 @@ class EventConsumer:
         
 
 
-        user_remove_exchange = await self.channel.declare_exchange(
+        removed_user_exchange = await self.channel.declare_exchange(
             "removed_user",
             aio_pika.ExchangeType.FANOUT,
             durable=True
         )
         
-        await queue.bind(user_remove_exchange)
+        await queue.bind(removed_user_exchange)
         
         logger.info("Setup event bindings")
     
