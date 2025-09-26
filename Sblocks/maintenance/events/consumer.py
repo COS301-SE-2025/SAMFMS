@@ -29,6 +29,7 @@ class EventConsumer:
         self.max_retry_attempts = 3
         self.retry_delay = 2.0  # seconds
         self.is_consuming = False
+        self.queue = None
         
     async def connect(self):
         """Connect to RabbitMQ"""
@@ -116,7 +117,8 @@ class EventConsumer:
                 aio_pika.ExchangeType.FANOUT,
                 durable=True
             )
-            await self.queue.bind(removed_user_exchange, "")
+
+            await queue.bind(removed_user_exchange, "")
 
             self.is_consuming = True
             await queue.consume(self._handle_message)
@@ -264,10 +266,10 @@ async def handle_user_created(event_data: Dict[str, Any]):
     # TODO: Setup maintenance notifications for new user
 
 
-async def handle_removed_user(self, data: Dict[str, Any], routing_key: str, headers: Dict[str, Any]):
+async def handle_removed_user(data: Dict[str, Any], routing_key: str):
         try: 
             assigned_to = data["assigned_to"]
-            logger.info(f"Processing removed user event for assigned_to: {assigned_to}")
+            logger.info(f"Processing removed user event for: {assigned_to}")
             return
             if not assigned_to:
                 logger.warning("No security_id provided in removed user event")
@@ -305,7 +307,7 @@ async def handle_removed_user(self, data: Dict[str, Any], routing_key: str, head
 
 
 
-def setup_event_handlers():
+async def setup_event_handlers():
     """Setup event handlers"""
     event_consumer.register_handler("vehicle.created", handle_vehicle_created)
     event_consumer.register_handler("vehicle.updated", handle_vehicle_updated)

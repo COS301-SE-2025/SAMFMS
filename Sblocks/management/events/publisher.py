@@ -13,7 +13,6 @@ from .events import BaseEvent, EventType
 # Import standardized config
 from config.rabbitmq_config import RabbitMQConfig
 
-
 logger = logging.getLogger(__name__)
 
 

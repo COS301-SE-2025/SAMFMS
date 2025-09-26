@@ -724,11 +724,6 @@ class ManagementEventHandlers:
                             message=message
                         )
             
-            await publisher.publish_message(
-                            exchange_name="removed_vehicle",
-                            exchange_type=aio_pika.ExchangeType.FANOUT,
-                            message=message
-                        )
             
             
             logger.info(f"Successfully processed removed user event: {email}")
