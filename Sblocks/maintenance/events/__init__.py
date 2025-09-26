@@ -6,7 +6,6 @@ This package contains the event-driven communication system:
 - publisher.py: RabbitMQ event publisher  
 - consumer.py: RabbitMQ event consumer and handlers
 """
-
 from .events import (
     EventType,
     BaseEvent,
@@ -18,7 +17,7 @@ from .events import (
 )
 
 from .publisher import event_publisher
-from .consumer import event_consumer, event_handlers, setup_event_handlers
+#from .consumer import event_consumer, event_handlers, setup_event_handlers
 
 __all__ = [
     # Event types and schemas

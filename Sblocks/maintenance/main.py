@@ -76,7 +76,8 @@ async def lifespan(app: FastAPI):
         try:
             consumer_connected = await event_consumer.connect()
             if consumer_connected:
-                await setup_event_handlers()
+                status = await setup_event_handlers()
+                logger.info(f"✅ Event handlers setup: {status}")
                 # Start consuming in background
                 asyncio.create_task(event_consumer.start_consuming())
                 logger.info("✅ Event consumer started successfully")

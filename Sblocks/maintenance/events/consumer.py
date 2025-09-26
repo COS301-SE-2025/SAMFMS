@@ -1,5 +1,5 @@
 """
-Event consumer for Maintenance service with enhanced reliability and error handling
+Event consumer for Maintenance service - simplified for removed_user fanout exchange
 """
 import aio_pika
 import asyncio
@@ -7,33 +7,25 @@ import json
 import logging
 from typing import Dict, Any, Callable, Optional
 import os
-from datetime import datetime, timedelta
 import traceback
-
-from .events import MaintenanceEvent, LicenseEvent
-# Import standardized config
-from config.rabbitmq_config import RabbitMQConfig
 
 logger = logging.getLogger(__name__)
 
 
 class EventConsumer:
-    """Event consumer for RabbitMQ with enhanced reliability"""
+    """Event consumer for RabbitMQ focused on removed_user fanout exchange"""
     
     def __init__(self):
         self.connection: Optional[aio_pika.Connection] = None
         self.channel: Optional[aio_pika.Channel] = None
         self.rabbitmq_url = os.getenv("RABBITMQ_URL", "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/")
         self.handlers: Dict[str, Callable] = {}
-        self.dead_letter_queue: Optional[aio_pika.Queue] = None
-        self.max_retry_attempts = 3
-        self.retry_delay = 2.0  # seconds
         self.is_consuming = False
+        logger.info("EventConsumer Initialized")
         
     async def connect(self):
         """Connect to RabbitMQ"""
         try:            
-            # Use standardized connection settings
             self.connection = await aio_pika.connect_robust(
                 self.rabbitmq_url,
                 heartbeat=600,
@@ -42,15 +34,14 @@ class EventConsumer:
                 retry_delay=1.0
             )
             
-            # Create channel with better settings
             self.channel = await self.connection.channel()
             await self.channel.set_qos(prefetch_count=10)
-            
+
             logger.info("Successfully connected to RabbitMQ")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to connect to RabbitMQ (attempt {attempt + 1}): {e}")
+            logger.error(f"Failed to connect to RabbitMQ: {e}")
             return False
         
     async def disconnect(self):
@@ -70,7 +61,6 @@ class EventConsumer:
         finally:
             self.connection = None
             self.channel = None
-            self.dead_letter_queue = None
     
     def register_handler(self, event_pattern: str, handler: Callable):
         """Register event handler"""
@@ -78,7 +68,7 @@ class EventConsumer:
         logger.info(f"Registered handler for {event_pattern}")
     
     async def start_consuming(self):
-        """Start consuming events with improved error handling"""
+        """Start consuming events - only for removed_user fanout exchange"""
         if not self.connection:
             logger.error("Not connected to RabbitMQ")
             return
@@ -88,31 +78,31 @@ class EventConsumer:
             return
         
         try:
-            # Declare exchange
-            exchange = await self.channel.declare_exchange(
-                "maintenance_events",
-                aio_pika.ExchangeType.TOPIC,
+            # Declare the fanout exchange
+            fanout_exchange = await self.channel.declare_exchange(
+                "removed_user",
+                aio_pika.ExchangeType.FANOUT,
                 durable=True
             )
-            # Declare queue for this service
+            logger.info("Declared removed_user fanout exchange")
+
+            # Declare a unique queue for this service instance
+            # Using auto-delete and exclusive for fanout pattern
             queue = await self.channel.declare_queue(
-                "gps_service_events",
-                durable=True
+                "gps_service_removed_user",  # Specific queue name for this service
+                durable=True,
+                auto_delete=False
             )
-            patterns = [
-                "management.*",  # Listen to management events
-                "core.*",        # Listen to core events
-                "vehicles.*",    # Listen to vehicle events
-                "users.*"        # Listen to user events
-            ]
+            logger.info(f"Declared queue: {queue.name}")
 
-            for pattern in patterns:
-                await queue.bind(exchange, routing_key=pattern)
+            # Bind queue to fanout exchange (no routing key needed for fanout)
+            await queue.bind(fanout_exchange)
+            logger.info("Bound queue to removed_user fanout exchange")
 
+            # Start consuming
             self.is_consuming = True
             await queue.consume(self._handle_message)
-
-            logger.info("Started consuming events")
+            logger.info("Started consuming removed_user events")
 
             # Keep consuming
             while self.is_consuming:
@@ -120,143 +110,86 @@ class EventConsumer:
 
         except Exception as e:
             logger.error(f"Error starting consumption: {e}")
+            logger.error(traceback.format_exc())
             self.is_consuming = False
 
     async def _handle_message(self, message: aio_pika.IncomingMessage):
         """Handle incoming message"""
         async with message.process():
             try:
-                # Parse message
                 body = json.loads(message.body.decode())
-                routing_key = message.routing_key
+                exchange_name = message.exchange
                 
-                logger.info(f"Received event with routing key: {routing_key}")
+                logger.info(f"Received message from exchange '{exchange_name}': {body}")
                 
-                # Find matching handler
-                for pattern, handler in self.handlers.items():
-                    if self._match_pattern(routing_key, pattern):
-                        try:
-                            await handler(body, routing_key)
-                        except Exception as e:
-                            logger.error(f"Error in handler for {pattern}: {e}")
-                            logger.error(traceback.format_exc())
-                
+                # For fanout exchange, we know it's a removed_user event
+                if "removed_user" in self.handlers:
+                    try:
+                        await self.handlers["removed_user"](body, "removed_user")
+                        logger.info("Successfully processed removed_user event")
+                    except Exception as e:
+                        logger.error(f"Error in removed_user handler: {e}")
+                        logger.error(traceback.format_exc())
+                else:
+                    logger.warning("No handler registered for removed_user events")
+                    
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse message as JSON: {e}")
+                logger.error(f"Raw message: {message.body.decode()}")
             except Exception as e:
                 logger.error(f"Error processing message: {e}")
                 logger.error(traceback.format_exc())
 
-    def _match_pattern(self, routing_key: str, pattern: str) -> bool:
-        """Check if routing key matches pattern"""
-        # Simple pattern matching (can be enhanced)
-        if "*" in pattern:
-            prefix = pattern.replace("*", "")
-            return routing_key.startswith(prefix)
-        return routing_key == pattern
 
-
-
-    async def _declare_queue_with_fallback(self, queue_name: str) -> aio_pika.Queue:
-        """Declare queue with fallback to simple queue if DLQ fails"""
-        try:
-            if self.enable_dead_letter_queue:
-                # Try with dead letter queue first
-                return await self.channel.declare_queue(
-                    queue_name,
-                    durable=True,
-                    arguments={
-                        "x-dead-letter-exchange": f"{queue_name}.dlx",
-                        "x-dead-letter-routing-key": "failed",
-                        "x-message-ttl": 3600000  # 1 hour TTL
-                    }
-                )
-            else:
-                # Simple queue without DLQ
-                return await self.channel.declare_queue(queue_name, durable=True)
-                
-        except Exception as e:
-            logger.warning(f"Failed to declare queue with DLQ, falling back to simple queue: {e}")
-            # Fallback to simple queue
-            return await self.channel.declare_queue(queue_name, durable=True)
-    
-    async def _setup_bindings(self, queue: aio_pika.Queue):
-        """Setup queue bindings to exchanges"""
-        # Bind to vehicle events from Management service (for maintenance scheduling)
-        try:
-            management_exchange = await self.channel.declare_exchange(
-                "management_events",
-                aio_pika.ExchangeType.TOPIC,
-                durable=True
-            )
-            await queue.bind(management_exchange, routing_key="vehicle.*")
-            logger.info("Bound to management vehicle events")
-        except Exception as e:
-            logger.warning(f"Failed to bind to management events: {e}")
+# Event handler for removed_user
+async def handle_removed_user(data: Dict[str, Any], routing_key: str):
+    """Handle removed user event"""
+    try:
+        logger.info(f"Processing removed_user event: {data}")
         
-        # Bind to user events from Security service
-        try:
-            security_exchange = await self.channel.declare_exchange(
-                "security_events",
-                aio_pika.ExchangeType.TOPIC,
-                durable=True
-            )
-            await queue.bind(security_exchange, routing_key="user.*")
-            logger.info("Bound to security user events")
-        except Exception as e:
-            logger.warning(f"Failed to bind to security events: {e}")
+        assigned_to = data.get("assigned_to")
+        driver_assignment = data.get("driver_assignment")
+        
+        if not assigned_to:
+            logger.warning("No assigned_to provided in removed user event")
+            return
+            
+        logger.info(f"Processing removal for assigned_to: {assigned_to}, driver_assignment: {driver_assignment}")
+        from events.publisher import EventPublisher
+        if data["penis"]:
+            publisher = EventPublisher()
+            publisher.publish_message("removed_user", aio_pika.ExchangeType.FANOUT, {"status": "processed"})
+
+        # Add your business logic here
+        # For example:
+        # - Remove maintenance assignments
+        # - Update vehicle assignments
+        # - Clean up related records
+        
+        # If you need to republish, make sure EventPublisher.publish_message has 'self' parameter
+        # from .publisher import EventPublisher
+        # publisher = EventPublisher()
+        # await publisher.publish_message("some_exchange", aio_pika.ExchangeType.FANOUT, {"status": "processed"})
+        
+        
+        logger.info(f"Successfully processed removed user event for {assigned_to}")
+        
+    except Exception as e:
+        logger.error(f"Error handling removed user event: {e}")
+        logger.error(f"Event data: {data}")
+        logger.error(traceback.format_exc())
+        raise
 
 
-
-    def _find_handler(self, event_type: str) -> Optional[Callable]:
-        """Find handler for event type"""
-        # Direct match first
-        if event_type in self.handlers:
-            return self.handlers[event_type]
-        
-        # Pattern matching
-        for pattern, handler in self.handlers.items():
-            if self._matches_pattern(event_type, pattern):
-                return handler
-        
-        return None
-    
-    def _matches_pattern(self, event_type: str, pattern: str) -> bool:
-        """Simple pattern matching for event types"""
-        if "*" not in pattern:
-            return event_type == pattern
-        
-        # Simple wildcard matching
-        pattern_parts = pattern.split("*")
-        if len(pattern_parts) == 2:
-            prefix, suffix = pattern_parts
-            return event_type.startswith(prefix) and event_type.endswith(suffix)
-        
+async def setup_event_handlers():
+    """Setup event handlers - only for removed_user"""
+    try:
+        event_consumer.register_handler("removed_user", handle_removed_user)
+        logger.info("Event handlers registered successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Error setting up event handlers: {e}")
         return False
-
-
-# Event handlers
-event_handlers = {}
-
-async def handle_vehicle_created(event_data: Dict[str, Any]):
-    """Handle vehicle created event"""
-    logger.info(f"Vehicle created: {event_data.get('vehicle_id')}")
-    # TODO: Create maintenance schedule for new vehicle
-
-async def handle_vehicle_updated(event_data: Dict[str, Any]):
-    """Handle vehicle updated event"""
-    logger.info(f"Vehicle updated: {event_data.get('vehicle_id')}")
-    # TODO: Update maintenance schedules if needed
-
-async def handle_user_created(event_data: Dict[str, Any]):
-    """Handle user created event"""
-    logger.info(f"User created: {event_data.get('user_id')}")
-    # TODO: Setup maintenance notifications for new user
-
-def setup_event_handlers():
-    """Setup event handlers"""
-    event_consumer.register_handler("vehicle.created", handle_vehicle_created)
-    event_consumer.register_handler("vehicle.updated", handle_vehicle_updated)
-    event_consumer.register_handler("user.created", handle_user_created)
-    logger.info("Event handlers registered successfully")
 
 
 # Global event consumer instance
