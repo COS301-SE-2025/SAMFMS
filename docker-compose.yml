@@ -362,16 +362,30 @@ services:
   # Frontend
   frontend:
     build: ./Frontend/samfms
-    ports:
-      - '${FRONTEND_PORT:-21015}:3000'
     environment:
-      - REACT_APP_CORE_PORT=${CORE_PORT:-21004}
-      - REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL:-http://capstone-samfms.dns.net.za:21004/api}
-      - REACT_APP_DOMAIN=${REACT_APP_DOMAIN:-localhost}
-      - REACT_APP_WS_TARGET=${REACT_APP_WS_TARGET:-ws://localhost:21004}
+      - REACT_APP_API_BASE_URL=https://samfms.co.za/api
+      - REACT_APP_DOMAIN=samfms.co.za
+      - REACT_APP_WS_TARGET=wss://samfms.co.za/ws
       - CHOKIDAR_USEPOLLING=${HOT_RELOAD:-false}
       - NODE_ENV=${NODE_ENV:-production}
     depends_on:
+      - core
+    restart: unless-stopped
+    networks:
+      - samfms-network
+
+  # Caddy Reverse Proxy with Let's Encrypt HTTPS
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"      # HTTP port for Let's Encrypt challenges
+      - "443:443"    # HTTPS port
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
       - core
     restart: unless-stopped
     networks:
@@ -381,6 +395,8 @@ volumes:
   mongodb_data:
   redis_data:
   rabbitmq_data:
+  caddy_data:
+  caddy_config:
 
 networks:
   samfms-network:
