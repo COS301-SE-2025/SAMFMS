@@ -429,7 +429,7 @@ class ServiceRequestConsumer:
                     # Retrieve route info
                     # Update actual trips route info
                     try:
-                        response = await trip_service.accept_route_recommendation(trip_id)
+                        response = await trip_service.accept_route_recommendation(trip_id,recommendation_id)
                         if(response):
                             return ResponseBuilder.success(
                                 data=None,
@@ -762,15 +762,13 @@ class ServiceRequestConsumer:
                         
                         # Now create smart trip from the scheduled trip
                         from services.smart_trip_planning_service import smart_trip_service
-                        smart_trip = await smart_trip_service.create_smart_trip(scheduled_trip, created_by)
-                        logger.info(f"Smart trip created: {smart_trip}")
+                        asyncio.create_task(smart_trip_service.create_smart_trip(scheduled_trip, created_by))
                         
                         trip_id = scheduled_trip.id
                         
                         return ResponseBuilder.success(
                             data={
-                                "scheduled_trip": scheduled_trip.model_dump(),
-                                "smart_trip": smart_trip.model_dump() if hasattr(smart_trip, 'model_dump') else smart_trip
+                                "scheduled_trip": scheduled_trip.model_dump()
                             },
                             message="Scheduled Trip and Smart Trip created successfully"
                         ).model_dump()

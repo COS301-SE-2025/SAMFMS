@@ -30,7 +30,7 @@ export const acceptRouteRecommendation = async (tripId, recommendationId) => {
       recommendation_id: recommendationId,
       trip_id: tripId
     }
-    const response = await httpClient.post(TRAFFICENDPOINTS.acceptRouteRecommendation,data)
+    const response = await httpClient.post(TRAFFICENDPOINTS.accept,data)
     return response
   } catch (error) {
     console.log(`Error accepting recommendations: ${recommendationId}`, error);
@@ -44,7 +44,7 @@ export const rejectRouteRecommendation = async (tripId, recommendationId) => {
       recommendation_id: recommendationId,
       trip_id: tripId
     }
-    const response = await httpClient.post(TRAFFICENDPOINTS.rejectRouteRecommendation,data)
+    const response = await httpClient.post(TRAFFICENDPOINTS.reject,data)
     return response
   } catch (error) {
     console.log(`Error rejecting recommendations: ${recommendationId}`, error);
