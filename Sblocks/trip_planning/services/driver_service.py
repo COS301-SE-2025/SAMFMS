@@ -311,19 +311,42 @@ class DriverService:
     async def get_all_drivers(self, status: Optional[str] = None, department: Optional[str] = None, skip: int = 0, limit: int = 1000) -> Dict[str, Any]:
         """Get all drivers from the drivers collection with optional filtering"""
         try:
+            # Debug logging
+            logger.info(f"Getting drivers with filter_query: status={status}, department={department}")
+            logger.info(f"Database connection status: {self.db_management.is_connected()}")
+            logger.info(f"Database name: {self.db_management.database_name}")
+            
             # Build filter query
             filter_query = {}
-            if status:
+            if status != None:
                 filter_query["status"] = status
-            if department:
+            if department != None:
                 filter_query["department"] = department
+            
+            logger.info(f"Final filter query: {filter_query}")
             
             # Get total count for pagination
             total_count = await self.db_management.drivers.count_documents(filter_query)
+            logger.info(f"Total count from database: {total_count}")
             
+            drivers_docs = []
             # Get drivers with pagination
-            cursor = self.db_management.drivers.find(filter_query).skip(skip).limit(limit)
-            drivers_docs = await cursor.to_list(length=None)
+            if filter_query:
+                logger.info(f"Applying filter query: {filter_query}")
+                cursor = self.db_management.drivers.find(filter_query)
+                drivers_docs = await cursor.to_list(length=None)
+                total_count = len(drivers_docs)
+                logger.info(f"Retrieved {total_count} drivers with filtering")
+
+            else:
+                logger.info("No filter query applied, retrieving all drivers")
+                filter_query = {}
+                cursor = self.db_management.drivers.find()
+                drivers_docs = await cursor.to_list(length=limit)
+                total_count = len(drivers_docs)
+                logger.info(f"Retrieved {total_count} drivers without filtering")
+                
+
             
             # Convert ObjectId to string and clean up the data
             drivers = []

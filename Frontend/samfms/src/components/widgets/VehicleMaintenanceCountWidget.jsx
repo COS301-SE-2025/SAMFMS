@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { BaseWidget } from '../dashboard/BaseWidget';
-import { getVehicles } from '../../backend/api/vehicles';
-import { registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES } from '../../utils/widgetRegistry';
-import { AlertTriangle } from 'lucide-react';
+import React, {useState, useEffect} from 'react';
+import {BaseWidget} from '../dashboard/BaseWidget';
+import {maintenanceAPI} from '../../backend/api/maintenance';
+import {registerWidget, WIDGET_TYPES, WIDGET_CATEGORIES} from '../../utils/widgetRegistry';
+import {AlertTriangle} from 'lucide-react';
 
-const VehicleMaintenanceCountWidget = ({ id, config = {} }) => {
-  const [vehicleData, setVehicleData] = useState({ maintenance: 0, total: 0 });
+const VehicleMaintenanceCountWidget = ({id, config = {}}) => {
+  const [vehicleData, setVehicleData] = useState({maintenance: 0, total: 0});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -15,40 +15,44 @@ const VehicleMaintenanceCountWidget = ({ id, config = {} }) => {
         setLoading(true);
         setError(null);
 
-        const response = await getVehicles({ limit: 1000 });
+        // const response = await getVehicles({limit: 1000});
+        const response = await maintenanceAPI.getMaintenanceDashboard();
+        const dashboardData = response.data?.data || response.data || {};
 
-        let vehiclesArray = [];
-        if (response) {
-          if (Array.isArray(response)) {
-            vehiclesArray = response;
-          } else if (response.vehicles && Array.isArray(response.vehicles)) {
-            vehiclesArray = response.vehicles;
-          } else if (response.data && Array.isArray(response.data)) {
-            vehiclesArray = response.data;
-          } else if (response.items && Array.isArray(response.items)) {
-            vehiclesArray = response.items;
-          }
-        }
+        console.log(dashboardData);
 
-        if (!Array.isArray(vehiclesArray)) {
-          vehiclesArray = [];
-        }
+        // let vehiclesArray = [];
+        // if (response) {
+        //   if (Array.isArray(response)) {
+        //     vehiclesArray = response;
+        //   } else if (response.vehicles && Array.isArray(response.vehicles)) {
+        //     vehiclesArray = response.vehicles;
+        //   } else if (response.data && Array.isArray(response.data)) {
+        //     vehiclesArray = response.data;
+        //   } else if (response.items && Array.isArray(response.items)) {
+        //     vehiclesArray = response.items;
+        //   }
+        // }
 
-        const statusCounts = vehiclesArray.reduce(
-          (acc, vehicle) => {
-            acc.total++;
-            if (
-              vehicle.status?.toLowerCase() === 'maintenance' ||
-              vehicle.status?.toLowerCase() === 'in_maintenance'
-            ) {
-              acc.maintenance++;
-            }
-            return acc;
-          },
-          { maintenance: 0, total: 0 }
-        );
+        // if (!Array.isArray(vehiclesArray)) {
+        //   vehiclesArray = [];
+        // }
 
-        setVehicleData(statusCounts);
+        // const statusCounts = vehiclesArray.reduce(
+        //   (acc, vehicle) => {
+        //     acc.total++;
+        //     if (
+        //       vehicle.status?.toLowerCase() === 'maintenance' ||
+        //       vehicle.status?.toLowerCase() === 'in_maintenance'
+        //     ) {
+        //       acc.maintenance++;
+        //     }
+        //     return acc;
+        //   },
+        //   {maintenance: 0, total: 0}
+        // );
+
+        // setVehicleData(statusCounts);
       } catch (err) {
         console.error('Failed to fetch vehicle status:', err);
         setError('Failed to load vehicle data');
@@ -113,9 +117,9 @@ registerWidget(WIDGET_TYPES.VEHICLE_MAINTENANCE_COUNT, VehicleMaintenanceCountWi
       default: 60,
     },
   },
-  defaultSize: { w: 3, h: 2 },
-  minSize: { w: 2, h: 1 },
-  maxSize: { w: 4, h: 3 },
+  defaultSize: {w: 3, h: 2},
+  minSize: {w: 2, h: 1},
+  maxSize: {w: 4, h: 3},
 });
 
 export default VehicleMaintenanceCountWidget;

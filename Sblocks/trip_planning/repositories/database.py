@@ -497,7 +497,7 @@ class DatabaseManagerManagement():
             "MONGODB_URL",
             "mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017"
         )
-        self.database_name = os.getenv("DATABASE_TRIP_PLANNING_MANAGEMENT", "samfms_trip_planning_management")
+        self.database_name = os.getenv("DATABASE_TRIP_PLANNING_MANAGEMENT", "samfms_management")
         # NEW
         self._loop_id = None
     

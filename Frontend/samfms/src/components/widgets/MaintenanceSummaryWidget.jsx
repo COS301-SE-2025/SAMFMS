@@ -20,19 +20,30 @@ const MaintenanceSummaryWidget = ({id, config = {}}) => {
         setLoading(true);
         setError(null);
 
+        // Fetch dashboard data for counts
         const response = await maintenanceAPI.getMaintenanceDashboard();
+        // console.log('MaintenanceSummaryWidget - Full API Response:', response);
+
         const dashboardData = response.data?.data || response.data || {};
         const analytics = dashboardData.analytics || {};
+
+        console.log('MaintenanceSummaryWidget - Analytics data:', analytics);
+
+        // Use the pre-calculated cost values from backend analytics
+        const costAnalysis = analytics.cost_analysis || {};
+        const performanceMetrics = analytics.performance_metrics || {};
+
+        // Use total_cost_period for the current period cost
+        const periodTotalCost = performanceMetrics.total_cost_period || costAnalysis.total_cost || 0;
 
         const transformedData = {
           total_records: analytics.maintenance_summary?.total_records || 0,
           overdue_count: analytics.maintenance_summary?.overdue_count || 0,
           upcoming_count: analytics.maintenance_summary?.upcoming_count || 0,
-          total_cost_this_month:
-            analytics.performance_metrics?.total_cost_period ||
-            analytics.cost_analysis?.total_cost ||
-            0,
+          total_cost_this_month: periodTotalCost,
         };
+
+        console.log('MaintenanceSummaryWidget - Transformed data using backend values:', transformedData);
 
         setData(transformedData);
       } catch (err) {

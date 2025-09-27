@@ -360,12 +360,12 @@ const GeofenceCreationModal = ({ isOpen, onClose, onSave, shapeData }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]">
-      <div className="bg-white rounded-lg p-6 w-96 max-w-[90vw]">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96 max-w-[90vw]">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Create Geofence</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Create Geofence</h3>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
           >
             <X size={20} />
           </button>
@@ -373,34 +373,34 @@ const GeofenceCreationModal = ({ isOpen, onClose, onSave, shapeData }) => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Name</label>
+            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="Enter geofence name"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Description</label>
+            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="Enter description (optional)"
               rows={3}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Type</label>
+            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Type</label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               <option value="boundary">Boundary</option>
               <option value="depot">Depot</option>
@@ -412,7 +412,7 @@ const GeofenceCreationModal = ({ isOpen, onClose, onSave, shapeData }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
             >
               Cancel
             </button>
@@ -460,6 +460,8 @@ const TrackingMapWithSidebar = () => {
   const [isEditingMode, setIsEditingMode] = useState(false);
   const [pendingGeofence, setPendingGeofence] = useState(null);
   const [showGeofenceModal, setShowGeofenceModal] = useState(false);
+  const [showAddGeofenceModal, setShowAddGeofenceModal] = useState(false);
+  const [editingGeofence, setEditingGeofence] = useState(null);
 
   // Address search state
   const [addressSearch, setAddressSearch] = useState('');
@@ -1532,14 +1534,14 @@ const TrackingMapWithSidebar = () => {
                             <div className="flex items-center gap-2 mt-2">
                               <button
                                 onClick={(e) => handleEditGeofence(item, e)}
-                                className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-all duration-200"
+                                className="p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-all duration-200"
                                 title="Edit Geofence"
                               >
                                 <Edit2 className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={(e) => handleDeleteGeofence(item.id, e)}
-                                className="p-1 text-red-600 hover:bg-red-100 rounded transition-all duration-200"
+                                className="p-1 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all duration-200"
                                 title="Delete Geofence"
                               >
                                 <Trash2 className="w-4 h-4" />
