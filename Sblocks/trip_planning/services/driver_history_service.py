@@ -303,46 +303,71 @@ class DriverHistoryService:
     
     async def recalculate_all_driver_histories(self) -> Dict[str, Any]:
         """
-        Recalculate all driver histories from scratch
-        This is useful for data migration or fixing inconsistencies
+        Recalculate all driver histories from scratch, including all drivers
+        from the management database and any drivers found in the trips collection.
+        This is useful for data migration or fixing inconsistencies.
         
         Returns:
             Summary of recalculation results
         """
         try:
-            # Get all unique driver IDs from trips - check both possible field names
-            trips_collection = self.db_manager.trips
+            logger.info("Starting recalculation of all driver histories.")
             
-            # Get driver IDs from both possible fields
-            driver_ids_assignment = await trips_collection.distinct("driver_assignment")
-            driver_ids_direct = await trips_collection.distinct("driver_id")
-            
-            # Combine and remove None values
             all_driver_ids = set()
-            all_driver_ids.update([d for d in driver_ids_assignment if d])
-            all_driver_ids.update([d for d in driver_ids_direct if d])
+
+            # 1. Get all unique driver IDs from the trips collection
+            trips_collection = self.db_manager.trips
+            logger.debug(f"Querying '{trips_collection.name}' collection for all unique driver IDs.")
+            driver_ids_from_trips = await trips_collection.distinct("driver_id")
+            driver_ids_from_assignment = await trips_collection.distinct("driver_assignment")
             
+            trip_drivers = {d for d in driver_ids_from_trips if d}
+            trip_drivers.update({d for d in driver_ids_from_assignment if d})
+            all_driver_ids.update(trip_drivers)
+            logger.info(f"Found {len(trip_drivers)} unique driver IDs in the trips collection.")
+
+            # 2. Get all driver employee_ids from the management database
+            if self.db_manager_management:
+                mgmt_drivers_collection = self.db_manager_management.drivers
+                logger.debug(f"Querying '{mgmt_drivers_collection.name}' collection in management DB for all driver employee_ids.")
+                
+                management_drivers = set()
+                async for driver in mgmt_drivers_collection.find({}, {"employee_id": 1}):
+                    if driver.get("employee_id"):
+                        management_drivers.add(driver["employee_id"])
+                
+                all_driver_ids.update(management_drivers)
+                logger.info(f"Found {len(management_drivers)} unique driver IDs in the management database.")
+            else:
+                logger.warning("Management database not available, cannot fetch full driver list.")
+
             driver_ids = list(all_driver_ids)
+            logger.info(f"Found a total of {len(driver_ids)} unique driver IDs to process.")
             
             updated_count = 0
             errors = []
             
             for driver_id in driver_ids:
+                logger.debug(f"--- Processing driver_id: {driver_id} ---")
                 try:
                     await self._recalculate_driver_history(driver_id)
                     updated_count += 1
+                    logger.debug(f"--- Successfully processed driver_id: {driver_id} ---")
                 except Exception as e:
-                    errors.append(f"Error updating {driver_id}: {str(e)}")
+                    error_message = f"Error updating {driver_id}: {str(e)}"
+                    errors.append(error_message)
                     logger.error(f"Error recalculating history for driver {driver_id}: {str(e)}")
             
-            return {
+            result = {
                 "updated_drivers": updated_count,
                 "total_drivers": len(driver_ids),
                 "errors": errors
             }
+            logger.info(f"Recalculation finished. Results: {result}")
+            return result
             
         except Exception as e:
-            logger.error(f"Error recalculating all driver histories: {str(e)}")
+            logger.error(f"Critical error during recalculation of all driver histories: {str(e)}")
             raise
     
     async def _get_or_create_driver_history(self, driver_id: str) -> DriverHistory:
@@ -365,13 +390,16 @@ class DriverHistoryService:
     async def _get_driver_info(self, driver_id: str) -> Dict[str, Any]:
         """Get driver information from management database drivers collection"""
         try:
+            logger.debug(f"Getting driver info for driver_id: {driver_id}")
             # First try to get driver info from management database
             if self.db_manager_management:
                 drivers_collection = self.db_manager_management.drivers
+                logger.debug(f"Querying management DB '{drivers_collection.name}' for employee_id: {driver_id}")
                 # Query by employee_id matching the driver_id
                 driver = await drivers_collection.find_one({"employee_id": driver_id})
                 
                 if driver:
+                    logger.debug(f"Found driver in management DB: {driver.get('_id')}")
                     # Construct full name from first_name and last_name
                     first_name = driver.get("first_name", "")
                     last_name = driver.get("last_name", "")
@@ -380,6 +408,7 @@ class DriverHistoryService:
                     # If both names are empty, use a default
                     if not full_name:
                         full_name = "Unknown Driver"
+                        logger.warning(f"Driver {driver.get('_id')} has no name, using default.")
                     
                     return {
                         "full_name": full_name,
@@ -390,10 +419,13 @@ class DriverHistoryService:
                     }
             
             # Fallback to trip planning database if management DB is not available
+            logger.debug("Driver not found in management DB or DB not available, falling back to trip planning DB.")
             drivers_collection = self.db_manager.drivers
+            logger.debug(f"Querying trip planning DB '{drivers_collection.name}' for _id: {driver_id}")
             driver = await drivers_collection.find_one({"_id": driver_id})
             
             if driver:
+                logger.debug(f"Found driver in trip planning DB: {driver.get('_id')}")
                 # Try to construct name from available fields
                 first_name = driver.get("first_name", "")
                 last_name = driver.get("last_name", "")
@@ -404,6 +436,7 @@ class DriverHistoryService:
                 
                 if not full_name:
                     full_name = "Unknown Driver"
+                    logger.warning(f"Driver {driver.get('_id')} has no name, using default.")
                 
                 return {
                     "full_name": full_name,
@@ -413,6 +446,7 @@ class DriverHistoryService:
                     "_id": driver.get("_id")
                 }
             
+            logger.warning(f"Driver info not found for driver_id: {driver_id}. Using default.")
             return {"full_name": "Unknown Driver", "employee_id": None}
             
         except Exception as e:
@@ -430,22 +464,32 @@ class DriverHistoryService:
     async def _update_violation_counts(self, history: DriverHistory, driver_id: str):
         """Update violation counts from violation collections"""
         try:
+            logger.debug(f"Updating violation counts for driver_id: {driver_id}")
+
             # Count speeding violations
-            speed_violations = self.db_manager.speed_violations
-            history.speeding_violations = await speed_violations.count_documents({"driver_id": driver_id})
-            
+            speed_violations_collection = self.db_manager.speed_violations
+            speed_query = {"driver_id": driver_id}
+            logger.info(f"Querying '{speed_violations_collection.name}' for speeding violations with query: {speed_query}")
+            history.speeding_violations = await speed_violations_collection.count_documents(speed_query)
+            logger.info(f"Found {history.speeding_violations} speeding violations.")
+
             # Count braking violations
             braking_violations = self.db_manager.excessive_braking_violations
             history.braking_violations = await braking_violations.count_documents({"driver_id": driver_id})
-            
+            logger.debug(f"Found {history.braking_violations} braking violations in '{braking_violations.name}' for driver_id '{driver_id}'.")
+
             # Count acceleration violations
             acceleration_violations = self.db_manager.excessive_acceleration_violations
             history.acceleration_violations = await acceleration_violations.count_documents({"driver_id": driver_id})
-            
+            logger.debug(f"Found {history.acceleration_violations} acceleration violations in '{acceleration_violations.name}' for driver_id '{driver_id}'.")
+
             # Count phone usage violations (from driver ping violations)
-            phone_violations = self.db_manager.driver_ping_violations
-            history.phone_usage_violations = await phone_violations.count_documents({"driver_id": driver_id})
-            
+            phone_violations_collection = self.db_manager.phone_usage_violations
+            phone_query = {"driver_id": driver_id}
+            logger.info(f"Querying '{phone_violations_collection.name}' for phone usage violations with query: {phone_query}")
+            history.phone_usage_violations = await phone_violations_collection.count_documents(phone_query)
+            logger.info(f"Found {history.phone_usage_violations} phone usage violations.")
+
         except Exception as e:
             logger.error(f"Error updating violation counts for {driver_id}: {str(e)}")
     
@@ -455,10 +499,17 @@ class DriverHistoryService:
         Score ranges from 0-100, with 100 being the safest
         """
         try:
+            logger.debug(f"Calculating safety score for driver_id: {history.driver_id}")
             base_score = 100.0
+            completion_penalty = 0.0
             
-            # Deduct points for trip completion rate
-            completion_penalty = max(0, (100 - history.trip_completion_rate) * 0.3)
+            # Only apply completion penalty if there are finished trips
+            total_finished_trips = history.completed_trips + history.cancelled_trips
+            if total_finished_trips > 0:
+                completion_penalty = max(0, (100 - history.trip_completion_rate) * 0.3)
+                logger.debug(f"Completion penalty: {completion_penalty:.2f} (Rate: {history.trip_completion_rate:.2f}%)")
+            else:
+                logger.debug("No finished trips, completion penalty is 0.")
             
             # Deduct points for violations
             total_violations = self._get_total_violations(history)
@@ -467,39 +518,49 @@ class DriverHistoryService:
             if history.completed_trips > 0:
                 violations_per_trip = total_violations / history.completed_trips
                 violation_penalty = min(50, violations_per_trip * 10)  # Max 50 points deduction
+                logger.debug(f"Violation penalty: {violation_penalty:.2f} ({total_violations} violations / {history.completed_trips} trips)")
             else:
                 violation_penalty = 0
+                logger.debug("No completed trips, violation penalty is 0.")
             
             # Calculate final score
             final_score = base_score - completion_penalty - violation_penalty
+            logger.debug(f"Final score calculated: {final_score:.2f}")
             
             # Ensure score is between 0 and 100
             return max(0, min(100, final_score))
             
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error calculating safety score for {history.driver_id}: {e}")
             return 50.0  # Default moderate score if calculation fails
     
     def _determine_risk_level(self, history: DriverHistory) -> RiskLevel:
         """Determine driver risk level based on safety score and violations"""
         try:
+            logger.debug(f"Determining risk level for driver_id: {history.driver_id}")
             total_violations = self._get_total_violations(history)
+            total_finished_trips = history.completed_trips + history.cancelled_trips
             
             # High risk conditions
             if (history.driver_safety_score < 60 or 
                 total_violations > 10 or 
-                history.trip_completion_rate < 80):
+                (history.trip_completion_rate < 80 and total_finished_trips > 0)):
+                logger.debug("Risk level determined as HIGH.")
                 return RiskLevel.HIGH
             
             # Medium risk conditions  
             if (history.driver_safety_score < 80 or 
                 total_violations > 5 or 
-                history.trip_completion_rate < 90):
+                (history.trip_completion_rate < 90 and total_finished_trips > 0)):
+                logger.debug("Risk level determined as MEDIUM.")
                 return RiskLevel.MEDIUM
             
             # Low risk (default)
+            logger.debug("Risk level determined as LOW.")
             return RiskLevel.LOW
             
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error determining risk level for {history.driver_id}: {e}")
             return RiskLevel.MEDIUM  # Default to medium if calculation fails
     
     def _get_total_violations(self, history: DriverHistory) -> int:
@@ -515,12 +576,14 @@ class DriverHistoryService:
             collection = self.db_manager.driver_history
             history_dict = history.model_dump(by_alias=True, exclude_none=True)
             
+            logger.debug(f"Saving driver history for driver_id: {history.driver_id} to '{collection.name}'.")
             # Use upsert to update existing or create new
             await collection.replace_one(
                 {"driver_id": history.driver_id},
                 history_dict,
                 upsert=True
             )
+            logger.debug(f"Successfully saved history for driver_id: {history.driver_id}.")
             
         except Exception as e:
             logger.error(f"Error saving driver history: {str(e)}")
@@ -529,27 +592,30 @@ class DriverHistoryService:
     async def _recalculate_driver_history(self, driver_id: str):
         """Recalculate a single driver's history from scratch"""
         try:
+            logger.info(f"Recalculating history for driver_id: {driver_id}")
             # Get driver info
             driver_info = await self._get_driver_info(driver_id)
             
-            # Count trips by status - use $or to check both field names
-            trips_collection = self.db_manager.trips
+            # Count trips by status from the trip_history collection
+            trip_history_collection = self.db_manager.trip_history
             driver_query = {
                 "$or": [
                     {"driver_assignment": driver_id},
                     {"driver_id": driver_id}
                 ]
             }
+            logger.debug(f"Querying '{trip_history_collection.name}' for trip counts with query: {driver_query}")
             
-            total_assigned = await trips_collection.count_documents(driver_query)
-            completed = await trips_collection.count_documents({
+            total_assigned = await trip_history_collection.count_documents(driver_query)
+            completed = await trip_history_collection.count_documents({
                 **driver_query,
                 "status": "completed"
             })
-            cancelled = await trips_collection.count_documents({
+            cancelled = await trip_history_collection.count_documents({
                 **driver_query,
                 "status": "cancelled"
             })
+            logger.info(f"Trip counts for {driver_id} from history: Assigned={total_assigned}, Completed={completed}, Cancelled={cancelled}")
             
             # Create new history record
             history = DriverHistory(
@@ -565,6 +631,9 @@ class DriverHistoryService:
             total_finished = completed + cancelled
             if total_finished > 0:
                 history.trip_completion_rate = (completed / total_finished) * 100
+            else:
+                history.trip_completion_rate = 100.0 # Default for drivers with no history
+            logger.debug(f"Calculated trip completion rate: {history.trip_completion_rate:.2f}%")
             
             # Update violations
             await self._update_violation_counts(history, driver_id)
@@ -575,6 +644,7 @@ class DriverHistoryService:
             
             # Save to database
             await self._save_driver_history(history)
+            logger.info(f"Finished recalculating history for driver_id: {driver_id}")
             
         except Exception as e:
             logger.error(f"Error recalculating driver history for {driver_id}: {str(e)}")
@@ -611,7 +681,7 @@ class DriverHistoryService:
             violation_counts["acceleration"] = await acceleration_violations.count_documents({"trip_id": trip_id})
             
             # Count phone usage violations for this trip
-            phone_violations = self.db_manager.driver_ping_violations
+            phone_violations = self.db_manager.phone_usage_violations
             violation_counts["phone_usage"] = await phone_violations.count_documents({"trip_id": trip_id})
             
             return violation_counts
