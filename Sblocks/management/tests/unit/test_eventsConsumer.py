@@ -10,7 +10,7 @@ CANDIDATES = [
     os.path.abspath(os.path.join(os.getcwd(), "consumer.py")),
 ]
 
-# --------------------- Minimal stub modules BEFORE import ---------------------
+
 def ensure(name, as_pkg=False):
     if name not in sys.modules:
         mod = types.ModuleType(name)
@@ -19,7 +19,7 @@ def ensure(name, as_pkg=False):
         sys.modules[name] = mod
     return sys.modules[name]
 
-# events package + events.events submodule (for VehicleEvent, UserEvent)
+
 events_pkg = ensure("events", as_pkg=True)
 events_events = ensure("events.events")
 if not hasattr(events_events, "VehicleEvent"):
@@ -29,7 +29,7 @@ if not hasattr(events_events, "UserEvent"):
     class UserEvent: ...
     events_events.UserEvent = UserEvent
 
-# config.rabbitmq_config stub
+
 config_pkg = ensure("config", as_pkg=True)
 cfg_mod = ensure("config.rabbitmq_config")
 class _RabbitCfg:
@@ -39,7 +39,7 @@ class _RabbitCfg:
         return "amqp://guest:guest@localhost/"
 cfg_mod.RabbitMQConfig = _RabbitCfg
 
-# aio_pika stub
+
 ap = ensure("aio_pika")
 
 class ExchangeType:
@@ -51,7 +51,7 @@ class DeliveryMode:
     PERSISTENT = 2
 ap.DeliveryMode = DeliveryMode
 
-# --- Placeholder types referenced by annotations (must exist at import time) ---
+
 class Queue: ...
 class Exchange: ...
 class RobustConnection: ...
@@ -61,7 +61,7 @@ ap.Exchange = Exchange
 ap.RobustConnection = RobustConnection
 ap.RobustChannel = RobustChannel
 
-# Message class used for publishing
+
 class Message:
     def __init__(self, body, headers=None, delivery_mode=None):
         self.body = body
@@ -69,7 +69,7 @@ class Message:
         self.delivery_mode = delivery_mode
 ap.Message = Message
 
-# Fakes for connection/channel/exchange/queue used at runtime
+
 class FakeExchange:
     def __init__(self, name):
         self.name = name
@@ -125,23 +125,21 @@ class FakeConnection:
     def __init__(self, will_channel=True, channel_factory=None):
         self.is_closed = False
         self._will_channel = will_channel
-        # allow injecting a factory to return a NEW channel instance
+
         self._channel_factory = channel_factory or (lambda: FakeChannel())
         self._channel = self._channel_factory()
     async def channel(self, publisher_confirms=True, on_return_raises=False):
         if not self._will_channel:
             raise RuntimeError("channel fail")
-        # always return current channel (tests can swap the factory to create a new one)
+
         return self._channel
     async def close(self):
         self.is_closed = True
 
-# default connect_robust used by consumer.connect()
 async def _connect_robust(*a, **k):
     return FakeConnection()
 ap.connect_robust = _connect_robust
 
-# Minimal IncomingMessage with async context manager for .process()
 class IncomingMessage:
     def __init__(self, body: bytes, routing_key: str, headers=None):
         self.body = body
@@ -159,13 +157,12 @@ class IncomingMessage:
         return IncomingMessage._ProcCtx(self, requeue)
 ap.IncomingMessage = IncomingMessage
 
-# -------------- Safe import of events/consumer.py as events.consumer --------------
+
 def _load_consumer():
     for p in CANDIDATES:
         if os.path.exists(p):
             spec = importlib.util.spec_from_file_location("events.consumer", p)
             mod = importlib.util.module_from_spec(spec)
-            # set package explicitly so relative imports (..repositories...) work
             mod.__package__ = "events"
             sys.modules["events.consumer"] = mod
             spec.loader.exec_module(mod)
@@ -177,23 +174,18 @@ EventConsumer = cons_mod.EventConsumer
 ManagementEventHandlers = cons_mod.ManagementEventHandlers
 setup_event_handlers = cons_mod.setup_event_handlers
 
-# Helpers
+
 def make_consumer():
     c = EventConsumer()
     return c
 
 def _patch_connect_robust(monkeypatch, func):
-    """
-    Patch whichever symbol the module under test actually uses for connect_robust:
-    - if it did `from aio_pika import connect_robust`, patch cons_mod.connect_robust
-    - otherwise patch sys.modules['aio_pika'].connect_robust
-    """
     if hasattr(cons_mod, "connect_robust"):
         monkeypatch.setattr(cons_mod, "connect_robust", func, raising=True)
     else:
         monkeypatch.setattr(sys.modules["aio_pika"], "connect_robust", func, raising=True)
 
-# ------------------------------ EventConsumer.connect ------------------------------
+
 @pytest.mark.asyncio
 async def test_connect_success_first_try(monkeypatch):
     calls = {"n": 0}

@@ -11,7 +11,7 @@ for p in CANDIDATES:
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# ----- stub modules used by driver_service -----
+
 if "repositories" not in sys.modules:
     sys.modules["repositories"] = types.ModuleType("repositories")
 if "repositories.repositories" not in sys.modules:
@@ -58,7 +58,6 @@ if "schemas.responses" not in sys.modules:
     rmod.ResponseBuilder = ResponseBuilder
     sys.modules["schemas.responses"] = rmod
 
-# Drivers analytics service used inside driver_service (relative import)
 if "services" in sys.modules:
     del sys.modules["services"]
 services_pkg = types.ModuleType("services")
@@ -130,7 +129,6 @@ class _DriverRepoStub:
 
 sys.modules["repositories.repositories"].DriverRepository = _DriverRepoStub
 
-# ----- safe-load the module under test as services.driver_service -----
 def _load_driver_module():
     import importlib.util
     candidates = [
@@ -155,7 +153,6 @@ def make_service():
     assert isinstance(svc.driver_repo, _DriverRepoStub)
     return svc
 
-# -------- _create_user_account --------
 class _FakeResp:
     def __init__(self, status, json_data=None, text_data=""):
         self.status = status
@@ -186,11 +183,9 @@ async def test_create_user_account_branches(monkeypatch):
     monkeypatch.setattr(aiohttp, "ClientSession", lambda: _FakeSession(boom=True))
     assert await svc._create_user_account({"email":"e@x","full_name":"F"}) is False
 
-# -------- get_all_drivers / get_num_drivers --------
 @pytest.mark.asyncio
 async def test_get_all_drivers_filters_pagination_and_has_more():
     svc = make_service()
-    # Seed repo
     for i in range(5):
         await svc.driver_repo.create({"employee_id": f"E{i}", "status":"active","department":"Ops"})
     out = await svc.get_all_drivers({"status_filter":"active","department_filter":"Ops","skip":"1","limit":"2"})
@@ -244,7 +239,6 @@ async def test_create_driver_uniqueness_checks_raise():
 @pytest.mark.asyncio
 async def test_create_driver_drops_empty_license_and_calls_add_driver(monkeypatch):
     svc = make_service()
-    # user-account false
     import aiohttp
     monkeypatch.setattr(aiohttp, "ClientSession", lambda: _FakeSession(_FakeResp(500)))
     req = sys.modules["schemas.requests"].DriverCreateRequest(
@@ -252,9 +246,7 @@ async def test_create_driver_drops_empty_license_and_calls_add_driver(monkeypatc
     )
     out = await svc.create_driver(req, created_by="u")
     assert out["id"].startswith("d")
-    # license_number dropped in repo.create:
     assert "license_number" not in svc.driver_repo.created[-1]
-    # drivers_service.add_driver was called (no direct handle; just ensure no ImportError)
 
 @pytest.mark.asyncio
 async def test_create_driver_success_user_account_true(monkeypatch):
@@ -273,17 +265,17 @@ async def test_update_driver_not_found_and_fail_and_success():
     svc = make_service()
     with pytest.raises(ValueError):
         await svc.update_driver("nope", sys.modules["schemas.requests"].DriverUpdateRequest(email="x@x"), "u")
-    # create record
+
     new_id = await svc.driver_repo.create({"employee_id":"E","email":"a@x"})
-    # duplicate email on different id
+
     svc.driver_repo.by_email["dup@x"] = {"_id":"other"}
     with pytest.raises(ValueError):
         await svc.update_driver(new_id, sys.modules["schemas.requests"].DriverUpdateRequest(email="dup@x"), "u")
-    # duplicate email same id allowed
+
     svc.driver_repo.by_email["same@x"] = {"_id":new_id}
     ok = await svc.update_driver(new_id, sys.modules["schemas.requests"].DriverUpdateRequest(email="same@x"), "u")
     assert ok["email"] == "same@x"
-    # update failure
+
     svc.driver_repo.update_ok = False
     with pytest.raises(ValueError):
         await svc.update_driver(new_id, sys.modules["schemas.requests"].DriverUpdateRequest(phone="1"), "u")
@@ -319,7 +311,7 @@ async def test_unassign_vehicle_branches():
     svc.driver_repo.unassign_ok = True
     assert await svc.unassign_vehicle_from_driver(did, "u") is True
 
-# -------- simple delegates --------
+
 @pytest.mark.asyncio
 async def test_search_and_department_and_active_and_get_by_id():
     svc = make_service()
@@ -333,7 +325,7 @@ async def test_search_and_department_and_active_and_get_by_id():
     assert (await svc.get_driver_by_id("nope")) is None
     assert (await svc.get_driver_by_id(did))["_id"] == did
 
-# -------- delete_driver --------
+
 @pytest.mark.asyncio
 async def test_delete_driver_not_found_active_false_true():
     svc = make_service()
@@ -344,12 +336,12 @@ async def test_delete_driver_not_found_active_false_true():
     svc.driver_repo.data_by_id[did]["status"] = "inactive"
     svc.driver_repo.delete_ok = False
     assert await svc.delete_driver(did) is False
-    # re-create and delete true
+
     did2 = await svc.driver_repo.create({"employee_id":"E2","status":"inactive"})
     svc.driver_repo.delete_ok = True
     assert await svc.delete_driver(did2) is True
 
-# -------- generate_next_employee_id --------
+
 @pytest.mark.asyncio
 async def test_generate_next_employee_id_paths(monkeypatch):
     svc = make_service()
@@ -361,7 +353,7 @@ async def test_generate_next_employee_id_paths(monkeypatch):
     monkeypatch.setattr(svc.driver_repo, "get_last_employee_id", boom)
     assert await svc.generate_next_employee_id() == "EMP001"
 
-# -------- handle_request --------
+
 @pytest.mark.asyncio
 async def test_handle_request_get_search_and_id_return_error_due_to_bug():
     svc = make_service()
@@ -376,7 +368,7 @@ async def test_handle_request_get_employee_success_and_default_list():
     svc.driver_repo.by_security["SEC1"] = {"employee_id":"EMP777"}
     ok = await svc.handle_request("GET", {"endpoint":"drivers/employee/SEC1","data":{}})
     assert ok["status"] == "success" and ok["data"] == "EMP777"
-    # default list path
+
     await svc.driver_repo.create({"employee_id":"E"})
     ok2 = await svc.handle_request("GET", {"endpoint":"drivers","data":{"pagination":{"skip":0,"limit":10}}})
     assert ok2["status"] == "success" and "drivers" in ok2["data"]
@@ -398,7 +390,6 @@ async def test_handle_request_post_put_delete_and_errors():
     badp2 = await svc.handle_request("PUT", {"endpoint":f"drivers/{did}","data":{}})
     assert badp2["status"] == "error"
     okd = await svc.handle_request("DELETE", {"endpoint":f"drivers/{did}","data":{}})
-    # it might be False or True depending on delete_ok; both are "success" responses
     assert okd["status"] == "success"
     badm = await svc.handle_request("PATCH", {"endpoint":"drivers","data":{}})
     assert badm["status"] == "error" and badm["error"] == "DriverRequestError"

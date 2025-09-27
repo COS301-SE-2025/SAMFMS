@@ -30,7 +30,6 @@ if not hasattr(events_pub, "event_publisher"):
         async def publish_event(self, event): self.events.append(event)
     events_pub.event_publisher = _EP()
 
-# Schemas stubs (additive; don't clobber if already present)
 if not hasattr(schemas_requests, "FuelRecordCreateRequest"):
     class FuelRecordCreateRequest:
         def __init__(self, **data):
@@ -53,7 +52,7 @@ if not hasattr(schemas_entities, "FuelRecord"):
     class FuelRecord: ...
     schemas_entities.FuelRecord = FuelRecord
 
-# Repository stubs
+
 class _FuelRepo:
     def __init__(self):
         self.created = []
@@ -117,7 +116,6 @@ repos_pkg.FuelRecordRepository = _FuelRepo
 repos_pkg.VehicleRepository = _VehicleRepo
 repos_pkg.DriverRepository = _DriverRepo
 
-# Safe import: load fuel_service.py as services.fuel_service
 def _load_module():
     if "services" not in sys.modules:
         pkg = types.ModuleType("services"); pkg.__path__ = []; sys.modules["services"] = pkg
@@ -139,7 +137,6 @@ def make_service():
     assert isinstance(svc.driver_repo, _DriverRepo)
     return svc
 
-# ---- create_fuel_record ----
 @pytest.mark.asyncio
 async def test_create_fuel_record_vehicle_missing():
     svc = make_service()
@@ -181,7 +178,6 @@ async def test_create_fuel_record_success_publishes_and_returns():
     assert evt["vehicle_id"] == "V1" and evt["driver_id"] == "D1"
     assert evt["liters"] == 12.5 and evt["cost"] == 250
 
-# ---- get_fuel_record_by_id / by_vehicle / by_driver ----
 @pytest.mark.asyncio
 async def test_get_fuel_record_by_id_success_and_error(monkeypatch):
     svc = make_service()
@@ -209,7 +205,6 @@ async def test_get_fuel_records_by_driver_success_and_error():
     with pytest.raises(RuntimeError):
         await svc.get_fuel_records_by_driver("D1", 30)
 
-# ---- update_fuel_record ----
 @pytest.mark.asyncio
 async def test_update_fuel_record_not_found_and_update_failure():
     svc = make_service()

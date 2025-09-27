@@ -11,7 +11,6 @@ for p in CANDIDATES:
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# ---- packages & stubs (ensure parent modules behave like packages)
 if "repositories" not in sys.modules:
     sys.modules["repositories"] = types.ModuleType("repositories")
 if not hasattr(sys.modules["repositories"], "__path__"):
@@ -46,7 +45,6 @@ if "schemas" not in sys.modules:
 if not hasattr(sys.modules["schemas"], "__path__"):
     sys.modules["schemas"].__path__ = []
 
-# >>> HARDENED: always attach classes to schemas.requests, even if it exists
 req_mod = sys.modules.get("schemas.requests")
 if req_mod is None:
     req_mod = types.ModuleType("schemas.requests")
@@ -54,10 +52,9 @@ if req_mod is None:
 
 class VehicleCreateRequest:
     def __init__(self, **kw):
-        # assign into backing store (won't hit properties)
         self._raw = dict(kw)
         for k, v in kw.items():
-            setattr(self, k, v)  # ok because we implement setters below
+            setattr(self, k, v)  
     def model_dump(self): return dict(self._raw)
 
     @property
@@ -252,12 +249,11 @@ async def test_create_vehicle_happy_path_fill_defaults_and_publish():
     assert stored["status"] == "available"
     assert stored["created_by"] == "alice"
 
-    # created_at / updated_at may be ISO strings after transform; parse if needed
+
     def _parse_dt(v):
         if isinstance(v, datetime):
             return v
         if isinstance(v, str):
-            # allow `Z` suffix or plain ISO
             s = v.replace("Z", "+00:00") if v.endswith("Z") else v
             return datetime.fromisoformat(s)
         raise AssertionError(f"unexpected datetime type: {type(v)}")

@@ -1,4 +1,3 @@
-# tests/unit/test_servicesAssignment_Service.py
 import sys
 import os
 import types
@@ -8,17 +7,14 @@ from datetime import datetime
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 CANDIDATES = [
-    # typical: .../Sblocks/management/tests/unit -> up twice -> services/assignment_service.py
+
     os.path.abspath(os.path.join(HERE, "..", "..", "services", "assignment_service.py")),
-    # fallback: repo root layouts
+
     os.path.abspath(os.path.join(os.getcwd(), "Sblocks", "management", "services", "assignment_service.py")),
     os.path.abspath(os.path.join(os.getcwd(), "services", "assignment_service.py")),
     os.path.abspath(os.path.join(os.getcwd(), "assignment_service.py")),
 ]
 
-# ---------------------------------------------------------------------
-# Minimal, additive stubs (do not clobber other tests' modules)
-# ---------------------------------------------------------------------
 def ensure_pkg(name):
     if name not in sys.modules:
         sys.modules[name] = types.ModuleType(name)
@@ -32,7 +28,7 @@ schemas = ensure_pkg("schemas")
 schemas_requests = ensure_pkg("schemas.requests")
 schemas_entities = ensure_pkg("schemas.entities")
 
-# events.publisher.event_publisher with capture
+
 if not hasattr(events_pub, "event_publisher"):
     class _EP:
         def __init__(self):
@@ -41,7 +37,6 @@ if not hasattr(events_pub, "event_publisher"):
             self.events.append(event)
     events_pub.event_publisher = _EP()
 
-# entities: AssignmentStatus (& placeholder VehicleAssignment)
 if not hasattr(schemas_entities, "AssignmentStatus"):
     class AssignmentStatus:
         ACTIVE = "active"
@@ -51,7 +46,6 @@ if not hasattr(schemas_entities, "VehicleAssignment"):
     class VehicleAssignment: ...
     schemas_entities.VehicleAssignment = VehicleAssignment
 
-# requests: ADD the assignment requests, but DO NOT remove any existing (e.g. DriverCreateRequest for driver_service)
 if not hasattr(schemas_requests, "VehicleAssignmentCreateRequest"):
     class VehicleAssignmentCreateRequest:
         def __init__(self, **data):
@@ -71,13 +65,12 @@ if not hasattr(schemas_requests, "VehicleAssignmentUpdateRequest"):
             return dict(self._data)
     schemas_requests.VehicleAssignmentUpdateRequest = VehicleAssignmentUpdateRequest
 
-# Also ensure the driver stubs still exist (to avoid breaking driver_service when both run)
 if not hasattr(schemas_requests, "DriverCreateRequest"):
     class DriverCreateRequest:
         def __init__(self, **kw):
             self._raw = dict(kw)
             for k, v in kw.items():
-                setattr(self, k, v)  # make attributes available (employee_id, email, full_name, etc.)
+                setattr(self, k, v)  
         def model_dump(self, exclude_unset=False):
             return dict(self._raw)
     schemas_requests.DriverCreateRequest = DriverCreateRequest
@@ -92,7 +85,6 @@ if not hasattr(schemas_requests, "DriverUpdateRequest"):
             return dict(self._raw)
     schemas_requests.DriverUpdateRequest = DriverUpdateRequest
 
-# repositories stubs (assignment + vehicle + driver)
 class _AssignmentRepoStub:
     def __init__(self):
         self.created = []
@@ -157,16 +149,13 @@ repos_pkg.VehicleAssignmentRepository = _AssignmentRepoStub
 repos_pkg.VehicleRepository = _VehicleRepoStub
 repos_pkg.DriverRepository = _DriverRepoStub
 
-# ---------------------------------------------------------------------
-# SAFE LOAD: import the module by file path (no package side-effects)
-# ---------------------------------------------------------------------
 def _load_assignment_module():
     import importlib.util
     for path in CANDIDATES:
         if os.path.exists(path):
             spec = importlib.util.spec_from_file_location("services.assignment_service", path)
             mod = importlib.util.module_from_spec(spec)
-            sys.modules["services.assignment_service"] = mod  # name it under services.*
+            sys.modules["services.assignment_service"] = mod 
             spec.loader.exec_module(mod)
             return mod
     raise ImportError("assignment_service.py not found in expected locations")
