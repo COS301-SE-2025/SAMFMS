@@ -190,8 +190,9 @@ const DriverBehaviorAnalytics = ({driverData}) => {
         tooltip: {
           y: {
             formatter: function (val, opts) {
-              const label = opts.w.globals.labels[opts.seriesIndex];
-              return `${label}: ${val} drivers (${Math.round(opts.percent)}%)`;
+              const labels = ['Low Risk', 'Medium Risk', 'High Risk'];
+              const label = labels[opts.seriesIndex] || 'Unknown';
+              return `${label}: ${val} drivers`;
             }
           }
         }
@@ -474,18 +475,21 @@ const DriverBehaviorAnalytics = ({driverData}) => {
             <Activity className="h-5 w-5 text-slate-600 dark:text-slate-400 mr-2" />
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Violation Trends</h3>
           </div>
-          {analyticsData.violationTrends?.trends ? (
-            <Chart
-              options={getViolationTrendsChart().options}
-              series={getViolationTrendsChart().series}
-              type="line"
-              height={350}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-80 text-slate-500">
-              No trend data available
-            </div>
-          )}
+          {(() => {
+            const trendsChart = getViolationTrendsChart();
+            return trendsChart ? (
+              <Chart
+                options={trendsChart.options}
+                series={trendsChart.series}
+                type="line"
+                height={350}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-80 text-slate-500">
+                No trend data available
+              </div>
+            );
+          })()}
         </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-lg p-6 shadow-sm border border-slate-200 dark:border-slate-700">
@@ -493,18 +497,21 @@ const DriverBehaviorAnalytics = ({driverData}) => {
             <Target className="h-5 w-5 text-slate-600 dark:text-slate-400 mr-2" />
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Driver Risk Distribution</h3>
           </div>
-          {analyticsData.riskDistribution?.distribution ? (
-            <Chart
-              options={getRiskDistributionChart().options}
-              series={getRiskDistributionChart().series}
-              type="donut"
-              height={350}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-80 text-slate-500">
-              No risk distribution data available
-            </div>
-          )}
+          {(() => {
+            const riskChart = getRiskDistributionChart();
+            return riskChart ? (
+              <Chart
+                options={riskChart.options}
+                series={riskChart.series}
+                type="donut"
+                height={350}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-80 text-slate-500">
+                No risk distribution data available
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -515,18 +522,21 @@ const DriverBehaviorAnalytics = ({driverData}) => {
             <BarChart3 className="h-5 w-5 text-slate-600 dark:text-slate-400 mr-2" />
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Violation Comparison</h3>
           </div>
-          {analyticsData.violationComparison?.comparison ? (
-            <Chart
-              options={getViolationComparisonChart().options}
-              series={getViolationComparisonChart().series}
-              type="bar"
-              height={350}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-80 text-slate-500">
-              No comparison data available
-            </div>
-          )}
+          {(() => {
+            const comparisonChart = getViolationComparisonChart();
+            return comparisonChart ? (
+              <Chart
+                options={comparisonChart.options}
+                series={comparisonChart.series}
+                type="bar"
+                height={350}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-80 text-slate-500">
+                No comparison data available
+              </div>
+            );
+          })()}
         </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-lg p-6 shadow-sm border border-slate-200 dark:border-slate-700">
