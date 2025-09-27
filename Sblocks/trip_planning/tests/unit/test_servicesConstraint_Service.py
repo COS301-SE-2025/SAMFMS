@@ -13,7 +13,6 @@ def _sysmodules_snapshot():
     try:
         yield
     finally:
-        # restore exactly
         added = set(sys.modules) - set(snap)
         for k in added:
             sys.modules.pop(k, None)
@@ -75,9 +74,6 @@ def _load_constraint_service_module():
 
 ConstraintService, global_constraint_service, cs_module = _load_constraint_service_module()
 
-# --------------------------
-# Helpers / Fakes (no conftest.py)
-# --------------------------
 class AsyncCursor:
     def __init__(self, docs):
         self._docs = list(docs)
@@ -364,7 +360,6 @@ async def test_update_trip_constraints_normal(service, monkeypatch):
     await service._update_trip_constraints(VALID_TRIP_ID)
     call = service.db.trips.update_one.await_args
     assert call is not None
-    # positional args preferred by Motor
     update_doc = call.args[1] if len(call.args) >= 2 else call.kwargs.get("update", {})
     body = update_doc.get("$set", update_doc)
     assert "constraints" in body

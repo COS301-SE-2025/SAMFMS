@@ -5,7 +5,7 @@ import pytest
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 PARENTS = [os.path.abspath(os.path.join(HERE, *([".."] * i))) for i in range(1, 6)]
-CANDIDATES = list(dict.fromkeys(PARENTS + [os.getcwd(), HERE]))  # dedup, keep order
+CANDIDATES = list(dict.fromkeys(PARENTS + [os.getcwd(), HERE])) 
 for p in CANDIDATES:
     if p not in sys.path:
         sys.path.insert(0, p)
@@ -608,9 +608,9 @@ async def test__calculate_efficiency_metrics():
     class _Trips:
         async def count_documents(self, query):
             if query.get("status") == TripStatus.COMPLETED and "$expr" in query:
-                return 4  # on time
+                return 4  
             if query.get("status") == TripStatus.COMPLETED:
-                return 8  # total completed
+                return 8  
             return 0
     svc.db = SimpleNamespace(trips=_Trips())
 

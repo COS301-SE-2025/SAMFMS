@@ -228,8 +228,6 @@ AssignDriverRequest = _stubs.AssignDriverRequest
 DriverAvailabilityRequest = _stubs.DriverAvailabilityRequest
 event_publisher = _stubs.event_publisher
 
-# ====================================================================================
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test_deactivateDriver_success():
@@ -275,8 +273,6 @@ async def test_activateDriver_not_found_raises():
     with pytest.raises(ValueError):
         await svc.activateDriver("E404")
 
-# ====================================================================================
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test_assign_driver_to_trip_trip_not_found():
@@ -363,8 +359,6 @@ async def test_assign_driver_to_trip_insert_raises(monkeypatch):
     with pytest.raises(RuntimeError):
         await svc.assign_driver_to_trip("T1", AssignDriverRequest("D1", "V1"), "admin")
 
-# ====================================================================================
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test_unassign_driver_no_assignment_returns_false():
@@ -400,13 +394,11 @@ async def test_unassign_driver_success():
     assert ok is True
     assert event_publisher.publish_driver_unassigned.await_count >= 1
 
-# ====================================================================================
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test_check_driver_availability_true_no_conflicts():
     svc, stubs = new_service()
-    stubs.trips._find_impl = lambda *a, **k: _Cursor([])  # no conflicts
+    stubs.trips._find_impl = lambda *a, **k: _Cursor([])  
     assert await svc.check_driver_availability("D1", datetime.utcnow(), datetime.utcnow() + timedelta(hours=1)) is True
 
 @pytest.mark.asyncio
@@ -423,8 +415,6 @@ async def test_check_driver_availability_raises_on_error():
     with pytest.raises(RuntimeError):
         await svc.check_driver_availability("D1", datetime.utcnow(), datetime.utcnow() + timedelta(hours=1))
 
-# ====================================================================================
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test_get_driver_availability_with_ids_mixed(monkeypatch):
@@ -460,8 +450,6 @@ async def test_get_driver_availability_without_ids_uses_active(monkeypatch):
     out = await svc.get_driver_availability(req)
     assert out == [{"driver_id": "D3", "is_available": True}]
 
-# ====================================================================================
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test_get_driver_assignments_active_only_limits_results():
@@ -491,8 +479,6 @@ async def test_get_driver_assignments_no_active_only_respects_filters():
     out = await svc.get_driver_assignments(driver_id="D9", trip_id="T9", active_only=False)
     assert len(out) == 1 and out[0].driver_id == "D9" and out[0]._id == "A1"
 
-# ====================================================================================
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test_get_all_drivers_pagination_and_clean_ids():
@@ -513,8 +499,6 @@ async def test_get_all_drivers_empty():
     res = await svc.get_all_drivers()
     assert res["drivers"] == [] and res["total"] == 0 and res["has_more"] is False
 
-# ====================================================================================
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test__get_all_active_drivers_unique_and_recent():
@@ -533,8 +517,7 @@ async def test__get_all_active_drivers_error_returns_empty():
     ids = await svc._get_all_active_drivers()
     assert ids == []
 
-# ====================================================================================
-# ====================================================================================
+
 
 @pytest.mark.asyncio
 async def test__find_next_available_time_returns_end_time_when_present():
