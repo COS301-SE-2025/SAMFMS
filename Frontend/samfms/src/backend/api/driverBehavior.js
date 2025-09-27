@@ -95,6 +95,10 @@ export const getAllDriverHistories = async (params = {}) => {
       queryParams.append('risk_level', params.risk_level);
     }
     
+    if (params.search && params.search.trim()) {
+      queryParams.append('search', params.search.trim());
+    }
+    
     // Build URL with query parameters
     const url = queryParams.toString() 
       ? `${DRIVER_BEHAVIOR_ENDPOINTS.list}?${queryParams.toString()}`
@@ -120,7 +124,8 @@ export const getAllDriverHistories = async (params = {}) => {
     return {
       drivers: transformedDrivers,
       pagination: data.pagination || { skip: 0, limit: 100, count: transformedDrivers.length, has_more: false },
-      totalCount: transformedDrivers.length
+      total: data.pagination?.total || transformedDrivers.length,
+      totalCount: data.pagination?.total || transformedDrivers.length
     };
     
   } catch (error) {

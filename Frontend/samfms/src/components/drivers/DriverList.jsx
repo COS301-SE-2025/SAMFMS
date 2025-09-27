@@ -41,51 +41,51 @@ const DriverList = ({
               <SortableHeader
                 field="employeeId"
                 label="Employee ID"
-                currentSortField={sortField}
-                currentSortDirection={sortDirection}
-                onSort={handleSort}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                handleSort={handleSort}
               />
               <SortableHeader
                 field="name"
                 label="Full Name"
-                currentSortField={sortField}
-                currentSortDirection={sortDirection}
-                onSort={handleSort}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                handleSort={handleSort}
               />
               <SortableHeader
                 field="licenseNumber"
                 label="License #"
-                currentSortField={sortField}
-                currentSortDirection={sortDirection}
-                onSort={handleSort}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                handleSort={handleSort}
               />
               <SortableHeader
                 field="phone"
                 label="Phone"
-                currentSortField={sortField}
-                currentSortDirection={sortDirection}
-                onSort={handleSort}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                handleSort={handleSort}
               />
               <SortableHeader
                 field="licenseExpiry"
                 label="License Expiry"
-                currentSortField={sortField}
-                currentSortDirection={sortDirection}
-                onSort={handleSort}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                handleSort={handleSort}
               />
               <SortableHeader
                 field="email"
                 label="Email"
-                currentSortField={sortField}
-                currentSortDirection={sortDirection}
-                onSort={handleSort}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                handleSort={handleSort}
               />
               <SortableHeader
                 field="status"
                 label="Status"
-                currentSortField={sortField}
-                currentSortDirection={sortDirection}
-                onSort={handleSort}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                handleSort={handleSort}
               />
               <th className="px-4 py-3 text-left">Actions</th>
             </tr>
