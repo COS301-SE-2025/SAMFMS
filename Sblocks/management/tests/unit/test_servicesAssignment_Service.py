@@ -166,9 +166,7 @@ VehicleAssignmentService = assignment_service_module.VehicleAssignmentService
 def make_service():
     return VehicleAssignmentService()
 
-# ---------------------------------------------------------------------
-# Tests (small, branch-by-branch)
-# ---------------------------------------------------------------------
+# Tests 
 @pytest.mark.asyncio
 async def test_assign_vehicle_vehicle_not_found():
     svc = make_service()

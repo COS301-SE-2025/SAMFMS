@@ -146,7 +146,7 @@ async def test_handle_request_post_with_start_date_and_without():
     assert svc.drivers_repo.calls[-1] == sd
     res2 = await svc.handle_request("POST", {"endpoint": "daily_driver_count", "data": {}})
     assert res2 == {"success": True, "data": {"ok": True}}
-    assert svc.drivers_repo.calls[-1] is None  # last call was without start_date
+    assert svc.drivers_repo.calls[-1] is None  
 
 @pytest.mark.asyncio
 async def test_handle_request_post_non_matching_endpoint_returns_none_current_behavior():

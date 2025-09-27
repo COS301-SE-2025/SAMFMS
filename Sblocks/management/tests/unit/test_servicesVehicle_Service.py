@@ -87,7 +87,6 @@ if "schemas.responses" not in sys.modules:
     rmod.ResponseBuilder = ResponseBuilder
     sys.modules["schemas.responses"] = rmod
 
-# ---- repository stubs
 class _VehicleRepoStub:
     def __init__(self):
         self._by_id = {}
@@ -155,7 +154,6 @@ repos_pkg.VehicleRepository = _VehicleRepoStub
 repos_pkg.VehicleAssignmentRepository = _AssignRepoStub
 repos_pkg.VehicleUsageLogRepository = _UsageRepoStub
 
-# ---- safe-load vehicle_service
 def _load_vehicle_module():
     import importlib.util
     if "services" in sys.modules:
@@ -262,7 +260,6 @@ async def test_create_vehicle_happy_path_fill_defaults_and_publish():
     updated_dt = _parse_dt(stored["updated_at"])
     assert updated_dt >= created_dt
 
-    # event was published
     assert publisher.created and publisher.created[-1][0]["_id"] == "vehX"
 
 # ---------------- get_vehicle_by_id ----------------

@@ -226,7 +226,6 @@ async def test_disconnect_closes_and_resets():
     await c.connect()
     await c.disconnect()
     assert c.connection is None and c.channel is None and c.dead_letter_queue is None
-    # idempotent
     await c.disconnect()
     assert c.connection is None
 
@@ -261,7 +260,7 @@ async def test_start_consuming_success():
     ch: FakeChannel = c.channel
     q = ch.queues.get("management_service_events")
     assert q is not None and q.consumer is not None
-    assert c.enable_dead_letter_queue is False  # disabled in start
+    assert c.enable_dead_letter_queue is False  
 
 @pytest.mark.asyncio
 async def test_start_consuming_handles_exception(monkeypatch):
@@ -345,14 +344,14 @@ async def test_retry_message_publishes_with_incremented_headers(monkeypatch):
     assert rk == "management_service_events"
     assert out_msg.headers.get("x-retry-count") == 1
     assert "x-retry-timestamp" in out_msg.headers
-    assert slept  # slept at least once
+    assert slept  
 
 @pytest.mark.asyncio
 async def test_retry_message_publish_failure_is_swallowed(monkeypatch):
     c = make_consumer()
     await c.connect()
     c.channel.default_exchange._raise = RuntimeError("publish fail")
-    await c._retry_message(ap.IncomingMessage(b"{}", "rk", {}), 2, "err")  # no raise
+    await c._retry_message(ap.IncomingMessage(b"{}", "rk", {}), 2, "err") 
 
 # ------------------------------ _send_to_dead_letter_queue ------------------------------
 @pytest.mark.asyncio
@@ -360,7 +359,7 @@ async def test_send_to_dlq_without_queue_is_noop():
     c = make_consumer()
     await c.connect()
     c.dead_letter_queue = None
-    await c._send_to_dead_letter_queue(ap.IncomingMessage(b"{}", "rk", {}), "e")  # no raise
+    await c._send_to_dead_letter_queue(ap.IncomingMessage(b"{}", "rk", {}), "e") 
 
 @pytest.mark.asyncio
 async def test_send_to_dlq_with_exchange_publish_and_failure():
@@ -371,7 +370,7 @@ async def test_send_to_dlq_with_exchange_publish_and_failure():
     await c._send_to_dead_letter_queue(ap.IncomingMessage(b"{}", "rk", {}), "e1")
     assert ex.published and ex.published[-1][1] == "failed"
     ex._raise = RuntimeError("x")
-    await c._send_to_dead_letter_queue(ap.IncomingMessage(b"{}", "rk", {}), "e2")  # no raise
+    await c._send_to_dead_letter_queue(ap.IncomingMessage(b"{}", "rk", {}), "e2") 
 
 # ------------------------------ _handle_message ------------------------------
 @pytest.mark.asyncio
@@ -385,7 +384,7 @@ async def test_handle_message_valid_handler_and_no_handler(monkeypatch):
     await c._handle_message(msg)
     assert called["ok"][0] == {"a":2}
     msg2 = ap.IncomingMessage(b'{"b":3}', "vehicle.unknown", headers={})
-    await c._handle_message(msg2)  # should not raise
+    await c._handle_message(msg2)  
 
 @pytest.mark.asyncio
 async def test_handle_message_bad_json_and_not_dict():
@@ -442,7 +441,6 @@ async def test_declare_queue_precondition_failed_branch_recreate_then_passive(mo
     err = RuntimeError("PRECONDITION_FAILED - inequivalent arg; Channel closed")
     c.channel._precondition_error = err
     async def recreate_stub():
-        # swap connection._channel to a NEW channel so passive declare can succeed
         new_ch = FakeChannel()
         await new_ch.declare_queue("management_service_events", passive=False)
         c.connection._channel = new_ch
@@ -464,15 +462,12 @@ async def test_recreate_channel_creates_new_and_sets_qos(monkeypatch):
     c = make_consumer()
     await c.connect()
     old = c.channel
-    # Make connection.channel() hand back a NEW channel instance
     async def new_channel(*a, **k):
         ch = FakeChannel()
         return ch
-    # monkeypatch the connection to use a fresh channel and update c.channel inside helper
     async def recreate_impl():
         if c.channel and not c.channel.is_closed:
             await c.channel.close()
-        # set NEW channel on the connection and on the consumer
         c.connection._channel = await new_channel()
         c.channel = c.connection._channel
         await c.channel.set_qos(prefetch_count=5)
@@ -515,12 +510,9 @@ def make_handlers():
 @pytest.mark.asyncio
 async def test_handlers_getters_and_safe_refresh(monkeypatch):
     h = make_handlers()
-    # Without analytics service: should do nothing
     await h._safe_refresh_analytics("x")
-    # Install analytics service and verify refresh gets invoked (either awaited or scheduled)
     svc = _install_analytics_service()
     await h._safe_refresh_analytics("y")
-    # The stub increments a counter whenever called; assert it ran once
     assert type(svc).called == 0
 
 @pytest.mark.asyncio

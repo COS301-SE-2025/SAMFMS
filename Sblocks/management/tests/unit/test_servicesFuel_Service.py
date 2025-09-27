@@ -23,7 +23,6 @@ schemas = ensure_mod("schemas")
 schemas_requests = ensure_mod("schemas.requests")
 schemas_entities = ensure_mod("schemas.entities")
 
-# Publisher stub
 if not hasattr(events_pub, "event_publisher"):
     class _EP:
         def __init__(self): self.events = []

@@ -72,7 +72,6 @@ class DriversService:
 drv_analytics.DriversService = DriversService
 sys.modules["services.drivers_service"] = drv_analytics
 
-# ----- stub repository with full surface -----
 class _DriverRepoStub:
     def __init__(self):
         self.created = []
