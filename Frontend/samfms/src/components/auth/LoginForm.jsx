@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
-import { Button } from '../ui/button';
-import { useNavigate } from 'react-router-dom';
-import { useTheme } from '../../contexts/ThemeContext';
+import React, {useState} from 'react';
+import {Button} from '../ui/button';
+import {useNavigate} from 'react-router-dom';
+import {useTheme} from '../../contexts/ThemeContext';
 import {
   login,
+  logout,
   hasRole
 } from '../../backend/API.js';
 import {
   forgotPassword
 } from '../../backend/API.ts';
-import { ROLES } from '../auth/RBACUtils';
+import {ROLES} from '../auth/RBACUtils';
 
-const LoginForm = ({ onSuccess, onClose }) => {
+const LoginForm = ({onSuccess, onClose}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -25,7 +26,7 @@ const LoginForm = ({ onSuccess, onClose }) => {
     password: false,
   });
   const navigate = useNavigate();
-  const { theme } = useTheme();
+  const {theme} = useTheme();
 
   // Validate email
   const validateEmail = email => {
@@ -41,14 +42,14 @@ const LoginForm = ({ onSuccess, onClose }) => {
 
   // Handle blur events
   const handleBlur = field => {
-    setTouched({ ...touched, [field]: true });
+    setTouched({...touched, [field]: true});
 
     if (field === 'email') {
       setValidationErrors({
         ...validationErrors,
         email: validateEmail(email),
       });
-    } 
+    }
   };
 
   // Handle change events with validation
@@ -110,22 +111,35 @@ const LoginForm = ({ onSuccess, onClose }) => {
 
     try {
       await login(email, password);
-      // Force a small delay to ensure cookies are set before navigation
+
+      // Force a small delay to ensure cookies are set before checking roles
       setTimeout(() => {
+        // Check if user is a driver - drivers should not access the web app
+        if (hasRole(ROLES.DRIVER)) {
+          // Log out the driver immediately
+          logout();
+
+          // Show error message for drivers
+          setError('Drivers are not authorized to access the web application. Please download and use the driver mobile app instead.');
+          setLoading(false);
+          return;
+        }
+
+        // If not a driver, proceed with normal login flow
         if (onSuccess) {
           onSuccess();
         }
-        // Redirect based on user role
-        if (hasRole(ROLES.DRIVER)) {
-          navigate('/driver-home', { replace: true });
-        } else {
-          navigate('/dashboard', { replace: true });
-        }
+
+        // Redirect to dashboard for non-driver users
+        navigate('/dashboard', {replace: true});
       }, 100);
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      // Only set loading to false if we're not dealing with a driver logout scenario
+      if (!hasRole(ROLES.DRIVER)) {
+        setLoading(false);
+      }
     }
   };
 
@@ -162,11 +176,10 @@ const LoginForm = ({ onSuccess, onClose }) => {
             onChange={e => handleChange('email', e.target.value)}
             onBlur={() => handleBlur('email')}
             required
-            className={`w-full p-3 border rounded-md bg-primary-50 dark:bg-gray-700 text-primary-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 ${
-              validationErrors.email && touched.email
+            className={`w-full p-3 border rounded-md bg-primary-50 dark:bg-gray-700 text-primary-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 ${validationErrors.email && touched.email
                 ? 'border-red-500'
                 : 'border-primary-200 dark:border-gray-600'
-            }`}
+              }`}
           />
           {validationErrors.email && touched.email && (
             <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>
@@ -185,11 +198,10 @@ const LoginForm = ({ onSuccess, onClose }) => {
             onChange={e => handleChange('password', e.target.value)}
             onBlur={() => handleBlur('password')}
             required
-            className={`w-full p-3 border rounded-md bg-primary-50 dark:bg-gray-700 text-primary-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 ${
-              validationErrors.password && touched.password
+            className={`w-full p-3 border rounded-md bg-primary-50 dark:bg-gray-700 text-primary-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 ${validationErrors.password && touched.password
                 ? 'border-red-500'
                 : 'border-primary-200 dark:border-gray-600'
-            }`}
+              }`}
           />
           {validationErrors.password && touched.password && (
             <p className="text-red-500 text-xs mt-1">{validationErrors.password}</p>
