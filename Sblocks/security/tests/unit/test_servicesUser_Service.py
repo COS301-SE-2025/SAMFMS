@@ -30,7 +30,6 @@ def _mkpkg(name):
     if name not in sys.modules:
         m = types.ModuleType(name); m.__path__ = []; sys.modules[name] = m
 
-# -------------------- stubs --------------------
 
 class _UserRepository:
     users: Dict[str, Dict[str, Any]] = {}
@@ -189,7 +188,6 @@ def _build_auth_utils_stub():
     m.verify_password = _AuthUtils.verify_password
     return m
 
-# -------------------- loader --------------------
 
 def _find_user_service_path():
     from pathlib import Path
@@ -357,7 +355,7 @@ async def test_update_user_permissions_error_raises():
         mod = import_user_module()
         from repositories.user_repository import UserRepository
         async def boom(uid, up): raise RuntimeError("u")
-        UserRepository.update_user = boom  # type: ignore
+        UserRepository.update_user = boom  
         with pytest.raises(RuntimeError):
             await mod.UserService.update_user_permissions("u1", role="user")
 
@@ -423,7 +421,7 @@ async def test_update_user_preferences_repo_false():
         mod = import_user_module()
         from repositories.user_repository import UserRepository
         async def nope(uid, up): return False
-        UserRepository.update_user = nope  # type: ignore
+        UserRepository.update_user = nope  
         ok = await mod.UserService.update_user_preferences("u2", {"theme":"dark"})
         assert ok is False
 

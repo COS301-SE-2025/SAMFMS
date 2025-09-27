@@ -351,8 +351,8 @@ async def test_get_current_user_returns_decoded_user():
 def test_get_role_permissions_override_and_defaults_and_unknown():
     with SysModulesSandbox():
         mod = import_auth_utils()
-        assert mod.get_role_permissions("driver")  # default exists
-        assert mod.get_role_permissions("admin")   # "*"
+        assert mod.get_role_permissions("driver")  
+        assert mod.get_role_permissions("admin")   
         assert mod.get_role_permissions("x") == []
         assert mod.get_role_permissions("driver", ["custom"]) == ["custom"]
 
