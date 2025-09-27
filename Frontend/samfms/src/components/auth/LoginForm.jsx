@@ -86,6 +86,20 @@ const LoginForm = ({onSuccess, onClose}) => {
     }
   };
 
+  // Helper function to clear form inputs and validation states
+  const clearForm = () => {
+    setEmail('');
+    setPassword('');
+    setValidationErrors({
+      email: '',
+      password: '',
+    });
+    setTouched({
+      email: false,
+      password: false,
+    });
+  };
+
   const handleSubmit = async e => {
     e.preventDefault();
 
@@ -109,6 +123,10 @@ const LoginForm = ({onSuccess, onClose}) => {
     setError('');
     setLoading(true);
 
+    // Preserve current theme before login attempt
+    const currentTheme = theme;
+    const currentDOMTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+
     try {
       await login(email, password);
 
@@ -118,6 +136,17 @@ const LoginForm = ({onSuccess, onClose}) => {
         if (hasRole(ROLES.DRIVER)) {
           // Log out the driver immediately
           logout();
+
+          // Restore the previous theme since driver was rejected
+          const root = document.documentElement;
+          root.classList.remove('light', 'dark');
+          root.classList.add(currentDOMTheme);
+
+          // Restore theme in localStorage
+          localStorage.setItem('theme', currentTheme);
+
+          // Clear the form inputs
+          clearForm();
 
           // Show error message for drivers
           setError('Drivers are not authorized to access the web application. Please download and use the driver mobile app instead.');
@@ -177,8 +206,8 @@ const LoginForm = ({onSuccess, onClose}) => {
             onBlur={() => handleBlur('email')}
             required
             className={`w-full p-3 border rounded-md bg-primary-50 dark:bg-gray-700 text-primary-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 ${validationErrors.email && touched.email
-                ? 'border-red-500'
-                : 'border-primary-200 dark:border-gray-600'
+              ? 'border-red-500'
+              : 'border-primary-200 dark:border-gray-600'
               }`}
           />
           {validationErrors.email && touched.email && (
@@ -199,8 +228,8 @@ const LoginForm = ({onSuccess, onClose}) => {
             onBlur={() => handleBlur('password')}
             required
             className={`w-full p-3 border rounded-md bg-primary-50 dark:bg-gray-700 text-primary-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 ${validationErrors.password && touched.password
-                ? 'border-red-500'
-                : 'border-primary-200 dark:border-gray-600'
+              ? 'border-red-500'
+              : 'border-primary-200 dark:border-gray-600'
               }`}
           />
           {validationErrors.password && touched.password && (

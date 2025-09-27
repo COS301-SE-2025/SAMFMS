@@ -13,8 +13,22 @@ const DriverAccessGuard = ({children, showError = true}) => {
     useEffect(() => {
         // Check if user is a driver
         if (hasRole(ROLES.DRIVER)) {
+            // Preserve current theme before logout
+            const currentDOMTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+            const currentStoredTheme = localStorage.getItem('theme') || 'light';
+
             // Log out the driver immediately
             logout();
+
+            // Restore the theme after logout
+            setTimeout(() => {
+                const root = document.documentElement;
+                root.classList.remove('light', 'dark');
+                root.classList.add(currentDOMTheme);
+
+                // Restore theme in localStorage
+                localStorage.setItem('theme', currentStoredTheme);
+            }, 50);
 
             // Redirect to landing page with error message
             navigate('/', {

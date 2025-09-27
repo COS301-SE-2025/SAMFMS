@@ -145,22 +145,22 @@ const Landing = () => {
             {/* Driver Error Alert */}
             {showDriverError && (
                 <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-full mx-4">
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg shadow-lg">
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-6 py-4 rounded-lg shadow-lg">
                         <div className="flex items-start">
-                            <AlertTriangle className="h-5 w-5 text-red-500 mr-3 mt-0.5 flex-shrink-0" />
+                            <AlertTriangle className="h-5 w-5 text-red-500 dark:text-red-400 mr-3 mt-0.5 flex-shrink-0" />
                             <div className="flex-1">
-                                <h4 className="text-sm font-medium text-red-800 mb-1">Access Restricted</h4>
-                                <p className="text-sm">
+                                <h4 className="text-sm font-medium text-red-800 dark:text-red-200 mb-1">Access Restricted</h4>
+                                <p className="text-sm text-red-600 dark:text-red-300">
                                     {location.state?.errorMessage || 'Drivers are not authorized to access the web application. Please download and use the driver mobile app instead.'}
                                 </p>
                                 <div className="mt-3 flex items-center gap-2">
-                                    <Smartphone className="h-4 w-4" />
-                                    <span className="text-xs">Download the SAMFMS Driver App</span>
+                                    <Smartphone className="h-4 w-4 text-red-500 dark:text-red-400" />
+                                    <span className="text-xs text-red-600 dark:text-red-300">Download the SAMFMS Driver App</span>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setShowDriverError(false)}
-                                className="ml-2 text-red-400 hover:text-red-600"
+                                className="ml-2 text-red-400 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors"
                             >
                                 <X className="h-4 w-4" />
                             </button>
