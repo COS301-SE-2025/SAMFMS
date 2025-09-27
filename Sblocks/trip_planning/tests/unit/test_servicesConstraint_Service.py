@@ -342,7 +342,7 @@ async def test_apply_constraints_to_route_combines_all(service, monkeypatch):
     base = {"foo": "bar"}
     out = await service.apply_constraints_to_route("T", base)
     assert isinstance(out, dict)
-    assert base == {"foo": "bar"}  # no unexpected mutation
+    assert base == {"foo": "bar"}  
 
 # ==========
 # _update_trip_constraints
