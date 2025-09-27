@@ -4,6 +4,10 @@ import {TrendingUp, TrendingDown, AlertTriangle, Target, Shield, BarChart3, Acti
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://samfms.co.za/api';
 
+const getTooltipTheme = () =>
+  (typeof document !== 'undefined' &&
+   document.documentElement.classList.contains('dark')) ? 'dark' : 'light';
+
 const DriverBehaviorAnalytics = ({driverData}) => {
   const [analyticsData, setAnalyticsData] = useState({
     violationTrends: null,
@@ -133,8 +137,10 @@ const DriverBehaviorAnalytics = ({driverData}) => {
         },
         tooltip: {
           shared: true,
-          intersect: false
-        }
+          intersect: false,
+          theme: getTooltipTheme(),
+          style: { fontSize: '12px' }
+        } 
       },
       series: [
         {
@@ -188,6 +194,7 @@ const DriverBehaviorAnalytics = ({driverData}) => {
           position: 'bottom'
         },
         tooltip: {
+          theme: getTooltipTheme(),
           y: {
             formatter: function (val, opts) {
               const labels = ['Low Risk', 'Medium Risk', 'High Risk'];
@@ -249,11 +256,9 @@ const DriverBehaviorAnalytics = ({driverData}) => {
           strokeDashArray: 5
         },
         tooltip: {
-          y: {
-            formatter: function (val) {
-              return val + ' violations';
-            }
-          }
+          theme: getTooltipTheme(),
+          y: { formatter: (val) => `${val} violations` },
+          style: { fontSize: '12px' }
         }
       },
       series: [{
@@ -311,11 +316,9 @@ const DriverBehaviorAnalytics = ({driverData}) => {
           strokeDashArray: 5
         },
         tooltip: {
-          y: {
-            formatter: function (val) {
-              return val + ' drivers';
-            }
-          }
+          theme: getTooltipTheme(),
+          y: { formatter: (val) => `${val} drivers` },
+          style: { fontSize: '12px' }
         }
       },
       series: [{
