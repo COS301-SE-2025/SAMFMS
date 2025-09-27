@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import Chart from 'react-apexcharts';
-import { TrendingUp, TrendingDown, AlertTriangle, Target, Shield, BarChart3, Activity, Users } from 'lucide-react';
+import {TrendingUp, TrendingDown, AlertTriangle, Target, Shield, BarChart3, Activity, Users} from 'lucide-react';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://samfms.co.za/api';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://samfms.co.za/api';
 
-const DriverBehaviorAnalytics = ({ driverData }) => {
+const DriverBehaviorAnalytics = ({driverData}) => {
   const [analyticsData, setAnalyticsData] = useState({
     violationTrends: null,
     riskDistribution: null,
@@ -19,7 +19,7 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
   const fetchAnalyticsData = async (period = '30d') => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const cacheBuster = Date.now();
       const [trendsRes, riskRes, metricsRes, comparisonRes] = await Promise.all([
@@ -64,11 +64,13 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
         comparisonRes.ok ? comparisonRes.json() : null
       ]);
 
+      console.log('Fetched analytics data:', {trends, risk, metrics, comparison});
+
       setAnalyticsData({
-        violationTrends: trends?.data,
-        riskDistribution: risk?.data,
-        performanceMetrics: metrics?.data,
-        violationComparison: comparison?.data
+        violationTrends: trends?.data?.data,
+        riskDistribution: risk?.data?.data,
+        performanceMetrics: metrics?.data?.data,
+        violationComparison: comparison?.data?.data
       });
     } catch (err) {
       setError('Failed to load analytics data');
@@ -87,18 +89,25 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
     if (!analyticsData.violationTrends?.trends) return null;
 
     const trends = analyticsData.violationTrends.trends;
-    const categories = trends.speeding?.map(item => item.date) || [];
-    
+
+    // Extract categories from any available trend data
+    const categories = trends.speeding?.map(item => item.date) ||
+      trends.braking?.map(item => item.date) ||
+      trends.acceleration?.map(item => item.date) ||
+      trends.phone_usage?.map(item => item.date) || [];
+
+    if (categories.length === 0) return null;
+
     return {
       options: {
         chart: {
           type: 'line',
           height: 350,
-          toolbar: { show: false },
-          zoom: { enabled: false }
+          toolbar: {show: false},
+          zoom: {enabled: false}
         },
         colors: ['#ef4444', '#f97316', '#eab308', '#8b5cf6'],
-        dataLabels: { enabled: false },
+        dataLabels: {enabled: false},
         stroke: {
           curve: 'smooth',
           width: 3
@@ -110,12 +119,12 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
         xaxis: {
           categories: categories,
           labels: {
-            style: { colors: '#64748b', fontSize: '12px' }
+            style: {colors: '#64748b', fontSize: '12px'}
           }
         },
         yaxis: {
           labels: {
-            style: { colors: '#64748b', fontSize: '12px' }
+            style: {colors: '#64748b', fontSize: '12px'}
           }
         },
         legend: {
@@ -130,19 +139,19 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
       series: [
         {
           name: 'Speeding',
-          data: trends.speeding?.map(item => item.count) || []
+          data: trends.speeding?.map(item => item?.count || 0) || new Array(categories.length).fill(0)
         },
         {
           name: 'Harsh Braking',
-          data: trends.braking?.map(item => item.count) || []
+          data: trends.braking?.map(item => item?.count || 0) || new Array(categories.length).fill(0)
         },
         {
           name: 'Rapid Acceleration',
-          data: trends.acceleration?.map(item => item.count) || []
+          data: trends.acceleration?.map(item => item?.count || 0) || new Array(categories.length).fill(0)
         },
         {
           name: 'Phone Usage',
-          data: trends.phone_usage?.map(item => item.count) || []
+          data: trends.phone_usage?.map(item => item?.count || 0) || new Array(categories.length).fill(0)
         }
       ]
     };
@@ -152,7 +161,15 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
     if (!analyticsData.riskDistribution?.distribution) return null;
 
     const distribution = analyticsData.riskDistribution.distribution;
-    
+
+    // Ensure we have valid numbers for the chart
+    const lowRisk = Number(distribution.low_risk) || 0;
+    const mediumRisk = Number(distribution.medium_risk) || 0;
+    const highRisk = Number(distribution.high_risk) || 0;
+
+    // If all values are 0, don't show the chart
+    if (lowRisk === 0 && mediumRisk === 0 && highRisk === 0) return null;
+
     return {
       options: {
         chart: {
@@ -179,11 +196,7 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
           }
         }
       },
-      series: [
-        distribution.low_risk || 0,
-        distribution.medium_risk || 0,
-        distribution.high_risk || 0
-      ]
+      series: [lowRisk, mediumRisk, highRisk]
     };
   };
 
@@ -191,13 +204,24 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
     if (!analyticsData.violationComparison?.comparison) return null;
 
     const comparison = analyticsData.violationComparison.comparison;
-    
+
+    // Extract data with safe defaults
+    const data = [
+      Number(comparison.speeding?.count) || 0,
+      Number(comparison.braking?.count) || 0,
+      Number(comparison.acceleration?.count) || 0,
+      Number(comparison.phone_usage?.count) || 0
+    ];
+
+    // Check if we have any data to display
+    if (data.every(value => value === 0)) return null;
+
     return {
       options: {
         chart: {
           type: 'bar',
           height: 350,
-          toolbar: { show: false }
+          toolbar: {show: false}
         },
         colors: ['#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6'],
         plotOptions: {
@@ -207,16 +231,16 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
             columnWidth: '60%'
           }
         },
-        dataLabels: { enabled: false },
+        dataLabels: {enabled: false},
         xaxis: {
           categories: ['Speeding', 'Harsh Braking', 'Rapid Acceleration', 'Phone Usage'],
           labels: {
-            style: { colors: '#64748b', fontSize: '12px' }
+            style: {colors: '#64748b', fontSize: '12px'}
           }
         },
         yaxis: {
           labels: {
-            style: { colors: '#64748b', fontSize: '12px' }
+            style: {colors: '#64748b', fontSize: '12px'}
           }
         },
         grid: {
@@ -233,12 +257,7 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
       },
       series: [{
         name: 'Violations',
-        data: [
-          comparison.speeding?.count || 0,
-          comparison.braking?.count || 0,
-          comparison.acceleration?.count || 0,
-          comparison.phone_usage?.count || 0
-        ]
+        data: data
       }]
     };
   };
@@ -247,13 +266,25 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
     if (!analyticsData.riskDistribution?.safety_score_ranges) return null;
 
     const ranges = analyticsData.riskDistribution.safety_score_ranges;
-    
+
+    // Map the actual API structure to chart data
+    const chartData = [
+      {x: 'Excellent (90-100)', y: Number(ranges['90-100']) || 0},
+      {x: 'Good (80-89)', y: Number(ranges['80-89']) || 0},
+      {x: 'Fair (70-79)', y: Number(ranges['70-79']) || 0},
+      {x: 'Poor (60-69)', y: Number(ranges['60-69']) || 0},
+      {x: 'Very Poor (<60)', y: Number(ranges['below_60']) || 0}
+    ];
+
+    // Check if we have any data
+    if (chartData.every(item => item.y === 0)) return null;
+
     return {
       options: {
         chart: {
           type: 'bar',
           height: 350,
-          toolbar: { show: false }
+          toolbar: {show: false}
         },
         colors: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444'],
         plotOptions: {
@@ -263,15 +294,15 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
             barHeight: '60%'
           }
         },
-        dataLabels: { enabled: false },
+        dataLabels: {enabled: false},
         xaxis: {
           labels: {
-            style: { colors: '#64748b', fontSize: '12px' }
+            style: {colors: '#64748b', fontSize: '12px'}
           }
         },
         yaxis: {
           labels: {
-            style: { colors: '#64748b', fontSize: '12px' }
+            style: {colors: '#64748b', fontSize: '12px'}
           }
         },
         grid: {
@@ -288,12 +319,7 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
       },
       series: [{
         name: 'Drivers',
-        data: [
-          { x: 'Excellent (90-100)', y: ranges.excellent || 0 },
-          { x: 'Good (80-89)', y: ranges.good || 0 },
-          { x: 'Fair (70-79)', y: ranges.fair || 0 },
-          { x: 'Poor (<70)', y: ranges.poor || 0 }
-        ]
+        data: chartData
       }]
     };
   };
@@ -315,7 +341,7 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
           <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Analytics</h3>
           <p className="text-red-600 mb-4">{error}</p>
-          <button 
+          <button
             onClick={() => fetchAnalyticsData(selectedPeriod)}
             className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
           >
@@ -327,9 +353,16 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
   }
 
   const performanceMetrics = analyticsData.performanceMetrics;
-  const violationMetrics = performanceMetrics?.violation_metrics;
-  const safetyMetrics = performanceMetrics?.safety_metrics;
-  const operationalMetrics = performanceMetrics?.operational_metrics;
+
+  // Extract metrics based on actual API response structure
+  const violationCounts = performanceMetrics?.violation_counts || {};
+  const totalViolations = performanceMetrics?.total_violations || 0;
+  const safetyTrends = performanceMetrics?.safety_trends || {};
+  const keyMetrics = performanceMetrics?.key_metrics || {};
+  const activeDrivers = performanceMetrics?.active_drivers || 0;
+
+  // Use risk distribution data for safety scores since that's where it comes from
+  const riskPerformanceMetrics = analyticsData.riskDistribution?.performance_metrics || {};
 
   return (
     <div className="space-y-6">
@@ -341,11 +374,10 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
             <button
               key={period}
               onClick={() => setSelectedPeriod(period)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                selectedPeriod === period
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
-              }`}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedPeriod === period
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                }`}
             >
               {period === '7d' ? '7 Days' : period === '30d' ? '30 Days' : '90 Days'}
             </button>
@@ -363,10 +395,10 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
             <div className="ml-4">
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Avg Safety Score</p>
               <p className="text-2xl font-semibold text-slate-900 dark:text-white">
-                {safetyMetrics?.avg_safety_score || 'N/A'}
+                {riskPerformanceMetrics?.avg_safety_score ? Number(riskPerformanceMetrics.avg_safety_score).toFixed(1) : keyMetrics?.avg_safety_score ? Number(keyMetrics.avg_safety_score).toFixed(1) : 'N/A'}
               </p>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Range: {safetyMetrics?.min_safety_score || 0} - {safetyMetrics?.max_safety_score || 100}
+                Active Drivers: {activeDrivers}
               </p>
             </div>
           </div>
@@ -380,18 +412,18 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
             <div className="ml-4">
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Violations</p>
               <p className="text-2xl font-semibold text-slate-900 dark:text-white">
-                {violationMetrics?.total_violations || 0}
+                {totalViolations ? Number(totalViolations).toLocaleString() : 0}
               </p>
               <p className="text-sm flex items-center">
-                {violationMetrics?.improvement_rate !== undefined && (
+                {safetyTrends?.violation_rate_change !== undefined && safetyTrends?.violation_rate_change !== null && (
                   <>
-                    {violationMetrics.improvement_rate > 0 ? (
+                    {Number(safetyTrends.violation_rate_change) < 0 ? (
                       <TrendingDown className="h-4 w-4 text-green-500 mr-1" />
                     ) : (
                       <TrendingUp className="h-4 w-4 text-red-500 mr-1" />
                     )}
-                    <span className={violationMetrics.improvement_rate > 0 ? 'text-green-600' : 'text-red-600'}>
-                      {Math.abs(violationMetrics.improvement_rate).toFixed(1)}%
+                    <span className={Number(safetyTrends.violation_rate_change) < 0 ? 'text-green-600' : 'text-red-600'}>
+                      {Math.abs(Number(safetyTrends.violation_rate_change)).toFixed(1)}% vs last period
                     </span>
                   </>
                 )}
@@ -406,12 +438,12 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
               <Target className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Trip Completion Rate</p>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Driver Completion Rate</p>
               <p className="text-2xl font-semibold text-slate-900 dark:text-white">
-                {operationalMetrics?.trip_completion_rate || 0}%
+                {keyMetrics?.avg_driver_completion_rate ? Number(keyMetrics.avg_driver_completion_rate * 100).toFixed(1) : 0}%
               </p>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                {operationalMetrics?.completed_trips || 0} / {operationalMetrics?.total_trips || 0} trips
+                Improvement Rate: {keyMetrics?.driver_improvement_rate ? Number(keyMetrics.driver_improvement_rate * 100).toFixed(1) : 0}%
               </p>
             </div>
           </div>
@@ -423,12 +455,12 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
               <Users className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Active Drivers</p>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Violations Per Day</p>
               <p className="text-2xl font-semibold text-slate-900 dark:text-white">
-                {operationalMetrics?.total_drivers || 0}
+                {keyMetrics?.violations_per_day ? Number(keyMetrics.violations_per_day).toFixed(1) : 0}
               </p>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Avg completion: {operationalMetrics?.avg_driver_completion_rate || 0}%
+                Critical: {keyMetrics?.critical_violations || 0}
               </p>
             </div>
           </div>
@@ -502,23 +534,26 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
             <Shield className="h-5 w-5 text-slate-600 dark:text-slate-400 mr-2" />
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Safety Score Distribution</h3>
           </div>
-          {analyticsData.riskDistribution?.safety_score_ranges ? (
-            <Chart
-              options={getSafetyScoreChart().options}
-              series={getSafetyScoreChart().series}
-              type="bar"
-              height={350}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-80 text-slate-500">
-              No safety score data available
-            </div>
-          )}
+          {(() => {
+            const safetyChart = getSafetyScoreChart();
+            return safetyChart ? (
+              <Chart
+                options={safetyChart.options}
+                series={safetyChart.series}
+                type="bar"
+                height={350}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-80 text-slate-500">
+                No safety score data available
+              </div>
+            );
+          })()}
         </div>
       </div>
 
       {/* Top/Worst Performers Section */}
-      {analyticsData.riskDistribution?.top_performers && (
+      {analyticsData.riskDistribution?.top_performers && Array.isArray(analyticsData.riskDistribution.top_performers) && analyticsData.riskDistribution.top_performers.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white dark:bg-slate-800 rounded-lg p-6 shadow-sm border border-slate-200 dark:border-slate-700">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center">
@@ -527,19 +562,19 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
             </h3>
             <div className="space-y-3">
               {analyticsData.riskDistribution.top_performers.slice(0, 5).map((driver, index) => (
-                <div key={driver.driver_id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                <div key={driver.driver_id || index} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
                   <div className="flex items-center">
                     <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 font-semibold text-sm mr-3">
                       {index + 1}
                     </div>
                     <div>
-                      <p className="font-medium text-slate-900 dark:text-white">{driver.driver_name}</p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">{driver.total_violations} violations</p>
+                      <p className="font-medium text-slate-900 dark:text-white">{driver.name || driver.driver_name || 'Unknown Driver'}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">Driver ID: {driver.driver_id || 'N/A'}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-green-600 dark:text-green-400">{driver.safety_score}</p>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">{driver.completion_rate}% completion</p>
+                    <p className="font-semibold text-green-600 dark:text-green-400">{driver.safety_score ? Number(driver.safety_score).toFixed(1) : 'N/A'}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Safety Score</p>
                   </div>
                 </div>
               ))}
@@ -552,23 +587,29 @@ const DriverBehaviorAnalytics = ({ driverData }) => {
               Needs Improvement
             </h3>
             <div className="space-y-3">
-              {analyticsData.riskDistribution.worst_performers.slice(0, 5).map((driver, index) => (
-                <div key={driver.driver_id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center text-red-600 dark:text-red-400 font-semibold text-sm mr-3">
-                      {index + 1}
+              {analyticsData.riskDistribution.worst_performers && Array.isArray(analyticsData.riskDistribution.worst_performers) && analyticsData.riskDistribution.worst_performers.length > 0 ? (
+                analyticsData.riskDistribution.worst_performers.slice(0, 5).map((driver, index) => (
+                  <div key={driver.driver_id || index} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="w-8 h-8 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center text-red-600 dark:text-red-400 font-semibold text-sm mr-3">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium text-slate-900 dark:text-white">{driver.name || driver.driver_name || 'Unknown Driver'}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Driver ID: {driver.driver_id || 'N/A'}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-slate-900 dark:text-white">{driver.driver_name}</p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">{driver.total_violations} violations</p>
+                    <div className="text-right">
+                      <p className="font-semibold text-red-600 dark:text-red-400">{driver.safety_score ? Number(driver.safety_score).toFixed(1) : 'N/A'}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">Safety Score</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-red-600 dark:text-red-400">{driver.safety_score}</p>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">{driver.completion_rate}% completion</p>
-                  </div>
+                ))
+              ) : (
+                <div className="flex items-center justify-center h-20 text-slate-500">
+                  No improvement data available
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
