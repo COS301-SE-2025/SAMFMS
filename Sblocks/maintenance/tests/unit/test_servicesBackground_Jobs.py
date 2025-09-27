@@ -102,7 +102,7 @@ async def test_start_background_jobs_creates_four_tasks_and_wont_double_start(mo
     assert len(job.tasks) == 4
 
     before_ids = list(map(id, job.tasks))
-    await job.start_background_jobs()  # should no-op
+    await job.start_background_jobs()  
     after_ids = list(map(id, job.tasks))
     assert before_ids == after_ids
 

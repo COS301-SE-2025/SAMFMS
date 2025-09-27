@@ -287,7 +287,6 @@ async def test_get_vehicle_schedules_success(monkeypatch):
     res = await svc.get_vehicle_maintenance_schedules("V1")
     assert res == [{"id": "s1"}, {"id": "s2"}]
 
-# ---- get_active_schedules / get_schedules_by_type ----
 
 @pytest.mark.asyncio
 async def test_get_active_schedules_passthrough():
@@ -432,18 +431,15 @@ async def test_create_record_from_schedule_falls_back_to_scheduled_date(monkeypa
     assert rec["id"] == "rec-1"
     assert captured["scheduled_date"] == sd
 
-# ---- _get_default_interval ----
 
 def test_get_default_interval_known_type():
     svc = make_service(FakeRepo())
-    # Should not raise; ensure it returns an int
     assert isinstance(svc._get_default_interval("oil_change"), int)
 
 def test_get_default_interval_unknown_type_defaults_15000():
     svc = make_service(FakeRepo())
     assert svc._get_default_interval("mystery_service") == 15000
 
-# ---- _calculate_next_due (all branches) ----
 
 @pytest.mark.asyncio
 async def test_calculate_next_due_time_interval_parses_str_date_and_sets_next_due():
