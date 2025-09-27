@@ -119,9 +119,6 @@ class FakeVehicleValidator:
     async def validate_vehicle_id(self, vehicle_id):
         return self._ret
 
-# ---------------------------
-# Branch-by-branch tests
-# ---------------------------
 
 # ---- create_maintenance_schedule ----
 
