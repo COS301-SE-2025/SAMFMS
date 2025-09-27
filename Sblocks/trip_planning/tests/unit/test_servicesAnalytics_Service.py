@@ -1,13 +1,8 @@
-# tests/unit/test_servicesAnalytics_Service.py
-# Self-contained; no conftest.py. Robust search+load and per-test fakes.
-
 import os, sys, importlib, importlib.util, types
 from types import SimpleNamespace
 import pytest
 
-# ------------------------------------------------------------------------------------
-# Path resolver (search up to 5 levels + CWD)
-# ------------------------------------------------------------------------------------
+
 HERE = os.path.abspath(os.path.dirname(__file__))
 PARENTS = [os.path.abspath(os.path.join(HERE, *([".."] * i))) for i in range(1, 6)]
 CANDIDATES = list(dict.fromkeys(PARENTS + [os.getcwd(), HERE]))  # dedup, keep order
@@ -15,9 +10,6 @@ for p in CANDIDATES:
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# ------------------------------------------------------------------------------------
-# Helper: directory walker
-# ------------------------------------------------------------------------------------
 def _walk_roots_for(filename, roots):
     seen = set()
     SKIP = {".git", ".venv", "venv", "env", "__pycache__", ".pytest_cache", ".mypy_cache"}
@@ -34,12 +26,9 @@ def _walk_roots_for(filename, roots):
             if filename in filenames:
                 yield os.path.join(dirpath, filename)
 
-# ------------------------------------------------------------------------------------
-# Robust loader for analytics_service with TEMPORARY stub modules to avoid cross-test pollution
-# We inject minimal stubs just for the import, then remove them from sys.modules.
-# ------------------------------------------------------------------------------------
+
 def _load_analytics_service_module():
-    # Track what we injected so we can clean up
+
     injected = []
 
     def _inject(name, module):
@@ -47,7 +36,7 @@ def _load_analytics_service_module():
             sys.modules[name] = module
             injected.append(name)
 
-    # --- temporary stub: bson (so ObjectId accepts any string) ---
+
     if "bson" not in sys.modules:
         bson_mod = types.ModuleType("bson")
         class _ObjectId:
@@ -57,14 +46,14 @@ def _load_analytics_service_module():
         bson_mod.ObjectId = _ObjectId
         _inject("bson", bson_mod)
 
-    # --- temporary stubs: schemas.entities / schemas.requests ---
+
     if "schemas" not in sys.modules:
         _inject("schemas", types.ModuleType("schemas"))
 
     if "schemas.entities" not in sys.modules:
         ent_mod = types.ModuleType("schemas.entities")
         class TripStatus:
-            # matches code usage: COMPLETED.value and CANCELLED literal
+
             from types import SimpleNamespace as _SN
             COMPLETED = _SN(value="completed")
             CANCELLED = "cancelled"
@@ -90,7 +79,6 @@ def _load_analytics_service_module():
         req_mod.AnalyticsRequest = AnalyticsRequest
         _inject("schemas.requests", req_mod)
 
-    # --- temporary stub: repositories.database (minimal placeholders) ---
     if "repositories" not in sys.modules:
         _inject("repositories", types.ModuleType("repositories"))
 
@@ -107,22 +95,20 @@ def _load_analytics_service_module():
         db_mod.db_manager_management = SimpleNamespace(drivers=_FakeCollection())
         _inject("repositories.database", db_mod)
 
-    # --- load analytics_service.py by file path first ---
+
     for path in list(_walk_roots_for("analytics_service.py", CANDIDATES)):
         try:
             mod_name = f"loaded.analytics_service_{abs(hash(path))}"
             spec = importlib.util.spec_from_file_location(mod_name, path)
             mod = importlib.util.module_from_spec(spec)
             sys.modules[mod_name] = mod
-            spec.loader.exec_module(mod)  # type: ignore[attr-defined]
-            # cleanup temporary injections to avoid leaking into other tests
+            spec.loader.exec_module(mod)  
             for name in injected:
                 sys.modules.pop(name, None)
             return mod
         except Exception:
             continue
 
-    # Fallback: try common import names
     for name in ("analytics_service", "services.analytics_service", "trip_planning.services.analytics_service"):
         try:
             mod = importlib.import_module(name)
@@ -132,7 +118,6 @@ def _load_analytics_service_module():
         except Exception:
             pass
 
-    # If we get here: clean and fail
     for n in injected:
         sys.modules.pop(n, None)
     raise ModuleNotFoundError(
@@ -144,9 +129,6 @@ analytics_service_module = _load_analytics_service_module()
 AnalyticsService = getattr(analytics_service_module, "AnalyticsService")
 ObjectId = getattr(analytics_service_module, "ObjectId", None)
 
-# ------------------------------------------------------------------------------------
-# Async helpers — now accept both .to_list(None) and .to_list(length=1)
-# ------------------------------------------------------------------------------------
 def make_to_list_cursor(items):
     class _C:
         def __init__(self, items): self._items = list(items)
@@ -219,7 +201,6 @@ async def test_get_analytics_first_success_with_sync_name_lookup(monkeypatch):
     monkeypatch.setattr(analytics_service_module, "db_manager",
                         SimpleNamespace(trip_history=_TripHistory()))
 
-    # make name lookup synchronous to satisfy the impl's missing await
     def fake_get_names(self, ids): return {i: f"Name-{i}" for i in ids}
     monkeypatch.setattr(AnalyticsService, "_get_driver_names", fake_get_names)
 
@@ -234,7 +215,6 @@ async def test_get_analytics_first_success_with_sync_name_lookup(monkeypatch):
     }]
     assert out["timeframeSummary"]["totalTrips"] == 4
     assert out["timeframeSummary"]["completionRate"] == pytest.approx(75.0)
-    # function rounds to 2 decimals — assert the rounded value
     assert out["timeframeSummary"]["averageTripsPerDay"] == 0.13
 
 @pytest.mark.asyncio
@@ -337,7 +317,7 @@ async def test_get_vehicle_analytics_with_route_distance_skips_missing_vehicle_i
     svc = AnalyticsService()
     trips = [
         {"origin": {"location": {"coordinates": [0.0, 0.0]}},
-         "destination": {"location": {"coordinates": [0.0, 1.0]}}},  # no vehicle_id
+         "destination": {"location": {"coordinates": [0.0, 1.0]}}},  
     ]
     class _TripHistory:
         def find(self, query): return make_to_list_cursor(trips)

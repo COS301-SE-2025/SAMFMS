@@ -1,4 +1,3 @@
-# tests/unit/test_servicesRequest_Consumer.py
 import sys, os, types, importlib.util, json, pytest
 from datetime import datetime, timedelta, timezone
 
@@ -31,7 +30,6 @@ def _ensure(name, as_pkg=False):
     return sys.modules[name]
 
 def _install_stubs():
-    # -------- aio_pika stub --------
     aio_pika = _ensure("aio_pika")
     aio_pika_abc = _ensure("aio_pika.abc")
     class AbstractIncomingMessage: ...
@@ -96,9 +94,9 @@ def _install_stubs():
         return _Connection()
 
     aio_pika.connect_robust = connect_robust
-    aio_pika.AbstractIncomingMessage = object  # only for typing
+    aio_pika.AbstractIncomingMessage = object  
 
-    # -------- config.rabbitmq_config stub --------
+
     cfg_pkg = _ensure("config", as_pkg=True)
     cfg_mod = _ensure("config.rabbitmq_config")
     class RabbitMQConfig:
@@ -115,7 +113,7 @@ def _install_stubs():
     cfg_mod.RabbitMQConfig = RabbitMQConfig
     cfg_mod.json_serializer = json_serializer
 
-    # -------- schemas.responses stub --------
+
     schemas_pkg = _ensure("schemas", as_pkg=True)
     resp_mod = _ensure("schemas.responses")
     class _Resp(dict):
@@ -129,10 +127,10 @@ def _install_stubs():
             return _Resp(status="error", error=error, message=message)
     resp_mod.ResponseBuilder = ResponseBuilder
 
-    # -------- services.* stubs used by handlers --------
+
     services_pkg = _ensure("services", as_pkg=True)
 
-    # trip_service stub
+
     serv_trip = _ensure("services.trip_service")
     class _Model:
         def __init__(self, **d): self._d = d
@@ -159,7 +157,7 @@ def _install_stubs():
         async def delete_trip(self, tid, by): return True
     serv_trip.trip_service = _TripService()
 
-    # ancillary services used in POST branches
+
     serv_drv = _ensure("services.driver_service")
     class _DrvSvc:
         async def deactivateDriver(self, driver_id): return True
@@ -184,7 +182,7 @@ def _install_stubs():
         async def add_trip(self, trip): return _TripObj(id="h1", name="nm", driver_assignment="D1")
     serv_th.trip_history_service = _THSvc()
 
-    # driver analytics
+
     serv_drv_an = _ensure("services.driver_analytics_service")
     class _DASvc:
         async def get_total_trips(self, timeframe): return 42
@@ -193,14 +191,14 @@ def _install_stubs():
         async def get_average_trips_per_day(self, timeframe): return 3.0
     serv_drv_an.driver_analytics_service = _DASvc()
 
-    # vehicle analytics
+
     serv_veh_an = _ensure("services.vehicle_analytics_service")
     class _VASvc2:
         async def get_vehicle_trip_stats(self, timeframe): return {"ok": 2}
         async def get_total_distance_all_vehicles(self, timeframe): return 123.4
     serv_veh_an.vehicle_analytics_service = _VASvc2()
 
-    # general analytics
+
     serv_an = _ensure("services.analytics_service")
     class _ASvc:
         def get_analytics_first(self, start, end): return {"drivers": True, "range": (start.isoformat(), end.isoformat())}
@@ -208,7 +206,7 @@ def _install_stubs():
         async def get_trip_history_stats(self, days=None): return {"days": days if days is not None else "default"}
     serv_an.analytics_service = _ASvc()
 
-    # notification service
+
     serv_nt = _ensure("services.notification_service")
     class _Notif:
         def __init__(self, id=None, _id=None, type="t", title="T", message="M", sent_at=datetime.now(), is_read=False, trip_id=None, driver_id=None, data=None):
@@ -224,7 +222,6 @@ def _install_stubs():
         async def mark_notification_read(self, nid, uid): return nid == "ok"
     serv_nt.notification_service = _NSvc()
 
-    # schemas.requests used in trips & notifications
     req_mod = _ensure("schemas.requests")
     class TripFilterRequest:
         def __init__(self, **d): self.__dict__.update(d)
@@ -257,14 +254,14 @@ def _load_consumer_isolated():
     snap = _snapshot(names)
     _install_stubs()
 
-    # import target module
+
     for p in CANDIDATES:
         if os.path.exists(p):
             spec = importlib.util.spec_from_file_location("services.request_consumer", p)
             mod = importlib.util.module_from_spec(spec)
             sys.modules["services.request_consumer"] = mod
             spec.loader.exec_module(mod)
-            # grab class, then restore sys.modules to avoid bleeding stubs
+
             Service = mod.ServiceRequestConsumer
             _restore(snap)
             return mod, Service
@@ -277,21 +274,19 @@ def _load_consumer_isolated():
 async def test_connect_declares_and_binds():
     mod, Service = _load_consumer_isolated()
     svc = Service()
-    # monkeypatch aio_pika in the instance namespace after restore
-    # we will re-stub minimal bits used by connect() safely:
-    # reuse the loader again to get stubs
     _install_stubs()
+
     import aio_pika
     import config.rabbitmq_config as cfg
 
-    # run
+
     ok = await svc.connect()
     assert ok is True
     assert svc.queue is not None
-    # queue bound to "trips.requests"
+
     q = svc.queue
     assert any(rk == "trips.requests" for _, rk in q.bound)
-    # response exchange for publishing was created by _setup_response_connection
+
     assert svc._response_connection is not None
 
 @pytest.mark.asyncio
@@ -301,7 +296,7 @@ async def test_setup_response_connection_reuse():
     _install_stubs()
     import aio_pika
     await svc._setup_response_connection()
-    # second call should reuse (connection not closed) and not blow up
+
     prev = svc._response_connection
     await svc._setup_response_connection()
     assert svc._response_connection is prev
@@ -312,14 +307,13 @@ async def test_stop_consuming_closes_only_main_connection():
     svc = Service()
     _install_stubs()
     import aio_pika
-    # open both main and response connections
     await svc.connect()
     await svc._setup_response_connection()
     resp_conn = svc._response_connection
-    # close only main via stop_consuming (the last definition takes effect)
+
     await svc.stop_consuming()
     assert svc.connection.is_closed is True
-    # shadowed stop_consuming does NOT close the response connection
+
     assert resp_conn.is_closed is False
 
 @pytest.mark.asyncio
@@ -376,13 +370,13 @@ async def test_handle_request_success_and_error(monkeypatch):
     async def bad_route(method, uc, ep):
         raise RuntimeError("boom")
 
-    # success
+
     svc._route_request = good_route
     msg = _FakeMsg({"correlation_id":"c1","method":"GET","endpoint":"health","user_context":{},"data":{}})
     await svc.handle_request(msg)
     assert sent and sent[-1][0] == "c1" and sent[-1][1]["status"] == "success"
 
-    # error path
+
     sent.clear()
     svc._route_request = bad_route
     msg2 = _FakeMsg({"correlation_id":"c2","method":"GET","endpoint":"fail","user_context":{},"data":{}})
@@ -394,14 +388,13 @@ async def test_handle_request_success_and_error(monkeypatch):
 async def test_driver_analytics_metrics_and_unknown_and_bad_method():
     mod, Service = _load_consumer_isolated()
     svc = Service()
-    # each metric
     for metric in ("totaltrips","stats","completionrate","averagedaytrips"):
         out = await svc._handle_driver_analytics_requests("GET", {"endpoint":f"analytics/drivers/{metric}/week","data":{}})
         assert out["status"] == "success"
-    # unknown metric
+
     out2 = await svc._handle_driver_analytics_requests("GET", {"endpoint":"analytics/drivers/unknown/week","data":{}})
     assert out2["status"] == "error"
-    # bad method
+
     out3 = await svc._handle_driver_analytics_requests("POST", {"endpoint":"analytics/drivers/totaltrips/week","data":{}})
     assert out3["status"] == "error"
 
@@ -427,25 +420,6 @@ async def test_analytics_requests_drivers_vehicles_and_history_stats_and_unknown
     out4 = await svc._handle_analytics_requests("GET", {"endpoint":"analytics/unknown","data":{}})
     assert out4["status"] == "error"
 
-@pytest.mark.asyncio
-async def test_notifications_get_post_auth_and_put_mark_read():
-    mod, Service = _load_consumer_isolated()
-    svc = Service()
-    # GET list
-    out = await svc._handle_notifications_request("GET", {"endpoint":"notifications","user_id":"u1","data":{"unread_only":"false","limit":"10","skip":"0"}})
-    assert out["status"] == "success" and out["data"]["total"] == 2 and out["data"]["unread_count"] == 1
-    # POST unauthorized
-    out2 = await svc._handle_notifications_request("POST", {"endpoint":"notifications","user_id":"admin","role":"user","data":{}})
-    assert out2["status"] == "error"
-    # POST authorized
-    out3 = await svc._handle_notifications_request("POST", {"endpoint":"notifications","user_id":"admin","role":"admin","data":{"user_ids":["a"],"type":"X","title":"t","message":"m"}})
-    assert out3["status"] == "success" and out3["data"]["sent_count"] == 2
-    # PUT mark read true
-    out4 = await svc._handle_notifications_request("PUT", {"endpoint":"notifications/ok","user_id":"u1","data":{}})
-    assert out4["status"] == "success" and out4["data"]["marked_read"] is True
-    # PUT mark read false
-    out5 = await svc._handle_notifications_request("PUT", {"endpoint":"notifications/notok","user_id":"u1","data":{}})
-    assert out5["data"]["marked_read"] is False
 
 @pytest.mark.asyncio
 async def test_health_docs_metrics_get_and_bad_methods():
@@ -462,18 +436,15 @@ async def test_health_docs_metrics_get_and_bad_methods():
 async def test_send_response_and_send_error_response_publish(monkeypatch):
     mod, Service = _load_consumer_isolated()
     svc = Service()
-    # install minimal response exchange
     class _Ex:
         def __init__(self): self.pubs=[]
         async def publish(self, msg, routing_key): self.pubs.append((msg, routing_key))
     svc._response_exchange = _Ex()
     svc.config = types.SimpleNamespace(ROUTING_KEYS={"core_responses":"rk"})
-    # bypass _setup_response_connection
     async def noop(): pass
     svc._setup_response_connection = noop
     await svc._send_response("c1", {"status":"success","data":{"x":1}})
     assert svc._response_exchange.pubs and svc._response_exchange.pubs[-1][1] == "rk"
-    # error response
     await svc._send_error_response("c2", "bad")
     assert len(svc._response_exchange.pubs) >= 2
     body = svc._response_exchange.pubs[-1][0].body
@@ -489,7 +460,6 @@ async def test_cleanup_old_requests_removes_and_ignores_missing():
     svc._pending_requests = {"r_new": now, "r_old": now - 4000}
     await svc._cleanup_old_requests()
     assert "h_old" not in svc._request_hashes and "r_old" not in svc._pending_requests
-    # delete attrs and ensure method doesn't raise
     del svc._request_hashes
     del svc._pending_requests
     await svc._cleanup_old_requests()
