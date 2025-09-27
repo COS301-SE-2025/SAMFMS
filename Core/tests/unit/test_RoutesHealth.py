@@ -281,7 +281,7 @@ def test_detailed_deduplicator_raises_makes_unhealthy(client, monkeypatch):
     assert r.status_code == 503
     assert j["checks"]["request_deduplicator"]["status"] == "unhealthy"
 
-# ---------- /health/ready ----------
+
 
 def test_ready_all_ready(client, monkeypatch):
     _stub_request_router(monkeypatch)  

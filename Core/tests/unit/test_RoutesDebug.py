@@ -1,5 +1,3 @@
-# Core/tests/unit/test_routesDebug.py
-
 import asyncio
 import pytest
 from fastapi import FastAPI, WebSocket
@@ -20,7 +18,7 @@ def make_client():
     return TestClient(app)
 
 
-# ---------- /test/simple ----------
+
 
 def test_simple_test_ok():
     client = make_client()
