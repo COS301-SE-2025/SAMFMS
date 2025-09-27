@@ -196,7 +196,6 @@ def _find_user_service_path():
     start = Path(__file__).resolve()
     candidates = []
 
-    # Walk up and try common layouts relative to each ancestor
     for base in [start] + list(start.parents):
         candidates.extend([
             base / "security" / "services" / "user_service.py",
@@ -205,7 +204,6 @@ def _find_user_service_path():
             base.parent / "services" / "user_service.py",
         ])
 
-    # Deduplicate while preserving order
     seen = set()
     uniq = []
     for c in candidates:
@@ -218,7 +216,6 @@ def _find_user_service_path():
         if c.is_file():
             return str(c)
 
-    # As a very last resort, try the uploaded path (may not exist locally)
     fallback = "/mnt/data/user_service.py"
     if Path(fallback).exists():
         return fallback
@@ -229,7 +226,6 @@ def import_user_module():
     import importlib.util
     from pathlib import Path
 
-    # Try normal imports first (if the project is already on sys.path)
     for name in ("security.services.user_service", "services.user_service"):
         try:
             if name in sys.modules:
@@ -238,7 +234,6 @@ def import_user_module():
         except Exception:
             pass
 
-    # Path-based import
     path = _find_user_service_path()
     if not path:
         raise ImportError("Unable to locate user_service.py")
@@ -246,10 +241,8 @@ def import_user_module():
     p = Path(path)
     parts = set(p.parts)
 
-    # Decide a stable qualified name that matches the path
     if "security" in parts:
         fqname = "security.services.user_service"
-        # Ensure packages exist so the module can be registered under this name
         _mkpkg("security")
         _mkpkg("security.services")
     elif "services" in parts:
@@ -264,7 +257,7 @@ def import_user_module():
 
     mod = importlib.util.module_from_spec(spec)
     sys.modules[fqname] = mod
-    spec.loader.exec_module(mod)  # type: ignore[attr-defined]
+    spec.loader.exec_module(mod)  
     return mod
 
 #------------get_all_users happy--------
@@ -296,7 +289,7 @@ async def test_get_all_users_error_raises():
         mod = import_user_module()
         from repositories.user_repository import UserRepository
         async def boom(): raise RuntimeError("db")
-        UserRepository.get_all_users = boom  # type: ignore
+        UserRepository.get_all_users = boom  
         with pytest.raises(RuntimeError):
             await mod.UserService.get_all_users()
 
@@ -382,7 +375,7 @@ async def test_update_user_profile_filters_sensitive_and_audits():
             UserRepository.users[uid].update(updates)
             UserRepository.last_update_args.append((uid, dict(updates)))
             return True
-        UserRepository.update_user = _reset_update  # ensure not overridden by earlier tests
+        UserRepository.update_user = _reset_update  
 
         UserRepository.users["u1"] = {"user_id":"u1","email":"a@x.com"}
         ok = await mod.UserService.update_user_profile("u1", {
@@ -414,7 +407,7 @@ async def test_update_user_preferences_success_filters_and_audits():
             UserRepository.users[uid].update(updates)
             UserRepository.last_update_args.append((uid, dict(updates)))
             return True
-        UserRepository.update_user = _reset_update  # ensure not overridden
+        UserRepository.update_user = _reset_update 
 
         UserRepository.users["u2"] = {"user_id":"u2","email":"b@x.com"}
         prefs = {"theme":"dark","unknown":"x","two_factor":"true"}
@@ -497,7 +490,7 @@ async def test_change_user_password_success_updates_and_audits():
             UserRepository.users[uid].update(updates)
             UserRepository.last_update_args.append((uid, dict(updates)))
             return True
-        UserRepository.update_user = _reset_update  # ensure not overridden
+        UserRepository.update_user = _reset_update 
 
         UserRepository.users["u5"] = {"user_id":"u5","email":"e@x.com","password_hash":"hash:oldpw"}
         ok = await mod.UserService.change_user_password("u5","oldpw","newpw")
@@ -514,7 +507,7 @@ async def test_change_user_password_repo_false_no_audit():
         from repositories.audit_repository import AuditRepository
         UserRepository.users["u6"] = {"user_id":"u6","email":"f@x.com","password_hash":"hash:pw1"}
         async def nope(uid, up): return False
-        UserRepository.update_user = nope  # type: ignore
+        UserRepository.update_user = nope  
         pre = len(AuditRepository.logs)
         ok = await mod.UserService.change_user_password("u6","pw1","pw2")
         assert ok is False
@@ -549,7 +542,7 @@ async def test_toggle_user_status_update_false_raises_no_audit():
 
         async def _force_false(uid, updates):
             return False
-        UserRepository.update_user = _force_false  # type: ignore
+        UserRepository.update_user = _force_false  
 
         pre = len(AuditRepository.logs)
         result = await mod.UserService.toggle_user_status("missing", False, "admin")
@@ -561,7 +554,7 @@ async def test_create_user_manually_missing_data_raises():
     with SysModulesSandbox():
         mod = import_user_module()
         with pytest.raises(ValueError):
-            await mod.UserService.create_user_manually(None, "creator")  # type: ignore
+            await mod.UserService.create_user_manually(None, "creator") 
 
 #------------create_user_manually existing email--------
 @pytest.mark.asyncio
@@ -605,7 +598,7 @@ async def test_create_user_manually_repo_error_raises(monkeypatch):
         fixed = uuid.UUID("00000000-0000-0000-0000-000000000002")
         monkeypatch.setattr(uuid, "uuid4", lambda: fixed)
         async def boom(doc): raise RuntimeError("db")
-        UserRepository.create_user = boom  # type: ignore
+        UserRepository.create_user = boom 
         req = CreateUserRequest(full_name="Z", email="z@x.com", password="pw", role="admin", phoneNo="2")
         with pytest.raises(RuntimeError):
             await mod.UserService.create_user_manually(req, "creator2")
@@ -616,7 +609,7 @@ async def test_get_user_by_id_error_raises():
         mod = import_user_module()
         from repositories.user_repository import UserRepository
         async def boom(uid): raise RuntimeError("x")
-        UserRepository.find_by_user_id = boom  # type: ignore
+        UserRepository.find_by_user_id = boom  
         with pytest.raises(RuntimeError):
             await mod.UserService.get_user_by_id("u1")
 
@@ -628,7 +621,7 @@ async def test_update_user_permissions_get_role_permissions_raises():
         from utils import auth_utils
         def raise_gp(role, custom_permissions=None):
             raise RuntimeError("gp")
-        auth_utils.get_role_permissions = raise_gp  # type: ignore
+        auth_utils.get_role_permissions = raise_gp 
         with pytest.raises(RuntimeError):
             await mod.UserService.update_user_permissions("u1", role="admin")
 
@@ -640,7 +633,7 @@ async def test_update_user_profile_exception_raises():
         from repositories.user_repository import UserRepository
         UserRepository.users["u1"] = {"user_id":"u1","email":"a@x.com"}
         async def boom(uid, updates): raise RuntimeError("u")
-        UserRepository.update_user = boom  # type: ignore
+        UserRepository.update_user = boom  
         with pytest.raises(RuntimeError):
             await mod.UserService.update_user_profile("u1", {"full_name":"New"})
 
@@ -652,7 +645,7 @@ async def test_update_user_preferences_exception_raises():
         from repositories.user_repository import UserRepository
         UserRepository.users["u2"] = {"user_id":"u2","email":"b@x.com"}
         async def boom(uid, updates): raise RuntimeError("p")
-        UserRepository.update_user = boom  # type: ignore
+        UserRepository.update_user = boom  
         with pytest.raises(RuntimeError):
             await mod.UserService.update_user_preferences("u2", {"theme":"dark"})
 
@@ -663,7 +656,7 @@ async def test_delete_user_exception_raises():
         mod = import_user_module()
         from repositories.user_repository import UserRepository
         async def boom(uid): raise RuntimeError("d")
-        UserRepository.delete_user = boom  # type: ignore
+        UserRepository.delete_user = boom  
         with pytest.raises(RuntimeError):
             await mod.UserService.delete_user("u9","admin")
 
@@ -677,7 +670,7 @@ async def test_create_user_manually_audit_error_raises(monkeypatch):
         import uuid as _uuid
         monkeypatch.setattr(_uuid, "uuid4", lambda: _uuid.UUID("00000000-0000-0000-0000-0000000000aa"))
         async def boom(*a, **k): raise RuntimeError("audit")
-        AuditRepository.log_security_event = boom  # type: ignore
+        AuditRepository.log_security_event = boom  
         req = CreateUserRequest(full_name="N", email="n@x.com", password="pw", role="user")
         with pytest.raises(RuntimeError):
             await mod.UserService.create_user_manually(req, "creator")

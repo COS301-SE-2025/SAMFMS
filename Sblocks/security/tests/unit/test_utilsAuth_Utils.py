@@ -140,7 +140,7 @@ def import_auth_utils():
                 continue
             mod = importlib.util.module_from_spec(spec)
             sys.modules[fqname] = mod
-            spec.loader.exec_module(mod)  # type: ignore[attr-defined]
+            spec.loader.exec_module(mod)  
             return mod
 
     raise ImportError("Unable to locate security/utils/auth_utils.py")
