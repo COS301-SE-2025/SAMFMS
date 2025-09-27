@@ -43,7 +43,7 @@ class _RepoStub:
         self.deleted = []
         self.find_calls = []
         self.count_calls = []
-        self.count_queue = []  # used by summary: pop in call order
+        self.count_queue = []  
     async def create(self, data):
         self.created.append(data)
         return {"id": f"lic{len(self.created)}", **data}
@@ -51,7 +51,6 @@ class _RepoStub:
         return {"id": rid, "stub": True} if rid == "found" else None
     async def update(self, rid, data):
         self.updated.append((rid, data))
-        # Return None to simulate "not found"
         return {"id": rid, **data} if rid != "missing" else None
     async def delete(self, rid):
         self.deleted.append(rid)

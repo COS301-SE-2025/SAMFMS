@@ -7,7 +7,6 @@ import asyncio
 import time
 import pytest
 
-#------------helpers--------
 def build_fake_aio_pika():
     aio = types.ModuleType("aio_pika")
     class DeliveryMode:
@@ -191,10 +190,10 @@ def import_consumer_module():
     spec = importlib.util.spec_from_file_location("services.request_consumer", path)
     mod = importlib.util.module_from_spec(spec)
     sys.modules["services.request_consumer"] = mod
-    spec.loader.exec_module(mod)  # type: ignore
+    spec.loader.exec_module(mod) 
     return mod
 
-#------------start_consuming error path--------
+
 @pytest.mark.asyncio
 async def test_start_consuming_error_path():
     mod = import_consumer_module()
@@ -205,7 +204,7 @@ async def test_start_consuming_error_path():
     with pytest.raises(RuntimeError):
         await svc.start_consuming()
 
-#------------stop_consuming closes both--------
+
 @pytest.mark.asyncio
 async def test_stop_consuming_closes_both():
     mod = import_consumer_module()
@@ -215,7 +214,7 @@ async def test_stop_consuming_closes_both():
     await svc.stop_consuming()
     assert svc.connection.is_closed is True
 
-#------------disconnect closes both--------
+
 @pytest.mark.asyncio
 async def test_disconnect_closes_both():
     mod = import_consumer_module()

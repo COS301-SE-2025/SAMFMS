@@ -1,7 +1,3 @@
-# test_servicesMaintenance_Schedules_Service.py
-# Small, isolated unit tests for services/maintenance_schedules_service.py
-# One test per branch; simple, logical, and fully mocked.
-
 import sys
 import os
 import types
@@ -9,9 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 import importlib
 
-# ---------------------------
-# Make project importable anywhere
-# ---------------------------
+
 HERE = os.path.abspath(os.path.dirname(__file__))
 CANDIDATES = [
     os.path.abspath(os.path.join(HERE, "..", "..")),
@@ -22,10 +16,6 @@ for p in CANDIDATES:
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# ---------------------------
-# Minimal stubs used by the service
-# ---------------------------
-# schemas.entities with MaintenanceStatus/MaintenancePriority
 if "schemas" not in sys.modules:
     schemas_pkg = types.ModuleType("schemas")
     sys.modules["schemas"] = schemas_pkg
@@ -45,7 +35,7 @@ if "schemas.entities" not in sys.modules:
     setattr(schemas_pkg, "entities", entities_mod)
     sys.modules["schemas.entities"] = entities_mod
 
-# repositories with MaintenanceSchedulesRepository
+
 if "repositories" not in sys.modules:
     repos_mod = types.ModuleType("repositories")
     class MaintenanceSchedulesRepository:
@@ -53,7 +43,7 @@ if "repositories" not in sys.modules:
     repos_mod.MaintenanceSchedulesRepository = MaintenanceSchedulesRepository
     sys.modules["repositories"] = repos_mod
 
-# services.maintenance_service (for create_record_from_schedule)
+
 if "services" not in sys.modules:
     services_pkg = types.ModuleType("services")
     sys.modules["services"] = services_pkg
@@ -69,9 +59,6 @@ if "services.maintenance_service" not in sys.modules:
     setattr(services_pkg, "maintenance_service", ms_mod)
     sys.modules["services.maintenance_service"] = ms_mod
 
-# ---------------------------
-# Import target module (force submodule)
-# ---------------------------
 try:
     msched_mod = importlib.import_module("services.maintenance_schedules_service")
 except Exception:
@@ -79,9 +66,6 @@ except Exception:
 
 MaintenanceSchedulesService = msched_mod.MaintenanceSchedulesService
 
-# ---------------------------
-# Fakes & helpers
-# ---------------------------
 class FakeRepo:
     def __init__(self):
         self.last_create_data = None
@@ -146,7 +130,7 @@ class FakeVehicleValidator:
 async def test_create_missing_required_field_raises(missing, monkeypatch):
     repo = FakeRepo()
     svc = make_service(repo)
-    # vehicle check won't be reached, but patch anyway to be safe
+
     monkeypatch.setattr(msched_mod, "vehicle_validator", FakeVehicleValidator(True))
 
     payload = {
@@ -230,7 +214,6 @@ async def test_get_maintenance_schedule_returns_record():
     res = await svc.get_maintenance_schedule("sch-42")
     assert res["id"] == "sch-42"
 
-# ---- update_maintenance_schedule ----
 
 @pytest.mark.asyncio
 async def test_update_rejects_invalid_vehicle_id(monkeypatch):
