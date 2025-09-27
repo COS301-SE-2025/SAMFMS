@@ -3,9 +3,6 @@ from types import SimpleNamespace
 import pytest
 from datetime import datetime, timedelta, timezone
 
-# ------------------------------------------------------------------------------------
-# Path resolver (search up to 5 levels + CWD)
-# ------------------------------------------------------------------------------------
 HERE = os.path.abspath(os.path.dirname(__file__))
 PARENTS = [os.path.abspath(os.path.join(HERE, *([".."] * i))) for i in range(1, 6)]
 CANDIDATES = list(dict.fromkeys(PARENTS + [os.getcwd(), HERE]))
@@ -13,9 +10,7 @@ for p in CANDIDATES:
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# ------------------------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------------------------
+
 def _walk_roots_for(filename, roots):
     seen = set()
     SKIP = {".git", ".venv", "venv", "env", "__pycache__", ".pytest_cache", ".mypy_cache"}
@@ -41,7 +36,6 @@ def make_to_list_cursor(items):
             return data if length is None else data[:length]
     return _C(items)
 
-# aiohttp fakes per-test
 class FakeAioHTTP:
     """Factory for faking aiohttp.ClientSession with canned responses."""
     class _Resp:
@@ -78,9 +72,7 @@ class FakeAioHTTP:
     def ClientSession(self, *a, **k):
         return FakeAioHTTP._Session(self.status, self.payload, self.raise_on_get)
 
-# ------------------------------------------------------------------------------------
-# Robust loader with temporary module stubs (cleaned after import)
-# ------------------------------------------------------------------------------------
+
 def _load_simulation_service_module():
     injected = []
     def _inject(name, module):
@@ -88,7 +80,6 @@ def _load_simulation_service_module():
             sys.modules[name] = module
             injected.append(name)
 
-    # bson
     if "bson" not in sys.modules:
         bson_mod = types.ModuleType("bson")
         class _ObjectId:
@@ -169,9 +160,6 @@ VehicleSimulator = simulation_service_module.VehicleSimulator
 Route = simulation_service_module.Route
 ObjectId = simulation_service_module.ObjectId
 
-# ------------------------------------------------------------------------------------
-# VEHICLE SIMULATOR — basics
-# ------------------------------------------------------------------------------------
 
 def test_vehicle_simulator_distance_accessors_and_progress_zero_distance():
     route = Route(coordinates=[(0,0)], distance=0.0, duration=0.0)
@@ -313,9 +301,6 @@ def test_vehicle_simulator_calculate_heading_basic():
     hdg = sim._calculate_heading()
     assert hdg == pytest.approx(90.0, abs=5.0)
 
-# ------------------------------------------------------------------------------------
-# SIMULATION SERVICE — routes
-# ------------------------------------------------------------------------------------
 
 @pytest.mark.asyncio
 async def test_get_route_success_parses_geometry(monkeypatch):
@@ -356,9 +341,6 @@ def test__calculate_straight_line_distance_one_degree():
     d = svc._calculate_straight_line_distance(0,0, 0,1)
     assert d == pytest.approx(111_195, rel=1e-3)
 
-# ------------------------------------------------------------------------------------
-# SIMULATION SERVICE — trips / start
-# ------------------------------------------------------------------------------------
 
 @pytest.mark.asyncio
 async def test_get_active_trips_success(monkeypatch):
@@ -443,9 +425,6 @@ async def test_start_trip_simulation_happy(monkeypatch):
     assert sim.current_speed_kmh == 80.0
 
 
-# ------------------------------------------------------------------------------------
-# SIMULATION SERVICE — route with waypoints
-# ------------------------------------------------------------------------------------
 
 @pytest.mark.asyncio
 async def test_get_route_with_waypoints_success(monkeypatch):
@@ -470,9 +449,6 @@ async def test_get_route_with_waypoints_fallback(monkeypatch):
     assert r.coordinates == [(0.0,0.0),(0.1,0.1),(0.2,0.2),(0.3,0.4)]
     assert r.distance > 0
 
-# ------------------------------------------------------------------------------------
-# SIMULATION SERVICE — update loop & stop
-# ------------------------------------------------------------------------------------
 
 @pytest.mark.asyncio
 async def test_update_all_simulations_removes_completed(monkeypatch):

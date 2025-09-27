@@ -1,4 +1,3 @@
-# test_servicesBackground_Jobs.py
 import sys
 import os
 import types
@@ -17,7 +16,7 @@ for p in CANDIDATES:
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# ----- services stubs so imports succeed anywhere -----
+
 if "services" not in sys.modules:
     services_pkg = types.ModuleType("services")
     sys.modules["services"] = services_pkg
@@ -53,7 +52,7 @@ sys.modules["services.maintenance_service"].maintenance_records_service = _Dummy
 sys.modules["services.notification_service"].notification_service = _DummyNotif()
 sys.modules["services.license_service"].license_service = _DummyLic()
 
-# ----- import target module -----
+
 try:
     from services import background_jobs as bg_mod
 except Exception:
@@ -63,7 +62,6 @@ except Exception:
 MaintenanceBackgroundJobs = bg_mod.MaintenanceBackgroundJobs
 
 
-# ----- helpers -----
 class DummyTask:
     def __init__(self):
         self._cancelled = False
@@ -80,13 +78,11 @@ def patch_sleep_run_once(monkeypatch, job):
     orig_sleep = asyncio.sleep
 
     async def _one(*_a, **_k):
-        # flip the guard so the while-loop won't iterate again
         job.is_running = False
-        # yield control once
         await orig_sleep(0)
 
     monkeypatch.setattr(asyncio, "sleep", _one)
-    return orig_sleep  # returned in case the test needs it
+    return orig_sleep  
 
 
 # ----- tests -----
@@ -106,7 +102,7 @@ async def test_start_background_jobs_creates_four_tasks_and_wont_double_start(mo
     assert len(job.tasks) == 4
 
     before_ids = list(map(id, job.tasks))
-    await job.start_background_jobs()  # should no-op
+    await job.start_background_jobs()  
     after_ids = list(map(id, job.tasks))
     assert before_ids == after_ids
 

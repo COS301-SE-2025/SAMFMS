@@ -1,5 +1,3 @@
-# Core/tests/unit/test_routesDebug.py
-
 import asyncio
 import pytest
 from fastapi import FastAPI, WebSocket
@@ -13,16 +11,14 @@ def make_client():
     app = FastAPI()
     app.include_router(debug_router)
 
-    # Add a websocket route so /debug/routes sees a route without "methods"
     @app.websocket("/ws")
     async def ws_endpoint(ws: WebSocket):
-        # We don't actually use it in tests; it's only for route listing coverage
         pass
 
     return TestClient(app)
 
 
-# ---------- /test/simple ----------
+
 
 def test_simple_test_ok():
     client = make_client()
@@ -158,7 +154,6 @@ def test_test_service_connection_success(monkeypatch):
 
 
 def test_test_service_connection_timeout(monkeypatch):
-    # Make any asyncio.wait_for call here raise TimeoutError quickly
     def fake_wait_for(awaitable, timeout):
         raise asyncio.TimeoutError
 
@@ -271,5 +266,5 @@ def test_service_presence_error(monkeypatch):
 
     client = make_client()
     res = client.get("/service_presence")
-    assert res.status_code == 200  # returns an error payload, not HTTPException
+    assert res.status_code == 200 
     assert "error" in res.json()

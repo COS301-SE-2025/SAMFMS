@@ -37,7 +37,6 @@ except Exception:
         setattr(dummy, name, _DummyRepo)
     sys.modules["repositories"] = dummy
 
-# ---------- Import the SUT (robustly) ----------
 _analytics_import_error = None
 MaintenanceAnalyticsService = None
 for dotted in (
@@ -57,7 +56,6 @@ if MaintenanceAnalyticsService is None:
     pytest.skip(f"Cannot import MaintenanceAnalyticsService ({_analytics_import_error}). "
                 f"Ensure project root with 'services/analytics_service.py' is on sys.path.")
 
-# ---------- Fixtures ----------
 @pytest.fixture
 def svc():
     service = MaintenanceAnalyticsService()

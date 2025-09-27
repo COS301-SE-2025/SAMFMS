@@ -3,7 +3,6 @@ from types import SimpleNamespace
 from datetime import datetime, timedelta
 import pytest
 
-# -------------------------------- Path resolver --------------------------------
 HERE = os.path.abspath(os.path.dirname(__file__))
 PARENTS = [os.path.abspath(os.path.join(HERE, *([".."] * i))) for i in range(1, 6)]
 CANDIDATES = list(dict.fromkeys(PARENTS + [os.getcwd(), HERE]))
@@ -11,7 +10,6 @@ for p in CANDIDATES:
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# ----------------------------- Isolated module loader ---------------------------
 def _walk_roots_for(filename, roots):
     seen = set()
     SKIP = {".git", ".venv", "venv", "env", "__pycache__", ".pytest_cache", ".mypy_cache"}
@@ -29,13 +27,8 @@ def _walk_roots_for(filename, roots):
                 yield os.path.join(dirpath, filename)
 
 def _candidate_files():
-    """
-    Build a robust, ordered list of possible file paths to trip_service.py.
-    1) Direct, explicit guesses under each candidate root.
-    2) Full recursive walk (the original strategy).
-    """
+
     guesses = []
-    # explicit guesses relative to each candidate root
     explicit_relatives = [
         "trip_service.py",
         os.path.join("services", "trip_service.py"),
@@ -47,10 +40,9 @@ def _candidate_files():
             if os.path.isfile(p):
                 guesses.append(p)
 
-    # add results from the recursive walk
     guesses.extend(_walk_roots_for("trip_service.py", CANDIDATES))
 
-    # de-duplicate preserving order
+
     return list(dict.fromkeys(guesses))
 
 def _load_trip_service_module():
@@ -62,7 +54,7 @@ def _load_trip_service_module():
         sys.modules[name] = mod
         overridden.append(name)
 
-    # ----- force stub: bson.ObjectId -----
+
     bson_mod = types.ModuleType("bson")
     class _ObjectId:
         def __init__(self, s): self._s = str(s)
@@ -72,7 +64,7 @@ def _load_trip_service_module():
     bson_mod.ObjectId = _ObjectId
     _force("bson", bson_mod)
 
-    # ----- force stub: schemas.entities -----
+
     schemas_pkg = types.ModuleType("schemas")
     ent = types.ModuleType("schemas.entities")
     class Trip:
@@ -95,7 +87,6 @@ def _load_trip_service_module():
     _force("schemas", schemas_pkg)
     _force("schemas.entities", ent)
 
-    # ----- force stub: schemas.requests -----
     req = types.ModuleType("schemas.requests")
     class CreateTripRequest:
         def __init__(self, **kw):
@@ -108,7 +99,7 @@ def _load_trip_service_module():
             self.priority = kw.get("priority")
             self.driver_assignment = kw.get("driver_assignment")
             self.vehicle_id = kw.get("vehicle_id")
-            self.route_info = kw.get("route_info", None)  # important default
+            self.route_info = kw.get("route_info", None) 
         def dict(self, exclude_unset=False): return dict(self.__dict__)
     class UpdateTripRequest:
         def __init__(self, **kw):
@@ -134,7 +125,6 @@ def _load_trip_service_module():
     req.CreateTripRequest, req.UpdateTripRequest, req.TripFilterRequest = CreateTripRequest, UpdateTripRequest, TripFilterRequest
     _force("schemas.requests", req)
 
-    # ----- force stub: repositories.database -----
     db_mod = types.ModuleType("repositories.database")
     class _StubCol:
         async def find_one(self, q): return None
@@ -148,7 +138,6 @@ def _load_trip_service_module():
     db_mod.db_manager_gps = SimpleNamespace(db=SimpleNamespace(vehicle_locations=_StubCol()))
     _force("repositories.database", db_mod)
 
-    # ----- force stub: events.publisher.event_publisher -----
     events_pkg = types.ModuleType("events")
     ev_mod = types.ModuleType("events.publisher")
     async def _nop(*a, **k): return None
@@ -160,7 +149,7 @@ def _load_trip_service_module():
     _force("events", events_pkg)
     _force("events.publisher", ev_mod)
 
-    # helper cursor stubs used by db stub
+ 
     class _ToList:
         def __init__(self, items): self._items = list(items)
         async def to_list(self, *a, **k):
@@ -177,9 +166,9 @@ def _load_trip_service_module():
             if self._i >= len(self._items): raise StopAsyncIteration
             v = self._items[self._i]; self._i += 1; return v
 
-    # Load module by file path first; if not found, fall back to normal import.
+
     try:
-        # 1) Try explicit file path candidates
+        
         for path in _candidate_files():
             try:
                 mod_name = f"loaded.trip_service_{abs(hash(path))}"
@@ -187,22 +176,21 @@ def _load_trip_service_module():
                 if spec and spec.loader:
                     mod = importlib.util.module_from_spec(spec)
                     sys.modules[mod_name] = mod
-                    spec.loader.exec_module(mod)  # type: ignore[attr-defined]
+                    spec.loader.exec_module(mod)  
                     return mod
             except Exception:
                 continue
 
-        # 2) As a last resort, try a normal import (stubs are already injected)
         try:
             mod = importlib.import_module("services.trip_service")
             return mod
         except Exception:
             pass
 
-        # 3) Give up
+
         raise ModuleNotFoundError("Could not locate trip_service.py")
     finally:
-        # restore any modules we stamped over
+
         for name in overridden:
             if originals.get(name) is None:
                 sys.modules.pop(name, None)
@@ -219,9 +207,8 @@ TripFilterRequest = trip_service_module.TripFilterRequest
 ObjectId = trip_service_module.ObjectId
 
 
-# ----------------------------- Test helpers (per test) --------------------------
+
 class Cursor:
-    """Async cursor with chainable sort/skip/limit and query capture."""
     def __init__(self, items): self.items = list(items); self.ops=[]
     def sort(self, field, direction): self.ops.append(("sort", field, direction)); return self
     def skip(self, n): self.ops.append(("skip", n)); return self
@@ -283,7 +270,7 @@ async def test_create_trip_invalid_schedule_raises(monkeypatch):
 @pytest.mark.asyncio
 async def test_create_trip_vehicle_unavailable_raises(monkeypatch):
     svc = TripService()
-    async def fake_check(*a, **k): return False  # vehicle not available
+    async def fake_check(*a, **k): return False 
     monkeypatch.setattr(svc, "_check_vehicle_availability", fake_check)
 
     req = CreateTripRequest(
@@ -341,7 +328,6 @@ async def test_create_trip_happy_path_with_route_info(monkeypatch):
 
     class _Trips:
         async def insert_one(self, d):
-            # distance meters -> km, duration seconds -> minutes
             assert d["estimated_distance"] == pytest.approx(1.234)
             assert d["estimated_duration"] == pytest.approx(2.0)
             return SimpleNamespace(inserted_id="507f191e810c19729de860ea")
@@ -471,7 +457,7 @@ async def test_get_vehicle_polyline_no_trip_or_no_coords():
     assert await svc.get_vehicle_polyline("V1") is None
 
     class _Trips2:
-        async def find_one(self, q): return {"vehicle_id":"V1"}  # no route_info
+        async def find_one(self, q): return {"vehicle_id":"V1"} 
     set_svc_db(svc, trips=_Trips2())
     assert await svc.get_vehicle_polyline("V1") is None
 
@@ -622,7 +608,6 @@ async def test_delete_trip_success_publishes():
     assert (await svc.delete_trip("507f191e810c19729de860ea","U")) is True
     assert pub["id"] == "507f191e810c19729de860ea"
 
-# ----------------------------- get_trip_by_name_and_driver ----------------------
 @pytest.mark.asyncio
 async def test_get_trip_by_name_and_driver_found_and_not_found():
     svc = TripService()
@@ -649,7 +634,6 @@ async def test_get_trip_by_name_and_driver_found_and_not_found():
         await svc.get_trip_by_name_and_driver(fr)
 
 
-# ------------------------------------ list_trips --------------------------------
 @pytest.mark.asyncio
 async def test_list_trips_with_filters_and_sort():
     svc = TripService()
@@ -696,7 +680,6 @@ async def test_list_trips_with_filters_and_sort():
     assert q["scheduled_start_time"]["$lte"] == fr.end_date
 
 
-# ------------------------------------ start/pause/resume ------------------------
 @pytest.mark.asyncio
 async def test_start_trip_not_found_and_wrong_status():
     svc = TripService()
@@ -713,13 +696,13 @@ async def test_start_trip_not_found_and_wrong_status():
 async def test_start_trip_success(monkeypatch):
     svc = TripService()
 
-    # --- collections used via svc.db ---
+
     class _Trips:
         async def update_one(self, f, u): return SimpleNamespace()
 
     set_svc_db(svc, trips=_Trips())
 
-    # --- repositories.database module stubs (what the service imports inside the function) ---
+
     import importlib
     rdb = importlib.import_module("repositories.database")
 
@@ -729,7 +712,7 @@ async def test_start_trip_success(monkeypatch):
     class _MgmtDBM:
         def __init__(self):
             self.vehicles = _Vehicles()
-        def is_connected(self): return True  # if checked elsewhere
+        def is_connected(self): return True  
 
     class _DBM:
         def __init__(self):
@@ -741,7 +724,6 @@ async def test_start_trip_success(monkeypatch):
     monkeypatch.setattr(rdb, "db_manager_management", _MgmtDBM())
     monkeypatch.setattr(rdb, "db_manager", _DBM())
 
-    # --- Trip fetches: scheduled first, then in_progress
     state = {"n": 0}
     async def getter(_):
         state["n"] += 1
@@ -770,18 +752,15 @@ async def test_start_trip_success(monkeypatch):
 @pytest.mark.asyncio
 async def test_pause_resume_trip_paths():
     svc = TripService()
-    # pause: not found
     async def nf(_): return None
     svc.get_trip_by_id = nf
     assert await svc.pause_trip("507f191e810c19729de860ea","U") is None
 
-    # pause: wrong status
     async def wrong(_): return SimpleNamespace(id="507f191e810c19729de860ea", status=TripStatus.SCHEDULED)
     svc.get_trip_by_id = wrong
     with pytest.raises(ValueError):
         await svc.pause_trip("507f191e810c19729de860ea","U")
 
-    # pause: success (IN_PROGRESS -> PAUSED)
     seq=[lambda _: SimpleNamespace(id="507f191e810c19729de860ea", status=TripStatus.IN_PROGRESS),
          lambda _: SimpleNamespace(id="507f191e810c19729de860ea", status=TripStatus.PAUSED)]
     idx={"i":0}
@@ -797,18 +776,18 @@ async def test_pause_resume_trip_paths():
     out = await svc.pause_trip("507f191e810c19729de860ea","U")
     assert out.status == TripStatus.PAUSED and pub["ok"]
 
-    # resume: not found
+
     async def nf2(_): return None
     svc.get_trip_by_id = nf2
     assert await svc.resume_trip("507f191e810c19729de860ea","U") is None
 
-    # resume: wrong status
+
     async def wrong2(_): return SimpleNamespace(id="507f191e810c19729de860ea", status=TripStatus.SCHEDULED)
     svc.get_trip_by_id = wrong2
     with pytest.raises(ValueError):
         await svc.resume_trip("507f191e810c19729de860ea","U")
 
-    # resume: success (PAUSED -> IN_PROGRESS)
+
     seq2=[lambda _: SimpleNamespace(id="507f191e810c19729de860ea", status=TripStatus.PAUSED),
           lambda _: SimpleNamespace(id="507f191e810c19729de860ea", status=TripStatus.IN_PROGRESS)]
     idx2={"i":0}
@@ -991,7 +970,7 @@ async def test__calculate_trip_analytics_skips_when_missing_times():
         async def insert_one(self, d): raise AssertionError("should not insert")
     set_svc_db(svc, trip_analytics=_TA())
     t = SimpleNamespace(id="T1", actual_start_time=None, actual_end_time=None)
-    await svc._calculate_trip_analytics(t)  # no exception, no insert
+    await svc._calculate_trip_analytics(t) 
 
 @pytest.mark.asyncio
 async def test__calculate_trip_analytics_delay_positive_and_zero():
@@ -1053,7 +1032,7 @@ async def test_get_all_upcoming_and_driver_upcoming():
 async def test__check_vehicle_availability_conflict_no_conflict_and_error():
     svc = TripService()
     class _TripsA:
-        async def find_one(self, q): return {"_id":"X"}  # conflict exists
+        async def find_one(self, q): return {"_id":"X"} 
     set_svc_db(svc, trips=_TripsA())
     ok = await svc._check_vehicle_availability("V1", datetime(2024,1,1,10), datetime(2024,1,1,12))
     assert ok is False
@@ -1078,7 +1057,7 @@ async def test_mark_missed_trips_counts_success_and_skips_errors():
     base = {
         "name": "M",
         "scheduled_start_time": now - timedelta(hours=2),
-        "scheduled_end_time": now - timedelta(hours=1),  # ended in the past
+        "scheduled_end_time": now - timedelta(hours=1),  
         "origin": {"order": 0, "location": {"coordinates": [28.0, -26.2]}},
         "destination": {"order": 1, "location": {"coordinates": [28.1, -26.25]}},
         "created_by": "U",
@@ -1089,11 +1068,11 @@ async def test_mark_missed_trips_counts_success_and_skips_errors():
     docs = [{**base, "_id": "M1"}, {**base, "_id": "M2"}]
 
     class _Trips:
-        def find(self, q):  # service queries overdue scheduled trips
+        def find(self, q): 
             return Cursor(docs)
         async def delete_one(self, f): return SimpleNamespace()
         async def find_one(self, f):
-            # return the full doc as though re-fetched
+
             if f.get("_id") == "M1": return {**base, "_id": "M1"}
             if f.get("_id") == "M2": return {**base, "_id": "M2"}
             return None
@@ -1101,7 +1080,7 @@ async def test_mark_missed_trips_counts_success_and_skips_errors():
     inserted = []
     class _Hist:
         async def insert_one(self, doc):
-            if doc["_id"] == "M2":  # simulate a history insertion failure for one path
+            if doc["_id"] == "M2": 
                 raise RuntimeError("insert fail")
             inserted.append(doc["_id"]); return SimpleNamespace()
 

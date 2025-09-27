@@ -218,7 +218,7 @@ def import_service_module():
     spec = importlib.util.spec_from_file_location("security.services.auth_service", path)
     mod = importlib.util.module_from_spec(spec)
     sys.modules["security.services.auth_service"] = mod
-    spec.loader.exec_module(mod)  # type: ignore
+    spec.loader.exec_module(mod)  
     return mod
 
 #------------get_user_role() returns role--------

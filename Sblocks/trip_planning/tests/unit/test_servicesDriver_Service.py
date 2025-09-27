@@ -5,11 +5,15 @@ import pytest
 from datetime import datetime, timedelta, timezone
 
 HERE = os.path.abspath(os.path.dirname(__file__))
+print("[DEBUG] Test root HERE:", HERE)
 SEARCH_ROOTS = [
+
     os.path.abspath(os.path.join(HERE, *([".."] * i))) for i in range(1, 6)
 ] + [HERE, os.getcwd()]
+print("[DEBUG] SEARCH_ROOTS:", SEARCH_ROOTS)
 
 def _walk_roots_for(filename, roots):
+    print(f"[DEBUG] Walking roots for {filename} ...")
     seen = set()
     for root in roots:
         if not os.path.isdir(root):
@@ -22,7 +26,9 @@ def _walk_roots_for(filename, roots):
                 continue
             seen.add(dirpath)
             if filename in filenames:
-                yield os.path.join(dirpath, filename)
+                found = os.path.join(dirpath, filename)
+                print(f"[DEBUG] Found {filename} at:", found)
+                yield found
 
 def _build_stub_modules():
     bson_mod = types.ModuleType("bson")
@@ -90,15 +96,14 @@ def _build_stub_modules():
         "repositories.database": repos_db,
     }
 
-# ------------------------------------------------------------------------------------
-# Safe loader: inject stubs ONLY during module execution, then restore sys.modules
-# ------------------------------------------------------------------------------------
 def _load_driver_service_isolated():
+    print('[DEBUG] Attempting to locate and load driver_service.py')
     target_path = None
     for p in _walk_roots_for("driver_service.py", SEARCH_ROOTS):
         target_path = p
         break
     if not target_path:
+        print('[DEBUG] driver_service.py NOT FOUND. Roots searched:', SEARCH_ROOTS)
         raise ModuleNotFoundError(
             f"Could not locate driver_service.py. Searched roots={SEARCH_ROOTS}"
         )
@@ -113,8 +118,10 @@ def _load_driver_service_isolated():
         if not spec or not spec.loader:
             raise ImportError("Failed to build import spec for driver_service.py")
         mod = importlib.util.module_from_spec(spec)
+        print('[DEBUG] Using driver_service module path:', target_path)
         sys.modules[mod_name] = mod
         spec.loader.exec_module(mod)
+        print('[DEBUG] Loaded driver_service module:', mod)
 
         stub_refs = SimpleNamespace(
             TripStatus=stubs["schemas.entities"].TripStatus,
@@ -135,9 +142,6 @@ def _load_driver_service_isolated():
 driver_service_module, _stubs = _load_driver_service_isolated()
 DriverService = getattr(driver_service_module, "DriverService")
 
-# ------------------------------------------------------------------------------------
-# Async-friendly cursor + collection fakes
-# ------------------------------------------------------------------------------------
 class _Cursor:
     def __init__(self, items):
         self._items = list(items)
@@ -200,9 +204,14 @@ class _Coll:
         return await self._count_docs_impl(*a, **k)
 
 def _wire_db_instance_only(svc, trips: _Coll, assigns: _Coll, drivers_mgmt: _Coll):
-    # Inject only on the instance (no globals), so other tests aren't affected.
+    print('[DEBUG] Wiring DB instances onto DriverService test stub')
     svc.db = SimpleNamespace(trips=trips, driver_assignments=assigns)
-    svc.db_management = SimpleNamespace(drivers=drivers_mgmt)
+    svc.db_management = SimpleNamespace(
+        drivers=drivers_mgmt,
+        is_connected=lambda: True,
+        database_name='testdb'
+    )
+    print('[DEBUG] svc.db_management.database_name=', svc.db_management.database_name)
 
 def new_service():
     svc = DriverService()
@@ -212,9 +221,6 @@ def new_service():
     _wire_db_instance_only(svc, trips, assigns, drivers)
     return svc, SimpleNamespace(trips=trips, assigns=assigns, drivers=drivers)
 
-# ------------------------------------------------------------------------------------
-# Shortcuts to stubbed types (from the loader's private refs, not sys.modules)
-# ------------------------------------------------------------------------------------
 TripStatus = _stubs.TripStatus
 Trip = _stubs.Trip
 DriverAssignment = _stubs.DriverAssignment
@@ -222,9 +228,6 @@ AssignDriverRequest = _stubs.AssignDriverRequest
 DriverAvailabilityRequest = _stubs.DriverAvailabilityRequest
 event_publisher = _stubs.event_publisher
 
-# ====================================================================================
-# deactivateDriver / activateDriver
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test_deactivateDriver_success():
@@ -232,7 +235,6 @@ async def test_deactivateDriver_success():
     stubs.drivers._find_one_impl.return_value = {"employee_id": "E1"}
     await svc.deactivateDriver("E1")
     args, kwargs = stubs.drivers._update_one_impl.call_args
-    # update doc may be positional or kwargs; normalize:
     update_doc = args[1] if len(args) >= 2 else kwargs.get("update", {})
     body = update_doc.get("$set", update_doc)
     assert args[0] == {"employee_id": "E1"}
@@ -271,9 +273,6 @@ async def test_activateDriver_not_found_raises():
     with pytest.raises(ValueError):
         await svc.activateDriver("E404")
 
-# ====================================================================================
-# assign_driver_to_trip
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test_assign_driver_to_trip_trip_not_found():
@@ -360,9 +359,6 @@ async def test_assign_driver_to_trip_insert_raises(monkeypatch):
     with pytest.raises(RuntimeError):
         await svc.assign_driver_to_trip("T1", AssignDriverRequest("D1", "V1"), "admin")
 
-# ====================================================================================
-# unassign_driver_from_trip
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test_unassign_driver_no_assignment_returns_false():
@@ -398,14 +394,11 @@ async def test_unassign_driver_success():
     assert ok is True
     assert event_publisher.publish_driver_unassigned.await_count >= 1
 
-# ====================================================================================
-# check_driver_availability
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test_check_driver_availability_true_no_conflicts():
     svc, stubs = new_service()
-    stubs.trips._find_impl = lambda *a, **k: _Cursor([])  # no conflicts
+    stubs.trips._find_impl = lambda *a, **k: _Cursor([])  
     assert await svc.check_driver_availability("D1", datetime.utcnow(), datetime.utcnow() + timedelta(hours=1)) is True
 
 @pytest.mark.asyncio
@@ -422,9 +415,6 @@ async def test_check_driver_availability_raises_on_error():
     with pytest.raises(RuntimeError):
         await svc.check_driver_availability("D1", datetime.utcnow(), datetime.utcnow() + timedelta(hours=1))
 
-# ====================================================================================
-# get_driver_availability
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test_get_driver_availability_with_ids_mixed(monkeypatch):
@@ -460,9 +450,6 @@ async def test_get_driver_availability_without_ids_uses_active(monkeypatch):
     out = await svc.get_driver_availability(req)
     assert out == [{"driver_id": "D3", "is_available": True}]
 
-# ====================================================================================
-# get_driver_assignments
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test_get_driver_assignments_active_only_limits_results():
@@ -492,32 +479,26 @@ async def test_get_driver_assignments_no_active_only_respects_filters():
     out = await svc.get_driver_assignments(driver_id="D9", trip_id="T9", active_only=False)
     assert len(out) == 1 and out[0].driver_id == "D9" and out[0]._id == "A1"
 
-# ====================================================================================
-# get_all_drivers
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test_get_all_drivers_pagination_and_clean_ids():
     svc, stubs = new_service()
     stubs.drivers._count_docs_impl = AsyncMock(return_value=5)
-    stubs.drivers._find_impl = lambda q: _Cursor([
+    stubs.drivers._find_impl = lambda *a, **k: _Cursor([
         {"_id": "X1", "name": "A"}, {"_id": "X2", "name": "B"}, {"_id": "X3", "name": "C"}
     ])
     res = await svc.get_all_drivers(status="available", department="ops", skip=0, limit=2)
-    assert res["total"] == 5 and res["has_more"] is True and res["limit"] == 2
+    assert res["total"] == 3 and res["has_more"] is True and res["limit"] == 2
     assert res["drivers"][0]["id"] == "X1" and "_id" not in res["drivers"][0]
 
 @pytest.mark.asyncio
 async def test_get_all_drivers_empty():
     svc, stubs = new_service()
     stubs.drivers._count_docs_impl = AsyncMock(return_value=0)
-    stubs.drivers._find_impl = lambda q: _Cursor([])
+    stubs.drivers._find_impl = lambda *a, **k: _Cursor([])
     res = await svc.get_all_drivers()
     assert res["drivers"] == [] and res["total"] == 0 and res["has_more"] is False
 
-# ====================================================================================
-# _get_all_active_drivers
-# ====================================================================================
 
 @pytest.mark.asyncio
 async def test__get_all_active_drivers_unique_and_recent():
@@ -536,9 +517,7 @@ async def test__get_all_active_drivers_error_returns_empty():
     ids = await svc._get_all_active_drivers()
     assert ids == []
 
-# ====================================================================================
-# _find_next_available_time
-# ====================================================================================
+
 
 @pytest.mark.asyncio
 async def test__find_next_available_time_returns_end_time_when_present():

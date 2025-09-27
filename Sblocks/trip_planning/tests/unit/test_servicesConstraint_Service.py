@@ -1,6 +1,3 @@
-# trip_planning/tests/unit/test_servicesConstraint_Service.py
-# Isolated loader + tests aligned to the real service (Pydantic + Motor-style calls).
-
 import os
 import sys
 import types
@@ -9,16 +6,13 @@ from unittest.mock import AsyncMock, MagicMock
 import importlib.util
 from contextlib import contextmanager
 
-# --------------------------
-# Loader: no leakage across tests
-# --------------------------
+
 @contextmanager
 def _sysmodules_snapshot():
     snap = sys.modules.copy()
     try:
         yield
     finally:
-        # restore exactly
         added = set(sys.modules) - set(snap)
         for k in added:
             sys.modules.pop(k, None)
@@ -34,7 +28,7 @@ def _load_constraint_service_module():
         import trip_planning.services.constraint_service as cs_module
         return ConstraintService, global_constraint_service, cs_module
     except Exception:
-        # Minimal stubs only for the duration of the module load
+
         repos_pkg = types.ModuleType("repositories")
         repos_db = types.ModuleType("repositories.database")
         repos_db.db_manager = types.SimpleNamespace()
@@ -78,12 +72,8 @@ def _load_constraint_service_module():
         global_constraint_service = getattr(cs_module, "constraint_service", None)
         return ConstraintService, global_constraint_service, cs_module
 
-# Load module (isolated)
 ConstraintService, global_constraint_service, cs_module = _load_constraint_service_module()
 
-# --------------------------
-# Helpers / Fakes (no conftest.py)
-# --------------------------
 class AsyncCursor:
     def __init__(self, docs):
         self._docs = list(docs)
@@ -119,7 +109,6 @@ class DummyUpdateRequest:
             return dict(self._values)
         return {k: v for k, v in self._values.items() if v is not None}
 
-# Object with attributes + dict() like Pydantic model
 class ModelLike:
     def __init__(self, **data):
         self._data = dict(data)
@@ -128,13 +117,12 @@ class ModelLike:
     def dict(self):
         return dict(self._data)
 
-# Use real enum if present; else strings Pydantic accepts
 CT = getattr(cs_module, "ConstraintType", None)
 def ct(name: str):
     return getattr(CT, name) if (CT and hasattr(CT, name)) else name.lower()
 
 VALID_TRIP_ID = "507f1f77bcf86cd799439011"
-VALID_CONSTRAINT_ID = "64d2e1fa0c1234567890abcd"  # 24-hex
+VALID_CONSTRAINT_ID = "64d2e1fa0c1234567890abcd"  
 
 @pytest.fixture
 def service():
@@ -163,7 +151,6 @@ async def test_add_constraint_happy_path_simple_flag(service):
 
     req = make_request(ct("AVOID_TOLLS"), None, 5)
     out = await service.add_constraint_to_trip(VALID_TRIP_ID, req)
-    # robust check (pydantic model or dict)
     data = out if isinstance(out, dict) else out.dict()
     assert data["trip_id"] == VALID_TRIP_ID
     assert data["priority"] == 5
@@ -195,7 +182,6 @@ async def test_add_constraint_avoid_area_non_positive_radius_raises(service):
 
 @pytest.mark.asyncio
 async def test_add_constraint_preferred_route_missing_waypoints_allows_empty(service):
-    # Your implementation doesn't raise for empty value at creation; accept success.
     service.db.trips.find_one.return_value = {"_id": "ok"}
     service.db.trip_constraints.insert_one.return_value = types.SimpleNamespace(
         inserted_id=VALID_CONSTRAINT_ID
@@ -203,7 +189,7 @@ async def test_add_constraint_preferred_route_missing_waypoints_allows_empty(ser
     service.db.trips.update_one.return_value = types.SimpleNamespace(modified_count=1)
     req = make_request(ct("PREFERRED_ROUTE"), {}, 1)
     out = await service.add_constraint_to_trip(VALID_TRIP_ID, req)
-    assert out  # created successfully
+    assert out  
 
 # ==========
 # get_trip_constraints
@@ -243,7 +229,7 @@ async def test_get_constraint_by_id_found(service):
 @pytest.mark.asyncio
 async def test_get_constraint_by_id_not_found(service):
     service.db.trip_constraints.find_one.return_value = None
-    out = await service.get_constraint_by_id("64d2e1fa0c1234567890abcf")  # valid hex, not found
+    out = await service.get_constraint_by_id("64d2e1fa0c1234567890abcf") 
     assert out is None
 
 # ==========
@@ -274,7 +260,7 @@ async def test_update_constraint_success(service, monkeypatch):
     updated  = {"_id": VALID_CONSTRAINT_ID, "trip_id": "T", "type": ct("PREFERRED_ROUTE"),
                 "value": {"waypoints": ["A","B"]}, "priority": 3, "is_active": True}
 
-    get_mock = AsyncMock(side_effect=[existing, updated])  # fetch existing, then updated
+    get_mock = AsyncMock(side_effect=[existing, updated]) 
     monkeypatch.setattr(service, "get_constraint_by_id", get_mock)
     service.db.trip_constraints.update_one.return_value = types.SimpleNamespace(modified_count=1)
     upd_trip = AsyncMock()
@@ -282,7 +268,6 @@ async def test_update_constraint_success(service, monkeypatch):
 
     req = DummyUpdateRequest(value={"waypoints": ["A","B"]})
     out = await service.update_constraint(VALID_CONSTRAINT_ID, req)
-    # Accept pydantic or dict
     data = out if isinstance(out, dict) else getattr(out, "model_dump", lambda: out)()
     if not isinstance(data, dict):
         data = out.dict() if hasattr(out, "dict") else {}
@@ -294,7 +279,6 @@ async def test_update_constraint_validation_error_raises(service, monkeypatch):
     existing = ModelLike(_id=VALID_CONSTRAINT_ID, trip_id="T", type=ct("PREFERRED_ROUTE"),
                          value={"waypoints": ["A"]}, priority=3, is_active=True)
     monkeypatch.setattr(service, "get_constraint_by_id", AsyncMock(return_value=existing))
-    # Force the validation branch to raise regardless of internal implementation
     def force_raise(_type, _value):
         raise ValueError("requires waypoints list")
     monkeypatch.setattr(service, "_validate_constraint_value", force_raise)
@@ -358,7 +342,7 @@ async def test_apply_constraints_to_route_combines_all(service, monkeypatch):
     base = {"foo": "bar"}
     out = await service.apply_constraints_to_route("T", base)
     assert isinstance(out, dict)
-    assert base == {"foo": "bar"}  # no unexpected mutation
+    assert base == {"foo": "bar"}  
 
 # ==========
 # _update_trip_constraints
@@ -376,7 +360,6 @@ async def test_update_trip_constraints_normal(service, monkeypatch):
     await service._update_trip_constraints(VALID_TRIP_ID)
     call = service.db.trips.update_one.await_args
     assert call is not None
-    # positional args preferred by Motor
     update_doc = call.args[1] if len(call.args) >= 2 else call.kwargs.get("update", {})
     body = update_doc.get("$set", update_doc)
     assert "constraints" in body

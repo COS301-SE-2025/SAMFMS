@@ -440,7 +440,7 @@ async def test_send_error_response_swallows_publish_error(monkeypatch):
 async def test_db_check_uses_fresh_cache_true(monkeypatch):
     svc = ServiceRequestConsumer()
     svc._db_status_cache.update({"status": True, "last_check": 1000.0, "cache_ttl": 30.0})
-    monkeypatch.setattr(rc_mod.time, "time", lambda: 1010.0, raising=True)  # within TTL
+    monkeypatch.setattr(rc_mod.time, "time", lambda: 1010.0, raising=True)  
     class Admin:
         def __init__(self): self.calls = 0
         async def command(self, cmd): self.calls += 1; return {"ok": 1}
