@@ -7,24 +7,21 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-# --- Make project importable ---
 CORE_DIR = pathlib.Path(__file__).resolve().parents[2]
 if str(CORE_DIR) not in sys.path:
     sys.path.insert(0, str(CORE_DIR))
 
-# --- PRE-SEED rabbitmq so routes.service_routing can import cleanly ---
 if "rabbitmq" not in sys.modules:
     rabbitmq_pkg = ModuleType("rabbitmq")
-    rabbitmq_pkg.__path__ = []  # mark as package
+    rabbitmq_pkg.__path__ = [] 
     sys.modules["rabbitmq"] = rabbitmq_pkg
 if "rabbitmq.consumer" not in sys.modules:
     consumer_mod = ModuleType("rabbitmq.consumer")
-    def consume_messages(*_a, **_k):  # noop stub
+    def consume_messages(*_a, **_k):  
         pass
     consumer_mod.consume_messages = consume_messages
     sys.modules["rabbitmq.consumer"] = consumer_mod
 
-# Defer import until after the pre-seed above
 health = importlib.import_module("routes.health")
 
 @pytest.fixture
@@ -40,7 +37,6 @@ def client(app):
     with TestClient(app) as c:
         yield c
 
-# ---------- small helpers ----------
 
 def _ensure_pkg(monkeypatch, name: str):
     if name not in sys.modules:
@@ -288,7 +284,7 @@ def test_detailed_deduplicator_raises_makes_unhealthy(client, monkeypatch):
 # ---------- /health/ready ----------
 
 def test_ready_all_ready(client, monkeypatch):
-    _stub_request_router(monkeypatch)  # ready
+    _stub_request_router(monkeypatch)  
     _stub_database_module(monkeypatch, has_client=True)
     r = client.get("/health/ready")
     j = r.json()

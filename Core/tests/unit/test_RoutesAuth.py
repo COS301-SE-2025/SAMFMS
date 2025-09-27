@@ -481,7 +481,6 @@ def test_invite_user_success(monkeypatch):
     assert r.status_code == 200
 
 def test_invite_user_email_failure_with_json(monkeypatch):
-    # 400 containing "email" in text triggers 503 with friendly message
     monkeypatch.setattr(auth.requests, "post", lambda *a, **k: FakeResponse(400, {"detail": "smtp down"}, text="EMAIL sending failed"))
     r = client.post("/auth/invite-user", headers={"Authorization": "Bearer T"}, json={"email": "x@y.z"})
     assert r.status_code == 500
