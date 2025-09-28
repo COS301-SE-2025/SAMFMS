@@ -20,15 +20,15 @@
 
 | Resource | Link |
 |---|---|
-| SRS & Architecture | [Requirements](docs/Demo3/Software%20Requirement%20Specification.pdf) |
+| SRS & Architecture | [Requirements](docs/Demo4/Software%20Requirement%20Specification.pdf) |
 | Project Board | [GitHub Projects](https://github.com/orgs/COS301-SE-2025/projects/208/views/2) |
-| Coding Standards | [Guide](docs/Demo3/Coding_Standards.pdf) |
-| Technical Installation | [Install Guide](docs/Demo3/Technical_Installation_Guide.pdf) |
-| User Manual | [Manual](docs/Demo3/SAMFMS%20User%20Manual.pdf) |
-| Deployment Strategy | [Deployment Model](docs/Demo3/Deployment%20Strategy.pdf) |
-| Service Contracts | [Contracts](docs/Demo3/Service%20Contracts-1.pdf) |
-| Branching Strategy | [Strategy](docs/Demo3/Branching_Strategy.pdf) |
-| Updated Domain Model | [Domain Model](docs/Demo3/images/DomainModel.png) |
+| Coding Standards | [Guide](docs/Demo4/SAMFMS%20Coding%20Standards%20Document.pdf) |
+| Technical Installation | [Install Guide](docs/Demo4/SAMFMS%20Technical%20Installation%20Guide.pdf) |
+| User Manual | [Manual](docs/Demo4/SAMFMS%20User%20Manual%20Final.pdf) |
+| Deployment Strategy | [Deployment Model](docs/Demo4/Deployment%20Strategy.pdf) |
+| Service Contracts | [Contracts](docs/Demo4/Service%20Contracts.pdf) |
+| Branching Strategy | [Strategy](docs/Demo4/Branching_Strategy.pdf) |
+| Updated Domain Model | [Domain Model](docs/Demo4/images/domainModel.png) |
 
 
 Older docs:
