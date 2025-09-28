@@ -86,16 +86,16 @@ services:
       - ./Core:/app
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
-      interval: 30s
+      interval: 5s      # was 30s
       timeout: 10s
-      retries: 3
+      retries: 20       # more granular attempts
       start_period: 40s
 
   # Management Service
   management-integration:
     build:
       context: ./Sblocks/management
-      dockerfile: Dockerfile
+    dockerfile: Dockerfile
     container_name: samfms-management-integration
     environment:
       - ENV=integration
@@ -194,7 +194,8 @@ services:
     command: >
       sh -c "
         echo 'Waiting for services to be ready...' &&
-        sleep 30 &&
+        until curl -fsS http://core-integration:8000/health >/dev/null; do sleep 2; done &&
+        until curl -fsS http://frontend-integration/ >/dev/null; do sleep 2; done &&
         echo 'Running Python integration tests...' &&
         python -m pytest tests/integration/test_frontend_core_integration.py -v --junit-xml=test-results/integration-pytest.xml &&
         echo 'Running Frontend integration tests...' &&
