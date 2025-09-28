@@ -23,7 +23,8 @@ class EventConsumer:
     def __init__(self):
         self.connection: Optional[aio_pika.Connection] = None
         self.channel: Optional[aio_pika.Channel] = None
-        self.rabbitmq_url = os.getenv("RABBITMQ_URL", "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/")
+        self.config = RabbitMQConfig()
+        self.rabbitmq_url = self.config.get_rabbitmq_url()
         self.handlers: Dict[str, Callable] = {}
         self.dead_letter_queue: Optional[aio_pika.Queue] = None
         self.max_retry_attempts = 3
