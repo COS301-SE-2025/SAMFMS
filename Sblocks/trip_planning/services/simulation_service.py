@@ -468,16 +468,8 @@ class VehicleSimulator:
             "updated_at": current_time
         }
         
-        logger.info(f"[update_position] Database Document Prepared:")
-        logger.info(f"  - Vehicle ID: {self.vehicle_id}")
-        logger.info(f"  - GeoJSON: [longitude={lon:.6f}, latitude={lat:.6f}]")
-        logger.info(f"  - Speed: {self.current_speed_kmh:.1f} km/h")
-        logger.info(f"  - Heading: {heading:.1f}°")
-        logger.info(f"  - Timestamp: {current_time}")
-        
         try:
             # Update current location for the vehicle
-            logger.info(f"[update_position] 💾 Saving to GPS database...")
             result = await db_manager_gps.locations.update_one(
                 {"vehicle_id": self.vehicle_id},
                 {"$set": location_doc},
