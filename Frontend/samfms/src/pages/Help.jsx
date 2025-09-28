@@ -14,9 +14,9 @@ import {
 
 const faqs = [
   {
-    question: 'How do I reset my password?',
+    question: 'How does driver behavior monitoring work?',
     answer:
-      'Go to your account settings and click on "Reset Password". Follow the instructions sent to your email.',
+      'Drivers are tracked through their mobile app, which records any violations like hard acceleration and braking. Admins and Fleet Managers can monitor completed and uncompleted trips to assess driver performance and behavior patterns.',
   },
   {
     question: 'Where can I view my drivers trip history?',
