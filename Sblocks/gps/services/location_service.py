@@ -187,13 +187,15 @@ class LocationService:
     async def get_vehicle_location(self, vehicle_id: str) -> Optional[VehicleLocation]:
         """Get current location of a vehicle"""
         try:
-            location_doc = await self.db.db.vehicle_locations.find_one(
+            location_doc = await self.db.vehicle_locations.find_one(
                 {"vehicle_id": vehicle_id}
             )
             
             if location_doc:
                 location_doc["_id"] = str(location_doc["_id"])
+                logger.info("Returning vehicle location")
                 return VehicleLocation(**location_doc)
+            logger.info(f"No vehicle location found for {vehicle_id}")
             return None
             
         except Exception as e:
