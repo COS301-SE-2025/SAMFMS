@@ -67,7 +67,7 @@ check_prerequisites() {
 wait_for_service() {
     local service_name=$1
     local url=$2
-    local timeout=${3:-60}
+    local timeout=${3:-30}
     
     log_info "Waiting for $service_name to be ready..."
     
@@ -95,13 +95,13 @@ run_infrastructure() {
     
     log_info "Waiting for infrastructure to be ready..."
     
-    if ! wait_for_service "MongoDB" "mongodb://localhost:27017" 60; then
+    if ! wait_for_service "MongoDB" "mongodb://localhost:27017" 30; then
         log_error "MongoDB failed to start"
         docker-compose -f $COMPOSE_FILE logs mongodb-integration
         return 1
     fi
 
-    if ! wait_for_service "RabbitMQ" "http://localhost:15672" 60; then
+    if ! wait_for_service "RabbitMQ" "http://localhost:15672" 30; then
         log_error "RabbitMQ failed to start"
         docker-compose -f $COMPOSE_FILE logs rabbitmq-integration
         return 1
@@ -129,7 +129,7 @@ run_backend_services() {
     log_info "Waiting for backend services to initialize..."
     
     # Wait for Core service
-    if wait_for_service "Core API" "http://localhost:8001/health" 90; then
+    if wait_for_service "Core API" "http://localhost:8001/health" 30; then
         log_success "Backend services are ready"
     else
         log_error "Backend services failed to start properly"
@@ -145,7 +145,7 @@ run_frontend_service() {
     
     log_info "Waiting for frontend to build and start..."
     
-    if wait_for_service "Frontend" "http://localhost:3001" 90; then
+    if wait_for_service "Frontend" "http://localhost:3001" 30; then
         log_success "Frontend service is ready"
     else
         log_warning "Frontend service may not be fully ready, but continuing with tests"
