@@ -12,6 +12,7 @@ import RecentTripsTable from '../components/trips/RecentTripsTable';
 import SmartTripSuggestions from '../components/trips/SmartTripSuggestions';
 import RouteRecommendations from '../components/trips/RouteRecommendations';
 import UpcomingTripsRecommendations from '../components/trips/UpcomingTripsRecommendations';
+import Notifications from '../components/trips/Notifications';
 import {
   createTrip,
   createScheduledTrip,
@@ -96,6 +97,7 @@ const Trips = () => {
     { id: 'upcoming', label: 'Upcoming' },
     { id: 'recent', label: 'Recent' },
     { id: 'analytics', label: 'Analytics' },
+    { id: 'notifications', label: 'Notifications' },
   ];
 
   // Helper function to show notifications
@@ -906,23 +908,6 @@ const Trips = () => {
                 )}
               </div>
 
-              {/* Trip Recommendations */}
-              <div className="animate-fade-in animate-delay-150">
-                {upcomingTripsLoading ? (
-                  <div className="flex justify-center items-center p-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    <span className="ml-2">Loading trip recommendations...</span>
-                  </div>
-                ) : (
-                  <UpcomingTripsRecommendations
-                    upcomingTrips={upcomingTrips}
-                    onAccept={handleAcceptRecommendation}
-                    onReject={handleRejectRecommendation}
-                    onRefresh={handleRefreshRecommendations}
-                  />
-                )}
-              </div>
-
               {/* Trips Table */}
               <div className="animate-fade-in animate-delay-200">
                 {upcomingTripsLoading ? (
@@ -940,6 +925,23 @@ const Trips = () => {
                     changeItemsPerPage={upcomingTripsChangeItemsPerPage}
                     goToNextPage={upcomingTripsGoToNextPage}
                     goToPrevPage={upcomingTripsGoToPrevPage}
+                  />
+                )}
+              </div>
+
+              {/* Trip Recommendations */}
+              <div className="animate-fade-in animate-delay-150">
+                {upcomingTripsLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Loading trip recommendations...</span>
+                  </div>
+                ) : (
+                  <UpcomingTripsRecommendations
+                    upcomingTrips={upcomingTrips}
+                    onAccept={handleAcceptRecommendation}
+                    onReject={handleRejectRecommendation}
+                    onRefresh={handleRefreshRecommendations}
                   />
                 )}
               </div>
@@ -997,6 +999,15 @@ const Trips = () => {
                   timeframe={analyticsTimeframe}
                   onTimeframeChange={setAnalyticsTimeframe}
                 />
+              </div>
+            </div>
+          )}
+
+          {/* Notifications Tab */}
+          {activeTab === 'notifications' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="animate-fade-in animate-delay-100">
+                <Notifications />
               </div>
             </div>
           )}

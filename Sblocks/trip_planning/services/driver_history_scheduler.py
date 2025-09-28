@@ -169,7 +169,7 @@ class DriverHistoryScheduler:
         """Get list of drivers that need history updates"""
         try:
             # Get all unique driver IDs from trips collection
-            trips_collection = db_manager.database.trips
+            trips_collection = db_manager.db.trips
             
             # Find unique driver IDs from trips in the last 24 hours
             # This ensures we update active drivers more frequently

@@ -273,7 +273,7 @@ def import_invitation_module():
     spec = importlib.util.spec_from_file_location("security.services.invitation_service", path)
     mod = importlib.util.module_from_spec(spec)
     sys.modules["security.services.invitation_service"] = mod
-    spec.loader.exec_module(mod)  # type: ignore
+    spec.loader.exec_module(mod)  
     return mod
 
 #------------_check_rate_limit test--------
@@ -834,7 +834,6 @@ async def test_verify_otp_wrong_status_explicit_message_branch():
         from models.api_models import VerifyOTPRequest
         mod = import_invitation_module()
         db = get_database()
-        # store non-invited status to trigger that branch
         await db.invitations.insert_one(UserInvitation(email="stat@x.com", full_name="S", status="activated").dict(exclude={"id"}))
         with pytest.raises(mod.InvitationError) as ei:
             await mod.InvitationService.verify_otp(VerifyOTPRequest(email="stat@x.com", otp="111111"))

@@ -23,6 +23,7 @@ from services.driver_service import driver_service
 from services.notification_service import notification_service
 from services.trip_service import trip_service
 from services.smart_trip_planning_service import smart_trip_service
+from services.upcoming_recommendations_service import upcoming_recommendation_service
 from services.request_consumer import service_request_consumer
 from api.routes.analytics import router as analytics_router
 from api.routes.drivers import router as drivers_router
@@ -139,37 +140,6 @@ async def lifespan(app: FastAPI):
             logger.error(f"Database GPS connection failed: {e}")
             raise DatabaseConnectionError(f"Failed to connect to database GPS: {e}")
         
-        # Start the traffic monitor
-        logger.info("Starting the traffic monitor...")
-        try:
-            asyncio.create_task(smart_trip_service.start_traffic_monitoring())
-            logger.info("Traffic monitor started successfully")
-        except Exception as e:
-            logger.error(f"Failed to start the traffic monitor: {e}")
-
-        # Start the simulation service
-        try:
-            asyncio.create_task(simulation_service.start_simulation_service())
-        except Exception as e:
-            logger.error(f"Failed to start missed simulation service: {e}")
-
-
-        # Start the missed trip scheduler
-        logger.info("Starting missed trip scheduler...")
-        try:
-            asyncio.create_task(missed_trip_scheduler.start())
-            logger.info("Missed trip scheduler started successfully")
-        except Exception as e:
-            logger.error(f"Failed to start missed trip scheduler: {e}")
-
-        # Start the ping session monitor
-        logger.info("Starting ping session monitor...")
-        try:
-            asyncio.create_task(ping_session_monitor.start())
-            logger.info("Ping session monitor started successfully")
-        except Exception as e:
-            logger.error(f"Failed to start ping session monitor: {e}")
-        
         # Connect to RabbitMQ for event publishing
         logger.info("Connecting to RabbitMQ for event publishing...")
         try:
@@ -243,6 +213,56 @@ async def lifespan(app: FastAPI):
         # Store start time for uptime calculation
         app.state.start_time = datetime.now(timezone.utc)
         metrics_middleware.app = app
+
+        # Initialize driver histories for all drivers
+        logger.info("Initializing driver history records...")
+        try:
+            from services.driver_history_service import DriverHistoryService
+            driver_history_service = DriverHistoryService(db_manager, db_manager_management)
+            init_result = await driver_history_service.initialize_driver_histories()
+            logger.info(f"Driver history initialization completed: {init_result}")
+        except Exception as e:
+            logger.error(f"Failed to initialize driver histories: {e}")
+            # Don't raise here as this is not critical for startup
+        # Start the simulation service
+        try:
+            logger.info("Started create simulation service task")
+            asyncio.create_task(simulation_service.start_simulation_service())
+        except Exception as e:
+            logger.error(f"Failed to start missed simulation service: {e}")
+
+        # Start the traffic monitor
+        logger.info("Starting the traffic monitor...")
+        try:
+            asyncio.create_task(smart_trip_service.start_traffic_monitoring())
+            logger.info("Traffic monitor started successfully")
+        except Exception as e:
+            logger.error(f"Failed to start the traffic monitor: {e}")
+
+        # start the upcomming trip recommendations
+        try:
+            logger.info("Starting the root combinations service")
+            asyncio.create_task(upcoming_recommendation_service.analyze_and_store_combinations())
+        except Exception as e:
+            logger.error(f"Failed to start upcomming trip recommendations service: {e}")
+
+
+
+        # Start the missed trip scheduler
+        logger.info("Starting missed trip scheduler...")
+        try:
+            asyncio.create_task(missed_trip_scheduler.start())
+            logger.info("Missed trip scheduler started successfully")
+        except Exception as e:
+            logger.error(f"Failed to start missed trip scheduler: {e}")
+
+        # Start the ping session monitor
+        logger.info("Starting ping session monitor...")
+        try:
+            asyncio.create_task(ping_session_monitor.start())
+            logger.info("Ping session monitor started successfully")
+        except Exception as e:
+            logger.error(f"Failed to start ping session monitor: {e}")
         
 
         # Start the driver history scheduler

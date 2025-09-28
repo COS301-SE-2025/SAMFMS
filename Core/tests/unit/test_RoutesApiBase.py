@@ -242,7 +242,7 @@ async def test__send_rabbitmq_request_success(monkeypatch):
         )
         assert out == {"hello": "world"}
     finally:
-        # restore
+
         if backup is not None:
             sys.modules[mod_key] = backup
         else:

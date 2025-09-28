@@ -67,6 +67,7 @@ async def get_all_driver_histories(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=500, description="Maximum number of records to return"),
     risk_level: Optional[str] = Query(None, description="Filter by risk level (low/medium/high)"),
+    search: Optional[str] = Query(None, description="Search term for driver name, employee ID, or vehicle"),
     service: DriverHistoryService = Depends(get_driver_history_service)
 ):
     """
@@ -76,12 +77,13 @@ async def get_all_driver_histories(
         skip: Number of records to skip for pagination
         limit: Maximum number of records to return
         risk_level: Optional filter by risk level
+        search: Optional search term for driver name, employee ID, or vehicle
         
     Returns:
         List of driver histories with pagination info
     """
     try:
-        logger.info(f"Getting driver histories with skip={skip}, limit={limit}, risk_level={risk_level}")
+        logger.info(f"Getting driver histories with skip={skip}, limit={limit}, risk_level={risk_level}, search={search}")
         
         # Validate risk level if provided
         if risk_level and risk_level.lower() not in ['low', 'medium', 'high']:
@@ -90,11 +92,12 @@ async def get_all_driver_histories(
                 detail="Invalid risk level. Must be 'low', 'medium', or 'high'"
             )
         
-        # Get driver histories
-        histories = await service.get_all_driver_histories(
+        # Get driver histories with total count
+        histories, total_count = await service.get_all_driver_histories(
             skip=skip,
             limit=limit,
-            risk_level=risk_level
+            risk_level=risk_level,
+            search=search
         )
         
         # Convert to dictionaries for response
@@ -105,17 +108,19 @@ async def get_all_driver_histories(
         
         return {
             "success": True,
-            "message": f"Retrieved {len(history_data)} driver histories",
+            "message": f"Retrieved {len(history_data)} of {total_count} driver histories",
             "data": {
                 "histories": history_data,
                 "pagination": {
                     "skip": skip,
                     "limit": limit,
                     "count": len(history_data),
+                    "total": total_count,
                     "has_more": len(history_data) == limit
                 },
                 "filters": {
-                    "risk_level": risk_level
+                    "risk_level": risk_level,
+                    "search": search
                 }
             }
         }
@@ -276,7 +281,7 @@ async def get_risk_distribution(
         logger.info("Getting driver risk distribution analytics")
         
         # Get all histories to calculate distribution
-        all_histories = await service.get_all_driver_histories(limit=1000)
+        all_histories, _ = await service.get_all_driver_histories(limit=1000)
         
         # Calculate distribution
         risk_counts = {"low": 0, "medium": 0, "high": 0}
@@ -524,7 +529,7 @@ async def _get_trip_violation_count(driver_id: str, trip_id: str) -> int:
         })
         
         # Count phone usage violations
-        phone_violations = db_manager.driver_ping_violations
+        phone_violations = db_manager.phone_usage_violations
         total_violations += await phone_violations.count_documents({
             "driver_id": driver_id,
             "trip_id": trip_id

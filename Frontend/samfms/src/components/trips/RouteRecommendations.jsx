@@ -22,7 +22,7 @@ import {
   rejectRouteRecommendation 
 } from '../../backend/api/traffic';
 
-const RouteRecommendations = ({ activeTrips, onAccept, onReject, onRefresh }) => {
+const RouteRecommendations = ({ activeTrips = [], onAccept, onReject, onRefresh }) => {
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processingIds, setProcessingIds] = useState(new Set());
@@ -39,9 +39,7 @@ const RouteRecommendations = ({ activeTrips, onAccept, onReject, onRefresh }) =>
       console.log("Received route recommendations:", response);
 
       // Filter recommendations for active trips only
-      const activeRouteRecommendations = response.data?.filter(rec => 
-        activeTrips.some(trip => trip.id === rec.trip_id)
-      ) || [];
+      const activeRouteRecommendations = (response.data?.data?.data || []);
 
       setRecommendations(activeRouteRecommendations);
       
@@ -55,10 +53,8 @@ const RouteRecommendations = ({ activeTrips, onAccept, onReject, onRefresh }) =>
   }, [activeTrips]);
 
   useEffect(() => {
-    if (activeTrips.length > 0) {
-      fetchRouteRecommendations();
-    }
-  }, [fetchRouteRecommendations, activeTrips]);
+    fetchRouteRecommendations();
+  }, [fetchRouteRecommendations]);
 
   // Handle accepting a recommendation
   const handleAccept = async (tripId, recommendationId) => {
@@ -274,19 +270,16 @@ const RouteRecommendationCard = ({
         <div>
           <h4 className="font-medium text-gray-900 flex items-center gap-2">
             <Truck className="h-4 w-4" />
-            {activeTrip?.vehicleName || 'Vehicle'} - {activeTrip?.driver || 'Driver'}
+            {/* Fixed: Use vehicle_name and emp_id from recommendation directly */}
+            {recommendation.vehicle_name || 'Vehicle'} - {recommendation.emp_id || 'Driver'}
           </h4>
-          <p className="text-sm text-gray-500">Trip ID: {recommendation.trip_id}</p>
-          <p className="text-sm text-gray-600 mt-1">{activeTrip?.destination || 'Destination'}</p>
+          <p className="text-sm text-gray-500">Trip Name: {recommendation.trip_name}</p>
+          <p className="text-sm text-gray-600 mt-1">{activeTrip?.destination?.name || activeTrip?.destination?.address || 'Destination'}</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className={`flex items-center gap-1 px-2 py-1 ${trafficDisplay.bgColor} ${trafficDisplay.color} rounded-full text-xs font-medium`}>
+          <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-600 rounded-full text-xs font-medium">
             <AlertTriangle className="h-3 w-3" />
             {recommendation.traffic_avoided.toUpperCase()} TRAFFIC
-          </div>
-          <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-            <TrendingUp className="h-3 w-3" />
-            {Math.round(recommendation.confidence * 100)}%
           </div>
         </div>
       </div>
@@ -316,8 +309,12 @@ const RouteRecommendationCard = ({
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span>Progress:</span>
-              <span>{activeTrip?.progress || 0}% Complete</span>
+              <span>Distance:</span>
+              <span>{(recommendation.current_route?.distance / 1000).toFixed(1)} km</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Duration:</span>
+              <span>{Math.round(recommendation.current_route?.duration / 60)} min</span>
             </div>
           </div>
         </div>
@@ -339,6 +336,10 @@ const RouteRecommendationCard = ({
               <span>Distance:</span>
               <span>{(recommendation.recommended_route?.distance / 1000).toFixed(1)} km</span>
             </div>
+            <div className="flex items-center justify-between">
+              <span>Duration:</span>
+              <span>{Math.round(recommendation.recommended_route?.duration / 60)} min</span>
+            </div>
           </div>
         </div>
       </div>
@@ -353,10 +354,12 @@ const RouteRecommendationCard = ({
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
               <span className="text-gray-500">New Distance:</span>
+              {/* Fixed: Access distance directly from recommended_route */}
               <p className="font-medium">{(recommendation.recommended_route?.distance / 1000).toFixed(1)} km</p>
             </div>
             <div>
               <span className="text-gray-500">Est. Duration:</span>
+              {/* Fixed: Access duration directly from recommended_route */}
               <p className="font-medium">{Math.round(recommendation.recommended_route?.duration / 60)} min</p>
             </div>
             <div>
@@ -389,7 +392,7 @@ const RouteRecommendationCard = ({
       {/* Timestamp */}
       <div className="text-xs text-gray-500 mb-4">
         <Clock className="h-3 w-3 inline mr-1" />
-        Recommendation generated: {new Date(recommendation.created_at).toLocaleString()}
+        Recommendation generated: {recommendation.created_at ? new Date(recommendation.created_at).toLocaleString() : 'Recently'}
       </div>
 
       {/* Action Buttons */}

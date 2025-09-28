@@ -248,7 +248,7 @@ async def test_create_overdue_maintenance_notification_string_and_datetime(monke
     import types as _t
     patched_datetime = _t.SimpleNamespace(utcnow=FixedDT.utcnow, fromisoformat=datetime.fromisoformat)
     import builtins
-    setattr(ns_mod, "datetime", patched_datetime)  # patch module's datetime usage (utcnow/fromisoformat)
+    setattr(ns_mod, "datetime", patched_datetime)  
     rec_str = {"id": "r4", "vehicle_id": "V4", "title": "T", "scheduled_date": "2030-01-07T12:00:00"}
     out1 = await svc.create_overdue_maintenance_notification(rec_str)
     assert out1["priority"] == MaintenancePriority.CRITICAL and "overdue" in out1["message"]

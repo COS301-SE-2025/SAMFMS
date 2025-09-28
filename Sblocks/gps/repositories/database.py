@@ -74,6 +74,13 @@ class DatabaseManager:
         if self._db is None:
             raise RuntimeError("Database not connected")
         return self._db
+
+    @property
+    def vehicle_locations(self):
+        """Get locations collection"""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return self._db.vehicle_locations
     
     async def _create_indexes(self):
         """Create necessary indexes for GPS collections including analytics support"""

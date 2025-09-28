@@ -10,7 +10,7 @@ export const ThemeContext = createContext({
 
 // Theme provider component
 export const ThemeProvider = ({children}) => {
-  // Initialize theme from user preferences, localStorage, or default to light
+  // Initialize theme from user preferences, localStorage, or browser settings
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       // First check user preferences from cookies (if logged in)
@@ -26,9 +26,15 @@ export const ThemeProvider = ({children}) => {
         }
       }
 
-      // Fallback to localStorage
+      // Then check localStorage
       const savedTheme = localStorage.getItem('theme');
-      return savedTheme || 'light';
+      if (savedTheme && savedTheme !== 'undefined' && savedTheme !== 'null') {
+        return savedTheme;
+      }
+
+      // If no saved theme, use browser/system preference
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      return systemPrefersDark ? 'dark' : 'light';
     }
     return 'light';
   });
@@ -70,6 +76,24 @@ export const ThemeProvider = ({children}) => {
     // Save to localStorage
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Listen for system theme changes even when not in auto mode (for initial theme detection)
+  useEffect(() => {
+    // Only listen for system changes if we don't have any saved preferences
+    const preferencesStr = getCookie('preferences');
+    const savedTheme = localStorage.getItem('theme');
+
+    if (!preferencesStr && (!savedTheme || savedTheme === 'undefined' || savedTheme === 'null')) {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = e => {
+        const newTheme = e.matches ? 'dark' : 'light';
+        setTheme(newTheme);
+      };
+
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+  }, [setTheme]);
 
   return (
     <ThemeContext.Provider value={{theme, setTheme, toggleTheme}}>

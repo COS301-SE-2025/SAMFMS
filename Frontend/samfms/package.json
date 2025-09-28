@@ -34,6 +34,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "test:api": "react-scripts test --testPathPattern=\"__tests__/api\" --watchAll=false",
+    "test:smoke": "react-scripts test --testPathPattern=\"smoke.test.js\" --watchAll=false --ci --passWithNoTests",
     "test:integration": "NODE_ENV=container-test react-scripts test --testPathPattern=\"integration.test.js\" --watchAll=false",
     "test:coverage": "react-scripts test --coverage --watchAll=false",
     "test:ci": "react-scripts test --coverage --watchAll=false --ci",

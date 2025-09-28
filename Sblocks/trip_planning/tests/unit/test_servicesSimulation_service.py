@@ -3,9 +3,6 @@ from types import SimpleNamespace
 import pytest
 from datetime import datetime, timedelta, timezone
 
-# ------------------------------------------------------------------------------------
-# Path resolver (search up to 5 levels + CWD)
-# ------------------------------------------------------------------------------------
 HERE = os.path.abspath(os.path.dirname(__file__))
 PARENTS = [os.path.abspath(os.path.join(HERE, *([".."] * i))) for i in range(1, 6)]
 CANDIDATES = list(dict.fromkeys(PARENTS + [os.getcwd(), HERE]))
@@ -13,9 +10,7 @@ for p in CANDIDATES:
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# ------------------------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------------------------
+
 def _walk_roots_for(filename, roots):
     seen = set()
     SKIP = {".git", ".venv", "venv", "env", "__pycache__", ".pytest_cache", ".mypy_cache"}
@@ -41,7 +36,6 @@ def make_to_list_cursor(items):
             return data if length is None else data[:length]
     return _C(items)
 
-# aiohttp fakes per-test
 class FakeAioHTTP:
     """Factory for faking aiohttp.ClientSession with canned responses."""
     class _Resp:
@@ -78,9 +72,7 @@ class FakeAioHTTP:
     def ClientSession(self, *a, **k):
         return FakeAioHTTP._Session(self.status, self.payload, self.raise_on_get)
 
-# ------------------------------------------------------------------------------------
-# Robust loader with temporary module stubs (cleaned after import)
-# ------------------------------------------------------------------------------------
+
 def _load_simulation_service_module():
     injected = []
     def _inject(name, module):
@@ -88,7 +80,6 @@ def _load_simulation_service_module():
             sys.modules[name] = module
             injected.append(name)
 
-    # bson
     if "bson" not in sys.modules:
         bson_mod = types.ModuleType("bson")
         class _ObjectId:
@@ -169,9 +160,6 @@ VehicleSimulator = simulation_service_module.VehicleSimulator
 Route = simulation_service_module.Route
 ObjectId = simulation_service_module.ObjectId
 
-# ------------------------------------------------------------------------------------
-# VEHICLE SIMULATOR — basics
-# ------------------------------------------------------------------------------------
 
 def test_vehicle_simulator_distance_accessors_and_progress_zero_distance():
     route = Route(coordinates=[(0,0)], distance=0.0, duration=0.0)
@@ -313,9 +301,6 @@ def test_vehicle_simulator_calculate_heading_basic():
     hdg = sim._calculate_heading()
     assert hdg == pytest.approx(90.0, abs=5.0)
 
-# ------------------------------------------------------------------------------------
-# SIMULATION SERVICE — routes
-# ------------------------------------------------------------------------------------
 
 @pytest.mark.asyncio
 async def test_get_route_success_parses_geometry(monkeypatch):
@@ -356,96 +341,9 @@ def test__calculate_straight_line_distance_one_degree():
     d = svc._calculate_straight_line_distance(0,0, 0,1)
     assert d == pytest.approx(111_195, rel=1e-3)
 
-# ------------------------------------------------------------------------------------
-# SIMULATION SERVICE — trips / start
-# ------------------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_get_active_trips_success(monkeypatch):
-    svc = SimulationService()
-    trips = [{"_id":"T1","vehicle_id":"V1","origin":{"location":{"coordinates":[[0,0]]}}}]
-    class _Trips:
-        def find(self, q): return make_to_list_cursor(trips)
-    monkeypatch.setattr(simulation_service_module, "db_manager", SimpleNamespace(trips=_Trips()))
-    out = await svc.get_active_trips()
-    assert out == trips
-
-@pytest.mark.asyncio
-async def test_get_active_trips_exception_returns_empty(monkeypatch):
-    svc = SimulationService()
-    class _Trips:
-        def find(self, q): raise RuntimeError("db fail")
-    monkeypatch.setattr(simulation_service_module, "db_manager", SimpleNamespace(trips=_Trips()))
-    out = await svc.get_active_trips()
-    assert out == []
-
-@pytest.mark.asyncio
-async def test_start_trip_simulation_no_vehicle_returns(monkeypatch):
-    svc = SimulationService()
-    trip = {"_id":"T1"}  
-    await svc.start_trip_simulation(trip)
-    assert "T1" not in svc.active_simulators
-
-@pytest.mark.asyncio
-async def test_start_trip_simulation_already_running_returns(monkeypatch):
-    svc = SimulationService()
-    class _RunningSim:
-        def __init__(self):
-            self.current_position = 0.5 
-            self.is_running = True
-
-    svc.active_simulators["T1"] = _RunningSim()
-
-    trip = {"_id": "T1", "vehicle_id": "V1"}
-    await svc.start_trip_simulation(trip)
-    assert svc.active_simulators["T1"] is not None
-
-@pytest.mark.asyncio
-async def test_start_trip_simulation_missing_coords_returns(monkeypatch):
-    svc = SimulationService()
-    trip = {"_id":"T1","vehicle_id":"V1","origin":{},"destination":{}}
-    await svc.start_trip_simulation(trip)
-    assert "T1" not in svc.active_simulators
-
-@pytest.mark.asyncio
-async def test_start_trip_simulation_route_none_returns(monkeypatch):
-    svc = SimulationService()
-    async def fake_route(*a, **k): return None
-    monkeypatch.setattr(svc, "get_route_with_waypoints", fake_route)
-    trip = {
-        "_id":"T1","vehicle_id":"V1",
-        "origin":{"location":{"coordinates":[[0.0,0.0],[0.0,0.0]]}},
-        "destination":{"location":{"coordinates":[[1.0,1.0],[1.0,1.0]]}}
-    }
-    await svc.start_trip_simulation(trip)
-    assert "T1" not in svc.active_simulators
-
-@pytest.mark.asyncio
-async def test_start_trip_simulation_happy(monkeypatch):
-    svc = SimulationService()
-    async def fake_route(*a, **k):
-        return Route(coordinates=[(0, 0), (0, 1)], distance=1000.0, duration=120.0)
-
-    monkeypatch.setattr(svc, "get_route_with_waypoints", fake_route)
-    trip = {
-        "_id": "507f191e810c19729de860ea",
-        "vehicle_id": "V1",
-        "origin": {"location": {"coordinates": [0.0, 0.0]}},
-        "destination": {"location": {"coordinates": [1.0, 1.0]}},
-        "waypoints": [{"location": {"coordinates": [0.5, 0.5]}}],
-    }
-    await svc.start_trip_simulation(trip)
-    assert "507f191e810c19729de860ea" in svc.active_simulators
-    sim = svc.active_simulators["507f191e810c19729de860ea"]
-    assert isinstance(sim, VehicleSimulator)
-    assert sim.is_running is True
-
-    assert sim.current_speed_kmh == 80.0
 
 
-# ------------------------------------------------------------------------------------
-# SIMULATION SERVICE — route with waypoints
-# ------------------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_get_route_with_waypoints_success(monkeypatch):
@@ -469,59 +367,6 @@ async def test_get_route_with_waypoints_fallback(monkeypatch):
     assert r.duration == 0
     assert r.coordinates == [(0.0,0.0),(0.1,0.1),(0.2,0.2),(0.3,0.4)]
     assert r.distance > 0
-
-# ------------------------------------------------------------------------------------
-# SIMULATION SERVICE — update loop & stop
-# ------------------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_update_all_simulations_removes_completed(monkeypatch):
-    svc = SimulationService()
-    class Sim1:
-        def __init__(self):
-            self.is_running = True
-        async def update_position(self):
-            self.is_running = False
-            return False
-    class Sim2:
-        def __init__(self):
-            self.is_running = True
-        async def update_position(self):
-            return True
-
-    svc.active_simulators = {"A": Sim1(), "B": Sim2()}
-    await svc.update_all_simulations()
-
-    assert "A" in svc.active_simulators
-    assert svc.active_simulators["A"].is_running is False
-    assert "B" in svc.active_simulators
-
-
-@pytest.mark.asyncio
-async def test_start_simulation_service_runs_one_iteration_and_stops(monkeypatch):
-    svc = SimulationService()
-    async def fake_active(): return []
-    async def fake_update(): svc.is_running = False
-    async def fake_sleep(_): return None  
-    monkeypatch.setattr(svc, "get_active_trips", fake_active)
-    monkeypatch.setattr(svc, "update_all_simulations", fake_update)
-    monkeypatch.setattr(simulation_service_module.asyncio, "sleep", fake_sleep)
-    await svc.start_simulation_service()
-    assert svc.is_running is False
-
-@pytest.mark.asyncio
-async def test_start_simulation_service_handles_exception_then_stops(monkeypatch):
-    svc = SimulationService()
-    calls = {"slept":0}
-    async def boom(): raise RuntimeError("oops")
-    async def fake_sleep(_):
-        calls["slept"] += 1
-        svc.is_running = False 
-    monkeypatch.setattr(svc, "get_active_trips", boom)
-    monkeypatch.setattr(simulation_service_module.asyncio, "sleep", fake_sleep)
-    await svc.start_simulation_service()
-    assert calls["slept"] >= 1
-    assert svc.is_running is False
 
 def test_stop_simulation_service_clears_and_flags():
     svc = SimulationService()

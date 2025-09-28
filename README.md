@@ -106,6 +106,12 @@ Here’s our awesome team behind **Firewall Five**:
 ### Issue Tracking
 - Managed via [GitHub Issues](https://github.com/COS301-SE-2025/SAMFMS/issues).
 
+### Integration Testing
+- **Comprehensive Test Suite**: Automated integration tests covering Frontend-Core communication
+- **GitHub Actions**: Continuous integration with automated test execution
+- **Local Testing**: Run integration tests locally with `./run-integration-tests.sh`
+- **Documentation**: See [INTEGRATION_TESTING.md](INTEGRATION_TESTING.md) for detailed guide
+
 ---
 
 ## 🛠️ Project Features
