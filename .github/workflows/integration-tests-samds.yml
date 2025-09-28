@@ -233,7 +233,7 @@ jobs:
             echo "✅ Integration tests passed"
             exit 0
           else
-            echo "❌ Integration tests failed or had issues"
+            echo " Integration tests failed or had issues"
             exit 1
           fi
 

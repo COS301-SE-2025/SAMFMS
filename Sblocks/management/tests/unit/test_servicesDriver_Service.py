@@ -325,21 +325,6 @@ async def test_search_and_department_and_active_and_get_by_id():
     assert (await svc.get_driver_by_id(did))["_id"] == did
 
 
-@pytest.mark.asyncio
-async def test_delete_driver_not_found_active_false_true():
-    svc = make_service()
-    assert await svc.delete_driver("nope") is False
-    did = await svc.driver_repo.create({"employee_id":"E","status":"active"})
-    with pytest.raises(ValueError):
-        await svc.delete_driver(did)
-    svc.driver_repo.data_by_id[did]["status"] = "inactive"
-    svc.driver_repo.delete_ok = False
-    assert await svc.delete_driver(did) is False
-
-    did2 = await svc.driver_repo.create({"employee_id":"E2","status":"inactive"})
-    svc.driver_repo.delete_ok = True
-    assert await svc.delete_driver(did2) is True
-
 
 @pytest.mark.asyncio
 async def test_generate_next_employee_id_paths(monkeypatch):

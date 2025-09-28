@@ -38,7 +38,7 @@ jobs:
 
       - name: Run unit tests (quiet) with coverage (no repo files)
         env:
-          # Hide warnings completely
+          # Hde warnings completely
           PYTHONWARNINGS: ignore
           # Avoid __pycache__ in workspace
           PYTHONDONTWRITEBYTECODE: '1'
