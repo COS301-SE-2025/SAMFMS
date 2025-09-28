@@ -2,11 +2,11 @@ import React, {useState, useEffect} from 'react';
 import {Button} from '../components/ui/button';
 import Modal from '../components/ui/Modal';
 import LoginForm from '../components/auth/LoginForm';
-import { TypewriterEffectSmooth } from '../components/ui/typewriter-effect';
-import { Spotlight } from '../components/ui/spotlight-new';
-import { Timeline } from '../components/ui/timeline';
-import CardSwap, { Card } from '../components/ui/CardSwap';
-import {useNavigate} from 'react-router-dom';
+import {TypewriterEffectSmooth} from '../components/ui/typewriter-effect';
+import {Spotlight} from '../components/ui/spotlight-new';
+import {Timeline} from '../components/ui/timeline';
+import CardSwap, {Card} from '../components/ui/CardSwap';
+import {useNavigate, useLocation} from 'react-router-dom';
 import {
     checkUserExistence,
     clearUserExistenceCache,
@@ -21,39 +21,50 @@ import {
     ChevronRight,
     Github,
     Download,
-    Smartphone
+    Smartphone,
+    AlertTriangle,
+    X
 } from 'lucide-react';
 
 const Landing = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [checkingStatus, setCheckingStatus] = useState(true);
     const [hasExistingUsers, setHasExistingUsers] = useState(null);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [currentHeadingIndex, setCurrentHeadingIndex] = useState(0);
+    const [showDriverError, setShowDriverError] = useState(false);
+
+    // Check if there's a driver error from the navigation state
+    useEffect(() => {
+        if (location.state?.driverError) {
+            setShowDriverError(true);
+        }
+    }, [location.state]);
 
     const headings = [
         [
-            { text: "Smart" },
-            { text: "Fleet", className: "text-blue-500 dark:text-blue-400" },
-            { text: "Management", className: "text-blue-500 dark:text-blue-400" },
-            { text: "at your" },
-            { text: "fingertips" }
+            {text: "Smart"},
+            {text: "Fleet", className: "text-blue-500 dark:text-blue-400"},
+            {text: "Management", className: "text-blue-500 dark:text-blue-400"},
+            {text: "at your"},
+            {text: "fingertips"}
         ],
         [
-            { text: "Optimize" },
-            { text: "Vehicle", className: "text-green-500 dark:text-green-400" },
-            { text: "Utilization", className: "text-green-500 dark:text-green-400" },
+            {text: "Optimize"},
+            {text: "Vehicle", className: "text-green-500 dark:text-green-400"},
+            {text: "Utilization", className: "text-green-500 dark:text-green-400"},
         ],
         [
-            { text: "Track" },
-            { text: "Assets", className: "text-purple-500 dark:text-purple-400" },
-            { text: "in", className: "text-purple-500 dark:text-purple-400" },
-            { text: "real-time" }
+            {text: "Track"},
+            {text: "Assets", className: "text-purple-500 dark:text-purple-400"},
+            {text: "in", className: "text-purple-500 dark:text-purple-400"},
+            {text: "real-time"}
         ],
         [
-            { text: "Streamline" },
-            { text: "Operations", className: "text-orange-500 dark:text-orange-400" },
-            { text: "effortlessly", className: "text-orange-500 dark:text-orange-400" }
+            {text: "Streamline"},
+            {text: "Operations", className: "text-orange-500 dark:text-orange-400"},
+            {text: "effortlessly", className: "text-orange-500 dark:text-orange-400"}
         ]
     ];
 
@@ -131,9 +142,36 @@ const Landing = () => {
 
     return (
         <div className="bg-background">
+            {/* Driver Error Alert */}
+            {showDriverError && (
+                <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-full mx-4">
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-6 py-4 rounded-lg shadow-lg">
+                        <div className="flex items-start">
+                            <AlertTriangle className="h-5 w-5 text-red-500 dark:text-red-400 mr-3 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1">
+                                <h4 className="text-sm font-medium text-red-800 dark:text-red-200 mb-1">Access Restricted</h4>
+                                <p className="text-sm text-red-600 dark:text-red-300">
+                                    {location.state?.errorMessage || 'Drivers are not authorized to access the web application. Please download and use the driver mobile app instead.'}
+                                </p>
+                                <div className="mt-3 flex items-center gap-2">
+                                    <Smartphone className="h-4 w-4 text-red-500 dark:text-red-400" />
+                                    <span className="text-xs text-red-600 dark:text-red-300">Download the SAMFMS Driver App</span>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowDriverError(false)}
+                                className="ml-2 text-red-400 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Hero Section - Fixed */}
             <div className="fixed top-0 left-0 w-full h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 group z-10">
-                <Spotlight 
+                <Spotlight
                     className="top-0 left-0 w-full h-full"
                     gradientFirst="radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(210, 100%, 85%, .12) 0, hsla(210, 100%, 55%, .04) 50%, hsla(210, 100%, 45%, 0) 80%)"
                     gradientSecond="radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, .08) 0, hsla(210, 100%, 55%, .04) 80%, transparent 100%)"
@@ -159,7 +197,7 @@ const Landing = () => {
                             />
                             <div className='text-sm text-muted-foreground pl-14 mb-4'><p>by Firewall Five</p></div>
                             <div className="w-full">
-                                <TypewriterEffectSmooth 
+                                <TypewriterEffectSmooth
                                     key={currentHeadingIndex} // Force re-render when heading changes
                                     words={headings[currentHeadingIndex]}
                                     className="mb-6"
@@ -180,7 +218,7 @@ const Landing = () => {
                                     </span>
                                     <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-blue-800 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                 </Button>
-                                
+
                                 <div className="flex flex-wrap gap-3 justify-center md:justify-start">
                                     <Button
                                         variant="outline"
@@ -191,7 +229,7 @@ const Landing = () => {
                                         <Github size={20} />
                                         GitHub
                                     </Button>
-                                    
+
                                     <Button
                                         variant="outline"
                                         size="lg"
@@ -201,7 +239,7 @@ const Landing = () => {
                                         <BarChart size={20} />
                                         Guide
                                     </Button>
-                                    
+
                                     <Button
                                         variant="outline"
                                         size="lg"
@@ -222,7 +260,7 @@ const Landing = () => {
                                 </div>
                             </div>
                         </div>
-                        
+
                         {/* Right side - Card Swap */}
                         <div className="w-full md:w-1/2 relative flex items-end justify-start min-h-[600px] pt-8">
                             <div className="relative w-full h-full -ml-8">
@@ -237,8 +275,8 @@ const Landing = () => {
                                 >
                                     <Card>
                                         <div className="card-content">
-                                            <img 
-                                                src="/landingpage/vehiclemanagement.png" 
+                                            <img
+                                                src="/landingpage/vehiclemanagement.png"
                                                 alt="Vehicle Management Dashboard"
                                                 className="w-full h-64 object-cover rounded-t-sm"
                                             />
@@ -253,8 +291,8 @@ const Landing = () => {
                                     </Card>
                                     <Card>
                                         <div className="card-content">
-                                            <img 
-                                                src="/landingpage/driverbehaviourmonitoring.png" 
+                                            <img
+                                                src="/landingpage/driverbehaviourmonitoring.png"
                                                 alt="Driver Behaviour Monitoring"
                                                 className="w-full h-64 object-cover rounded-t-sm"
                                             />
@@ -269,8 +307,8 @@ const Landing = () => {
                                     </Card>
                                     <Card>
                                         <div className="card-content">
-                                            <img 
-                                                src="/landingpage/maintenanceanalytics.png" 
+                                            <img
+                                                src="/landingpage/maintenanceanalytics.png"
                                                 alt="Maintenance Analytics Dashboard"
                                                 className="w-full h-64 object-cover rounded-t-sm"
                                             />
@@ -285,8 +323,8 @@ const Landing = () => {
                                     </Card>
                                     <Card>
                                         <div className="card-content">
-                                            <img 
-                                                src="/landingpage/tripscheduling.png" 
+                                            <img
+                                                src="/landingpage/tripscheduling.png"
                                                 alt="Trip Scheduling Interface"
                                                 className="w-full h-64 object-cover rounded-t-sm"
                                             />
@@ -301,8 +339,8 @@ const Landing = () => {
                                     </Card>
                                     <Card>
                                         <div className="card-content">
-                                            <img 
-                                                src="/landingpage/customdashoard.png" 
+                                            <img
+                                                src="/landingpage/customdashoard.png"
                                                 alt="Custom Dashboard Interface"
                                                 className="w-full h-64 object-cover rounded-t-sm"
                                             />
@@ -619,40 +657,40 @@ const Landing = () => {
                     },
                 ]} />
 
-            {/* Footer */}
-            <footer className="bg-card border-t border-border">
-                <div className="container mx-auto px-4 py-8">
-                    <div className="flex flex-col md:flex-row justify-between items-center">
-                        <div className="mb-4 md:mb-0">
-                            <img
-                                src="/logo/logo_horisontal_light.svg"
-                                alt="SAMFMS Logo"
-                                className="h-8 dark:hidden"
-                            />
-                            <img
-                                src="/logo/logo_horisontal_dark.svg"
-                                alt="SAMFMS Logo"
-                                className="h-8 hidden dark:block"
-                            />
-                        </div>
-                        <div className="text-muted-foreground text-sm">
-                            &copy; {new Date().getFullYear()} SAMFMS. All rights reserved.
+                {/* Footer */}
+                <footer className="bg-card border-t border-border">
+                    <div className="container mx-auto px-4 py-8">
+                        <div className="flex flex-col md:flex-row justify-between items-center">
+                            <div className="mb-4 md:mb-0">
+                                <img
+                                    src="/logo/logo_horisontal_light.svg"
+                                    alt="SAMFMS Logo"
+                                    className="h-8 dark:hidden"
+                                />
+                                <img
+                                    src="/logo/logo_horisontal_dark.svg"
+                                    alt="SAMFMS Logo"
+                                    className="h-8 hidden dark:block"
+                                />
+                            </div>
+                            <div className="text-muted-foreground text-sm">
+                                &copy; {new Date().getFullYear()} SAMFMS. All rights reserved.
+                            </div>
                         </div>
                     </div>
-                </div>
-            </footer>
+                </footer>
 
-            {/* Login Modal */}
-            <Modal 
-                isOpen={showLoginModal} 
-                onClose={handleCloseModal}
-                title="Log in to your account"
-            >
-                <LoginForm 
-                    onSuccess={handleLoginSuccess}
+                {/* Login Modal */}
+                <Modal
+                    isOpen={showLoginModal}
                     onClose={handleCloseModal}
-                />
-            </Modal>
+                    title="Log in to your account"
+                >
+                    <LoginForm
+                        onSuccess={handleLoginSuccess}
+                        onClose={handleCloseModal}
+                    />
+                </Modal>
             </div>
         </div>
     );

@@ -8,6 +8,7 @@ import ThemeProvider from './contexts/ThemeContext';
 import NotificationProvider from './contexts/NotificationContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import RoleBasedRoute from './components/auth/RoleBasedRoute';
+import DriverAccessGuard from './components/auth/DriverAccessGuard';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import AuthErrorBoundary from './components/auth/AuthErrorBoundary';
 
@@ -57,19 +58,23 @@ function App() {
                 <Route element={<Layout />}>
                   <Route
                     path="/dashboard"
-                    element={<RoleBasedRoute adminComponent={Dashboard} driverComponent={null} />}
+                    element={
+                      <DriverAccessGuard>
+                        <RoleBasedRoute adminComponent={Dashboard} driverComponent={null} />
+                      </DriverAccessGuard>
+                    }
                   />
                   <Route path="/driver-home" element={<DriverHomePage />} />
                   <Route path="/trip-navigation" element={<TripNavigation />} />
-                  <Route path="/driver-behavior" element={<DriverBehavior />} />
-                  <Route path="/vehicles" element={<Vehicles />} />{' '}
-                  <Route path="/drivers" element={<Drivers />} />
-                  <Route path="/tracking" element={<Tracking />} />
-                  <Route path="/trips" element={<Trips />} />
-                  <Route path="/maintenance" element={<Maintenance />} />
+                  <Route path="/driver-behavior" element={<DriverAccessGuard><DriverBehavior /></DriverAccessGuard>} />
+                  <Route path="/vehicles" element={<DriverAccessGuard><Vehicles /></DriverAccessGuard>} />
+                  <Route path="/drivers" element={<DriverAccessGuard><Drivers /></DriverAccessGuard>} />
+                  <Route path="/tracking" element={<DriverAccessGuard><Tracking /></DriverAccessGuard>} />
+                  <Route path="/trips" element={<DriverAccessGuard><Trips /></DriverAccessGuard>} />
+                  <Route path="/maintenance" element={<DriverAccessGuard><Maintenance /></DriverAccessGuard>} />
                   <Route path="/account" element={<Account />} />
-                  <Route path="/plugins" element={<Plugins />} />
-                  <Route path="/users" element={<UserManagement />} />
+                  <Route path="/plugins" element={<DriverAccessGuard><Plugins /></DriverAccessGuard>} />
+                  <Route path="/users" element={<DriverAccessGuard><UserManagement /></DriverAccessGuard>} />
                   <Route path="/help" element={<Help />} />
                 </Route>
               </Route>
