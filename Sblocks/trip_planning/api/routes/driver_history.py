@@ -529,7 +529,7 @@ async def _get_trip_violation_count(driver_id: str, trip_id: str) -> int:
         })
         
         # Count phone usage violations
-        phone_violations = db_manager.driver_ping_violations
+        phone_violations = db_manager.phone_usage_violations
         total_violations += await phone_violations.count_documents({
             "driver_id": driver_id,
             "trip_id": trip_id
