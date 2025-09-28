@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Button } from '../components/ui/button';
+import React, {useState} from 'react';
+import {Button} from '../components/ui/button';
 import FadeIn from '../components/ui/FadeIn';
 import {
   HelpCircle,
@@ -124,41 +124,21 @@ const Help = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <FadeIn delay={0.4}>
-            <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <Video size={20} />
-                Video Tutorials
-              </h2>
-              <p className="text-muted-foreground">
-                Watch step-by-step guides on using different features of SAMFMS.
-              </p>
-            </div>
-          </FadeIn>
-
           <FadeIn delay={0.5}>
             <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <Info size={20} />
                 User Manual
               </h2>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground mb-4">
                 Access the complete user manual for detailed information about the system.
               </p>
-            </div>
-          </FadeIn>
-
-          <FadeIn delay={0.6}>
-            <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <Phone size={20} />
-                Contact Support
-              </h2>
-              <p className="text-muted-foreground">
-                Need further assistance? Our support team is ready to help.
-              </p>
-              <Button className="mt-4" variant="outline">
-                Contact Support
+              <Button
+                onClick={() => window.open('/user_manual/SAMFMS User Manual.pdf', '_blank')}
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
+                <BookOpen size={16} className="mr-2" />
+                Open User Manual
               </Button>
             </div>
           </FadeIn>
