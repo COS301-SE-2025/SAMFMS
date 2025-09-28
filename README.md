@@ -1,6 +1,10 @@
 <!-- Project logo -->
 <p align="center">
-  <img src="docs/Demo4/images/logo_horisontal_light.svg" alt="Firewall Five — SAMFMS" height="128">
+  <img
+    src="https://raw.githubusercontent.com/COS301-SE-2025/SAMFMS/main/docs/Demo4/images/logo_horisontal_light.svg?sanitize=true"
+    alt="Firewall Five — SAMFMS"
+    width="640"
+  >
 </p>
 
 <p align="center">
