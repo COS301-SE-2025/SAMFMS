@@ -12,8 +12,8 @@ const LOCATIONS_ENDPOINTS = {
 
 export const listLocations = async () => {
   try {
-    const response = httpClient.get(LOCATIONS_ENDPOINTS.list);
-    //console.log("Fetched all locations from ", response);
+    const response = await httpClient.get(LOCATIONS_ENDPOINTS.list);
+    console.log("Fetched all locations from ", response);
     return response;
   } catch (error) {
     console.error('Error fetching locations: ', error)

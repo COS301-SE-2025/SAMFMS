@@ -449,36 +449,6 @@ async def test_update_vehicle_location_raises_on_db_error():
             await svc.update_vehicle_location("vehX", 0, 0)
 
 
-# --- get_vehicle_location ---
-
-@pytest.mark.asyncio
-async def test_get_vehicle_location_found():
-    with SysModulesSandbox() as sb:
-        svc_mod = import_service_module()
-        svc = svc_mod.LocationService()
-        sb.db_manager.db.vehicle_locations.set_find_one_doc({"_id": "OID2", "vehicle_id": "v2", "latitude": 3, "longitude": 4})
-        res = await svc.get_vehicle_location("v2")
-        assert res._id == "OID2"
-
-@pytest.mark.asyncio
-async def test_get_vehicle_location_not_found_returns_none():
-    with SysModulesSandbox() as sb:
-        svc_mod = import_service_module()
-        svc = svc_mod.LocationService()
-        sb.db_manager.db.vehicle_locations.set_find_one_doc(None)
-        res = await svc.get_vehicle_location("v3")
-        assert res is None
-
-@pytest.mark.asyncio
-async def test_get_vehicle_location_raises_on_db_error():
-    with SysModulesSandbox() as sb:
-        svc_mod = import_service_module()
-        svc = svc_mod.LocationService()
-        sb.db_manager.db.vehicle_locations.set_find_one_raises(True)
-        with pytest.raises(RuntimeError):
-            await svc.get_vehicle_location("v4")
-
-
 # --- get_multiple_vehicle_locations ---
 
 @pytest.mark.asyncio

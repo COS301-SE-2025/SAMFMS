@@ -135,8 +135,8 @@ const DriverBehaviorDrivers = ({ driverData: propDriverData, onDataUpdate }) => 
   }, [searchTerm, propDriverData]);
 
   const getRiskLevel = (score) => {
-    if (score < 7) return { level: 'High', color: 'text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-400' };
-    if (score < 8.5) return { level: 'Medium', color: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400' };
+    if (score <= 7) return { level: 'High', color: 'text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-400' };
+    else if (score < 8.5) return { level: 'Medium', color: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400' };
     return { level: 'Low', color: 'text-green-600 bg-green-100 dark:bg-green-900/20 dark:text-green-400' };
   };
 
@@ -326,13 +326,7 @@ const DriverBehaviorDrivers = ({ driverData: propDriverData, onDataUpdate }) => 
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       <div className="flex items-center">
-                        <div className={`px-3 py-1 rounded-full text-sm font-bold ${
-                          parseFloat(driver.overallScore) >= 8.5
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                            : parseFloat(driver.overallScore) >= 7
-                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                        }`}>
+                        <div className={`px-3 py-1 rounded-full text-sm font-bold ${riskInfo.color}`}>
                           {(parseFloat(driver.overallScore) || 0).toFixed(1)}/10
                         </div>
                       </div>

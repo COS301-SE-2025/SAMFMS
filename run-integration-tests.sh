@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 COMPOSE_FILE="docker-compose.integration.yml"
-TEST_TIMEOUT=600  # 10 minutes
+TEST_TIMEOUT=300  # 5 minutes
 
 # Functions
 log_info() {
@@ -56,6 +56,10 @@ check_prerequisites() {
         log_error "Docker daemon is not running"
         exit 1
     fi
+
+    if ! command -v timeout &> /dev/null; then
+        log_warning "timeout command not found, global timeout will be disabled"
+    fi
     
     log_success "Prerequisites check passed"
 }
@@ -63,7 +67,7 @@ check_prerequisites() {
 wait_for_service() {
     local service_name=$1
     local url=$2
-    local timeout=${3:-60}
+    local timeout=${3:-30}
     
     log_info "Waiting for $service_name to be ready..."
     
@@ -90,7 +94,18 @@ run_infrastructure() {
         redis-integration
     
     log_info "Waiting for infrastructure to be ready..."
-    sleep 30
+    
+    if ! wait_for_service "MongoDB" "mongodb://localhost:27017" 30; then
+        log_error "MongoDB failed to start"
+        docker-compose -f $COMPOSE_FILE logs mongodb-integration
+        return 1
+    fi
+
+    if ! wait_for_service "RabbitMQ" "http://localhost:15672" 30; then
+        log_error "RabbitMQ failed to start"
+        docker-compose -f $COMPOSE_FILE logs rabbitmq-integration
+        return 1
+    fi
     
     # Check if services are running
     if ! docker-compose -f $COMPOSE_FILE ps | grep -q "Up"; then
@@ -112,10 +127,9 @@ run_backend_services() {
         trips-integration
     
     log_info "Waiting for backend services to initialize..."
-    sleep 45
     
     # Wait for Core service
-    if wait_for_service "Core API" "http://localhost:8001/health" 120; then
+    if wait_for_service "Core API" "http://localhost:8001/health" 30; then
         log_success "Backend services are ready"
     else
         log_error "Backend services failed to start properly"
@@ -130,9 +144,8 @@ run_frontend_service() {
     docker-compose -f $COMPOSE_FILE up -d frontend-integration
     
     log_info "Waiting for frontend to build and start..."
-    sleep 30
     
-    if wait_for_service "Frontend" "http://localhost:3001" 120; then
+    if wait_for_service "Frontend" "http://localhost:3001" 30; then
         log_success "Frontend service is ready"
     else
         log_warning "Frontend service may not be fully ready, but continuing with tests"
