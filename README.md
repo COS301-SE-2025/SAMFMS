@@ -1,11 +1,11 @@
 <!-- Project logo -->
 <p align="center">
-  <img src="docs/Demo4/images/logo_horisontal_light.svg" alt="Firewall Five — SAMFMS" height="84">
+  <img src="docs/Demo4/images/logo_horisontal_light.svg" alt="Firewall Five — SAMFMS" height="128">
 </p>
 
 <p align="center">
-  <img src="docs/Demo4/images/DNS.png" alt="Sponsor: DNS" height="64" style="margin: 0 14px;">
-  <img src="docs/Demo4/images/LOGO_BLACK_FULLTRANSP.png" alt="Sponsor" height="64" style="margin: 0 14px;">
+  <img src="docs/Demo4/images/DNS.png" alt="Sponsor: DNS" height="100" style="margin: 0 14px;">
+  <img src="docs/Demo4/images/LOGO_BLACK_FULLTRANSP.png" alt="Sponsor" height="100" style="margin: 0 14px;">
 </p>
 
 <!-- Optional project title under the logo -->
