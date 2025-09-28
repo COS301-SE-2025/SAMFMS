@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Configuration constants
 MAX_TRAVEL_DISTANCE_KM = 15.0  # Max distance between trips to consider combination
-MIN_TIME_BUFFER_MINUTES = 30   # Minimum time between trip end and next start
+MIN_TIME_BUFFER_MINUTES = 300   # Minimum time between trip end and next start
 MAX_TIME_BUFFER_HOURS = 4      # Maximum time gap to consider combination
 MIN_TIME_SAVINGS_MINUTES = 20  # Minimum time savings to recommend combination
 MAX_ADDITIONAL_DISTANCE_KM = 10.0  # Max additional distance acceptable

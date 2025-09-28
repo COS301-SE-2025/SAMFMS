@@ -241,6 +241,7 @@ async def lifespan(app: FastAPI):
 
         # start the upcomming trip recommendations
         try:
+            logger.info("Starting the root combinations service")
             asyncio.create_task(upcoming_recommendation_service.analyze_and_store_combinations())
         except Exception as e:
             logger.error(f"Failed to start upcomming trip recommendations service: {e}")
