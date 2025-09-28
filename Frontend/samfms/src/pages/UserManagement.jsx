@@ -6,11 +6,12 @@ import {
   updateUserPermissions,
   getRoles,
   isAuthenticated,
+  getCurrentUser,
   getPendingInvitations,
   resendInvitation,
   createUserManually,
   getDrivers,
-  deleteAccount
+  removeUser
 } from '../backend/API.js';
 import {Navigate} from 'react-router-dom';
 import UserTable from '../components/user/UserTable.jsx';
@@ -28,6 +29,8 @@ const UserManagement = () => {
   const [driverUsers, setDriverUsers] = useState([]);
   const [invitedUsers, setInvitedUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [initialPermissionCheck, setInitialPermissionCheck] = useState(null);
 
   // Modal states
   const [showManualCreateModal, setShowManualCreateModal] = useState(false);
@@ -112,6 +115,7 @@ const UserManagement = () => {
   // Comprehensive refresh function to update all user data
   const refreshAllUserData = React.useCallback(async () => {
     try {
+      setIsRefreshing(true);
       const promises = [loadUsers()];
 
       // Only load drivers API if user has permission
@@ -123,8 +127,18 @@ const UserManagement = () => {
       await Promise.all(promises);
     } catch (err) {
       console.error('Failed to refresh user data:', err);
+    } finally {
+      setIsRefreshing(false);
     }
   }, [loadUsers, loadDriversFromAPI, loadInvitedUsers, hasRole]);
+
+  // Cache initial permission check to prevent access denied during operations
+  useEffect(() => {
+    if (initialPermissionCheck === null && isAuthenticated()) {
+      const hasAccess = hasPermission('users:manage') || hasRole(ROLES.ADMIN);
+      setInitialPermissionCheck(hasAccess);
+    }
+  }, [hasPermission, hasRole, initialPermissionCheck]);
 
   useEffect(() => {
     // Check authentication status first
@@ -153,15 +167,33 @@ const UserManagement = () => {
       }
     };
     fetchRoles();
-  }, [loadUsers, loadInvitedUsers, loadDriversFromAPI, showNotification]);
+  }, [loadUsers, loadInvitedUsers, loadDriversFromAPI]);
 
   // Fleet managers should be redirected to the drivers page
   if (hasRole(ROLES.FLEET_MANAGER)) {
     return <Navigate to="/drivers" />;
   }
 
-  // Only admin can access this component
-  if (!hasPermission('users:manage') && !hasRole(ROLES.ADMIN)) {
+  // Show loading while determining permissions
+  if (initialPermissionCheck === null) {
+    return (
+      <div className="container mx-auto py-8 flex justify-center">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  // Only admin can access this component (use cached permission check to prevent flashing)
+  if (!isRefreshing && initialPermissionCheck === false) {
+    console.log('Access denied - Debug info:', {
+      isRefreshing,
+      initialPermissionCheck,
+      hasUsersManagePermission: hasPermission('users:manage'),
+      hasAdminRole: hasRole(ROLES.ADMIN),
+      currentUser: getCurrentUser(),
+      isAuthenticated: isAuthenticated()
+    });
+
     return (
       <div className="container mx-auto py-8">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
@@ -244,18 +276,51 @@ const UserManagement = () => {
     }
   };
 
-  const handleRemoveUser = async (driversArray) => {
+  const handleRemoveUser = async (userOrId, userName) => {
+    // Check authentication before proceeding
+    if (!isAuthenticated()) {
+      showNotification('Your session has expired. Please log in again.', 'error');
+      return;
+    }
+
+    // Handle different parameter formats
+    let userEmail, displayName;
+
+    if (typeof userOrId === 'object' && userOrId !== null) {
+      // Called with user object
+      userEmail = userOrId.email;
+      displayName = userOrId.full_name || userOrId.name || userEmail;
+    } else if (typeof userOrId === 'string' && userName) {
+      // Called with separate id and name parameters - need to find user by id
+      // This case needs to be handled by looking up the user from the arrays
+      const allUsers = [...adminUsers, ...managerUsers, ...driverUsers];
+      const user = allUsers.find(u => u.id === userOrId);
+      if (user) {
+        userEmail = user.email;
+        displayName = user.full_name || user.name || userName;
+      } else {
+        showNotification('User not found', 'error');
+        return;
+      }
+    } else {
+      showNotification('Invalid user data', 'error');
+      return;
+    }
+
+    if (!userEmail) {
+      showNotification('User email not found', 'error');
+      return;
+    }
+
     const userConfirmed = window.confirm(
-      `Are you sure you want to remove ${driversArray || driver.email} from the system?`
+      `Are you sure you want to remove ${displayName} from the system?`
     );
 
     if (!userConfirmed) return;
 
     try {
       setLoading(true);
-      await deleteAccount({
-        email: driversArray.email
-      });
+      await removeUser(userEmail); // Pass just the email string, not an object
       showNotification(`User has been removed from the system.`, 'success');
 
       await refreshAllUserData();
@@ -405,6 +470,7 @@ const UserManagement = () => {
             showPhone={true}
             showRole={false}
             emptyMessage="No administrators found"
+            search=""
             onAddUser={() => handleOpenCreateModal('admin')}
             onDeleteUser={(user) => handleRemoveUser(user)}
           />
@@ -419,6 +485,7 @@ const UserManagement = () => {
             showPhone={true}
             showRole={false}
             emptyMessage="No fleet managers found"
+            search=""
             onAddUser={() => handleOpenCreateModal('fleet_manager')}
             onDeleteUser={(user) => handleRemoveUser(user.id, user.full_name)}
           />
@@ -433,6 +500,7 @@ const UserManagement = () => {
             showPhone={true}
             showRole={false}
             emptyMessage="No drivers found"
+            search=""
             onAddUser={() => handleOpenCreateModal('driver')}
             onDeleteUser={(user) => handleRemoveUser(user.id, user.full_name)}
           />

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import React, {useState, useEffect} from 'react';
+import {Plus, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Trash2} from 'lucide-react';
 import FadeIn from '../ui/FadeIn';
 
 const UserTable = ({
@@ -11,7 +11,7 @@ const UserTable = ({
   emptyMessage = 'No users found',
   search = '',
   setSearch,
-  sort = { field: 'full_name', direction: 'asc' },
+  sort = {field: 'full_name', direction: 'asc'},
   onSortChange,
   onAddUser,
   onDeleteUser, // New prop for delete functionality
@@ -19,7 +19,7 @@ const UserTable = ({
   showDeleteButton = true, // New prop to control delete button visibility
 }) => {
   const [filteredUsers, setFilteredUsers] = useState(users);
-  const [searchField, setSearchField] = useState(search);
+  const [searchField, setSearchField] = useState(search || '');
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage, setUsersPerPage] = useState(5);
 
@@ -27,6 +27,10 @@ const UserTable = ({
     setFilteredUsers(users);
     setCurrentPage(1);
   }, [users]);
+
+  useEffect(() => {
+    setSearchField(search || '');
+  }, [search]);
 
   // Calculate pagination values
   const indexOfLastUser = currentPage * usersPerPage;
@@ -134,7 +138,7 @@ const UserTable = ({
               <input
                 type="text"
                 placeholder={`Search ${title.toLowerCase()}...`}
-                value={searchField}
+                value={searchField || ''}
                 onChange={handleSearchChange}
                 className="pl-10 pr-4 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
               />
@@ -159,26 +163,23 @@ const UserTable = ({
               <thead>
                 <tr className="border-b border-border">
                   <th
-                    className={`text-left py-3 px-4 ${
-                      onSortChange ? 'cursor-pointer hover:bg-accent/10' : ''
-                    }`}
+                    className={`text-left py-3 px-4 ${onSortChange ? 'cursor-pointer hover:bg-accent/10' : ''
+                      }`}
                     onClick={() => handleHeaderClick('full_name')}
                   >
                     Name {getSortIcon('full_name')}
                   </th>
                   <th
-                    className={`text-left py-3 px-4 ${
-                      onSortChange ? 'cursor-pointer hover:bg-accent/10' : ''
-                    }`}
+                    className={`text-left py-3 px-4 ${onSortChange ? 'cursor-pointer hover:bg-accent/10' : ''
+                      }`}
                     onClick={() => handleHeaderClick('email')}
                   >
                     Email {getSortIcon('email')}
                   </th>
                   {showPhone && (
                     <th
-                      className={`text-left py-3 px-4 ${
-                        onSortChange ? 'cursor-pointer hover:bg-accent/10' : ''
-                      }`}
+                      className={`text-left py-3 px-4 ${onSortChange ? 'cursor-pointer hover:bg-accent/10' : ''
+                        }`}
                       onClick={() => handleHeaderClick('phone')}
                     >
                       Phone {getSortIcon('phone')}
@@ -186,9 +187,8 @@ const UserTable = ({
                   )}
                   {showRole && (
                     <th
-                      className={`text-left py-3 px-4 ${
-                        onSortChange ? 'cursor-pointer hover:bg-accent/10' : ''
-                      }`}
+                      className={`text-left py-3 px-4 ${onSortChange ? 'cursor-pointer hover:bg-accent/10' : ''
+                        }`}
                       onClick={() => handleHeaderClick('role')}
                     >
                       Role {getSortIcon('role')}
@@ -286,11 +286,10 @@ const UserTable = ({
                   <button
                     onClick={goToPrevPage}
                     disabled={currentPage === 1}
-                    className={`p-1 rounded ${
-                      currentPage === 1
-                        ? 'text-muted-foreground cursor-not-allowed'
-                        : 'hover:bg-accent'
-                    }`}
+                    className={`p-1 rounded ${currentPage === 1
+                      ? 'text-muted-foreground cursor-not-allowed'
+                      : 'hover:bg-accent'
+                      }`}
                     title="Previous page"
                   >
                     <ChevronLeft size={18} />
@@ -298,11 +297,10 @@ const UserTable = ({
                   <button
                     onClick={goToNextPage}
                     disabled={currentPage === totalPages}
-                    className={`p-1 rounded ${
-                      currentPage === totalPages
-                        ? 'text-muted-foreground cursor-not-allowed'
-                        : 'hover:bg-accent'
-                    }`}
+                    className={`p-1 rounded ${currentPage === totalPages
+                      ? 'text-muted-foreground cursor-not-allowed'
+                      : 'hover:bg-accent'
+                      }`}
                     title="Next page"
                   >
                     <ChevronRight size={18} />

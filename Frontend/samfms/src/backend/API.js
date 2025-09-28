@@ -28,6 +28,7 @@ export {
   refreshAuthToken,
   changePassword,
   deleteAccount,
+  removeUser,
   updatePreferences,
   inviteUser,
   createUserManually,
