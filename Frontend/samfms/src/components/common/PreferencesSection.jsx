@@ -194,91 +194,49 @@ const PreferencesSection = () => {
       `}</style>
       <div className="space-y-6">
         {/* Second row: Theme & Appearance and Privacy & Security in 2 columns */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {/* Theme & Appearance */}
-          <PreferenceCard title="Theme & Appearance" icon={<ThemeIcon />}>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2 text-foreground">Theme</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => handlePreferenceChange('theme', 'dark')}
-                    className={`flex items-center justify-center gap-2 px-4 py-9 rounded-md border transition-colors ${preferences.theme === 'dark'
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background text-foreground border-border hover:bg-muted'
-                      }`}
-                  >
-                    <DarkThemeIcon />
-                    Dark
-                  </button>
-                  <button
-                    onClick={() => handlePreferenceChange('theme', 'auto')}
-                    className={`flex items-center justify-center gap-2 px-4 py-9 rounded-md border transition-colors ${preferences.theme === 'auto'
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background text-foreground border-border hover:bg-muted'
-                      }`}
-                  >
-                    <AutoThemeIcon />
-                    Auto
-                  </button>
-                  <button
-                    onClick={() => handlePreferenceChange('theme', 'light')}
-                    className={`flex items-center justify-center gap-2 px-4 py-9 rounded-md border transition-colors ${preferences.theme === 'light'
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background text-foreground border-border hover:bg-muted'
-                      }`}
-                  >
-                    <LightThemeIcon />
-                    Light
-                  </button>
-                </div>
-              </div>{' '}
-              <ToggleSwitch
-                id="animations"
-                enabled={toBool(preferences.animations)}
-                onChange={enabled => handlePreferenceChange('animations', enabled.toString())}
-                label="Enable Animations"
-              />
-            </div>
-          </PreferenceCard>
-
-          {/* Security & Privacy */}
-          <PreferenceCard title="Security & Privacy" icon={<SecurityIcon />}>
-            <div className="space-y-4">
-              {' '}
-              <ToggleSwitch
-                id="two_factor"
-                enabled={toBool(preferences.two_factor)}
-                onChange={enabled => handlePreferenceChange('two_factor', enabled.toString())}
-                label="Two-Factor Authentication"
-              />{' '}
-              <ToggleSwitch
-                id="activity_log"
-                enabled={toBool(preferences.activity_log)}
-                onChange={enabled => handlePreferenceChange('activity_log', enabled.toString())}
-                label="Activity Logging"
-              />
-              <div>
-                <label className="block text-sm font-medium mb-2 text-foreground">
-                  Session Timeout: {formatTimeout(preferences.session_timeout)}
-                </label>
-                <div className="space-y-2">
-                  <input
-                    type="range"
-                    min="5"
-                    max="720"
-                    value={preferences.session_timeout}
-                    onChange={e => handlePreferenceChange('session_timeout', parseInt(e.target.value))}
-                    className="timeout-slider w-full"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>5min</span>
-                    <span>12hr</span>
+          <div className="max-w-md mx-auto w-full">
+            <PreferenceCard title="Theme & Appearance" icon={<ThemeIcon />}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-foreground">Theme</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => handlePreferenceChange('theme', 'dark')}
+                      className={`flex items-center justify-center gap-2 px-4 py-9 rounded-md border transition-colors ${preferences.theme === 'dark'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background text-foreground border-border hover:bg-muted'
+                        }`}
+                    >
+                      <DarkThemeIcon />
+                      Dark
+                    </button>
+                    <button
+                      onClick={() => handlePreferenceChange('theme', 'auto')}
+                      className={`flex items-center justify-center gap-2 px-4 py-9 rounded-md border transition-colors ${preferences.theme === 'auto'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background text-foreground border-border hover:bg-muted'
+                        }`}
+                    >
+                      <AutoThemeIcon />
+                      Auto
+                    </button>
+                    <button
+                      onClick={() => handlePreferenceChange('theme', 'light')}
+                      className={`flex items-center justify-center gap-2 px-4 py-9 rounded-md border transition-colors ${preferences.theme === 'light'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background text-foreground border-border hover:bg-muted'
+                        }`}
+                    >
+                      <LightThemeIcon />
+                      Light
+                    </button>
                   </div>
-                </div>
+                </div>{' '}
               </div>
-            </div>
-          </PreferenceCard>
+            </PreferenceCard>
+          </div>
         </div>
 
         {/* Save Actions */}
