@@ -265,10 +265,10 @@ const SuggestionCard = ({
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           <h2 className="font-medium text-gray-900 dark:text-white">{suggestion.trip_name || 'Unnamed Trip'}</h2>
-          <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-600/20 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium border border-blue-200 dark:border-blue-500/30">
+          {/* <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-600/20 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium border border-blue-200 dark:border-blue-500/30">
             <TrendingUp className="h-3 w-3" />
             {suggestion.confidence}% confidence
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -346,7 +346,7 @@ const SuggestionCard = ({
         <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-l-blue-500 dark:border-l-blue-400 p-3 rounded border border-blue-200 dark:border-blue-500/30">
           <h5 className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2 flex items-center gap-1">
             <Brain className="h-3 w-3" />
-            AI Optimized
+            Smart Trip Schedule
           </h5>
           <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
             <div className="flex items-center gap-2">
@@ -376,7 +376,7 @@ const SuggestionCard = ({
       </div>
 
       {/* Benefits */}
-      {suggestion.benefits && (
+      {/* {suggestion.benefits && (
         <div className="mb-4">
           <h5 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Expected Benefits</h5>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -402,7 +402,7 @@ const SuggestionCard = ({
             )}
           </div>
         </div>
-      )}
+      )} */}
 
       {/* AI Reasoning */}
       {suggestion.reasoning && suggestion.reasoning.length > 0 && (

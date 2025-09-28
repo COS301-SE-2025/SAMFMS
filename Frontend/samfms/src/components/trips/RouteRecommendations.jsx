@@ -272,9 +272,9 @@ const RouteRecommendationCard = ({
         <div>
           <h4 className="font-medium text-gray-900 flex items-center gap-2">
             <Truck className="h-4 w-4" />
-            {activeTrip?.vehicleName || 'Vehicle'} - {activeTrip?.driver || 'Driver'}
+            {activeTrip?.vehicle_name || 'Vehicle'} - {activeTrip?.emp_id || 'Driver'}
           </h4>
-          <p className="text-sm text-gray-500">Trip ID: {recommendation.trip_id}</p>
+          <p className="text-sm text-gray-500">Trip Name: {recommendation.trip_name}</p>
           <p className="text-sm text-gray-600 mt-1">{activeTrip?.destination?.name || activeTrip?.destination?.address || 'Unknown Destination'}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -282,10 +282,10 @@ const RouteRecommendationCard = ({
             <AlertTriangle className="h-3 w-3" />
             {recommendation.traffic_avoided.toUpperCase()} TRAFFIC
           </div>
-          <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+          {/* <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
             <TrendingUp className="h-3 w-3" />
             {Math.round(recommendation.confidence * 100)}%
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -351,11 +351,11 @@ const RouteRecommendationCard = ({
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
               <span className="text-gray-500">New Distance:</span>
-              <p className="font-medium">{(recommendation.recommended_route?.distance / 1000).toFixed(1)} km</p>
+              <p className="font-medium">{(recommendation.recommended_route?.route_info?.distance / 1000).toFixed(1)} km</p>
             </div>
             <div>
               <span className="text-gray-500">Est. Duration:</span>
-              <p className="font-medium">{Math.round(recommendation.recommended_route?.duration / 60)} min</p>
+              <p className="font-medium">{Math.round(recommendation.recommended_route?.route_info?.duration / 60)} min</p>
             </div>
             <div>
               <span className="text-gray-500">Time Savings:</span>
