@@ -47,6 +47,8 @@ export {
   clearRolesCache,
   clearAllAuthCache,
   fetchWithTimeout,
+  forgotPassword,
+  resetPasswordWithOTP,
 } from './api/auth';
 
 // Re-export analytics functions with enhanced functionality
