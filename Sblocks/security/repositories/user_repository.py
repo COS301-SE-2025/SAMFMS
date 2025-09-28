@@ -74,11 +74,12 @@ class UserRepository:
             )
             
             
-            if result.matched_count == 0:
-                logger.warning(f"No user found with email: {email}")
+            if result.deleted_count > 0:
+                return True
+            else:
                 return False
+
             
-            return result.matched_count > 0
         except Exception as e:
             logger.error(f"Failed to remove user: {e}")
             raise    
@@ -93,12 +94,17 @@ class UserRepository:
             )
             
             
-            if result.matched_count == 0:
+            if result is None:
                 logger.warning(f"No user found with email: {email}")
                 return False
             
             result2 = await removed_users.insert_one(result)
-            return True
+            if not result2.acknowledged:
+                logger.warning(f"Failed to move user with email: {email} to removed users collection")
+                return False
+            if result2.acknowledged:
+                return True
+            return False
 
         except Exception as e:
             logger.error(f"Failed to remove user: {e}")

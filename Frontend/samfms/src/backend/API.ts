@@ -9,7 +9,7 @@ export const API = {
   me: `${API_URL}/auth/me`,
   users: `${API_URL}/auth/users`,
   changePassword: `${API_URL}/auth/change-password`,
-  deleteAccount: `${API_URL}/auth/account`,
+  deleteAccount: `${API_URL}/remove-user`,
   inviteUser: `${API_URL}/auth/invite-user`,
   updatePermissions: `${API_URL}/auth/update-permissions`,
   getRoles: `${API_URL}/auth/roles`,

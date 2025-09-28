@@ -20,7 +20,7 @@ export const AUTH_API = {
   me: buildApiUrl('/auth/me'),
   users: buildApiUrl('/auth/users'),
   changePassword: buildApiUrl(API_ENDPOINTS.AUTH.CHANGE_PASSWORD),
-  deleteAccount: buildApiUrl('/auth/account'),
+  deleteAccount: buildApiUrl(API_ENDPOINTS.AUTH.DELETE_ACCOUNT),
   updatePreferences: buildApiUrl('/auth/update-preferences'),
   inviteUser: buildApiUrl('/auth/invite-user'),
   createUser: buildApiUrl('/auth/create-user'),
@@ -456,7 +456,7 @@ export const changePassword = async (currentPassword, newPassword) => {
 };
 
 // Delete Account
-export const deleteAccount = async () => {
+export const deleteAccount = async (email) => {
   const token = getToken();
   if (!token) {
     throw new Error('No authentication token found');
@@ -467,6 +467,7 @@ export const deleteAccount = async () => {
     headers: {
       Authorization: `Bearer ${token}`,
     },
+    email: email,
   });
 
   if (!response.ok) {

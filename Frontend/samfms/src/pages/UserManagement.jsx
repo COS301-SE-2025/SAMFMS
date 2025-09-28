@@ -10,6 +10,7 @@ import {
   resendInvitation,
   createUserManually,
   getDrivers,
+  deleteAccount
 } from '../backend/API.js';
 import { Navigate } from 'react-router-dom';
 import UserTable from '../components/user/UserTable.jsx';
@@ -243,23 +244,20 @@ const UserManagement = () => {
     }
   };
 
-  const handleRemoveUser = async (userId, userName) => {
+  const handleRemoveUser = async (email) => {
     const userConfirmed = window.confirm(
-      `Are you sure you want to remove ${userName} from the system?`
+      `Are you sure you want to remove this user from the system?`
     );
 
     if (!userConfirmed) return;
 
     try {
       setLoading(true);
-      await updateUserPermissions({
-        user_id: userId,
-        role: 'inactive',
-        is_active: false,
+      await deleteAccount({
+        email: email,
       });
       showNotification(`User has been removed from the system.`, 'success');
 
-      // Refresh all user data to ensure UI is fully updated
       await refreshAllUserData();
     } catch (err) {
       showNotification(`Failed to remove user: ${err.message}`, 'error');
@@ -404,11 +402,11 @@ const UserManagement = () => {
             title="Administrators"
             users={adminUsers}
             loading={loading && !adminUsers.length}
-            showActions={true}
+            showPhone={true}
             showRole={false}
             emptyMessage="No administrators found"
-            actions={adminActions}
             onAddUser={() => handleOpenCreateModal('admin')}
+            onDeleteUser={(user) => handleRemoveUser(user.id, user.full_name)}
           />
         )}
 
@@ -418,11 +416,11 @@ const UserManagement = () => {
             title="Fleet Managers"
             users={managerUsers}
             loading={loading && !managerUsers.length}
-            showActions={true}
+            showPhone={true}
             showRole={false}
             emptyMessage="No fleet managers found"
-            actions={managerActions}
             onAddUser={() => handleOpenCreateModal('fleet_manager')}
+            onDeleteUser={(user) => handleRemoveUser(user.id, user.full_name)}
           />
         )}
 
@@ -432,11 +430,11 @@ const UserManagement = () => {
             title="Drivers"
             users={driverUsers}
             loading={loading && !driverUsers.length}
-            showActions={true}
+            showPhone={true}
             showRole={false}
             emptyMessage="No drivers found"
-            actions={driverActions}
             onAddUser={() => handleOpenCreateModal('driver')}
+            onDeleteUser={(user) => handleRemoveUser(user.id, user.full_name)}
           />
         )}
 

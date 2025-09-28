@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import FadeIn from '../ui/FadeIn';
 
 const UserTable = ({
@@ -14,7 +14,9 @@ const UserTable = ({
   sort = { field: 'full_name', direction: 'asc' },
   onSortChange,
   onAddUser,
+  onDeleteUser, // New prop for delete functionality
   showAddButton = true,
+  showDeleteButton = true, // New prop to control delete button visibility
 }) => {
   const [filteredUsers, setFilteredUsers] = useState(users);
   const [searchField, setSearchField] = useState(search);
@@ -113,6 +115,13 @@ const UserTable = ({
     setCurrentPage(1);
   };
 
+  const handleDeleteClick = (user, e) => {
+    e.stopPropagation(); // Prevent row click event
+    if (onDeleteUser) {
+      onDeleteUser(user);
+    }
+  };
+
   return (
     <FadeIn delay={0.2}>
       <div className="mb-8">
@@ -185,13 +194,19 @@ const UserTable = ({
                       Role {getSortIcon('role')}
                     </th>
                   )}
+                  {/* New Actions column */}
+                  {showDeleteButton && onDeleteUser && (
+                    <th className="text-right py-3 px-4">
+                      Actions
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {filteredUsers.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={2 + (showPhone ? 1 : 0) + (showRole ? 1 : 0)}
+                      colSpan={2 + (showPhone ? 1 : 0) + (showRole ? 1 : 0) + (showDeleteButton && onDeleteUser ? 1 : 0)}
                       className="px-4 py-8 text-center text-muted-foreground"
                     >
                       {emptyMessage}
@@ -226,6 +241,19 @@ const UserTable = ({
                           <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
                             {user.role?.replace('_', ' ') || 'N/A'}
                           </span>
+                        </td>
+                      )}
+                      {/* New Actions cell with delete button */}
+                      {showDeleteButton && onDeleteUser && (
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            onClick={(e) => handleDeleteClick(user, e)}
+                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-md transition-colors"
+                            title={`Delete ${user.full_name || user.email}`}
+                            disabled={user.isCurrentUser} // Disable delete for current user
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </td>
                       )}
                     </tr>

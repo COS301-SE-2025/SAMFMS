@@ -102,6 +102,7 @@ export const API_ENDPOINTS = {
     PROFILE: '/auth/update-profile',
     CHANGE_PASSWORD: '/auth/change-password',
     UPLOAD_PICTURE: '/auth/upload-profile-picture',
+    DELETE_ACCOUNT: '/auth/remove-user',
   },
 
   // Vehicle Management

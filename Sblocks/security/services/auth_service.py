@@ -212,8 +212,6 @@ class AuthService:
         """Handle user login"""
         try:
             # Get user by email
-            logger.info(f"Password: {password}")
-
             security_user = await UserRepository.find_by_email(email)
             if not security_user:
                 await AuditRepository.log_security_event(
@@ -254,12 +252,6 @@ class AuthService:
             # Verify password
             if not verify_password(password, security_user["password_hash"]):
                 # Increment failed login attempts
-                logger.info(f"Plain password length (chars): {len(plain_password)}")
-                logger.info(f"Plain password length (bytes): {len(plain_password.encode('utf-8'))}")
-                logger.info(f"Plain password repr: {repr(plain_password)}")
-                logger.info(f"Hashed password length: {len(hashed_password)}")
-                logger.info(f"Hashed password starts with: {hashed_password[:20] if len(hashed_password) > 20 else hashed_password}")
-
                 await UserRepository.increment_failed_attempts(security_user["user_id"])
                 
                 await AuditRepository.log_security_event(
@@ -445,12 +437,13 @@ class AuthService:
         
 
     @staticmethod
-    async def remove_user(email: str):
+    async def remove_user(email: str) -> bool:
         try:
-            
+            T1 = False
+            T2 = False
 
-            T1 = UserRepository.move_user_to_removed(email)
-            T2 = UserRepository.remove_user(email)
+            T1 = await UserRepository.move_user_to_removed(email)
+            T2 = await UserRepository.remove_user(email)
 
             return (T1 and T2)
 
