@@ -398,7 +398,7 @@ class DatabaseManagerGeo():
             "MONGODB_URL",
             "mongodb://samfms_admin:SafeMongoPass2025%21SecureDB%40SAMFMS@mongodb:27017"
         )
-        self.database_name = os.getenv("DATABASE_TRIP_PLANNING_GEO", "samfms_trip_planning_geo")
+        self.database_name = os.getenv("DATABASE_GPS", "samfms_gps")
         # NEW
         self._loop_id = None
     
