@@ -17,7 +17,8 @@ services:
     networks:
       - samfms-integration-network
     healthcheck:
-      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      # auth is enabled, so authenticate for the ping
+      test: ['CMD', 'mongosh', '--username', 'integration_admin', '--password', 'integration_password_123', '--authenticationDatabase', 'admin', '--eval', "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,8 +32,8 @@ services:
       RABBITMQ_DEFAULT_PASS: integration_password
       RABBITMQ_DEFAULT_VHOST: /
     ports:
-      - '5674:5672'
-      - '15674:15672'
+      - '5674:5672'   # AMQP
+      - '15674:15672' # Management UI
     volumes:
       - rabbitmq_integration_data:/var/lib/rabbitmq
     networks:
@@ -86,16 +87,16 @@ services:
       - ./Core:/app
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
-      interval: 5s      # was 30s
+      interval: 5s       # more responsive than 30s
       timeout: 10s
-      retries: 20       # more granular attempts
+      retries: 20
       start_period: 40s
 
   # Management Service
   management-integration:
     build:
       context: ./Sblocks/management
-    dockerfile: Dockerfile
+      dockerfile: Dockerfile   # <-- moved under build (fixes schema error)
     container_name: samfms-management-integration
     environment:
       - ENV=integration
