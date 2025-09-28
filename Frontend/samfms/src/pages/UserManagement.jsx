@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useAuth, ROLES } from '../components/auth/RBACUtils.jsx';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, {useState, useEffect, useRef} from 'react';
+import {useAuth, ROLES} from '../components/auth/RBACUtils.jsx';
+import {ChevronLeft, ChevronRight} from 'lucide-react';
 import {
   listUsers,
   updateUserPermissions,
@@ -11,17 +11,17 @@ import {
   createUserManually,
   getDrivers,
 } from '../backend/API.js';
-import { Navigate } from 'react-router-dom';
+import {Navigate} from 'react-router-dom';
 import UserTable from '../components/user/UserTable.jsx';
 import ManualCreateUserModal from '../components/user/ManualCreateUserModal.jsx';
-import { useNotification } from '../contexts/NotificationContext.jsx';
+import {useNotification} from '../contexts/NotificationContext.jsx';
 import FadeIn from '../components/ui/FadeIn.jsx';
 
-import { createDriver, getAllDrivers } from '../backend/api/drivers.js';
+import {createDriver, getAllDrivers} from '../backend/api/drivers.js';
 
 const UserManagement = () => {
-  const { hasPermission, hasRole } = useAuth();
-  const { showNotification } = useNotification();
+  const {hasPermission, hasRole} = useAuth();
+  const {showNotification} = useNotification();
   const [adminUsers, setAdminUsers] = useState([]);
   const [managerUsers, setManagerUsers] = useState([]);
   const [driverUsers, setDriverUsers] = useState([]);
@@ -72,7 +72,7 @@ const UserManagement = () => {
     try {
       // Load drivers from the drivers API if user has permission
       if (hasRole(ROLES.ADMIN) || hasRole(ROLES.FLEET_MANAGER)) {
-        const driversData = await getAllDrivers({ limit: 100 });
+        const driversData = await getAllDrivers({limit: 100});
         //console.log("Driver data response: ", driversData)
 
         // Access the drivers array correctly from the nested structure
