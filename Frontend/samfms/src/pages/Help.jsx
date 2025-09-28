@@ -31,12 +31,7 @@ const faqs = [
   {
     question: 'How do I manage dashboard widgets?',
     answer: 'To add widgets, click the "Add Widget" button and select from available options. Resize widgets by dragging the corners, and move them by clicking and dragging the widget header to your desired position on the dashboard.',
-  },
-  {
-    question: 'Why do I only see certain menu items in the sidebar?',
-    answer:
-      'The SAMFMS system uses role-based access control (RBAC). This means you only see the features and pages in the sidebar that your assigned role (such as Admin, Fleet Manager, or Driver) allows you to access. If you need access to additional features, please contact your system administrator.',
-  },
+  }
 ];
 
 const gettingStartedItems = [
