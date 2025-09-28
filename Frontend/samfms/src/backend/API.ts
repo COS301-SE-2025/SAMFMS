@@ -1,6 +1,8 @@
 const hostname = 'localhost:21004';
+const hostnameS = 'localhost:21009'
 
 export const API_URL = `http://${hostname}`;
+export const forgotPasswordURL = `http://${hostnameS}`;
 
 export const API = {
   login: `${API_URL}/auth/login`,
@@ -14,6 +16,7 @@ export const API = {
   updatePermissions: `${API_URL}/auth/update-permissions`,
   getRoles: `${API_URL}/auth/roles`,
   verifyPermission: `${API_URL}/auth/verify-permission`,
+  forgotPassword: `${forgotPasswordURL}/auth/forgot-password`,
 };
 
 export const signup = async (
@@ -91,7 +94,7 @@ export const forgotPassword = async (email: string): Promise<any> => {
     throw new Error('Invalid email format');
   }
   // return "En email with further instructions has been sent to " + email;
-  const response = await fetch(`${API_URL}/util/forgot-password`, {
+  const response = await fetch(`${forgotPasswordURL}/auth/forgot-password`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
