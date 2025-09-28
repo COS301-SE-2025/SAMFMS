@@ -17,8 +17,7 @@ services:
     networks:
       - samfms-integration-network
     healthcheck:
-      # auth is enabled, so authenticate for the ping
-      test: ['CMD', 'mongosh', '--username', 'integration_admin', '--password', 'integration_password_123', '--authenticationDatabase', 'admin', '--eval', "db.adminCommand('ping')"]
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -32,8 +31,8 @@ services:
       RABBITMQ_DEFAULT_PASS: integration_password
       RABBITMQ_DEFAULT_VHOST: /
     ports:
-      - '5674:5672'   # AMQP
-      - '15674:15672' # Management UI
+      - '5674:5672'
+      - '15674:15672'
     volumes:
       - rabbitmq_integration_data:/var/lib/rabbitmq
     networks:
@@ -87,16 +86,16 @@ services:
       - ./Core:/app
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
-      interval: 5s       # more responsive than 30s
+      interval: 30s
       timeout: 10s
-      retries: 20
+      retries: 3
       start_period: 40s
 
   # Management Service
   management-integration:
     build:
       context: ./Sblocks/management
-      dockerfile: Dockerfile   # <-- moved under build (fixes schema error)
+      dockerfile: Dockerfile
     container_name: samfms-management-integration
     environment:
       - ENV=integration
@@ -195,8 +194,7 @@ services:
     command: >
       sh -c "
         echo 'Waiting for services to be ready...' &&
-        until curl -fsS http://core-integration:8000/health >/dev/null; do sleep 2; done &&
-        until curl -fsS http://frontend-integration/ >/dev/null; do sleep 2; done &&
+        sleep 30 &&
         echo 'Running Python integration tests...' &&
         python -m pytest tests/integration/test_frontend_core_integration.py -v --junit-xml=test-results/integration-pytest.xml &&
         echo 'Running Frontend integration tests...' &&
