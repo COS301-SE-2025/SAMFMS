@@ -463,11 +463,12 @@ export const deleteAccount = async (email) => {
   }
 
   const response = await fetch(AUTH_API.deleteAccount, {
-    method: 'DELETE',
+    method: 'POST',
     headers: {
+      'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    email: email,
+    body: JSON.stringify({ email: email }),
   });
 
   if (!response.ok) {

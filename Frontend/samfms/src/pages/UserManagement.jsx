@@ -244,9 +244,9 @@ const UserManagement = () => {
     }
   };
 
-  const handleRemoveUser = async (email) => {
+  const handleRemoveUser = async (drivers) => {
     const userConfirmed = window.confirm(
-      `Are you sure you want to remove this user from the system?`
+      `Are you sure you want to remove ${driver.full_name || driver.email} from the system?`
     );
 
     if (!userConfirmed) return;
@@ -254,7 +254,7 @@ const UserManagement = () => {
     try {
       setLoading(true);
       await deleteAccount({
-        email: email,
+        email: driversArray.email
       });
       showNotification(`User has been removed from the system.`, 'success');
 
@@ -406,7 +406,7 @@ const UserManagement = () => {
             showRole={false}
             emptyMessage="No administrators found"
             onAddUser={() => handleOpenCreateModal('admin')}
-            onDeleteUser={(user) => handleRemoveUser(user.id, user.full_name)}
+            onDeleteUser={(user) => handleRemoveUser(user)}
           />
         )}
 
