@@ -54,41 +54,6 @@ SAMFMS is a modular fleet platform built to avoid “buy-everything” bloat. St
 
 ## 🧱 Architecture
 
-```mermaid
-flowchart LR
-  subgraph UI[React + Tailwind]
-    A[Web App]
-  end
-
-  subgraph CORE[MCore]
-    G[Auth & Config]
-    H[Service Registry]
-    I[Contracts & Schemas]
-  end
-
-  subgraph BUS[RabbitMQ]
-    Q[[Events]]
-  end
-
-  subgraph MODS[SBlocks]
-    M1[Location Tracking]
-    M2[Trip Planning]
-    M3[Maintenance]
-    M4[Driver/Vehicle]
-  end
-
-  subgraph DATA[MongoDB]
-    D[(Operational Data)]
-  end
-
-  A <-- REST/WebSocket --> CORE
-  A <-- REST --> MODS
-  CORE <-- REST --> MODS
-  MODS <-- pub/sub --> BUS
-  MODS <-- CRUD --> DATA
-  CORE <-- CRUD --> DATA
-```
-
 ### MCore
 - Authentication hooks, configuration, service discovery, and shared contracts.
 - Central API routing and standards enforcement.
