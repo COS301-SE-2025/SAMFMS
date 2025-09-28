@@ -756,11 +756,16 @@ class SmartTripService:
             if best_route.get("waypoint_name"):
                 waypoint_info = f" via {best_route['waypoint_name']}"
             
-            reason = (
-                f"Severe traffic detected ({traffic_condition.severity}). "
-                f"Alternative route{waypoint_info} saves {int(best_savings / 60)} minutes "
-                f"using {route_type} routing strategy."
-            )
+            if traffic_condition.severity == TrafficType.SEVERE:
+                reason = (
+                    f"Severe traffic detected ({traffic_condition.severity}). "
+                    f"Alternative route{waypoint_info} saves {int(best_savings / 60)} minutes."
+                )
+            else :
+                reason = (
+                    f"High traffic detected. "
+                    f"Alternative route{waypoint_info} saves {int(best_savings / 60)} minutes."
+                )
 
             recommended_route_info = RouteInfo(
                 distance=best_route["distance"],
@@ -768,10 +773,15 @@ class SmartTripService:
                 coordinates=best_route["coordinates"],
                 bounds=best_route.get("bounds")
             )
-
+            vehicle_doc = await self.db_management.vehicles.find_one({"_id": ObjectId(vehicle_id)})
+            vehicle_name = vehicle_doc["make"] + " " + vehicle_doc["model"] + " " + vehicle_doc["registration_number"]
+            
             return RouteRecommendation(
                 trip_id=str(trip.id),
+                trip_name=trip.name,
                 vehicle_id=vehicle_id,
+                vehicle_name=vehicle_name,
+                emp_id=trip.driver_assignment,
                 current_route=RouteInfo(**current_route_info) if current_route_info else None,
                 recommended_route=recommended_route_info,
                 time_savings=best_savings,
@@ -977,7 +987,7 @@ class SmartTripService:
                     vehicle_doc = await self.db_management.vehicles.find_one({"_id": ObjectId(closest_vehicle_id)})
                     logger.info(f"[SmartTripService.create_smart_trip] Vehicle assignment chosen: {vehicle_doc}")
                     if vehicle_doc:
-                        vehicle_name = vehicle_doc["make"] + vehicle_doc["model"] + vehicle_doc["registration_number"]
+                        vehicle_name = vehicle_doc["make"] + " " + vehicle_doc["model"] + " " + vehicle_doc["registration_number"]
                         closest_vehicle_name = vehicle_name
                 except Exception as e:
                     logger.warning(f"Error fetching vehicle {closest_vehicle_id}: {e}")
