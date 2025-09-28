@@ -43,7 +43,10 @@ const UserManagement = () => {
   const hasMounted = useRef(false);
   const loadUsers = React.useCallback(async () => {
     try {
-      setLoading(true);
+      // Don't set loading here if we're refreshing, let refreshAllUserData handle it
+      if (!isRefreshing) {
+        setLoading(true);
+      }
       const usersData = await listUsers();
       console.log("User Data: ", usersData);
 
@@ -58,9 +61,11 @@ const UserManagement = () => {
     } catch (err) {
       showNotification(`Failed to load users: ${err.message}`, 'error');
     } finally {
-      setLoading(false);
+      if (!isRefreshing) {
+        setLoading(false);
+      }
     }
-  }, [showNotification]);
+  }, [showNotification, isRefreshing]);
 
   const loadInvitedUsers = React.useCallback(async () => {
     try {
@@ -115,6 +120,7 @@ const UserManagement = () => {
   // Comprehensive refresh function to update all user data
   const refreshAllUserData = React.useCallback(async () => {
     try {
+      console.log('refreshAllUserData: Starting refresh...');
       setIsRefreshing(true);
       const promises = [loadUsers()];
 
@@ -125,10 +131,12 @@ const UserManagement = () => {
       }
 
       await Promise.all(promises);
+      console.log('refreshAllUserData: All promises completed successfully.');
     } catch (err) {
       console.error('Failed to refresh user data:', err);
     } finally {
       setIsRefreshing(false);
+      console.log('refreshAllUserData: Refresh finished.');
     }
   }, [loadUsers, loadDriversFromAPI, loadInvitedUsers, hasRole]);
 
@@ -323,8 +331,11 @@ const UserManagement = () => {
       await removeUser(userEmail); // Pass just the email string, not an object
       showNotification(`User has been removed from the system.`, 'success');
 
+      console.log('Starting refresh after user deletion...');
       await refreshAllUserData();
+      console.log('Refresh completed after user deletion.');
     } catch (err) {
+      console.error('Error during user removal or refresh:', err);
       showNotification(`Failed to remove user: ${err.message}`, 'error');
     } finally {
       setLoading(false);
