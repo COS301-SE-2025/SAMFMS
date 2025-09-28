@@ -14,8 +14,6 @@
 
 ## 📚 Documentation
 
-## 📚 Documentation
-
 | Resource | Link |
 |---|---|
 | SRS & Architecture | [Requirements](docs/Demo3/Software%20Requirement%20Specification.pdf) |
