@@ -2100,7 +2100,7 @@ class ServiceRequestConsumer:
                             if driver_id:
                                 try:
                                     # Try to get driver name from management database
-                                    driver_doc = await db_manager_management.users.find_one({"employee_id": driver_id})
+                                    driver_doc = await db_manager_management.drivers.find_one({"employee_id": driver_id})
                                     if driver_doc:
                                         trip_data["driver_name"] = f"{driver_doc.get('first_name', '')} {driver_doc.get('last_name', '')}".strip()
                                     else:
