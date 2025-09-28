@@ -379,8 +379,11 @@ class TrafficCondition(BaseModel):
 class RouteRecommendation(BaseModel):
     """Represents a route optimization recommendation"""
     id: Optional[str] = Field(None, description="Unique Smart Trip ID")
+    trip_name: str= Field(..., description="Associated trip name")
     trip_id: str = Field(..., description="Associated Trip ID")
     vehicle_id: str = Field(..., description="Associated Vehicle ID")
+    vehicle_name: str = Field(..., description="Associated Vehicle name")
+    emp_id: str = Field(..., description="Driver employee ID")
     current_route: RouteInfo = Field(..., description="Current route information")
     recommended_route: RouteInfo = Field(..., description="Recommended optimized route")
     time_savings: float = Field(..., description="Time saved in seconds if recommendation is accepted")
