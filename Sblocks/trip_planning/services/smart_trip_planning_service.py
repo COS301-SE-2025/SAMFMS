@@ -758,7 +758,7 @@ class SmartTripService:
             
             if traffic_condition.severity == TrafficType.SEVERE:
                 reason = (
-                    f"Severe traffic detected ({traffic_condition.severity}). "
+                    f"Severe traffic detected. "
                     f"Alternative route{waypoint_info} saves {int(best_savings / 60)} minutes."
                 )
             else :

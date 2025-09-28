@@ -315,7 +315,10 @@ class TripService:
         try:
             recommendation_doc = {
                 "trip_id": recommendation.trip_id,
+                "trip_name": recommendation.trip_name,
                 "vehicle_id": recommendation.vehicle_id,
+                "vehicle_name": recommendation.vehicle_name,
+                "emp_id": recommendation.emp_id,
                 "current_route": recommendation.current_route.model_dump() if recommendation.current_route else None,
                 "recommended_route": recommendation.recommended_route.model_dump() if recommendation.recommended_route else None,
                 "time_savings": recommendation.time_savings,
