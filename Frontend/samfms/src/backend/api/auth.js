@@ -1,6 +1,6 @@
 // auth.js - Authentication API endpoints and functions
-import { setCookie, getCookie, eraseCookie } from '../../lib/cookies';
-import { API_CONFIG, API_ENDPOINTS, buildApiUrl } from '../../config/apiConfig';
+import {setCookie, getCookie, eraseCookie} from '../../lib/cookies';
+import {API_CONFIG, API_ENDPOINTS, buildApiUrl} from '../../config/apiConfig';
 
 // Use centralized API configuration
 export const API_URL = API_CONFIG.baseURL;
@@ -20,7 +20,7 @@ export const AUTH_API = {
   me: buildApiUrl('/auth/me'),
   users: buildApiUrl('/auth/users'),
   changePassword: buildApiUrl(API_ENDPOINTS.AUTH.CHANGE_PASSWORD),
-  deleteAccount: buildApiUrl('/auth/account'),
+  deleteAccount: buildApiUrl(API_ENDPOINTS.AUTH.DELETE_ACCOUNT),
   updatePreferences: buildApiUrl('/auth/update-preferences'),
   inviteUser: buildApiUrl('/auth/invite-user'),
   createUser: buildApiUrl('/auth/create-user'),
@@ -67,7 +67,7 @@ export const logout = async () => {
 
   // Stop token refresh timer
   try {
-    const { stopTokenRefresh } = await import('../../utils/tokenManager');
+    const {stopTokenRefresh} = await import('../../utils/tokenManager');
     stopTokenRefresh();
   } catch (error) {
     console.error('Failed to stop token refresh:', error);
@@ -119,7 +119,7 @@ export const logout = async () => {
   // Dispatch logout event for other components
   window.dispatchEvent(
     new CustomEvent('authLogout', {
-      detail: { reason: 'user_initiated' },
+      detail: {reason: 'user_initiated'},
     })
   );
 };
@@ -171,7 +171,7 @@ export const refreshAuthToken = async () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ refresh_token: refreshToken }),
+        body: JSON.stringify({refresh_token: refreshToken}),
       },
       5000
     );
@@ -228,7 +228,7 @@ export const authFetch = async (url, options = {}) => {
 
   try {
     // First attempt with current token
-    const response = await fetchWithTimeout(fullUrl, { ...options, headers }, 8000);
+    const response = await fetchWithTimeout(fullUrl, {...options, headers}, 8000);
 
     // If unauthorized, try to refresh token and retry
     if (response.status === 401) {
@@ -242,7 +242,7 @@ export const authFetch = async (url, options = {}) => {
           Authorization: `Bearer ${token}`,
         };
 
-        return fetchWithTimeout(fullUrl, { ...options, headers: newHeaders }, 8000);
+        return fetchWithTimeout(fullUrl, {...options, headers: newHeaders}, 8000);
       } catch (refreshError) {
         console.error('Auth refresh failed:', refreshError);
         // If refresh fails, redirect to login
@@ -336,7 +336,7 @@ export const signup = async (full_name, email, password, confirmPassword, phoneN
       }
 
       // Start automatic token refresh
-      const { startTokenRefresh } = await import('../../utils/tokenManager');
+      const {startTokenRefresh} = await import('../../utils/tokenManager');
       startTokenRefresh();
 
       // Clear user existence cache after successful signup
@@ -407,14 +407,14 @@ export const login = async (email, password) => {
 
     // Apply user theme preference immediately
     try {
-      const { applyUserThemePreference } = await import('../../utils/themeUtils');
+      const {applyUserThemePreference} = await import('../../utils/themeUtils');
       applyUserThemePreference();
     } catch (error) {
       console.error('Failed to apply theme preference:', error);
     }
 
     // Start automatic token refresh
-    const { startTokenRefresh } = await import('../../utils/tokenManager');
+    const {startTokenRefresh} = await import('../../utils/tokenManager');
     startTokenRefresh();
 
     return data;
@@ -456,17 +456,19 @@ export const changePassword = async (currentPassword, newPassword) => {
 };
 
 // Delete Account
-export const deleteAccount = async () => {
+export const deleteAccount = async (email) => {
   const token = getToken();
   if (!token) {
     throw new Error('No authentication token found');
   }
 
   const response = await fetch(AUTH_API.deleteAccount, {
-    method: 'DELETE',
+    method: 'POST',
     headers: {
+      'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
+    body: JSON.stringify({email: email}),
   });
 
   if (!response.ok) {
@@ -476,6 +478,31 @@ export const deleteAccount = async () => {
 
   // Clear local storage on successful account deletion
   logout();
+  return response.json();
+};
+
+// Remove User (Admin functionality - doesn't log out the current user)
+export const removeUser = async (email) => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(AUTH_API.deleteAccount, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({email: email}),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to remove user');
+  }
+
+  // Don't logout - this is for removing other users as an admin
   return response.json();
 };
 
@@ -498,7 +525,7 @@ export const updatePreferences = async preferences => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ preferences }),
+        body: JSON.stringify({preferences}),
       },
       10000 // 10 second timeout
     );
@@ -507,7 +534,7 @@ export const updatePreferences = async preferences => {
     console.log('Response ok:', response.ok);
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      const errorData = await response.json().catch(() => ({detail: 'Unknown error'}));
       console.error('Error response data:', errorData);
       throw new Error(errorData.detail || 'Failed to update preferences');
     }
@@ -558,7 +585,7 @@ export const updateUserProfile = async userData => {
 
     // Update user data in cookies
     const currentUser = getCurrentUser();
-    const updatedUser = { ...currentUser, ...userData };
+    const updatedUser = {...currentUser, ...userData};
     setCookie('user', JSON.stringify(updatedUser), 30);
 
     return response.json();
@@ -719,7 +746,7 @@ export const listUsers = async () => {
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    const errorData = await response.json().catch(() => ({detail: 'Unknown error'}));
     throw new Error(errorData.detail || 'Failed to fetch users');
   }
 
@@ -776,7 +803,7 @@ export const getRoles = async () => {
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    const errorData = await response.json().catch(() => ({detail: 'Unknown error'}));
     throw new Error(
       `Internal server error: ${response.status}: ${errorData.detail || 'Not authenticated'}`
     );
@@ -802,7 +829,7 @@ export const verifyPermission = async permission => {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ permission }),
+    body: JSON.stringify({permission}),
   });
 
   if (!response.ok) {
@@ -929,13 +956,13 @@ export const fetchWithTimeout = async (url, options = {}, timeout = 5000) => {
       if (url.includes(':21017')) {
         throw new Error(
           `Network error when connecting to ${url}. This appears to be trying to connect to the NGINX HTTPS port directly. ` +
-            `If you're running in production with HTTPS, the API should be accessed through the /api path without specifying a port. ` +
-            `Check your REACT_APP_API_BASE_URL environment variable configuration.`
+          `If you're running in production with HTTPS, the API should be accessed through the /api path without specifying a port. ` +
+          `Check your REACT_APP_API_BASE_URL environment variable configuration.`
         );
       } else {
         throw new Error(
           `Network error when connecting to ${url}. The service may be down or unreachable. ` +
-            `Please check if the backend services are running and accessible.`
+          `Please check if the backend services are running and accessible.`
         );
       }
     }
@@ -975,7 +1002,7 @@ export const checkUserExistence = async (forceRefresh = false) => {
       3000
     ).catch(error => {
       console.log('Failed to check user existence through user-exists endpoint', error);
-      return { ok: false };
+      return {ok: false};
     });
 
     if (response.ok) {
@@ -999,7 +1026,7 @@ export const checkUserExistence = async (forceRefresh = false) => {
         3000
       ).catch(error => {
         console.log('User count endpoint failed:', error);
-        return { ok: false };
+        return {ok: false};
       });
 
       if (checkUsersResponse.ok) {
@@ -1021,7 +1048,7 @@ export const checkUserExistence = async (forceRefresh = false) => {
           method: 'OPTIONS',
         },
         3000
-      ).catch(() => ({ status: 0 }));
+      ).catch(() => ({status: 0}));
 
       console.log('Login endpoint check status:', loginEndpointResponse.status);
 
@@ -1094,4 +1121,55 @@ export const clearRolesCache = () => {
 export const clearAllAuthCache = () => {
   clearUsersCache();
   clearRolesCache();
+};
+
+// Forgot Password Functions
+export const forgotPassword = async (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw new Error('Invalid email format');
+  }
+
+  const response = await fetch(`${API_URL}/auth/forgot-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Forgot password failed');
+  }
+
+  return response.json();
+};
+
+export const resetPasswordWithOTP = async (email, otp, password) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw new Error('Invalid email format');
+  }
+
+  const response = await fetch(`${API_URL}/auth/forgot-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email,
+      otp,
+      password,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Password reset failed');
+  }
+
+  return response.json();
 };

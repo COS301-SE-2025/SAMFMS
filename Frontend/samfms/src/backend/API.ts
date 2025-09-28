@@ -9,7 +9,7 @@ export const API = {
   me: `${API_URL}/auth/me`,
   users: `${API_URL}/auth/users`,
   changePassword: `${API_URL}/auth/change-password`,
-  deleteAccount: `${API_URL}/auth/account`,
+  deleteAccount: `${API_URL}/remove-user`,
   inviteUser: `${API_URL}/auth/invite-user`,
   updatePermissions: `${API_URL}/auth/update-permissions`,
   getRoles: `${API_URL}/auth/roles`,
@@ -90,8 +90,8 @@ export const forgotPassword = async (email: string): Promise<any> => {
   if (!emailRegex.test(email)) {
     throw new Error('Invalid email format');
   }
-  // return "En email with further instructions has been sent to " + email;
-  const response = await fetch(`${API_URL}/util/forgot-password`, {
+
+  const response = await fetch(`${API_URL}/auth/forgot-password`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -106,9 +106,33 @@ export const forgotPassword = async (email: string): Promise<any> => {
     throw new Error(errorData.detail || 'Forgot password failed');
   }
 
-  const data = await response.json();
+  return response.json();
+};
 
-  return data;
+export const resetPasswordWithOTP = async (email: string, otp: string, password: string): Promise<any> => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw new Error('Invalid email format');
+  }
+
+  const response = await fetch(`${API_URL}/auth/forgot-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email,
+      otp,
+      password,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Password reset failed');
+  }
+
+  return response.json();
 };
 
 export const logout = (): void => {

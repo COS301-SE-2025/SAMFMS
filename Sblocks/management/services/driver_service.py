@@ -106,6 +106,8 @@ class DriverService:
         """Retrieve total number of drivers based on filters"""
         response = await self.get_all_drivers(filters)
         return {"total": response["total"]}
+    
+
 
     
     async def create_driver(self, driver_request: DriverCreateRequest, created_by: str) -> Dict[str, Any]:
@@ -309,6 +311,18 @@ class DriverService:
         except Exception as e:
             logger.error(f"Error getting driver {driver_id}: {e}")
             raise
+
+    async def get_driver_id_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Get a specific driver by email"""
+        try:
+            driver = await self.driver_repo.get_by_email(email)
+            if not driver:
+                logger.warning(f"Driver not found: {email}")
+                return None
+            return driver
+        except Exception as e:
+            logger.error(f"Error getting driver {email}: {e}")
+            raise
     
     async def delete_driver(self, driver_id: str) -> bool:
         """Delete a driver by ID"""
@@ -319,10 +333,6 @@ class DriverService:
                 logger.warning(f"Driver not found for deletion: {driver_id}")
                 return False
             
-            # Check if driver has active assignments
-            if driver.get("status") == "active":
-                logger.warning(f"Cannot delete active driver: {driver_id}")
-                raise ValueError("Cannot delete an active driver. Please deactivate first.")
             
             # Delete the driver
             success = await self.driver_repo.delete(driver_id)
@@ -339,6 +349,7 @@ class DriverService:
         except Exception as e:
             logger.error(f"Error deleting driver {driver_id}: {e}")
             raise
+        
     
     async def generate_next_employee_id(self) -> str:
         """Generate next sequential employee ID"""

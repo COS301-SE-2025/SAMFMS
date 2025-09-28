@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
     logger.info("🛑 Security service shutting down...")
     mq_service.close()
     logger.info("✅ Security service shutdown completed")
-    publish_message("service_presence", aio_pika.ExchangeType.FANOUT, {"type": "service_presence", "service":"security"}, "")
+    #publish_message("service_presence", aio_pika.ExchangeType.FANOUT, {"type": "service_presence", "service":"security"}, "")
 
 
 

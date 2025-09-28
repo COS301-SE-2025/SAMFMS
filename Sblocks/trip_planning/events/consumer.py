@@ -19,10 +19,18 @@ class EventConsumer:
     def __init__(self):
         self.connection: Optional[aio_pika.Connection] = None
         self.channel: Optional[aio_pika.Channel] = None
-        self.rabbitmq_url = os.getenv(
-            "RABBITMQ_URL", 
-            "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/"
-        )
+        rabbitmq_host = os.getenv("RABBITMQ_HOST", "rabbitmq")
+        rabbitmq_username = os.getenv("RABBITMQ_USERNAME", "samfms_rabbit")
+        rabbitmq_password = os.getenv("RABBITMQ_PASSWORD", "")
+        rabbitmq_port = os.getenv("RABBITMQ_PORT", "5672")
+
+        if rabbitmq_password:
+            self.rabbitmq_url = f"amqp://{rabbitmq_username}:{rabbitmq_password}@{rabbitmq_host}:{rabbitmq_port}/"
+        else:
+            # Fallback to RABBITMQ_URL if individual components aren't available
+            self.rabbitmq_url = os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/")
+
+
         self.handlers: Dict[str, Callable] = {}
         self.dead_letter_queue: Optional[aio_pika.Queue] = None
         self.max_retry_attempts = 3
@@ -125,11 +133,25 @@ class EventConsumer:
                 durable=True
             )
 
+            exchange = await self.channel.declare_exchange(
+                "trips_events",
+                aio_pika.ExchangeType.TOPIC,
+                durable=True
+            )
+
             # Declare queue for this service
             queue = await self.channel.declare_queue(
                 "trips_service_events",
                 durable=True
             )
+
+            user_remove_exchange = await self.channel.declare_exchange(
+                "removed_user",
+                aio_pika.ExchangeType.FANOUT,
+                durable=True
+            )
+
+            await queue.bind(user_remove_exchange)
 
             # Bind queue to exchange for relevant patterns
             patterns = [
@@ -162,6 +184,9 @@ class EventConsumer:
                 # Parse message
                 body = json.loads(message.body.decode())
                 routing_key = message.routing_key
+
+                if routing_key == "":
+                    routing_key = "removed_user"
                 
                 logger.info(f"Received event with routing key: {routing_key}")
                 
@@ -196,10 +221,35 @@ async def handle_gps_event(event_data: Dict[str, Any], routing_key: str):
     logger.info(f"Handling gps event: {routing_key}")
     # Process user events that might affect places or permissions
 
+async def handle_removed_user_event(data: Dict[str, Any], routing_key: str):
+    """Handle removed user events"""
+    logger.info(f"Handling removed user event: {routing_key}")
+    driver_id = data["driver_id"]
+    from services import trip_service
+    await trip_service.delete_trips_by_driver_id(driver_id)
+    #Remove from route_recommendations
+    #Remove from trips where status = scheduled
+    #get all id's to be cancelled
+    #cancel all trips by id async def delete_scheduled_trip(self, trip_id: str) -> bool: async def get_trip_by_id_smart(self, trip_id: str) -> Optional[SmartTrip]:
+    
+    
+    
+    #unassign_driver_from_trip
+    #deactivate_driver
+    #delete scheduled trip
+    #delete smart trip
+    #notification
+    #list trips
+    #delete trip
+    #cancel trip?
+
+    # Process user removal events
+
 async def setup_event_handlers():
     """Setup event handlers"""
-    event_consumer.register_handler("management.*", handle_management_event)
-    event_consumer.register_handler("gps.*", handle_gps_event)
+    await event_consumer.register_handler("management.*", handle_management_event)
+    await event_consumer.register_handler("gps.*", handle_gps_event)
+    await event_consumer.register_handler("removed_user", handle_removed_user_event)
     
 # Global event consumer instance
 event_consumer = EventConsumer()

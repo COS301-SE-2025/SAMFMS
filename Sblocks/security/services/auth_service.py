@@ -437,12 +437,13 @@ class AuthService:
         
 
     @staticmethod
-    async def remove_user(email: str):
+    async def remove_user(email: str) -> bool:
         try:
-            
+            T1 = False
+            T2 = False
 
-            T1 = UserRepository.move_user_to_removed(email)
-            T2 = UserRepository.remove_user(email)
+            T1 = await UserRepository.move_user_to_removed(email)
+            T2 = await UserRepository.remove_user(email)
 
             return (T1 and T2)
 
