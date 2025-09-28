@@ -20,7 +20,7 @@ export const AUTH_API = {
   me: buildApiUrl('/auth/me'),
   users: buildApiUrl('/auth/users'),
   changePassword: buildApiUrl(API_ENDPOINTS.AUTH.CHANGE_PASSWORD),
-  deleteAccount: buildApiUrl('/auth/account'),
+  deleteAccount: buildApiUrl(API_ENDPOINTS.AUTH.DELETE_ACCOUNT),
   updatePreferences: buildApiUrl('/auth/update-preferences'),
   inviteUser: buildApiUrl('/auth/invite-user'),
   createUser: buildApiUrl('/auth/create-user'),
@@ -456,17 +456,19 @@ export const changePassword = async (currentPassword, newPassword) => {
 };
 
 // Delete Account
-export const deleteAccount = async () => {
+export const deleteAccount = async (email) => {
   const token = getToken();
   if (!token) {
     throw new Error('No authentication token found');
   }
 
   const response = await fetch(AUTH_API.deleteAccount, {
-    method: 'DELETE',
+    method: 'POST',
     headers: {
+      'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
+    body: JSON.stringify({email: email}),
   });
 
   if (!response.ok) {
@@ -476,6 +478,31 @@ export const deleteAccount = async () => {
 
   // Clear local storage on successful account deletion
   logout();
+  return response.json();
+};
+
+// Remove User (Admin functionality - doesn't log out the current user)
+export const removeUser = async (email) => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(AUTH_API.deleteAccount, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({email: email}),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to remove user');
+  }
+
+  // Don't logout - this is for removing other users as an admin
   return response.json();
 };
 

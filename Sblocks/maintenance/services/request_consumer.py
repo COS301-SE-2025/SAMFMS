@@ -80,8 +80,12 @@ class ServiceRequestConsumer:
                 durable=True
             )
             
+
+
+
             # Bind to maintenance routing key (must match Core service routing pattern)
             await self.queue.bind(self.exchange, "maintenance.requests")
+            
             
             logger.info(f"Connected to RabbitMQ. Queue: {self.queue_name}")
             

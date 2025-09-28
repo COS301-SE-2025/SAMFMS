@@ -504,7 +504,7 @@ const Account = () => {
             <div className="bg-red-50 text-red-800 p-4 rounded-lg mb-6">{error}</div>
           </FadeIn>
         ) : (
-          <div className="max-w-7xl mx-auto space-y-8">
+          <div className="max-w-7xl mx-auto items-center space-y-8">
             {/* First Row - Profile Section (Full Width) */}
             <FadeIn delay={0.2}>
               <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-8">

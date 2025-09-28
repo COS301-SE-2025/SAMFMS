@@ -120,6 +120,19 @@ class TripService:
         except Exception as e:
             logger.error(f"[TripService.get_scheduled_trips] Failed: {e}")
             raise
+
+    async def delete_trips_by_driver_id(self, driver_id: str):
+        """Delete all trips by driver_id"""
+        logger.info(f"Deleting all scheduled trips for driver_id={driver_id}")
+        try:
+            result = await self.db.trips_scheduled.delete_many({"driver_id": driver_id})
+            
+            logger.info(f"Deleted {result.deleted_count} trips for driver_id={driver_id}")
+            return result.deleted_count
+
+        except Exception as e:
+            logger.error(f"[TripService.delete_trips_by_driver_id] Failed: {e}")
+            raise
     
 
     async def delete_scheduled_trip(self, trip_id: str) -> bool:
@@ -259,6 +272,8 @@ class TripService:
         except Exception as e:
             logger.error(f"[TripService.get_trip_by_id_smart] Failed to get trip {trip_id}: {e}")
             raise
+
+    
 
     async def get_smart_trips(self) -> list[SmartTrip]:
         """Return all smart trips"""

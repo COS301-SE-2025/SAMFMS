@@ -380,12 +380,12 @@ async def remove_user(request: RemoveUser):
 
     try:            
         if email:
-            if AuthService.remove_user(email):
+            if await AuthService.remove_user(email):
                 return {"message": "user removed"}, 200
 
-        return {"error": "Server error"}, 500
+        return {"error": "Remove user failed"}, 500
     except Exception as e:
-        return {"error": {str: e}}, 500
+        return {"error": str(e)}, 500
 
 
 

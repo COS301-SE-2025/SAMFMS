@@ -13,6 +13,10 @@ import traceback
 from .events import VehicleEvent, UserEvent
 # Import standardized config
 from config.rabbitmq_config import RabbitMQConfig
+from .publisher import EventPublisher
+from services.drivers_service import DriversService
+from services.driver_service import DriverService
+from services.assignment_service import VehicleAssignmentService
 
 logger = logging.getLogger(__name__)
 
@@ -158,7 +162,6 @@ class EventConsumer:
         await queue.bind(vehicles_exchange, "vehicle.updated")
         await queue.bind(vehicles_exchange, "vehicle.deleted")
         await queue.bind(vehicles_exchange, "vehicle.status_changed")
-        await queue.bind()
         
         # Bind to user events from Security service
         security_exchange = await self.channel.declare_exchange(
@@ -166,10 +169,20 @@ class EventConsumer:
             aio_pika.ExchangeType.TOPIC,
             durable=True
         )
-        
+
         await queue.bind(security_exchange, "user.created")
         await queue.bind(security_exchange, "user.updated")
         await queue.bind(security_exchange, "user.role_changed")
+        
+
+
+        removed_user_exchange = await self.channel.declare_exchange(
+            "removed_user",
+            aio_pika.ExchangeType.FANOUT,
+            durable=True
+        )
+        
+        await queue.bind(removed_user_exchange)
         
         logger.info("Setup event bindings")
     
@@ -301,6 +314,9 @@ class EventConsumer:
             body = json.loads(message.body.decode())
             routing_key = message.routing_key
             event_type = message.headers.get("event_type", routing_key) if message.headers else routing_key
+
+            if routing_key == "":
+                routing_key = "removed_user"
             
             logger.info(f"Processing event: {event_type} (routing_key: {routing_key})")
             
@@ -678,6 +694,58 @@ class ManagementEventHandlers:
             logger.error(f"Event data: {data}")
             raise
 
+    async def handle_removed_user(self, data: Dict[str, Any], routing_key: str, headers: Dict[str, Any]):
+        try: 
+            email = data["email"]
+            if not email:
+                logger.warning("No email provided in removed user event")
+                return
+            driver_service = DriverService()
+            vehicle_assignment_service = VehicleAssignmentService()
+            driver = await driver_service.get_driver_id_by_email(email)
+
+            if not driver:
+                logger.warning(f"Driver not found for email: {email}")
+                return
+
+            ID = driver["_id"]
+            EMPID = driver["employee_id"] #for trips driver_assignment is equivalent to employee_id
+            security_id = driver["security_id"] #for maintenance_records assigned_to is equivalent to security_id
+            await driver_service.delete_driver(ID)
+            await vehicle_assignment_service.cancel_driver_assignments(EMPID)
+            publisher = EventPublisher()
+            message = ({
+                    "driver_assignment": EMPID,
+                    "assigned_to": security_id,
+                })
+            await publisher.publish_message(
+                            "removed_user",
+                            aio_pika.ExchangeType.FANOUT,
+                            message
+                        )
+            
+            
+            
+            logger.info(f"Successfully processed removed user event: {email}")
+        except Exception as e:
+            logger.error(f"Error handling removed user event: {e}")
+            logger.error(f"Event data: {data}")
+            raise
+
+    async def handle_removed_vehicle(self, data: Dict[str, Any], routing_key: str, headers: Dict[str, Any]):
+        try: 
+            logger.info("Handling removed vehicle event")
+            return
+            
+            
+            logger.info(f"Successfully processed removed user event: {email}")
+        except Exception as e:
+            logger.error(f"Error handling removed user event: {e}")
+            logger.error(f"Event data: {data}")
+            raise
+
+
+
 
 # Global consumer instance
 event_consumer = EventConsumer()
@@ -691,3 +759,5 @@ async def setup_event_handlers():
     event_consumer.register_handler("vehicle.deleted", event_handlers.handle_vehicle_deleted)
     event_consumer.register_handler("user.created", event_handlers.handle_user_created)
     event_consumer.register_handler("user.role_changed", event_handlers.handle_user_role_changed)
+    event_consumer.register_handler("removed_user", event_handlers.handle_removed_user)
+    event_consumer.register_handler("removed_vehicle", event_handlers.handle_removed_vehicle)

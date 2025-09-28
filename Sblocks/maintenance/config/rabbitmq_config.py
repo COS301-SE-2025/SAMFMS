@@ -5,8 +5,6 @@ Local copy of standardized configuration
 
 import os
 import logging
-import asyncio
-import aio_pika
 from typing import Dict, Any, Optional
 from datetime import datetime
 import json

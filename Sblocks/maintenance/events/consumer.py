@@ -23,15 +23,18 @@ class EventConsumer:
     def __init__(self):
         self.connection: Optional[aio_pika.Connection] = None
         self.channel: Optional[aio_pika.Channel] = None
-        self.rabbitmq_url = os.getenv("RABBITMQ_URL", "amqp://samfms_rabbit:RabbitPass2025!@rabbitmq:5672/")
+        self.config = RabbitMQConfig()
+        self.rabbitmq_url = self.config.get_rabbitmq_url()
         self.handlers: Dict[str, Callable] = {}
         self.dead_letter_queue: Optional[aio_pika.Queue] = None
         self.max_retry_attempts = 3
         self.retry_delay = 2.0  # seconds
         self.is_consuming = False
+        self.queue = None
         
     async def connect(self):
         """Connect to RabbitMQ"""
+        attempt = 0
         try:            
             # Use standardized connection settings
             self.connection = await aio_pika.connect_robust(
@@ -109,6 +112,15 @@ class EventConsumer:
             for pattern in patterns:
                 await queue.bind(exchange, routing_key=pattern)
 
+
+            removed_user_exchange = await self.channel.declare_exchange(
+                "removed_user",
+                aio_pika.ExchangeType.FANOUT,
+                durable=True
+            )
+
+            await queue.bind(removed_user_exchange, "")
+
             self.is_consuming = True
             await queue.consume(self._handle_message)
 
@@ -130,6 +142,9 @@ class EventConsumer:
                 body = json.loads(message.body.decode())
                 routing_key = message.routing_key
                 
+                if routing_key == "":
+                    routing_key = "removed_user"
+
                 logger.info(f"Received event with routing key: {routing_key}")
                 
                 # Find matching handler
@@ -152,7 +167,7 @@ class EventConsumer:
             prefix = pattern.replace("*", "")
             return routing_key.startswith(prefix)
         return routing_key == pattern
-
+    
 
 
     async def _declare_queue_with_fallback(self, queue_name: str) -> aio_pika.Queue:
@@ -251,11 +266,26 @@ async def handle_user_created(event_data: Dict[str, Any]):
     logger.info(f"User created: {event_data.get('user_id')}")
     # TODO: Setup maintenance notifications for new user
 
-def setup_event_handlers():
+
+async def handle_removed_user(data: Dict[str, Any], routing_key: str):
+        try: 
+            assigned_to = data["assigned_to"]
+            logger.info(f"Processing removed user event for: {assigned_to}")
+            return
+            
+        except Exception as e:
+            logger.error(f"Error handling removed user event: {e}")
+            logger.error(f"Event data: {data}")
+            raise
+
+
+
+async def setup_event_handlers():
     """Setup event handlers"""
     event_consumer.register_handler("vehicle.created", handle_vehicle_created)
     event_consumer.register_handler("vehicle.updated", handle_vehicle_updated)
     event_consumer.register_handler("user.created", handle_user_created)
+    event_consumer.register_handler("removed_user", handle_removed_user)
     logger.info("Event handlers registered successfully")
 
 

@@ -161,6 +161,14 @@ class VehicleAssignmentService:
         except Exception as e:
             logger.error(f"Error getting driver's current assignment: {e}")
             raise
+
+    async def cancel_driver_assignments(self, driver_id: str):
+        """Remove all assignments from driver"""
+        try:
+            await self.assignment_repo.cancel_driver_assignments(driver_id)
+        except Exception as e:
+            logger.error(f"Error getting driver's current assignment: {e}")
+            raise
     
     async def get_vehicle_current_assignment(self, vehicle_id: str) -> Optional[Dict[str, Any]]:
         """Get vehicle's current active assignment"""
