@@ -25,26 +25,12 @@
 | Service Contracts | [Contracts](docs/Demo3/Service%20Contracts-1.pdf) |
 | Branching Strategy | [Strategy](docs/Demo3/Branching_Strategy.pdf) |
 | Updated Domain Model | [Domain Model](docs/Demo3/images/DomainModel.png) |
-|---|---|
-| SRS & Architecture | [Requirements](docs/Demo3/Software%20Requirement%20Specification.pdf) |
-| Project Board | [GitHub Projects](https://github.com/orgs/COS301-SE-2025/projects/208/views/2) |
-| Coding Standards | [Guide](docs/Demo3/Coding_Standards.pdf) |
-| Technical Installation | [Install Guide](docs/Demo3/Technical_Installation_Guide.pdf) |
-| User Manual | [Manual](docs/Demo3/SAMFMS%20User%20Manual.pdf) |
-| Deployment Strategy | [Deployment Model](docs/Demo3/Deployment%20Strategy.pdf) |
-| Service Contracts | [Contracts](docs/Demo3/Service%20Contracts-1.pdf) |
-| Branching Strategy | [Strategy](docs/Demo3/Branching_Strategy.pdf) |
-| Updated Domain Model | [Domain Model](docs/Demo3/images/DomainModel.png) |
+
 
 Older docs:
 - Demo 1 SRS: [Google Doc](https://docs.google.com/document/d/1En1Mck7JwaSdKjgyvRhmX5pXqHhVSUlhZhp7XU-f_K4/edit?tab=t.0)
 - Demo 2 SRS: [Google Doc](https://docs.google.com/document/d/1G0PdNyn39kSutfvn8tCN5x-yCHrte0QFu_v2-gYdXPU/edit?tab=t.0)
 - Demo 2 Slides: [Canva Presentation](https://www.canva.com/design/DAGrW5d1HYA/LC1cf0PKTY7MIsAVtObYPA/edit)
-Older docs:
-- Demo 1 SRS: [Google Doc](https://docs.google.com/document/d/1En1Mck7JwaSdKjgyvRhmX5pXqHhVSUlhZhp7XU-f_K4/edit?tab=t.0)
-- Demo 2 SRS: [Google Doc](https://docs.google.com/document/d/1G0PdNyn39kSutfvn8tCN5x-yCHrte0QFu_v2-gYdXPU/edit?tab=t.0)
-- Demo 2 Slides: [Canva Presentation](https://www.canva.com/design/DAGrW5d1HYA/LC1cf0PKTY7MIsAVtObYPA/edit)
-
 ---
 
 ## 👥 Team
