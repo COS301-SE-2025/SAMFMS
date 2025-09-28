@@ -246,7 +246,7 @@ const UserManagement = () => {
 
   const handleRemoveUser = async (driversArray) => {
     const userConfirmed = window.confirm(
-      `Are you sure you want to remove ${driversArray. || driver.email} from the system?`
+      `Are you sure you want to remove ${driversArray || driver.email} from the system?`
     );
 
     if (!userConfirmed) return;
