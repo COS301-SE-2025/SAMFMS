@@ -224,6 +224,16 @@ async def handle_gps_event(event_data: Dict[str, Any], routing_key: str):
 async def handle_removed_user_event(data: Dict[str, Any], routing_key: str):
     """Handle removed user events"""
     logger.info(f"Handling removed user event: {routing_key}")
+    driver_id = data["driver_id"]
+    from services import trip_service
+    await trip_service.delete_trips_by_driver_id(driver_id)
+    #Remove from route_recommendations
+    #Remove from trips where status = scheduled
+    #get all id's to be cancelled
+    #cancel all trips by id async def delete_scheduled_trip(self, trip_id: str) -> bool: async def get_trip_by_id_smart(self, trip_id: str) -> Optional[SmartTrip]:
+    
+    
+    
     #unassign_driver_from_trip
     #deactivate_driver
     #delete scheduled trip
