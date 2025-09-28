@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
-import { Button } from '../ui/button';
-import { useAuth } from '../auth/RBACUtils';
+import React, {useState} from 'react';
+import {Button} from '../ui/button';
+import {useAuth} from '../auth/RBACUtils';
 const ManualCreateUserModal = ({
   isOpen,
   onClose,
@@ -27,6 +27,20 @@ const ManualCreateUserModal = ({
       role: preselectedRole,
     }));
   }, [preselectedRole]);
+
+  // Prevent body scroll when modal is open
+  React.useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    // Cleanup function to reset body overflow when component unmounts
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
 
   // Phone number validation function
   const validatePhoneNumber = (phone) => {
@@ -185,8 +199,27 @@ const ManualCreateUserModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-card bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-xl p-6 w-full max-w-2xl border border-border">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 z-50 p-4"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        position: 'fixed'
+      }}
+    >
+      <div
+        className="bg-card bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 rounded-lg shadow-xl p-6 w-full max-w-2xl border border-border relative"
+        style={{
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          margin: 'auto'
+        }}
+      >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-foreground">
             Add {getRoleDisplayName(preselectedRole)}

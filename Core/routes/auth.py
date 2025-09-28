@@ -1014,3 +1014,37 @@ async def create_user_manually(user_data: CreateUserRequest, request: Request):
     except Exception as e:
         logger.error(f"Error creating user: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/forgot-password")
+async def forgot_password(request: Request):
+    """Proxy forgot password requests to Security service"""
+    try:
+        # Get request body
+        body = await request.json()
+        
+        # Forward the request to the Security service
+        response = requests.post(
+            f"{SECURITY_URL}/auth/forgot-password",
+            json=body,
+            timeout=15
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            try:
+                detail = response.json().get("detail", "Forgot password failed")
+            except ValueError:
+                detail = "Forgot password failed"
+            raise HTTPException(status_code=response.status_code, detail=detail)
+            
+    except requests.RequestException as e:
+        logger.error(f"Error connecting to Security service: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Security service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error with forgot password: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

@@ -5,18 +5,18 @@ import {useTheme} from '../../contexts/ThemeContext';
 import {
   login,
   logout,
-  hasRole
-} from '../../backend/API.js';
-import {
+  hasRole,
   forgotPassword
-} from '../../backend/API.ts';
+} from '../../backend/API.js';
 import {ROLES} from '../auth/RBACUtils';
+import ForgotPasswordModal from './ForgotPasswordModal';
 
 const LoginForm = ({onSuccess, onClose}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [validationErrors, setValidationErrors] = useState({
     email: '',
     password: '',
@@ -67,7 +67,7 @@ const LoginForm = ({onSuccess, onClose}) => {
     }
   };
 
-  const handleForgotPassword = async email => {
+  const handleForgotPassword = async () => {
     const emailError = validateEmail(email);
     setValidationErrors({
       email: emailError,
@@ -78,12 +78,28 @@ const LoginForm = ({onSuccess, onClose}) => {
     if (emailError) {
       return;
     }
+
     setError('');
+    setLoading(true);
+
     try {
-      const res = await forgotPassword(email);
+      // Send OTP to email
+      await forgotPassword(email);
+      // Show success message and open modal
+      setError('');
+      setShowForgotPasswordModal(true);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleForgotPasswordSuccess = (message) => {
+    setError('');
+    // Show success message
+    setError(''); // Clear any existing errors
+    // You could also show a success message here if needed
   };
 
   // Helper function to clear form inputs and validation states
@@ -241,11 +257,11 @@ const LoginForm = ({onSuccess, onClose}) => {
         <div className="text-right">
           <button
             type="button"
-
-            onClick={() => (handleForgotPassword(email))}
-            className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline focus:outline-none focus:underline transition-colors duration-200 font-medium"
+            onClick={handleForgotPassword}
+            disabled={loading}
+            className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline focus:outline-none focus:underline transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Forgot your password?
+            {loading ? 'Sending OTP...' : 'Forgot your password?'}
           </button>
         </div>
 
@@ -271,6 +287,14 @@ const LoginForm = ({onSuccess, onClose}) => {
           </Button>
         </div>
       </form>
+
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        isOpen={showForgotPasswordModal}
+        onClose={() => setShowForgotPasswordModal(false)}
+        email={email}
+        onSuccess={handleForgotPasswordSuccess}
+      />
     </div>
   );
 };
