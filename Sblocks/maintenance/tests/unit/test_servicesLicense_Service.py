@@ -43,7 +43,7 @@ class _RepoStub:
         self.deleted = []
         self.find_calls = []
         self.count_calls = []
-        self.count_queue = []  # used by summary: pop in call order
+        self.count_queue = []  
     async def create(self, data):
         self.created.append(data)
         return {"id": f"lic{len(self.created)}", **data}
@@ -51,7 +51,6 @@ class _RepoStub:
         return {"id": rid, "stub": True} if rid == "found" else None
     async def update(self, rid, data):
         self.updated.append((rid, data))
-        # Return None to simulate "not found"
         return {"id": rid, **data} if rid != "missing" else None
     async def delete(self, rid):
         self.deleted.append(rid)
@@ -331,7 +330,7 @@ async def test_get_total_count_builds_query_and_error(monkeypatch):
 @pytest.mark.asyncio
 async def test_get_license_summary_sequence_and_error(monkeypatch):
     svc = make_service()
-    svc.repository.count_queue = [10, 7, 3, 2]  # total, active, expiring, expired
+    svc.repository.count_queue = [10, 7, 3, 2]  
     out = await svc.get_license_summary(entity_id="V1", entity_type="vehicle")
     assert out == {
         "total_licenses": 10,

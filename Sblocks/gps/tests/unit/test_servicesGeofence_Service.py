@@ -17,6 +17,8 @@ SERVICE_IMPORT_CANDIDATES = [
 
 def _compute_fallback_service_path() -> str | None:
     here = Path(__file__).resolve()
+    print(f"[DEBUG] _compute_fallback_service_path starting from: {here}")
+    here = Path(__file__).resolve()
     for i in range(0, min(8, len(here.parents))):
         base = here.parents[i]
         candidates = [
@@ -25,7 +27,9 @@ def _compute_fallback_service_path() -> str | None:
         ]
         for c in candidates:
             if c.exists():
+                print(f"[DEBUG] Found fallback service path: {c}")
                 return str(c)
+    print("[DEBUG] No fallback service path found")
     return None
 
 FALLBACK_SERVICE_PATH = _compute_fallback_service_path()
@@ -221,9 +225,6 @@ def make_fake_bson_module(record_last=False, store=None):
     return bson_mod
 
 class SysModulesSandbox:
-    """
-    Temporarily inject fake modules for import, then restore sys.modules.
-    """
     def __init__(self, *, raise_on_publish=False, publisher_calls=None, bson_store=None):
         self.raise_on_publish = raise_on_publish
         self.publisher_calls = publisher_calls if publisher_calls is not None else []
@@ -268,26 +269,31 @@ class SysModulesSandbox:
 def import_service_module():
     last_err = None
     for name in SERVICE_IMPORT_CANDIDATES:
+        print(f"[DEBUG] Attempting import: {name}")
         try:
             if name in sys.modules:
                 del sys.modules[name]
-            return importlib.import_module(name)
+            mod = importlib.import_module(name)
+            print(f"[DEBUG] Imported module: {name}")
+            return mod
         except Exception as e:
+            print(f"[DEBUG] Import failed for {name}: {e}")
             last_err = e
 
     if FALLBACK_SERVICE_PATH:
+        print(f"[DEBUG] Using FALLBACK_SERVICE_PATH: {FALLBACK_SERVICE_PATH}")
         spec = importlib.util.spec_from_file_location("geofence_service", FALLBACK_SERVICE_PATH)
         mod = importlib.util.module_from_spec(spec)
         if "geofence_service" in sys.modules:
             del sys.modules["geofence_service"]
-        spec.loader.exec_module(mod)  
+        spec.loader.exec_module(mod)
+        print("[DEBUG] Imported geofence_service from fallback path")  
         return mod
 
     raise last_err or ImportError("Unable to import geofence_service")
 
 
 # -----------------------------
-# Tests for create_geofence
 # -----------------------------
 
 @pytest.mark.asyncio
@@ -318,7 +324,7 @@ async def test_create_geofence_circle_inserts_point_and_publishes():
 
         model = await svc.create_geofence(
             name="Depot 1",
-            geometry={"type": "circle", "center": {"latitude": 10.5, "longitude": 20.25}, "radius": 150}
+            geometry={"type": "point", "coordinates": [20.25, 10.5], "radius": 150}
         )
 
         inserted = dbm.db.geofences.last_insert_data
@@ -388,7 +394,6 @@ async def test_create_geofence_publish_failure_is_swallowed():
 
 
 # -----------------------------
-# Tests for get_geofence_by_id
 # -----------------------------
 
 @pytest.mark.asyncio
@@ -424,7 +429,6 @@ async def test_get_geofence_by_id_db_error_returns_none():
 
 
 # -----------------------------
-# Tests for _normalize_geometry (via method)
 # -----------------------------
 
 @pytest.mark.asyncio
@@ -458,7 +462,6 @@ async def test_normalize_geometry_unknown_passthrough():
 
 
 # -----------------------------
-# Tests for get_geofences
 # -----------------------------
 
 @pytest.mark.asyncio
@@ -513,7 +516,6 @@ async def test_get_geofences_db_error_returns_empty_list():
 
 
 # -----------------------------
-# Tests for update_geofence
 # -----------------------------
 
 @pytest.mark.asyncio
@@ -611,7 +613,6 @@ async def test_update_geofence_exception_returns_none():
 
 
 # -----------------------------
-# Tests for delete_geofence
 # -----------------------------
 
 @pytest.mark.asyncio

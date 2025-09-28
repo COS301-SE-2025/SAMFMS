@@ -10,7 +10,7 @@ CANDIDATES = [
     os.path.abspath(os.path.join(os.getcwd(), "consumer.py")),
 ]
 
-# --------------------- Minimal stub modules BEFORE import ---------------------
+
 def ensure(name, as_pkg=False):
     if name not in sys.modules:
         mod = types.ModuleType(name)
@@ -19,7 +19,7 @@ def ensure(name, as_pkg=False):
         sys.modules[name] = mod
     return sys.modules[name]
 
-# events package + events.events submodule (for VehicleEvent, UserEvent)
+
 events_pkg = ensure("events", as_pkg=True)
 events_events = ensure("events.events")
 if not hasattr(events_events, "VehicleEvent"):
@@ -29,7 +29,7 @@ if not hasattr(events_events, "UserEvent"):
     class UserEvent: ...
     events_events.UserEvent = UserEvent
 
-# config.rabbitmq_config stub
+
 config_pkg = ensure("config", as_pkg=True)
 cfg_mod = ensure("config.rabbitmq_config")
 class _RabbitCfg:
@@ -39,7 +39,7 @@ class _RabbitCfg:
         return "amqp://guest:guest@localhost/"
 cfg_mod.RabbitMQConfig = _RabbitCfg
 
-# aio_pika stub
+
 ap = ensure("aio_pika")
 
 class ExchangeType:
@@ -51,7 +51,7 @@ class DeliveryMode:
     PERSISTENT = 2
 ap.DeliveryMode = DeliveryMode
 
-# --- Placeholder types referenced by annotations (must exist at import time) ---
+
 class Queue: ...
 class Exchange: ...
 class RobustConnection: ...
@@ -61,7 +61,7 @@ ap.Exchange = Exchange
 ap.RobustConnection = RobustConnection
 ap.RobustChannel = RobustChannel
 
-# Message class used for publishing
+
 class Message:
     def __init__(self, body, headers=None, delivery_mode=None):
         self.body = body
@@ -69,7 +69,7 @@ class Message:
         self.delivery_mode = delivery_mode
 ap.Message = Message
 
-# Fakes for connection/channel/exchange/queue used at runtime
+
 class FakeExchange:
     def __init__(self, name):
         self.name = name
@@ -125,23 +125,21 @@ class FakeConnection:
     def __init__(self, will_channel=True, channel_factory=None):
         self.is_closed = False
         self._will_channel = will_channel
-        # allow injecting a factory to return a NEW channel instance
+
         self._channel_factory = channel_factory or (lambda: FakeChannel())
         self._channel = self._channel_factory()
     async def channel(self, publisher_confirms=True, on_return_raises=False):
         if not self._will_channel:
             raise RuntimeError("channel fail")
-        # always return current channel (tests can swap the factory to create a new one)
+
         return self._channel
     async def close(self):
         self.is_closed = True
 
-# default connect_robust used by consumer.connect()
 async def _connect_robust(*a, **k):
     return FakeConnection()
 ap.connect_robust = _connect_robust
 
-# Minimal IncomingMessage with async context manager for .process()
 class IncomingMessage:
     def __init__(self, body: bytes, routing_key: str, headers=None):
         self.body = body
@@ -159,13 +157,12 @@ class IncomingMessage:
         return IncomingMessage._ProcCtx(self, requeue)
 ap.IncomingMessage = IncomingMessage
 
-# -------------- Safe import of events/consumer.py as events.consumer --------------
+
 def _load_consumer():
     for p in CANDIDATES:
         if os.path.exists(p):
             spec = importlib.util.spec_from_file_location("events.consumer", p)
             mod = importlib.util.module_from_spec(spec)
-            # set package explicitly so relative imports (..repositories...) work
             mod.__package__ = "events"
             sys.modules["events.consumer"] = mod
             spec.loader.exec_module(mod)
@@ -177,23 +174,18 @@ EventConsumer = cons_mod.EventConsumer
 ManagementEventHandlers = cons_mod.ManagementEventHandlers
 setup_event_handlers = cons_mod.setup_event_handlers
 
-# Helpers
+
 def make_consumer():
     c = EventConsumer()
     return c
 
 def _patch_connect_robust(monkeypatch, func):
-    """
-    Patch whichever symbol the module under test actually uses for connect_robust:
-    - if it did `from aio_pika import connect_robust`, patch cons_mod.connect_robust
-    - otherwise patch sys.modules['aio_pika'].connect_robust
-    """
     if hasattr(cons_mod, "connect_robust"):
         monkeypatch.setattr(cons_mod, "connect_robust", func, raising=True)
     else:
         monkeypatch.setattr(sys.modules["aio_pika"], "connect_robust", func, raising=True)
 
-# ------------------------------ EventConsumer.connect ------------------------------
+
 @pytest.mark.asyncio
 async def test_connect_success_first_try(monkeypatch):
     calls = {"n": 0}
@@ -234,7 +226,6 @@ async def test_disconnect_closes_and_resets():
     await c.connect()
     await c.disconnect()
     assert c.connection is None and c.channel is None and c.dead_letter_queue is None
-    # idempotent
     await c.disconnect()
     assert c.connection is None
 
@@ -269,7 +260,7 @@ async def test_start_consuming_success():
     ch: FakeChannel = c.channel
     q = ch.queues.get("management_service_events")
     assert q is not None and q.consumer is not None
-    assert c.enable_dead_letter_queue is False  # disabled in start
+    assert c.enable_dead_letter_queue is False  
 
 @pytest.mark.asyncio
 async def test_start_consuming_handles_exception(monkeypatch):
@@ -353,14 +344,14 @@ async def test_retry_message_publishes_with_incremented_headers(monkeypatch):
     assert rk == "management_service_events"
     assert out_msg.headers.get("x-retry-count") == 1
     assert "x-retry-timestamp" in out_msg.headers
-    assert slept  # slept at least once
+    assert slept  
 
 @pytest.mark.asyncio
 async def test_retry_message_publish_failure_is_swallowed(monkeypatch):
     c = make_consumer()
     await c.connect()
     c.channel.default_exchange._raise = RuntimeError("publish fail")
-    await c._retry_message(ap.IncomingMessage(b"{}", "rk", {}), 2, "err")  # no raise
+    await c._retry_message(ap.IncomingMessage(b"{}", "rk", {}), 2, "err") 
 
 # ------------------------------ _send_to_dead_letter_queue ------------------------------
 @pytest.mark.asyncio
@@ -368,7 +359,7 @@ async def test_send_to_dlq_without_queue_is_noop():
     c = make_consumer()
     await c.connect()
     c.dead_letter_queue = None
-    await c._send_to_dead_letter_queue(ap.IncomingMessage(b"{}", "rk", {}), "e")  # no raise
+    await c._send_to_dead_letter_queue(ap.IncomingMessage(b"{}", "rk", {}), "e") 
 
 @pytest.mark.asyncio
 async def test_send_to_dlq_with_exchange_publish_and_failure():
@@ -379,7 +370,7 @@ async def test_send_to_dlq_with_exchange_publish_and_failure():
     await c._send_to_dead_letter_queue(ap.IncomingMessage(b"{}", "rk", {}), "e1")
     assert ex.published and ex.published[-1][1] == "failed"
     ex._raise = RuntimeError("x")
-    await c._send_to_dead_letter_queue(ap.IncomingMessage(b"{}", "rk", {}), "e2")  # no raise
+    await c._send_to_dead_letter_queue(ap.IncomingMessage(b"{}", "rk", {}), "e2") 
 
 # ------------------------------ _handle_message ------------------------------
 @pytest.mark.asyncio
@@ -393,7 +384,7 @@ async def test_handle_message_valid_handler_and_no_handler(monkeypatch):
     await c._handle_message(msg)
     assert called["ok"][0] == {"a":2}
     msg2 = ap.IncomingMessage(b'{"b":3}', "vehicle.unknown", headers={})
-    await c._handle_message(msg2)  # should not raise
+    await c._handle_message(msg2)  
 
 @pytest.mark.asyncio
 async def test_handle_message_bad_json_and_not_dict():
@@ -450,7 +441,6 @@ async def test_declare_queue_precondition_failed_branch_recreate_then_passive(mo
     err = RuntimeError("PRECONDITION_FAILED - inequivalent arg; Channel closed")
     c.channel._precondition_error = err
     async def recreate_stub():
-        # swap connection._channel to a NEW channel so passive declare can succeed
         new_ch = FakeChannel()
         await new_ch.declare_queue("management_service_events", passive=False)
         c.connection._channel = new_ch
@@ -472,15 +462,12 @@ async def test_recreate_channel_creates_new_and_sets_qos(monkeypatch):
     c = make_consumer()
     await c.connect()
     old = c.channel
-    # Make connection.channel() hand back a NEW channel instance
     async def new_channel(*a, **k):
         ch = FakeChannel()
         return ch
-    # monkeypatch the connection to use a fresh channel and update c.channel inside helper
     async def recreate_impl():
         if c.channel and not c.channel.is_closed:
             await c.channel.close()
-        # set NEW channel on the connection and on the consumer
         c.connection._channel = await new_channel()
         c.channel = c.connection._channel
         await c.channel.set_qos(prefetch_count=5)
@@ -523,12 +510,9 @@ def make_handlers():
 @pytest.mark.asyncio
 async def test_handlers_getters_and_safe_refresh(monkeypatch):
     h = make_handlers()
-    # Without analytics service: should do nothing
     await h._safe_refresh_analytics("x")
-    # Install analytics service and verify refresh gets invoked (either awaited or scheduled)
     svc = _install_analytics_service()
     await h._safe_refresh_analytics("y")
-    # The stub increments a counter whenever called; assert it ran once
     assert type(svc).called == 0
 
 @pytest.mark.asyncio

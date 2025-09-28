@@ -240,7 +240,6 @@ def test_user_exists_primary_200(monkeypatch):
     assert r.json() == {"userExists": True}
 
 def test_user_exists_fallback_count_true(monkeypatch):
-    # first 404 then count 200 with count > 0
     seq = [FakeResponse(404), FakeResponse(200, {"count": 3})]
     def fake_get(*a, **k):
         return seq.pop(0)
@@ -444,9 +443,9 @@ def test_users_first_requestexception_second_success(monkeypatch):
 
 def test_users_all_attempts_then_last_non200_raises(monkeypatch):
     seq = [
-        FakeResponse(500, {"detail": "bad"}),               # /users
-        FakeResponse(500, {"detail": "worse"}),             # /auth/users
-        FakeResponse(418, {"detail": "teapot"})             # /users/
+        FakeResponse(500, {"detail": "bad"}),            
+        FakeResponse(500, {"detail": "worse"}),             
+        FakeResponse(418, {"detail": "teapot"})             
     ]
     monkeypatch.setattr(auth.requests, "get", lambda *a, **k: seq.pop(0))
     r = client.get("/auth/users", headers={"Authorization": "Bearer T"})
@@ -461,7 +460,6 @@ def test_users_eventual_requestexception_returns_empty_list(monkeypatch):
     assert r.status_code == 503
 
 def test_users_json_decode_error_502(monkeypatch):
-    # Make requests.JSONDecodeError be ValueError and raise it from .json()
     monkeypatch.setattr(auth.requests, "JSONDecodeError", ValueError, raising=False)
     monkeypatch.setattr(auth.requests, "get", lambda *a, **k: RaiseJSON(ValueError, status_code=200))
     r = client.get("/auth/users", headers={"Authorization": "Bearer T"})
@@ -481,7 +479,6 @@ def test_invite_user_success(monkeypatch):
     assert r.status_code == 200
 
 def test_invite_user_email_failure_with_json(monkeypatch):
-    # 400 containing "email" in text triggers 503 with friendly message
     monkeypatch.setattr(auth.requests, "post", lambda *a, **k: FakeResponse(400, {"detail": "smtp down"}, text="EMAIL sending failed"))
     r = client.post("/auth/invite-user", headers={"Authorization": "Bearer T"}, json={"email": "x@y.z"})
     assert r.status_code == 500

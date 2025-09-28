@@ -140,7 +140,7 @@ def import_auth_utils():
                 continue
             mod = importlib.util.module_from_spec(spec)
             sys.modules[fqname] = mod
-            spec.loader.exec_module(mod)  # type: ignore[attr-defined]
+            spec.loader.exec_module(mod)  
             return mod
 
     raise ImportError("Unable to locate security/utils/auth_utils.py")
@@ -351,8 +351,8 @@ async def test_get_current_user_returns_decoded_user():
 def test_get_role_permissions_override_and_defaults_and_unknown():
     with SysModulesSandbox():
         mod = import_auth_utils()
-        assert mod.get_role_permissions("driver")  # default exists
-        assert mod.get_role_permissions("admin")   # "*"
+        assert mod.get_role_permissions("driver")  
+        assert mod.get_role_permissions("admin")   
         assert mod.get_role_permissions("x") == []
         assert mod.get_role_permissions("driver", ["custom"]) == ["custom"]
 
