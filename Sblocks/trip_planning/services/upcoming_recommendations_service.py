@@ -16,13 +16,12 @@ from services.trip_service import trip_service
 logger = logging.getLogger(__name__)
 
 # Configuration constants
-MAX_TRAVEL_DISTANCE_KM = 15.0  # Max distance between trips to consider combination
-MIN_TIME_BUFFER_MINUTES = 300   # Minimum time between trip end and next start
-MAX_TIME_BUFFER_HOURS = 4      # Maximum time gap to consider combination
-MIN_TIME_SAVINGS_MINUTES = 20  # Minimum time savings to recommend combination
-MAX_ADDITIONAL_DISTANCE_KM = 10.0  # Max additional distance acceptable
-DRIVER_EFFICIENCY_WEIGHT = 0.3  # Weight for driver efficiency in scoring
-
+MAX_TRAVEL_DISTANCE_KM = 25.0  
+MIN_TIME_BUFFER_MINUTES = 180  
+MAX_TIME_BUFFER_HOURS = 8      
+MIN_TIME_SAVINGS_MINUTES = 10  
+MAX_ADDITIONAL_DISTANCE_KM = 15.0
+MINIMUM_SCORE_THRESHOLD = 0.15  
 
 ORS_API_KEY = os.getenv("ORS_API_KEY")
 
@@ -99,30 +98,93 @@ class UpcomingRecommendationsService:
             logger.warning(f"Error calculating time gap: {e}")
             logger.debug(f"Trip1 end: {trip1_end}, Trip2 start: {trip2_start}")
             return 0
+
+    def _calculate_combination_score(self, primary_trip: Trip, secondary_trip: Trip, 
+                               benefits: Dict[str, Any], travel_distance: float, 
+                               time_gap: float) -> float:
+        """Enhanced scoring with more flexible criteria"""
+        score = 0.0
+        
+        # Time savings component (0-0.4) - more generous scoring
+        time_savings = benefits.get("time_savings_minutes", 0)
+        if time_savings > 5:  # Even 5+ minutes gets some points
+            score += min(0.4, (time_savings / 60.0))  # Max score at 1 hour savings
+        
+        # Distance efficiency component (0-0.3) - allow small negative savings
+        distance_savings = benefits.get("distance_savings_km", 0)
+        if distance_savings > -2.0:  # Allow up to 2km additional distance
+            normalized_savings = max(0, distance_savings + 2) / 15.0  # Normalize to 0-1
+            score += min(0.3, normalized_savings)
+        
+        # Travel distance component (0-0.2) - more generous distance allowances
+        if travel_distance <= 8.0:
+            score += 0.2
+        elif travel_distance <= 15.0:
+            score += 0.15
+        elif travel_distance <= 25.0:
+            score += 0.1
+        # Still give some points for longer distances
+        
+        # Time gap efficiency (0-0.1) - broader acceptable range
+        if 0.25 <= time_gap <= 3.0:  # Sweet spot: 15min - 3 hours
+            score += 0.1
+        elif time_gap <= 8.0:  # Up to 8 hours still gets partial points
+            score += 0.05
+        
+        # Bonus points for operational efficiency
+        operational_bonus = 0.0
+        
+        # Same vehicle type bonus
+        if hasattr(primary_trip, 'vehicle_type') and hasattr(secondary_trip, 'vehicle_type'):
+            if primary_trip.vehicle_type == secondary_trip.vehicle_type:
+                operational_bonus += 0.05
+        
+        # Similar priority levels
+        primary_priority = getattr(primary_trip, 'priority', 'normal')
+        secondary_priority = getattr(secondary_trip, 'priority', 'normal')
+        if primary_priority == secondary_priority:
+            operational_bonus += 0.03
+        
+        # Driver utilization bonus (always applicable for combinations)
+        operational_bonus += 0.05
+        
+        final_score = min(1.0, max(0.0, score + operational_bonus))
+        
+        logger.debug(f"Flexible scoring breakdown:")
+        logger.debug(f"  Time savings component: {min(0.4, time_savings/60.0):.3f}")
+        logger.debug(f"  Distance efficiency: {min(0.3, max(0, distance_savings + 2) / 15.0):.3f}")
+        logger.debug(f"  Travel distance bonus: varies by distance")
+        logger.debug(f"  Time gap bonus: varies by gap")
+        logger.debug(f"  Operational bonus: {operational_bonus:.3f}")
+        logger.debug(f"  Final score: {final_score:.3f}")
+        
+        return final_score
     
     async def _check_time_feasibility(self, trip1: Trip, trip2: Trip, travel_distance_km: float, 
-                                available_time_hours: float) -> tuple[bool, float, float]:
+                            available_time_hours: float) -> tuple[bool, float, float]:
         """
-        Check if there's enough time to travel between trip1 end and trip2 start
+        More flexible time feasibility check
         Returns: (is_feasible, required_travel_time_minutes, time_buffer_minutes)
         """
         try:
-            # If trips overlap or have negative time gap, not feasible
             if available_time_hours <= 0:
                 return False, 0, 0
             
             available_time_minutes = available_time_hours * 60
             
-            # Method 1: Quick estimation using distance and average speed
-            # Assume average city driving speed of 30 km/h (conservative estimate)
-            AVERAGE_CITY_SPEED_KMH = 30
-            estimated_travel_time_minutes = (travel_distance_km / AVERAGE_CITY_SPEED_KMH) * 60
+            # More flexible speed assumptions based on distance and time of day
+            if travel_distance_km <= 5.0:
+                AVERAGE_SPEED_KMH = 25  # City driving
+            elif travel_distance_km <= 15.0:
+                AVERAGE_SPEED_KMH = 35  # Mixed driving
+            else:
+                AVERAGE_SPEED_KMH = 50  # Highway driving
             
-            # Add buffer time for:
-            # - Traffic variations: 20% extra time
-            # - Driver break/preparation: 10 minutes minimum
-            TRAFFIC_BUFFER_PERCENT = 0.2
-            MIN_PREPARATION_TIME_MINUTES = 10
+            estimated_travel_time_minutes = (travel_distance_km / AVERAGE_SPEED_KMH) * 60
+            
+            # Reduced buffer requirements for more flexibility
+            TRAFFIC_BUFFER_PERCENT = 0.15  # Reduced from 20% to 15%
+            MIN_PREPARATION_TIME_MINUTES = 5   # Reduced from 10min to 5min
             
             required_travel_time_minutes = (
                 estimated_travel_time_minutes * (1 + TRAFFIC_BUFFER_PERCENT) + 
@@ -130,22 +192,22 @@ class UpcomingRecommendationsService:
             )
             
             time_buffer_minutes = available_time_minutes - required_travel_time_minutes
-            is_feasible = time_buffer_minutes >= 0
             
-            logger.debug(f"Time feasibility check:")
+            # More lenient feasibility - allow negative buffer up to -10 minutes
+            is_feasible = time_buffer_minutes >= -10
+            
+            logger.debug(f"Flexible time feasibility check:")
             logger.debug(f"  Distance: {travel_distance_km:.2f}km")
             logger.debug(f"  Available time: {available_time_minutes:.1f}min")
-            logger.debug(f"  Estimated travel time: {estimated_travel_time_minutes:.1f}min")
             logger.debug(f"  Required time (with buffers): {required_travel_time_minutes:.1f}min")
             logger.debug(f"  Time buffer: {time_buffer_minutes:.1f}min")
-            logger.debug(f"  Feasible: {is_feasible}")
+            logger.debug(f"  Feasible (flexible): {is_feasible}")
             
             return is_feasible, required_travel_time_minutes, time_buffer_minutes
             
         except Exception as e:
             logger.error(f"Error checking time feasibility: {e}")
             return False, 0, 0
-
     async def _get_route_with_waypoints(self, start_location_lat, start_location_long, end_location_lat, end_location_long, waypoints=[]):
         try:
             # Build coordinates array in [lng, lat] format
@@ -214,7 +276,6 @@ class UpcomingRecommendationsService:
             logger.error(f"Route calculation failed: {e}")
             return None
 
-
     async def _calculate_combined_route_info(self, primary_trip: Trip, secondary_trip: Trip) -> Optional[RouteInfo]:
         """Calculate route information for combined trip with full coordinates"""
         try:
@@ -255,6 +316,51 @@ class UpcomingRecommendationsService:
             logger.error(f"Secondary trip origin: {secondary_trip.origin.location.coordinates}")
             logger.error(f"Secondary trip destination: {secondary_trip.destination.location.coordinates}")
             return None
+        
+    def _calculate_combination_benefits(self, primary_trip: Trip, secondary_trip: Trip, 
+                                 combined_route: RouteInfo) -> Dict[str, Any]:
+        """Calculate benefits with more realistic expectations"""
+        
+        # Original totals
+        original_distance = primary_trip.estimated_distance + secondary_trip.estimated_distance
+        original_duration = primary_trip.estimated_duration + secondary_trip.estimated_duration
+        
+        # Combined totals
+        combined_distance = combined_route.distance / 1000.0
+        combined_duration = combined_route.duration / 60.0
+        
+        # Calculate savings (can be negative)
+        distance_savings = original_distance - combined_distance
+        time_savings = original_duration - combined_duration
+        
+        # More realistic benefit descriptions
+        if distance_savings >= 0:
+            distance_description = f"{distance_savings:.1f}km distance saved"
+        else:
+            distance_description = f"{abs(distance_savings):.1f}km additional distance (acceptable for consolidation)"
+        
+        if time_savings >= 0:
+            time_description = f"{time_savings:.0f} minutes saved"
+        else:
+            time_description = f"{abs(time_savings):.0f} minutes additional time (offset by operational efficiency)"
+        
+        # Enhanced cost calculation considering driver consolidation
+        driver_cost_savings = 50.0  # Fixed savings from using one driver instead of two
+        fuel_cost_change = distance_savings * 0.15  # $0.15 per km
+        total_cost_savings = driver_cost_savings + fuel_cost_change
+        
+        return {
+            "distance_savings_km": distance_savings,
+            "time_savings_minutes": time_savings,
+            "distance_description": distance_description,
+            "time_description": time_description,
+            "driver_consolidation_savings": "$50.00 from single driver deployment",
+            "fuel_cost_impact": f"${fuel_cost_change:.2f} fuel {'savings' if fuel_cost_change >= 0 else 'cost'}",
+            "total_cost_savings": f"${total_cost_savings:.2f}",
+            "combined_distance_km": combined_distance,
+            "combined_duration_minutes": combined_duration,
+            "operational_efficiency": "High - single driver handles multiple deliveries"
+        }
 
     def _calculate_combination_benefits(self, primary_trip: Trip, secondary_trip: Trip, 
                                      combined_route: RouteInfo) -> Dict[str, Any]:
@@ -318,21 +424,23 @@ class UpcomingRecommendationsService:
             score += 0.05
         
         return min(1.0, max(0.0, score))
-
+    
     async def find_combination_opportunities(self) -> List[TripCombinationRecommendation]:
-        """Find opportunities to combine upcoming trips"""
+        """Find opportunities to combine upcoming trips with flexible criteria"""
         try:
             trips = await trip_service.get_all_upcoming_trips()
             recommendations = []
             processed_pairs = set()
             
-            logger.info(f"Analyzing {len(trips)} trips for combination opportunities")
+            logger.info(f"Analyzing {len(trips)} trips with FLEXIBLE criteria")
+            logger.info(f"Flexible constraints: max_distance={MAX_TRAVEL_DISTANCE_KM}km, "
+                    f"min_time_savings={MIN_TIME_SAVINGS_MINUTES}min, "
+                    f"min_score={MINIMUM_SCORE_THRESHOLD}")
             
             # Log trip details for debugging
             for idx, trip in enumerate(trips):
                 logger.info(f"Trip {idx}: '{trip.name}' - Driver: {trip.driver_assignment}, "
                         f"Start: {trip.scheduled_start_time}, End: {trip.scheduled_end_time}")
-            logger.info(f"Time gap constraints: {MIN_TIME_BUFFER_MINUTES}min - {MAX_TIME_BUFFER_HOURS}h")
             
             total_pairs = 0
             filtered_out = {
@@ -341,8 +449,8 @@ class UpcomingRecommendationsService:
                 'time_feasibility': 0,
                 'time_gap': 0,
                 'route_calculation_failed': 0,
-                'insufficient_time_savings': 0,
-                'negative_distance_savings': 0,
+                'insufficient_benefits': 0,
+                'extreme_distance_penalty': 0,
                 'low_score': 0
             }
             
@@ -354,14 +462,14 @@ class UpcomingRecommendationsService:
                     total_pairs += 1
                     pair_key = tuple(sorted([primary_trip.id, secondary_trip.id]))
                     
-                    logger.debug(f"Evaluating pair {total_pairs}: {primary_trip.name} -> {secondary_trip.name}")
+                    logger.debug(f"Evaluating flexible pair {total_pairs}: {primary_trip.name} -> {secondary_trip.name}")
                     
                     if pair_key in processed_pairs:
                         logger.debug(f"Pair already processed, skipping")
                         continue
                     processed_pairs.add(pair_key)
                     
-                    # Check same driver filter
+                    # Check same driver filter (still required)
                     if primary_trip.driver_assignment == secondary_trip.driver_assignment:
                         filtered_out['same_driver'] += 1
                         logger.debug(f"Same driver assigned ({primary_trip.driver_assignment}), skipping")
@@ -373,74 +481,84 @@ class UpcomingRecommendationsService:
                     
                     logger.debug(f"Travel distance: {travel_distance:.2f}km, Available time: {available_time_gap:.2f}h")
                     
-                    # Apply distance filter (keep this as a sanity check)
+                    # More lenient distance filter
                     if travel_distance > MAX_TRAVEL_DISTANCE_KM:
                         filtered_out['travel_distance'] += 1
-                        logger.debug(f"Travel distance {travel_distance:.2f}km > {MAX_TRAVEL_DISTANCE_KM}km, skipping")
+                        logger.debug(f"Travel distance {travel_distance:.2f}km > {MAX_TRAVEL_DISTANCE_KM}km (flexible limit)")
                         continue
                     
-                    # Check time feasibility - calculate if there's enough time to travel between trips
+                    # Flexible time feasibility check
                     is_time_feasible, required_travel_time, time_buffer = await self._check_time_feasibility(
                         primary_trip, secondary_trip, travel_distance, available_time_gap
                     )
                     
                     if not is_time_feasible:
                         filtered_out['time_feasibility'] += 1
-                        logger.info(f"❌ TIME FEASIBILITY: {primary_trip.name} -> {secondary_trip.name}: "
+                        logger.info(f"❌ TIME FEASIBILITY (flexible): {primary_trip.name} -> {secondary_trip.name}: "
                                 f"available={available_time_gap*60:.0f}min, required={required_travel_time:.0f}min, "
                                 f"buffer={time_buffer:.0f}min")
                         continue
                     
-                    logger.info(f"✓ TIME FEASIBLE: {primary_trip.name} -> {secondary_trip.name}: "
+                    logger.info(f"✓ TIME FEASIBLE (flexible): {primary_trip.name} -> {secondary_trip.name}: "
                             f"available={available_time_gap*60:.0f}min, required={required_travel_time:.0f}min, "
                             f"buffer={time_buffer:.0f}min")
                     
-                    logger.debug(f"Calculating combined route for viable pair...")
+                    logger.debug(f"Calculating combined route for viable flexible pair...")
                     
-                    # Calculate combined route
+                    # Calculate combined route with fallback
                     combined_route = await self._calculate_combined_route_info(primary_trip, secondary_trip)
                     if not combined_route:
                         filtered_out['route_calculation_failed'] += 1
-                        logger.debug("Combined route calculation failed, skipping")
+                        logger.debug("Combined route calculation failed completely, skipping")
                         continue
                     
                     logger.debug(f"Combined route: {combined_route.distance/1000:.2f}km, {combined_route.duration/60:.1f}min")
                     
-                    # Calculate benefits
+                    # Calculate benefits with flexible expectations
                     benefits = self._calculate_combination_benefits(primary_trip, secondary_trip, combined_route)
                     
-                    logger.debug(f"Benefits: time_savings={benefits.get('time_savings_minutes', 0):.1f}min, "
+                    logger.debug(f"Flexible benefits: time_savings={benefits.get('time_savings_minutes', 0):.1f}min, "
                             f"distance_savings={benefits.get('distance_savings_km', 0):.2f}km")
                     
-                    # Check if benefits meet minimum criteria
+                    # More lenient benefit requirements
                     time_savings = benefits.get("time_savings_minutes", 0)
-                    if time_savings < MIN_TIME_SAVINGS_MINUTES:
-                        filtered_out['insufficient_time_savings'] += 1
-                        logger.debug(f"Time savings {time_savings:.1f}min < {MIN_TIME_SAVINGS_MINUTES}min, skipping")
-                        continue
-                    
                     distance_savings = benefits.get("distance_savings_km", 0)
-                    if distance_savings < 0:
-                        filtered_out['negative_distance_savings'] += 1
-                        logger.debug(f"Negative distance savings {distance_savings:.2f}km, skipping")
+                    
+                    # Allow combinations with minimal time savings if other benefits exist
+                    if time_savings < MIN_TIME_SAVINGS_MINUTES:
+                        # Check if distance penalty is acceptable (operational efficiency can offset)
+                        if distance_savings < -5.0:
+                            filtered_out['insufficient_benefits'] += 1
+                            logger.debug(f"Time savings {time_savings:.1f}min < {MIN_TIME_SAVINGS_MINUTES}min AND "
+                                    f"distance penalty {abs(distance_savings):.2f}km > 5km")
+                            continue
+                        else:
+                            logger.debug(f"Time savings below minimum but distance impact acceptable: "
+                                    f"{time_savings:.1f}min, {distance_savings:.2f}km")
+                    
+                    # Only reject extreme distance penalties (>10km additional)
+                    if distance_savings < -10.0:
+                        filtered_out['extreme_distance_penalty'] += 1
+                        logger.debug(f"Extreme distance penalty {abs(distance_savings):.2f}km > 10km, skipping")
                         continue
                     
-                    # Calculate score
+                    # Calculate flexible score
                     score = self._calculate_combination_score(
                         primary_trip, secondary_trip, benefits, travel_distance, available_time_gap
                     )
                     
-                    logger.debug(f"Combination score: {score:.3f}")
+                    logger.debug(f"Flexible combination score: {score:.3f}")
                     
-                    if score < 0.3:
+                    # More lenient score threshold
+                    if score < MINIMUM_SCORE_THRESHOLD:
                         filtered_out['low_score'] += 1
-                        logger.debug(f"Score {score:.3f} < 0.3, skipping")
+                        logger.debug(f"Score {score:.3f} < {MINIMUM_SCORE_THRESHOLD} (flexible threshold)")
                         continue
                     
-                    logger.info(f"✓ VIABLE COMBINATION FOUND: {primary_trip.name} + {secondary_trip.name} "
-                            f"(score: {score:.3f}, time_savings: {time_savings:.1f}min)")
+                    logger.info(f"✓ VIABLE FLEXIBLE COMBINATION: {primary_trip.name} + {secondary_trip.name} "
+                            f"(score: {score:.3f}, time_savings: {time_savings:.1f}min, distance_impact: {distance_savings:.2f}km)")
                     
-                    # Create recommendation
+                    # Create enhanced recommendation
                     recommendation = TripCombinationRecommendation(
                         id=f"combo_{primary_trip.id[:8]}_{secondary_trip.id[:8]}",
                         primary_trip_id=primary_trip.id,
@@ -455,11 +573,14 @@ class UpcomingRecommendationsService:
                         benefits=benefits,
                         confidence_score=score,
                         reasoning=[
-                            f"Combining trips saves {benefits['time_savings_minutes']:.0f} minutes",
-                            f"Travel distance between trips is only {travel_distance:.1f}km",
-                            f"Time gap of {available_time_gap:.1f} hours allows comfortable transition",
-                            f"One driver can handle both trips efficiently",
-                            f"Reduces overall fleet utilization"
+                            f"Operational efficiency: {benefits.get('operational_efficiency', 'Single driver consolidation')}",
+                            f"Distance impact: {benefits.get('distance_description', f'{distance_savings:.1f}km change')}",
+                            f"Time impact: {benefits.get('time_description', f'{time_savings:.0f}min change')}",
+                            f"Cost benefit: {benefits.get('total_cost_savings', 'Driver consolidation savings')}",
+                            f"Travel distance: {travel_distance:.1f}km (within {MAX_TRAVEL_DISTANCE_KM}km flexible limit)",
+                            f"Time gap: {available_time_gap:.1f}h allows comfortable transition",
+                            f"Driver consolidation reduces fleet complexity",
+                            f"Confidence score: {score:.2f} (flexible threshold: {MINIMUM_SCORE_THRESHOLD})"
                         ],
                         created_at=datetime.utcnow(),
                         expires_at=datetime.utcnow() + timedelta(hours=24)
@@ -467,25 +588,44 @@ class UpcomingRecommendationsService:
                     
                     recommendations.append(recommendation)
             
-            # Log filtering summary
-            logger.info(f"FILTERING SUMMARY:")
+            # Log enhanced filtering summary
+            logger.info(f"FLEXIBLE FILTERING SUMMARY:")
             logger.info(f"  Total pairs evaluated: {total_pairs}")
             logger.info(f"  Filtered out by same driver: {filtered_out['same_driver']}")
-            logger.info(f"  Filtered out by travel distance: {filtered_out['travel_distance']}")
+            logger.info(f"  Filtered out by travel distance (>{MAX_TRAVEL_DISTANCE_KM}km): {filtered_out['travel_distance']}")
             logger.info(f"  Filtered out by time feasibility: {filtered_out['time_feasibility']}")
             logger.info(f"  Filtered out by route calculation failure: {filtered_out['route_calculation_failed']}")
-            logger.info(f"  Filtered out by insufficient time savings: {filtered_out['insufficient_time_savings']}")
-            logger.info(f"  Filtered out by negative distance savings: {filtered_out['negative_distance_savings']}")
-            logger.info(f"  Filtered out by low score: {filtered_out['low_score']}")
+            logger.info(f"  Filtered out by insufficient benefits: {filtered_out['insufficient_benefits']}")
+            logger.info(f"  Filtered out by extreme distance penalty (>10km): {filtered_out['extreme_distance_penalty']}")
+            logger.info(f"  Filtered out by low score (<{MINIMUM_SCORE_THRESHOLD}): {filtered_out['low_score']}")
+            
+            # Enhanced acceptance rate logging
+            total_filtered = sum(filtered_out.values())
+            acceptance_rate = (len(recommendations) / total_pairs * 100) if total_pairs > 0 else 0
+            logger.info(f"  Acceptance rate: {acceptance_rate:.1f}% ({len(recommendations)}/{total_pairs} pairs)")
             
             # Sort by confidence score
             recommendations.sort(key=lambda r: r.confidence_score, reverse=True)
             
-            logger.info(f"Generated {len(recommendations)} trip combination recommendations")
-            return recommendations[:10]  # Return top 10
+            # Enhanced recommendation summary
+            if recommendations:
+                logger.info(f"FLEXIBLE RECOMMENDATIONS GENERATED: {len(recommendations)}")
+                for i, rec in enumerate(recommendations[:5]):  # Log top 5
+                    logger.info(f"  #{i+1}: {rec.primary_trip_name} + {rec.secondary_trip_name} "
+                            f"(score: {rec.confidence_score:.3f}, "
+                            f"time: {rec.benefits.get('time_savings_minutes', 0):.0f}min, "
+                            f"distance: {rec.benefits.get('distance_savings_km', 0):.1f}km)")
+            else:
+                logger.warning(f"No flexible recommendations generated despite relaxed criteria")
+                logger.warning(f"Consider further relaxing constraints or checking trip data quality")
+            
+            logger.info(f"Returning top {min(15, len(recommendations))} flexible recommendations")
+            return recommendations[:15]  # Return top 15 instead of 10
             
         except Exception as e:
-            logger.error(f"Error finding combination opportunities: {e}")
+            logger.error(f"Error in flexible combination analysis: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return []
 
     async def store_recommendation(self, recommendation: TripCombinationRecommendation):

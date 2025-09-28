@@ -978,6 +978,10 @@ class ServiceRequestConsumer:
                     if not completed_trip:
                         raise ValueError("Trip not found or could not be completed")
                     
+                    from services.notification_service import notification_service
+                    trip = await trip_service.get_trip_by_id(trip_id)
+                    await notification_service.notify_trip_completed(trip)
+                    
                     return ResponseBuilder.success(
                         data=completed_trip.model_dump(),
                         message="Trip completed successfully and moved to history"

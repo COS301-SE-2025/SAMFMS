@@ -26,7 +26,7 @@ class GeofenceService:
         try:
             query = {}
             if is_active is not None:
-                query["is_active"] = is_active
+                query["status"] = "active" if is_active else "inactive"
             if geofence_type:
                 query["type"] = geofence_type
 

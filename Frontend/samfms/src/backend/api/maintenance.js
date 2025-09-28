@@ -11,7 +11,7 @@ import {
 
 export const maintenanceAPI = {
   // Maintenance Records
-  async getMaintenanceRecords(vehicleId = null, status = null, page = 1, size = 20) {
+  async getMaintenanceRecords(vehicleId = null, status = null, page = 1, size = 1000) {
     return withRetry(async () => {
       const params = new URLSearchParams();
       if (vehicleId) params.append('vehicle_id', vehicleId);
@@ -582,7 +582,7 @@ export const maintenanceAPI = {
   },
 
   // Notifications
-  async getMaintenanceNotifications(page = 1, size = 20) {
+  async getMaintenanceNotifications(page = 1, size = 1000) {
     return withRetry(async () => {
       const response = await httpClient.get(
         `${API_ENDPOINTS.MAINTENANCE.NOTIFICATIONS.LIST}?page=${page}&size=${size}`
