@@ -50,19 +50,38 @@ const DriverBehaviorDrivers = ({ driverData: propDriverData, onDataUpdate }) => 
           params.risk_level = filterRisk;
         }
 
-        const response = await getAllDriverHistories(params);
+        const api = await getAllDriverHistories(params);
 
-        const driversData = response.drivers || [];
-        const totalDrivers = response.total || response.totalCount || driversData.length;
-        
+        // Unpack nested responses safely
+        const histories =
+          api?.data?.data?.histories ??
+          api?.data?.histories ??
+          api?.histories ??
+          api?.drivers ?? // keep supporting older "drivers" shape
+          [];
+
+        // Normalize fields so the table keeps working
+        const driversData = histories.map(d => ({
+          ...d,
+          // keep existing UI that expects `overallScore`
+          overallScore: d.driver_safety_score ?? d.overallScore,
+          // ensure the badge reads from backend risk
+          driver_risk_level: (d.driver_risk_level ?? d.risk_level ?? d.riskLevel ?? d.risk ?? 'low'),
+        }));
+
+        // Total/Count (support both nested & flat pagination)
+        const totalDrivers =
+          api?.data?.data?.pagination?.total ??
+          api?.data?.pagination?.total ??
+          api?.pagination?.total ??
+          histories.length;
+
         setDrivers(driversData);
         setTotalCount(totalDrivers);
         setTotalPages(Math.ceil(totalDrivers / limit));
 
-        // Notify parent component of data update
-        if (onDataUpdateRef.current) {
-          onDataUpdateRef.current(driversData);
-        }
+        // If you notify parent:
+        if (onDataUpdateRef.current) onDataUpdateRef.current(driversData);
 
       } catch (err) {
         console.error('Error loading drivers data:', err);
@@ -134,9 +153,10 @@ const DriverBehaviorDrivers = ({ driverData: propDriverData, onDataUpdate }) => 
     return () => clearTimeout(debounceTimer);
   }, [searchTerm, propDriverData]);
 
-  const getRiskLevel = (score) => {
-    if (score < 7) return { level: 'High', color: 'text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-400' };
-    if (score < 8.5) return { level: 'Medium', color: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400' };
+  const getRiskLevel = (riskLevel) => {
+    const level = (riskLevel || 'low').toLowerCase();
+    if (level === 'high') return { level: 'High', color: 'text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-400' };
+    if (level === 'medium') return { level: 'Medium', color: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400' };
     return { level: 'Low', color: 'text-green-600 bg-green-100 dark:bg-green-900/20 dark:text-green-400' };
   };
 
@@ -301,7 +321,7 @@ const DriverBehaviorDrivers = ({ driverData: propDriverData, onDataUpdate }) => 
             </thead>
             <tbody className="bg-gradient-to-b from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
               {displayDrivers.map((driver) => {
-                const riskInfo = getRiskLevel(parseFloat(driver.overallScore) || 0);
+                const riskInfo = getRiskLevel(driver.driver_risk_level);
                 const driverName = driver.name || driver.driver_name || 'Unknown Driver';
                 const employeeId = driver.employeeId || driver.driver_id || driver.id || 'N/A';
                 

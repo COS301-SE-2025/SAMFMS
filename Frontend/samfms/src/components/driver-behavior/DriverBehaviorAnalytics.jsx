@@ -8,6 +8,11 @@ const getTooltipTheme = () =>
   (typeof document !== 'undefined' &&
    document.documentElement.classList.contains('dark')) ? 'dark' : 'light';
 
+const getLabelColor = () => {
+  if (typeof document === 'undefined') return '#475569';
+  return document.documentElement.classList.contains('dark') ? '#cbd5e1' : '#475569';
+};
+
 const DriverBehaviorAnalytics = ({driverData}) => {
   const [analyticsData, setAnalyticsData] = useState({
     violationTrends: null,
@@ -123,17 +128,20 @@ const DriverBehaviorAnalytics = ({driverData}) => {
         xaxis: {
           categories: categories,
           labels: {
-            style: {colors: '#64748b', fontSize: '12px'}
+            style: {colors: getLabelColor(), fontSize: '12px'}
           }
         },
         yaxis: {
           labels: {
-            style: {colors: '#64748b', fontSize: '12px'}
+            style: {colors: getLabelColor(), fontSize: '12px'}
           }
         },
         legend: {
           position: 'top',
-          horizontalAlign: 'left'
+          horizontalAlign: 'left',
+          labels: {
+            colors: getLabelColor()
+          }
         },
         tooltip: {
           shared: true,
@@ -191,7 +199,10 @@ const DriverBehaviorAnalytics = ({driverData}) => {
           }
         },
         legend: {
-          position: 'bottom'
+          position: 'bottom',
+          labels: {
+            colors: getLabelColor()
+          }
         },
         tooltip: {
           theme: getTooltipTheme(),
@@ -243,12 +254,12 @@ const DriverBehaviorAnalytics = ({driverData}) => {
         xaxis: {
           categories: ['Speeding', 'Harsh Braking', 'Rapid Acceleration', 'Phone Usage'],
           labels: {
-            style: {colors: '#64748b', fontSize: '12px'}
+            style: {colors: getLabelColor(), fontSize: '12px'}
           }
         },
         yaxis: {
           labels: {
-            style: {colors: '#64748b', fontSize: '12px'}
+            style: {colors: getLabelColor(), fontSize: '12px'}
           }
         },
         grid: {
@@ -303,12 +314,12 @@ const DriverBehaviorAnalytics = ({driverData}) => {
         dataLabels: {enabled: false},
         xaxis: {
           labels: {
-            style: {colors: '#64748b', fontSize: '12px'}
+            style: {colors: getLabelColor(), fontSize: '12px'}
           }
         },
         yaxis: {
           labels: {
-            style: {colors: '#64748b', fontSize: '12px'}
+            style: {colors: getLabelColor(), fontSize: '12px'}
           }
         },
         grid: {
