@@ -18,24 +18,27 @@
 
 ## 📚 Documentation
 
-| Resource | Link |
-|---|---|
-| SRS & Architecture | [Requirements](docs/Demo4/Software%20Requirement%20Specification.pdf) |
-| Project Board | [GitHub Projects](https://github.com/orgs/COS301-SE-2025/projects/208/views/2) |
-| Coding Standards | [Guide](docs/Demo4/SAMFMS%20Coding%20Standards%20Document.pdf) |
-| Technical Installation | [Install Guide](docs/Demo4/SAMFMS%20Technical%20Installation%20Guide.pdf) |
-| User Manual | [Manual](docs/Demo4/SAMFMS%20User%20Manual%20Final.pdf) |
-| Deployment Strategy | [Deployment Model](docs/Demo4/Deployment%20Strategy.pdf) |
-| Service Contracts | [Contracts](docs/Demo4/Service%20Contracts.pdf) |
-| Branching Strategy | [Strategy](docs/Demo4/Branching_Strategy.pdf) |
-| Updated Domain Model | [Domain Model](docs/Demo4/images/domainModel.png) |
+| Demo 1 | Demo 2 | Demo 3  | Demo 4 |
+|---|---|---|---|
+|[SRS & Architecture](docs/Demo1/Software%20Requirement%20Specification.pdf)|[SRS & Architecture](docs/Demo2/Software%20Requirement%20Specification.pdf)| [SRS & Architecture](docs/Demo3/Software%20Requirement%20Specification.pdf) | [SRS & Architecture](docs/Demo4/Software%20Requirement%20Specification.pdf) |
+||| [Project Board](https://github.com/orgs/COS301-SE-2025/projects/208/views/2) | [Project Board](https://github.com/orgs/COS301-SE-2025/projects/208/views/2) |
+||| [Coding Standards](docs/Demo3/Coding_Standards.pdf) | [Coding Standards](docs/Demo4/SAMFMS%20Coding%20Standards%20Document.pdf) |
+||| [Technical Installation](docs/Demo3/Technical_Installation_Guide.pdf) | [Technical Installation](docs/Demo4/SAMFMS%20Technical%20Installation%20Guide.pdf) |
+||| [User Manual](docs/Demo3/SAMFMS%20User%20Manual.pdf) | [User Manual](docs/Demo4/SAMFMS%20User%20Manual%20Final.pdf) |
+||| [Deployment Strategy](docs/Demo3/Deployment%20Strategy.pdf) | [Deployment Strategy](docs/Demo4/Deployment%20Strategy.pdf) |
+||| [Service Contracts](docs/Demo3/Service%20Contracts-1.pdf) | [Service Contracts](docs/Demo4/Service%20Contracts.pdf) |
+|[Branching Strategy](docs/Demo1/Branching_Strategy.pdf)|[Branching Strategy](docs/Demo2/Branching_Strategy.pdf)| [Branching Strategy](docs/Demo3/Branching_Strategy.pdf) | [Branching Strategy](docs/Demo4/Branching_Strategy.pdf) |
+||| [Updated Domain Model](docs/Demo3/images/DomainModel.png) | [Domain Model](docs/Demo4/images/domainModel.png) |
+||||[Testing Policy](docs/Demo4/Testing%20Policy.docx-3.pdf)|
+
 
 
 Older docs:
-- Demo 1 SRS: [Google Doc](https://docs.google.com/document/d/1En1Mck7JwaSdKjgyvRhmX5pXqHhVSUlhZhp7XU-f_K4/edit?tab=t.0)
-- Demo 2 SRS: [Google Doc](https://docs.google.com/document/d/1G0PdNyn39kSutfvn8tCN5x-yCHrte0QFu_v2-gYdXPU/edit?tab=t.0)
 - Demo 2 Slides: [Canva Presentation](https://www.canva.com/design/DAGrW5d1HYA/LC1cf0PKTY7MIsAVtObYPA/edit)
----
+
+## Demo Video
+[![Firewall Five — SAMFMS demo](https://img.youtube.com/vi/JEtQA2nmG4o/hqdefault.jpg)](https://www.youtube.com/watch?v=JEtQA2nmG4o)
+
 
 ## 👥 Team
 
