@@ -18,6 +18,8 @@
 
 ## 📚 Documentation
 
+Note: Table of contents for SRS is broken, everything is there.
+
 | Demo 1 | Demo 2 | Demo 3  | Demo 4 |
 |---|---|---|---|
 |[SRS & Architecture](docs/Demo1/Software%20Requirement%20Specification.pdf)|[SRS & Architecture](docs/Demo2/Software%20Requirement%20Specification.pdf)| [SRS & Architecture](docs/Demo3/Software%20Requirement%20Specification.pdf) | [SRS & Architecture](docs/Demo4/Software%20Requirement%20Specification.pdf) |
