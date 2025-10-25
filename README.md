@@ -14,6 +14,7 @@
 
 <!-- Optional project title under the logo -->
 <h1 align="center">Firewall Five — SAMFMS</h1>
+<h2 align="center">Winners of the Entelect Software Engineering Excellence Award 2025</h2>
 <p align="center">Modular Fleet Management System</p>
 
 ## 📚 Documentation
